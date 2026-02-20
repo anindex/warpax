@@ -1,0 +1,68 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "warpax"
+version = "0.1.0"
+description = "Observer-robust energy condition verification for warp drive spacetimes"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [
+    {name = "An T. Le", email = "an@robot-learning.de"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "jax>=0.9.0",
+    "equinox>=0.13.4",
+    "optimistix>=0.1.0",
+    "diffrax>=0.7.2",
+    "jaxtyping>=0.3.9",
+    "beartype>=0.22",
+    "sympy>=1.14",
+    "matplotlib>=3.9",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "tqdm>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/anindex/warpax"
+Documentation = "https://github.com/anindex/warpax#readme"
+Repository = "https://github.com/anindex/warpax"
+Issues = "https://github.com/anindex/warpax/issues"
+Author = "https://github.com/anindex"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1",
+]
+manim = [
+    "manim>=0.19.2",
+    "imageio>=2.31",
+    "imageio-ffmpeg>=0.4.9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/warpax"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+markers = ["slow: marks tests as slow (expensive grid tests)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

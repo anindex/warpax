@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+title: "WarpAX: Observer-robust energy condition verification for warp drive spacetimes"
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+authors:
+  - given-names: An T.
+    family-names: Le
+    email: an@robot-learning.de
+    orcid: "https://orcid.org/0009-0001-9725-5498"
+repository-code: "https://github.com/anindex/warpax"
+license: MIT
+version: 0.1.0
+date-released: "2026-02-21"
+keywords:
+  - warp drive
+  - general relativity
+  - energy conditions
+  - JAX
+  - automatic differentiation
+  - geodesics
+  - curvature
+abstract: >-
+  WarpAX uses JAX automatic differentiation to compute exact curvature tensors
+  from analytic warp drive metrics and performs continuous BFGS optimization over
+  the full timelike observer manifold to find worst-case energy condition
+  violations. This goes beyond the standard Eulerian-observer approach by
+  searching over all physically admissible observers, parameterized by bounded
+  rapidity in stereographic coordinates, to detect violations that axis-aligned
+  sampling can miss.

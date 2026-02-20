@@ -1,0 +1,33 @@
+{
+  "title": "WarpAX: Observer-robust energy condition verification for warp drive spacetimes",
+  "description": "WarpAX uses JAX automatic differentiation to compute exact curvature tensors from analytic warp drive metrics and performs continuous BFGS optimization over the full timelike observer manifold to find worst-case energy condition violations.",
+  "creators": [
+    {
+      "name": "Le, An T.",
+      "orcid": "0009-0001-9725-5498",
+      "affiliation": ""
+    }
+  ],
+  "license": "MIT",
+  "keywords": [
+    "warp drive",
+    "general relativity",
+    "energy conditions",
+    "JAX",
+    "automatic differentiation",
+    "geodesics",
+    "curvature",
+    "observer optimization",
+    "spacetime metrics"
+  ],
+  "upload_type": "software",
+  "access_right": "open",
+  "programming_language": "python",
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/anindex/warpax",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}
