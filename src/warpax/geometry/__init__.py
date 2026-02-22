@@ -26,6 +26,7 @@ from .grid import (
     evaluate_curvature_grid,
 )
 from .invariants import (
+    chern_pontryagin,
     compute_invariants,
     kretschner_scalar,
     ricci_squared,
@@ -44,6 +45,7 @@ __all__ = [
     "TensorField",
     "adm_to_full_metric",
     "build_coord_batch",
+    "chern_pontryagin",
     "christoffel_symbols",
     "compute_curvature_chain",
     "compute_invariants",
