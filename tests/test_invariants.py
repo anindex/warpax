@@ -14,6 +14,7 @@ from warpax.benchmarks.minkowski import MinkowskiMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
 from warpax.geometry.geometry import compute_curvature_chain
 from warpax.geometry.invariants import (
+    chern_pontryagin,
     compute_invariants,
     kretschner_scalar,
     ricci_squared,
@@ -119,12 +120,15 @@ class TestInvariantConvenience:
         R2_individual = ricci_squared(result.ricci, result.metric_inv)
         W2_individual = weyl_squared(K_individual, R2_individual, result.ricci_scalar)
 
+        CP_individual = chern_pontryagin(result.riemann, result.metric, result.metric_inv)
+
         # Convenience function
-        K_conv, R2_conv, W2_conv = compute_invariants(result)
+        K_conv, R2_conv, W2_conv, CP_conv = compute_invariants(result)
 
         assert_allclose(float(K_conv), float(K_individual), atol=0.0)
         assert_allclose(float(R2_conv), float(R2_individual), atol=0.0)
         assert_allclose(float(W2_conv), float(W2_individual), atol=0.0)
+        assert_allclose(float(CP_conv), float(CP_individual), atol=0.0)
 
     def test_invariants_float64_dtype(self):
         """All invariant outputs are float64."""
