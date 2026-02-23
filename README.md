@@ -19,6 +19,22 @@ coordinates, to detect violations that axis-aligned sampling can miss.
 
 <p align="center"><em>Geodesic paths through a collapsing Alcubierre warp bubble, computed via WarpAX's autodiff curvature pipeline.</em></p>
 
+### Custom metric design with robust EC validation
+
+Users can define their own warp manifold by subclassing `ADMMetric` and run the
+full verification pipeline. Below, a Gaussian warp bubble (shift = Gaussian envelope
+instead of the Alcubierre top-hat) is validated on a 24x24x4 grid. The three panels
+compare SEC margins seen by the Eulerian observer (left) vs the worst-case boosted
+observer found by BFGS optimization (center). The right panel highlights 356 grid
+points where the Eulerian frame incorrectly reports SEC as satisfied -- violations
+only visible to non-Eulerian observers.
+
+![Gaussian Warp Grid Comparison](./figures/gaussian_warp_grid_comparison.png)
+
+<p align="center"><em>SEC comparison for a custom Gaussian warp bubble (v<sub>s</sub> = 0.5). Red regions in the right panel are violations missed by Eulerian-only analysis.</em></p>
+
+See [`examples/07_custom_warp_metric.py`](examples/07_custom_warp_metric.py) for the full worked example.
+
 ## Quick start
 
 ```bash
@@ -37,6 +53,7 @@ pip install -e ".[dev]"
 | `examples/04_warp_drive_comparison.py` | Multi-metric comparison (6 warp drives) |
 | `examples/05_grid_analysis.py` | Grid-based EC verification |
 | `examples/06_geodesic_through_warp_bubble.py` | Geodesic integration with tidal forces and blueshift |
+| `examples/07_custom_warp_metric.py` | Custom warp manifold design with robust EC validation |
 
 Run any example:
 
