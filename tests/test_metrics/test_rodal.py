@@ -5,7 +5,8 @@ import jax.numpy as jnp
 
 from warpax.metrics import RodalMetric
 from warpax.geometry import compute_curvature_chain, SymbolicMetric, adm_to_full_metric
-from warpax.metrics.rodal import _alcubierre_shape, _rodal_G, _rodal_g_paper
+from warpax.metrics._common import alcubierre_shape
+from warpax.metrics.rodal import _rodal_G, _rodal_g_paper
 
 
 class TestRodal:
@@ -151,8 +152,8 @@ class TestRodal:
         # Radial shape F = f_Alc
         r_zero = jnp.array(0.0)
         r_far = jnp.array(1000.0)
-        F_0 = _alcubierre_shape(r_zero, R, sigma)
-        F_inf = _alcubierre_shape(r_far, R, sigma)
+        F_0 = alcubierre_shape(r_zero, R, sigma)
+        F_inf = alcubierre_shape(r_far, R, sigma)
         assert jnp.isclose(F_0, 1.0, atol=1e-6), f"F(0) = {F_0}"
         assert jnp.isclose(F_inf, 0.0, atol=1e-6), f"F(inf) = {F_inf}"
 

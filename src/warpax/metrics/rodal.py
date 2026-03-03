@@ -46,25 +46,12 @@ from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
 from ..geometry.metric import ADMMetric, SymbolicMetric
+from ._common import alcubierre_shape
 
 
 # ---------------------------------------------------------------------------
 # Shape function helpers (pure JAX)
 # ---------------------------------------------------------------------------
-
-
-def _alcubierre_shape(
-    r: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
-    """Standard Alcubierre top-hat shape function.
-
-    f_Alc(r) = [tanh(sigma*(r+R)) - tanh(sigma*(r-R))] / [2*tanh(sigma*R)]
-
-    f_Alc(0) ~ 1, f_Alc(inf) ~ 0.
-    """
-    return (jnp.tanh(sigma * (r + R)) - jnp.tanh(sigma * (r - R))) / (
-        2.0 * jnp.tanh(sigma * R)
-    )
 
 
 def _stable_logcosh(x: Float[Array, "..."]) -> Float[Array, "..."]:
@@ -163,7 +150,7 @@ class RodalMetric(ADMMetric):
         r_s_sq = dx**2 + y**2 + z**2
         r_safe = jnp.sqrt(r_s_sq + 1e-24)
 
-        F_val = _alcubierre_shape(r_safe, self.R, self.sigma)
+        F_val = alcubierre_shape(r_safe, self.R, self.sigma)
         G_val = _rodal_G(r_safe, self.R, self.sigma)
 
         # Unit direction vector n = (dx, y, z) / r_safe

@@ -24,19 +24,27 @@ FIGURES_DIR="${SCRIPT_DIR}/figures"
 # Parse flags
 KEEP_CACHE=false
 PHASE_ONLY=""
-for arg in "$@"; do
-    case "$arg" in
+while [ $# -gt 0 ]; do
+    case "$1" in
         --keep-cache) KEEP_CACHE=true ;;
-        --phase)      shift; PHASE_ONLY="$1" ;;
-        1|2|3)        PHASE_ONLY="$arg" ;;
+        --phase)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "Error: --phase requires an argument (1, 2, or 3)" >&2
+                exit 1
+            fi
+            PHASE_ONLY="$1"
+            ;;
+        1|2|3)        PHASE_ONLY="$1" ;;
         -h|--help)
             echo "Usage: $0 [--keep-cache] [--phase N]"
             echo "  --keep-cache  Skip cache deletion (only recompute missing results)"
             echo "  --phase N     Run only phase N (1=core, 2=ablations, 3=figures)"
             exit 0
             ;;
-        *) echo "Unknown option: $arg"; exit 1 ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
     esac
+    shift
 done
 
 PYTHON="${PYTHON:-python}"

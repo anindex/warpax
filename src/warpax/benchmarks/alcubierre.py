@@ -28,23 +28,15 @@ from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
 from ..geometry.metric import ADMMetric, SymbolicMetric
+from ..metrics._common import alcubierre_shape
+
+# Backward-compatible alias for external consumers
+_shape_function = alcubierre_shape
 
 
 # ---------------------------------------------------------------------------
 # Shape function helpers (pure JAX)
 # ---------------------------------------------------------------------------
-
-
-def _shape_function(
-    r_s: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
-    """Alcubierre shape function f(r_s).
-
-    f(r_s) = [tanh(sigma (r_s + R)) - tanh(sigma (r_s - R))] / [2 tanh(sigma R)]
-    """
-    return (jnp.tanh(sigma * (r_s + R)) - jnp.tanh(sigma * (r_s - R))) / (
-        2 * jnp.tanh(sigma * R)
-    )
 
 
 def _shape_function_derivative(

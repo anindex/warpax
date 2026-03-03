@@ -75,18 +75,23 @@ def _sec_objective(w, args):
 
 
 def _dec_objective(w, args):
-    """DEC objective: min(flux_causality_margin, future_directedness_margin).
+    """DEC objective: min(wec_margin, flux_causality_margin, future_directedness_margin).
 
+    WEC margin: T_{ab} u^a u^b (positive when WEC is satisfied).
     Flux causality: -g_{ab} j^a j^b (positive when flux is causal).
     Future-directedness: -j^a n_a (positive when flux is future-directed,
         where n = tetrad[0] is the future-pointing unit normal).
 
-    We minimize the worse (smaller) of the two margins to find the
-    observer that most violates either aspect of DEC.
+    We minimize the worst (smallest) of the three margins to find the
+    observer that most violates any aspect of DEC (including WEC violations,
+    since DEC implies WEC).
     """
-    T_mixed, g_ab, tetrad, zeta_max = args
+    T_ab, T_mixed, g_ab, tetrad, zeta_max = args
     u = timelike_from_boost_vector(w, tetrad, zeta_max)
     j = -jnp.einsum("ac,c->a", T_mixed, u)
+
+    # WEC margin: T_{ab} u^a u^b >= 0 required
+    wec_margin = jnp.einsum("a,ab,b->", u, T_ab, u)
 
     # Causality margin: positive when flux is timelike/null (causal)
     flux_causality = -jnp.einsum("a,ab,b->", j, g_ab, j)
@@ -98,7 +103,7 @@ def _dec_objective(w, args):
     n_down = jnp.einsum("ab,b->a", g_ab, n_up)
     future_margin = -jnp.einsum("a,a->", j, n_down)
 
-    return jnp.minimum(flux_causality, future_margin)
+    return jnp.minimum(wec_margin, jnp.minimum(flux_causality, future_margin))
 
 
 # ---------------------------------------------------------------------------
@@ -471,7 +476,7 @@ def optimize_dec(
     T_mixed = jnp.einsum("ac,cb->ab", g_inv, T_ab)  # T^a_b
     zeta_max_arr = jnp.float64(zeta_max)
 
-    args = (T_mixed, g_ab, tetrad, zeta_max_arr)
+    args = (T_ab, T_mixed, g_ab, tetrad, zeta_max_arr)
 
     best_obj, best_raw, best_physical, best_converged, best_n_steps = (
         _solve_multistart_3d(

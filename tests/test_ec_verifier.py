@@ -551,7 +551,7 @@ class TestDECFutureDirectedness:
 
         # Eulerian observer (w = 0)
         w = jnp.zeros(3)
-        args = (T_mixed, g_ab, tetrad, zeta_max)
+        args = (T_ab, T_mixed, g_ab, tetrad, zeta_max)
         obj = _dec_objective(w, args)
 
         # The objective should be negative (violation detected)
@@ -573,7 +573,7 @@ class TestDECFutureDirectedness:
         zeta_max = jnp.float64(5.0)
 
         w = jnp.zeros(3)
-        args = (T_mixed, g_ab, tetrad, zeta_max)
+        args = (T_ab, T_mixed, g_ab, tetrad, zeta_max)
         obj = _dec_objective(w, args)
 
         # For dust at Eulerian: j = (1, 0, 0, 0)

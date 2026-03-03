@@ -44,25 +44,12 @@ from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
 from ..geometry.metric import ADMMetric, SymbolicMetric
+from ._common import alcubierre_shape
 
 
 # ---------------------------------------------------------------------------
 # Shape function helpers (pure JAX)
 # ---------------------------------------------------------------------------
-
-
-def _alcubierre_shape(
-    r_s: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
-    """Standard Alcubierre top-hat shape function.
-
-    f_Alc(r_s) = [tanh(sigma*(r_s+R)) - tanh(sigma*(r_s-R))] / [2*tanh(sigma*R)]
-
-    f_Alc(0) ~ 1, f_Alc(inf) ~ 0.
-    """
-    return (jnp.tanh(sigma * (r_s + R)) - jnp.tanh(sigma * (r_s - R))) / (
-        2.0 * jnp.tanh(sigma * R)
-    )
 
 
 def _natario_n(
@@ -74,7 +61,7 @@ def _natario_n(
 
     n(0) = 0, n(inf) = 1/2.
     """
-    return 0.5 * (1.0 - _alcubierre_shape(r_s, R, sigma))
+    return 0.5 * (1.0 - alcubierre_shape(r_s, R, sigma))
 
 
 def _natario_dn_dr(

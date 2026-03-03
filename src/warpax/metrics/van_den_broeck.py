@@ -28,23 +28,12 @@ from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
 from ..geometry.metric import ADMMetric, SymbolicMetric
+from ._common import alcubierre_shape
 
 
 # ---------------------------------------------------------------------------
 # Shape function helpers (pure JAX)
 # ---------------------------------------------------------------------------
-
-
-def _alcubierre_shape(
-    r_s: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
-    """Standard Alcubierre top-hat shape function.
-
-    f(r_s) = [tanh(sigma*(r_s+R)) - tanh(sigma*(r_s-R))] / [2*tanh(sigma*R)]
-    """
-    return (jnp.tanh(sigma * (r_s + R)) - jnp.tanh(sigma * (r_s - R))) / (
-        2.0 * jnp.tanh(sigma * R)
-    )
 
 
 def _van_den_broeck_B(
@@ -63,7 +52,7 @@ def _van_den_broeck_B(
     B(0) = 1 + alpha_vdb (expanded interior),
     B(inf) = 1 (flat exterior).
     """
-    f_B = _alcubierre_shape(r_s, R_tilde, sigma_B)
+    f_B = alcubierre_shape(r_s, R_tilde, sigma_B)
     return 1.0 + alpha_vdb * f_B
 
 
@@ -108,7 +97,7 @@ class VanDenBroeckMetric(ADMMetric):
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         t, x, y, z = coords
         r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2)
-        f = _alcubierre_shape(r_s, self.R, self.sigma)
+        f = alcubierre_shape(r_s, self.R, self.sigma)
         return jnp.array([-self.v_s * f, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)

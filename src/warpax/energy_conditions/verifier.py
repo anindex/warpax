@@ -81,6 +81,11 @@ def verify_point(
     -------
     ECPointResult
         Complete per-point energy condition result.
+
+    Note
+    ----
+    This function uses Python control flow on JAX values and cannot
+    be wrapped in ``jax.jit``. For batched evaluation, use :func:`verify_grid`.
     """
     if key is None:
         key = jax.random.PRNGKey(42)
@@ -115,6 +120,7 @@ def verify_point(
     # For Type I: algebraic eigenvalue margins are exact (authoritative for
     # violation detection).  Optimizer provides worst-observer parameters
     # and zeta_max-capped severity diagnostics.
+    # int() concretizes a JAX tracer -- prevents jax.jit (see docstring).
     he_type_int = int(he_type)
     if he_type_int == 1:
         nec_eig, wec_eig, sec_eig, dec_eig = check_all(rho, pressures)
@@ -129,7 +135,9 @@ def verify_point(
         dec_margin = dec_opt
 
     # DEC requires both causal flux AND non-negative energy density (WEC).
-    # The optimizer checks flux only; incorporate the WEC margin.
+    # The DEC optimizer now includes the WEC term, but the WEC margin here
+    # may come from the algebraic slack (Type I) rather than the DEC
+    # optimizer's observer, so this post-hoc merge is still needed.
     dec_margin = jnp.minimum(wec_margin, dec_margin)
 
     # Select worst observer from WEC optimizer (timelike condition with
@@ -213,6 +221,15 @@ def verify_grid(
     ECGridResult
         Per-point fields reshaped to ``(*grid_shape, ...)``, plus
         summary statistics for each condition.
+
+    Note
+    ----
+    This function uses ``int()``/``float()`` on JAX arrays for diagnostic
+    warnings and classification statistics (non-Type-I count, type census,
+    max imaginary eigenvalue). These concretize traced values and prevent
+    the function from being wrapped in ``jax.jit``. The inner optimization
+    and eigenvalue paths are individually JIT-compiled via ``jax.vmap``
+    and ``lax.map``.
     """
     if key is None:
         key = jax.random.PRNGKey(42)
@@ -290,7 +307,8 @@ def verify_grid(
     # For non-Type-I: use optimization only.
     is_type_i = (he_types == 1.0)
 
-    # Diagnostic: warn if non-Type-I points exist (DEC future-directedness caveat)
+    # Diagnostic: warn if non-Type-I points exist (DEC future-directedness caveat).
+    # int() concretizes a JAX tracer -- prevents jax.jit (see docstring).
     n_non_type_i = int(jnp.sum(~is_type_i))
     if n_non_type_i > 0:
         import warnings
@@ -310,7 +328,9 @@ def verify_grid(
     dec_margins = merge_margins(dec_eig, dec_opt)
 
     # DEC requires both causal flux AND non-negative energy density (WEC).
-    # The optimizer checks flux only; incorporate the WEC margin.
+    # The DEC optimizer now includes the WEC term, but the WEC margin here
+    # may come from the algebraic slack (Type I) rather than the DEC
+    # optimizer's observer, so this post-hoc merge is still needed.
     dec_margins = jnp.minimum(wec_margins, dec_margins)
 
     # Step 5: Optionally compute Eulerian EC and take worse margin
@@ -327,7 +347,8 @@ def verify_grid(
     sec_summary = _compute_summary(sec_margins)
     dec_summary = _compute_summary(dec_margins)
 
-    # Step 6b: Classification statistics
+    # Step 6b: Classification statistics.
+    # int()/float() concretize JAX tracers -- prevents jax.jit (see docstring).
     n_type_i = int(jnp.sum(he_types == 1.0))
     n_type_ii = int(jnp.sum(he_types == 2.0))
     n_type_iii = int(jnp.sum(he_types == 3.0))

@@ -91,7 +91,8 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     norm_sq_0 = jnp.where(use_alt2_0, norm_sq_0_alt2,
                            jnp.where(use_alt1_0, norm_sq_0_alt1, norm_sq_0))
 
-    e1 = v0 / jnp.sqrt(jnp.abs(norm_sq_0))
+    norm_0 = jnp.maximum(jnp.sqrt(jnp.abs(norm_sq_0)), 1e-30)
+    e1 = v0 / norm_0
     tetrad = tetrad.at[1].set(e1)
 
     # --- Spatial vector 2 (i=1) ---
@@ -125,7 +126,8 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     norm_sq_1 = jnp.where(use_alt2_1, norm_sq_1_alt2,
                            jnp.where(use_alt0_1, norm_sq_1_alt0, norm_sq_1))
 
-    e2 = v1 / jnp.sqrt(jnp.abs(norm_sq_1))
+    norm_1 = jnp.maximum(jnp.sqrt(jnp.abs(norm_sq_1)), 1e-30)
+    e2 = v1 / norm_1
     tetrad = tetrad.at[2].set(e2)
 
     # --- Spatial vector 3 (i=2) ---
@@ -166,7 +168,8 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     norm_sq_2 = jnp.where(use_alt1_2, norm_sq_2_alt1,
                            jnp.where(use_alt0_2, norm_sq_2_alt0, norm_sq_2))
 
-    e3 = v2 / jnp.sqrt(jnp.abs(norm_sq_2))
+    norm_2 = jnp.maximum(jnp.sqrt(jnp.abs(norm_sq_2)), 1e-30)
+    e3 = v2 / norm_2
     tetrad = tetrad.at[3].set(e3)
 
     return tetrad
@@ -435,4 +438,6 @@ def unbounded_param(
     Float[Array, ""]
         Unconstrained parameter in (-inf, inf).
     """
+    eps = 1e-30
+    val = jnp.clip(val, lower + eps, upper - eps)
     return jnp.log((val - lower) / (upper - val))
