@@ -18,15 +18,22 @@ the lab-frame forms:
     F(r) = f_Alc(r) = 1 - f_paper(r)   [F(0)=1, F(inf)=0]
     G(r) = 1 - g_paper(r)               [G(0)=1, G(inf)=0]
 
-The shift in spherical tetrad components (theta from +x direction of travel):
-    beta_r_hat     = -v_s * F(r_s) * cos(theta)
-    beta_theta_hat =  v_s * G(r_s) * sin(theta)
+The shift in direct Cartesian form (Rodal's vector formula):
+    beta = -v_s * [G(r_s) * x_hat + (F(r_s) - G(r_s)) * n_x * n]
+
+where n = (dx, y, z) / r_s is the unit radial vector and x_hat = (1, 0, 0).
+This form is manifestly regular at r_s = 0 since F(0) = G(0) = 1 implies
+(F - G) -> 0, so the n_x * n term vanishes without requiring origin patches.
 
 At bubble center: beta = (-v_s, 0, 0), passengers carried along.
 At far field: beta = (0, 0, 0), Minkowski spacetime.
 
 The irrotational property (curl-free shift) is preserved by the coordinate
 transformation since a uniform translation field is curl-free.
+
+Note on G(r) evaluation: The angular profile g_paper(r) has a removable
+0/0 form at r = 0. We use the analytic limit Delta'(0) = -2*sigma*tanh(sigma*R)
+to evaluate g_paper(0) = 0 (G(0) = 1) exactly.
 
 Peak NEC/WEC violation reduced by factor ~38 vs Alcubierre.
 """
@@ -76,19 +83,21 @@ def _rodal_g_paper(
 ) -> Float[Array, "..."]:
     """Paper-convention irrotational angular profile g(r) from Rodal Eq. (42).
 
-    g(r) = [2*r*sigma*sinh(R*sigma) + cosh(R*sigma)*log_ratio]
-           / [2*r*sigma*sinh(R*sigma)]
+    Rewritten as:
+        g_paper(r) = 1 + cosh(R*sigma) * (log_ratio / r) / (2*sigma*sinh(R*sigma))
 
     where log_ratio = stable_logcosh(sigma*(r-R)) - stable_logcosh(sigma*(r+R)).
 
+    For small r, log_ratio/r has the 0/0 removable form.  The analytic limit is
+        lim_{r->0} log_ratio / r  =  Delta'(0)  =  -2*sigma*tanh(sigma*R)
+    which gives g_paper(0) = 0 exactly for all R*sigma.
+
     g_paper(0) = 0, g_paper(inf) = 1.  (Paper co-moving frame convention.)
     """
-    # C-inf regularization at r=0: eps^2 = 1e-24 chosen so that
-    # sqrt(r^2 + eps^2) ~ r for r > 1e-12 (grid spacing >> eps).
-    # See scripts/run_regularization_sensitivity.py for eps sensitivity analysis.
+    # C-inf regularization for autodiff stability (not physical repair).
     r_safe = jnp.sqrt(r**2 + 1e-24)
 
-    # Numerically stable log-cosh difference
+    # Numerically stable log-cosh difference (Delta)
     a = sigma * (r_safe - R)
     b = sigma * (r_safe + R)
     log_ratio = _stable_logcosh(a) - _stable_logcosh(b)
@@ -96,11 +105,17 @@ def _rodal_g_paper(
     sinh_R_sigma = jnp.sinh(R * sigma)
     cosh_R_sigma = jnp.cosh(R * sigma)
 
-    numerator = 2.0 * r_safe * sigma * sinh_R_sigma + cosh_R_sigma * log_ratio
-    # denominator uses sinh(x/2)*cosh(x/2) = sinh(x)/2 simplification
-    denominator = 2.0 * r_safe * sigma * sinh_R_sigma
+    # Analytic limit: lim_{r->0} log_ratio / r = -2*sigma*tanh(sigma*R)
+    limit_ratio = -2.0 * sigma * jnp.tanh(sigma * R)
+    log_ratio_over_r = jnp.where(
+        r < 1e-8,
+        limit_ratio,
+        log_ratio / r_safe,
+    )
 
-    return numerator / jnp.maximum(denominator, 1e-30)
+    # g_paper = 1 + cosh(R*sigma) * (log_ratio/r) / (2*sigma*sinh(R*sigma))
+    g_paper = 1.0 + cosh_R_sigma * log_ratio_over_r / (2.0 * sigma * sinh_R_sigma)
+    return g_paper
 
 
 def _rodal_G(
@@ -145,38 +160,26 @@ class RodalMetric(ADMMetric):
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         t, x, y, z = coords
         dx = x - self.v_s * t
-        r_s_raw = jnp.sqrt(dx**2 + y**2 + z**2)
-        r_s = jnp.sqrt(r_s_raw**2 + 1e-24)
-        rho_perp = jnp.sqrt(y**2 + z**2)
-        rho_perp_safe = jnp.sqrt(rho_perp**2 + 1e-24)
+        r_s_sq = dx**2 + y**2 + z**2
+        r_safe = jnp.sqrt(r_s_sq + 1e-24)
 
-        cos_theta = dx / r_s
-        sin_theta = rho_perp / r_s
+        F_val = _alcubierre_shape(r_safe, self.R, self.sigma)
+        G_val = _rodal_G(r_safe, self.R, self.sigma)
 
-        # Lab-frame shift components in spherical tetrad
-        # F(r) = f_Alc(r): F(0)=1, F(inf)=0  (radial, same as Alcubierre)
-        # G(r) = 1 - g_paper(r): G(0)=1, G(inf)=0  (angular, irrotational)
-        F_val = _alcubierre_shape(r_s, self.R, self.sigma)
-        G_val = _rodal_G(r_s, self.R, self.sigma)
+        # Unit direction vector n = (dx, y, z) / r_safe
+        n_x = dx / r_safe
+        n_y = y / r_safe
+        n_z = z / r_safe
 
-        beta_r_hat = -self.v_s * F_val * cos_theta
-        beta_theta_hat = self.v_s * G_val * sin_theta
-
-        # Spherical to Cartesian (theta measured from +x direction of travel)
-        beta_x = beta_r_hat * cos_theta - beta_theta_hat * sin_theta
-        radial_plus_angular = beta_r_hat * sin_theta + beta_theta_hat * cos_theta
-        cos_phi = y / rho_perp_safe
-        sin_phi = z / rho_perp_safe
-        beta_y = radial_plus_angular * cos_phi
-        beta_z = radial_plus_angular * sin_phi
-
-        # Origin safety: at r_s=0, F=1, G=1, so shift = (-v_s, 0, 0)
-        # The spherical-to-Cartesian conversion is well-defined at center
-        # when approaching along x-axis, but numerical issues arise when
-        # rho_perp -> 0. Use analytical limit.
-        beta_x = jnp.where(r_s_raw < 1e-12, -self.v_s, beta_x)
-        beta_y = jnp.where(r_s_raw < 1e-12, 0.0, beta_y)
-        beta_z = jnp.where(r_s_raw < 1e-12, 0.0, beta_z)
+        # Direct Cartesian shift: beta = -v_s * [G * x_hat + (F-G) * n_x * n]
+        #
+        # Manifestly regular at r=0: since F(0) = G(0) = 1, the term
+        # (F-G) -> 0 at the origin, so the n_x * n contribution vanishes
+        # naturally without requiring jnp.where origin patches.
+        diff_FG = F_val - G_val
+        beta_x = -self.v_s * (G_val + diff_FG * n_x * n_x)
+        beta_y = -self.v_s * (diff_FG * n_x * n_y)
+        beta_z = -self.v_s * (diff_FG * n_x * n_z)
 
         return jnp.array([beta_x, beta_y, beta_z])
 

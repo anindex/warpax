@@ -142,9 +142,9 @@ class TestRodal:
         Lab-frame convention: F = f_Alc (radial), G = 1 - g_paper (angular).
         Both are ~1 at center and ~0 far away.
 
-        Note: G(0) depends on R*sigma product. For R=100, sigma=0.03 (R*sigma=3),
-        G(0) ~ 0.989. With larger sigma (sharper wall), G(0) -> 1. The physical
-        behavior is correct: G is close to 1 at center and 0 at far field.
+        Note: G(0) = 1 exactly for all R*sigma (via the analytic limit
+        Delta'(0) = -2*sigma*tanh(sigma*R)). The physical behavior is
+        correct: G is 1 at center and 0 at far field.
         """
         R, sigma = 100.0, 0.03
 
@@ -183,3 +183,94 @@ class TestRodal:
         # g_paper should be bounded in [0, 1]
         assert jnp.all(g_vals >= -1e-10), f"g_paper < 0: {g_vals}"
         assert jnp.all(g_vals <= 1.0 + 1e-10), f"g_paper > 1: {g_vals}"
+
+    # ------------------------------------------------------------------
+    # Cartesian shift & stable G(r) tests
+    # ------------------------------------------------------------------
+
+    def test_rodal_cartesian_origin_regularity(self):
+        """shift(origin) = (-v_s, 0, 0) without NaN.
+
+        With the Cartesian formula beta = -v_s * [G*x_hat + (F-G)*n_x*n],
+        at origin n_x=0 and F(0)=G(0)=1, so beta = (-v_s, 0, 0).
+        No jnp.where origin patches needed.
+        """
+        m = RodalMetric()
+        coords = jnp.array([0.0, 0.0, 0.0, 0.0])
+        shift = m.shift(coords)
+        assert not jnp.any(jnp.isnan(shift)), f"NaN in shift at origin: {shift}"
+        # G(0) ~ 1.0 (exact in analytic limit), so shift_x ~ -v_s
+        assert jnp.isclose(shift[0], -m.v_s, atol=1e-8), (
+            f"shift[0] = {shift[0]}, expected ~ {-m.v_s}"
+        )
+        assert jnp.isclose(shift[1], 0.0, atol=1e-10), f"shift[1] = {shift[1]}"
+        assert jnp.isclose(shift[2], 0.0, atol=1e-10), f"shift[2] = {shift[2]}"
+
+    def test_rodal_shift_gradient_at_origin(self):
+        """jax.jacfwd(m.shift) produces no NaN at origin.
+
+        The Cartesian form is manifestly regular, so forward-mode AD
+        should produce finite Jacobian entries everywhere including r=0.
+        """
+        m = RodalMetric()
+        coords = jnp.array([0.0, 0.0, 0.0, 0.0])
+        J = jax.jacfwd(m.shift)(coords)
+        assert not jnp.any(jnp.isnan(J)), f"NaN in Jacobian at origin: {J}"
+
+    def test_rodal_G_stable_origin(self):
+        """G(0) correct for various R*sigma products via analytic limit.
+
+        The analytic limit Delta'(0) = -2*sigma*tanh(sigma*R) gives
+        g_paper(0) = 0 exactly (G(0) = 1) for all R*sigma products.
+        """
+        # R*sigma=3 (soft wall): G(0) should be very close to 1.0
+        G_0_soft = _rodal_G(jnp.array(0.0), 100.0, 0.03)
+        assert G_0_soft > 0.99, f"G(0) for R*sigma=3: {G_0_soft}, expected > 0.99"
+        assert G_0_soft < 1.01, f"G(0) for R*sigma=3: {G_0_soft}, expected < 1.01"
+        # R*sigma=100 (sharp wall): G(0) -> 1 exactly
+        G_0_sharp = _rodal_G(jnp.array(0.0), 100.0, 1.0)
+        assert jnp.isclose(G_0_sharp, 1.0, atol=1e-6), (
+            f"G(0) for R*sigma=100: {G_0_sharp}, expected ~ 1.0"
+        )
+
+    def test_rodal_convention_mapping(self):
+        """F = 1 - f_paper via f_Alc; G = 1 - g_paper verified."""
+        R, sigma = 100.0, 0.03
+        for r_val in [0.0, 50.0, 100.0, 200.0, 500.0]:
+            r = jnp.array(r_val)
+            g_p = _rodal_g_paper(r, R, sigma)
+            G = _rodal_G(r, R, sigma)
+            assert jnp.isclose(G, 1.0 - g_p, atol=1e-12), (
+                f"Convention mismatch at r={r_val}: G={G}, 1-g_paper={1.0-g_p}"
+            )
+
+    def test_rodal_cartesian_matches_reference(self):
+        """Cartesian form matches reference values at 5 off-axis points.
+
+        Reference values computed from the algebraically equivalent
+        spherical-tetrad form at points away from origin.
+        """
+        m = RodalMetric()  # v_s=0.1, R=100.0, sigma=0.03
+        # Pre-computed reference values (from spherical-tetrad implementation)
+        test_cases = [
+            # (coords, expected_shift) — values from original implementation
+            (jnp.array([0.0, 50.0, 10.0, 0.0]),
+             jnp.array([-0.09557155, 0.0006476, 0.0])),
+            (jnp.array([0.0, 100.0, 1.0, 0.0]),
+             jnp.array([-0.0502442, 0.00038641, 0.0])),
+            (jnp.array([0.0, 0.0, 50.0, 50.0]),
+             jnp.array([-0.09672827, 0.0, 0.0])),
+            (jnp.array([0.0, 200.0, 0.0, 0.0]),
+             jnp.array([-0.00024849, 0.0, 0.0])),
+            (jnp.array([0.0, 30.0, 20.0, 10.0]),
+             None),  # just check no NaN
+        ]
+        for coords, expected in test_cases:
+            shift = m.shift(coords)
+            assert not jnp.any(jnp.isnan(shift)), (
+                f"NaN at coords={coords}: shift={shift}"
+            )
+            if expected is not None:
+                assert jnp.allclose(shift, expected, atol=1e-4), (
+                    f"Mismatch at coords={coords}: got {shift}, expected {expected}"
+                )
