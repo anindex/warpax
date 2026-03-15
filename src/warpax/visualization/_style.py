@@ -1,4 +1,4 @@
-"""Shared matplotlib  style configuration.
+"""Shared matplotlib style configuration.
 
 Sets rcParams for CQG (Classical and Quantum Gravity) compatible figures:
 - Computer Modern fonts via ``text.usetex`` (with mathtext fallback for CI)
@@ -41,7 +41,7 @@ DOUBLE_COL: float = 6.69   # inches (CQG double column = 17.0 cm)
 
 
 # ---------------------------------------------------------------------------
-#  rcParams for CQG/IOP
+# rcParams for CQG/IOP
 # ---------------------------------------------------------------------------
 
 STYLE_PARAMS: dict[str, object] = {
@@ -102,5 +102,5 @@ COLORS: list[str] = [
 # ---------------------------------------------------------------------------
 
 def apply_style() -> None:
-    """Apply  matplotlib style settings."""
+    """Apply matplotlib style settings."""
     plt.rcParams.update(STYLE_PARAMS)

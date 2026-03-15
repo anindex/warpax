@@ -2,7 +2,7 @@
 
 Demonstrates how energy condition violations in the Alcubierre warp bubble
 change as the observer rapidity sweeps from 0 (Eulerian) to 5 (highly
-boosted).  A yellow arrow indicates the dominant boost direction.  The
+boosted). A yellow arrow indicates the dominant boost direction. The
 geometry is fixed at v_s=0.5; only the observer changes.
 
 Dual-layer rendering:
@@ -69,7 +69,7 @@ class ObserverSweep(ThreeDScene):
 
     Live rapidity counter, static v_s label, boost direction arrow,
     defining equation overlay, violation status indicator, dual color
-    legends.  Static camera for clear arrow visibility.
+    legends. Static camera for clear arrow visibility.
     """
 
     def construct(self) -> None:
@@ -108,7 +108,7 @@ class ObserverSweep(ThreeDScene):
 
         # Global color limits (prevents flickering).
         # WEC margin grows as cosh²(ζ) with rapidity, so raw min/max
-        # would compress moderate-rapidity color contrast.  Use the
+        # would compress moderate-rapidity color contrast. Use the
         # 2nd–98th percentile for a robust range.
         ed_clim = compute_global_clim(all_frames, "energy_density")
         wec_clim = compute_global_clim(
@@ -182,9 +182,9 @@ class ObserverSweep(ThreeDScene):
         # ==================================================================
         # Step 6: Parameter displays - upper-left (DecimalNumber + become)
         # ==================================================================
-        # NOTE: In ThreeDScene, DecimalNumber.set_value() recreates internal
-        # submobjects that lose their fixed-in-frame registration.  We use
-        # ``become()`` in the updaters instead, which replaces geometry
+        # NOTE: In ThreeDScene, DecimalNumber.set_value recreates internal
+        # submobjects that lose their fixed-in-frame registration. We use
+        # ``become`` in the updaters instead, which replaces geometry
         # in-place and preserves the registration.
 
         # Rapidity counter

@@ -33,7 +33,7 @@ def compute_symlog_clim(
     Iterates over all FrameData snapshots, extracts the equatorial slice
     (z-midplane) for *field_name*, and computes a symmetric range
     ``(-max_abs, max_abs)`` where ``max_abs = max(|vmin|, |vmax|)``
-    across every frame.  This prevents per-frame flicker.
+    across every frame. This prevents per-frame flicker.
 
     Parameters
     ----------
@@ -42,7 +42,7 @@ def compute_symlog_clim(
     field_name : str
         Key into ``frame.scalar_fields``.
     linthresh : float
-        Linear threshold for ``SymLogNorm``.  If the global maximum
+        Linear threshold for ``SymLogNorm``. If the global maximum
         absolute value is smaller than *linthresh*, linear scaling is
         used instead (returned linthresh is set to the max absolute
         value to signal this).
@@ -108,7 +108,7 @@ def frame_to_rgba(
     cmap_name : str
         Matplotlib colormap name (default ``"RdBu_r"``).
     linthresh : float or None
-        Override the linear threshold from *global_clim*.  If ``None``,
+        Override the linear threshold from *global_clim*. If ``None``,
         the third element of *global_clim* is used.
 
     Returns
@@ -149,8 +149,8 @@ def extract_zero_contour(
 ) -> list[np.ndarray]:
     """Extract contour path vertices at a given iso-level from 2D data.
 
-    Uses ``matplotlib.pyplot.contour()`` to find iso-level curves, then
-    extracts path vertices.  Optionally rescales from data coordinates
+    Uses ``matplotlib.pyplot.contour`` to find iso-level curves, then
+    extracts path vertices. Optionally rescales from data coordinates
     to Manim scene coordinates.
 
     Parameters
@@ -165,13 +165,13 @@ def extract_zero_contour(
         Iso-level to extract (default 0.0).
     scene_width : float or None
         If provided, rescale contour coordinates from data space to
-        ``[-scene_width/2, scene_width/2]`` for both axes.  If ``None``,
+        ``[-scene_width/2, scene_width/2]`` for both axes. If ``None``,
         coordinates are returned in data space.
 
     Returns
     -------
     list[np.ndarray]
-        List of ``(N, 2)`` arrays, one per contour segment.  Empty list
+        List of ``(N, 2)`` arrays, one per contour segment. Empty list
         if no contour found at the requested level.
     """
     # Bicubic upsample for smooth marching-squares paths (30×30 -> 240×240).
@@ -189,7 +189,7 @@ def extract_zero_contour(
     plt.close(fig)
 
     paths: list[np.ndarray] = []
-    # Matplotlib >= 3.8 deprecates cs.collections; use cs.get_paths() if
+    # Matplotlib >= 3.8 deprecates cs.collections; use cs.get_paths if
     # available, otherwise fall back to the legacy interface.
     if hasattr(cs, "get_paths"):
         raw_paths = cs.get_paths()
@@ -252,7 +252,7 @@ def extract_bubble_contour(
     """Extract the bubble wall contour from a FrameData snapshot.
 
     Convenience wrapper around :func:`extract_zero_contour` that looks
-    for the shape function field ``f`` in the FrameData.  If the field
+    for the shape function field ``f`` in the FrameData. If the field
     is not present, falls back to a circular approximation at the bubble
     radius inferred from the coordinate range.
 

@@ -15,7 +15,7 @@ to prevent per-frame flicker.
 
 Layout
 ------
-- **Top centre**: title + metric equation (static)
+- **Top center**: title + metric equation (static)
 - **Upper-left**: live v_s parameter display
 - **Upper-right**: 5-stop color legend bar
 - **Lower-left**: contour annotation legend
@@ -70,7 +70,7 @@ from warpax.visualization.manim._scene_utils import COLORS_3B1B
 # Dark-midpoint diverging colormap: blue -> dark navy -> red
 # ---------------------------------------------------------------------------
 _DARK_DIVERGE = LinearSegmentedColormap.from_list(
-    "dark_diverge_hc", ["#3B4CC0", "#1A1A2E", "#B40426"], N=256,
+    "dark_diverge_hc", ["#3B4CC0", "#1A1A2E", "#"], N=256,
 )
 try:
     _mcm.register_cmap(name="dark_diverge_hc", cmap=_DARK_DIVERGE)
@@ -116,7 +116,7 @@ class ECHeatmapContour(Scene):
     """2D heatmap of observer-robust NEC margins with bubble contour overlay.
 
     Dark-midpoint colormap, color legend bars, parameter
-    display, contour annotation legend.  Static header (no title animation).
+    display, contour annotation legend. Static header (no title animation).
     """
 
     def construct(self) -> None:
@@ -281,7 +281,7 @@ class ECHeatmapContour(Scene):
         # ==================================================================
         # Step 7: Color legend - upper-right
         # ==================================================================
-        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#B40426"]
+        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#"]
         bg_strips = VGroup(*[
             Rectangle(
                 width=0.24, height=0.08,
@@ -293,7 +293,7 @@ class ECHeatmapContour(Scene):
             "NEC margin", font_size=14, color=WHITE, weight="LIGHT",
         )
         bg_lo = MathTex(r"-", font_size=16, color="#3B4CC0")
-        bg_hi = MathTex(r"+", font_size=16, color="#B40426")
+        bg_hi = MathTex(r"+", font_size=16, color="#")
         bg_bar_row = VGroup(bg_lo, bg_strips, bg_hi).arrange(RIGHT, buff=0.05)
         color_legend = VGroup(bg_title, bg_bar_row).arrange(
             DOWN, buff=0.06, aligned_edge=LEFT,

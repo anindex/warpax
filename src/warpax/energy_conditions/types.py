@@ -96,3 +96,86 @@ class ECGridResult(NamedTuple):
     wec_opt_n_steps: Float[Array, "..."] | None
     sec_opt_n_steps: Float[Array, "..."] | None
     dec_opt_n_steps: Float[Array, "..."] | None
+
+
+class WallRestrictedStats(NamedTuple):
+    """Wall-restricted Hawking-Ellis Type breakdown and EC statistics.
+
+    All counts and fractions are conditional on the provided wall mask.
+
+    Attributes
+    ----------
+    n_type_i : int
+        Number of Type I points within the wall.
+    n_type_ii : int
+        Number of Type II points within the wall.
+    n_type_iii : int
+        Number of Type III points within the wall.
+    n_type_iv : int
+        Number of Type IV points within the wall.
+    n_total : int
+        Total number of points within the wall.
+    frac_type_i : float
+        Fraction of wall points that are Type I.
+    frac_type_ii : float
+        Fraction of wall points that are Type II.
+    frac_type_iii : float
+        Fraction of wall points that are Type III.
+    frac_type_iv : float
+        Fraction of wall points that are Type IV.
+    nec_violated : int
+        Number of NEC-violated points within the wall.
+    wec_violated : int
+        Number of WEC-violated points within the wall.
+    sec_violated : int
+        Number of SEC-violated points within the wall.
+    dec_violated : int
+        Number of DEC-violated points within the wall.
+    nec_frac_violated : float
+        Fraction of wall points with NEC violations.
+    wec_frac_violated : float
+        Fraction of wall points with WEC violations.
+    sec_frac_violated : float
+        Fraction of wall points with SEC violations.
+    dec_frac_violated : float
+        Fraction of wall points with DEC violations.
+    nec_miss_rate : float | None
+        Conditional NEC miss rate, or None if no violations exist.
+    wec_miss_rate : float | None
+        Conditional WEC miss rate, or None if no violations exist.
+    sec_miss_rate : float | None
+        Conditional SEC miss rate, or None if no violations exist.
+    dec_miss_rate : float | None
+        Conditional DEC miss rate, or None if no violations exist.
+    """
+
+    # Type counts within wall
+    n_type_i: int
+    n_type_ii: int
+    n_type_iii: int
+    n_type_iv: int
+    n_total: int  # Total points in wall
+
+    # Type fractions
+    frac_type_i: float
+    frac_type_ii: float
+    frac_type_iii: float
+    frac_type_iv: float
+
+    # Per-condition violation counts within wall
+    nec_violated: int
+    wec_violated: int
+    sec_violated: int
+    dec_violated: int
+
+    # Per-condition violation fractions within wall
+    nec_frac_violated: float
+    wec_frac_violated: float
+    sec_frac_violated: float
+    dec_frac_violated: float
+
+    # Per-condition miss rates within wall (None if no violations exist)
+    nec_miss_rate: float | None
+    wec_miss_rate: float | None
+    sec_miss_rate: float | None
+    dec_miss_rate: float | None

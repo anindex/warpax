@@ -31,8 +31,8 @@ class TensorField(eqx.Module):
         Number of tensor indices (e.g. 2 for a (0,2)-tensor).
     index_positions : str
         String of ``'u'`` (upper / contravariant) and ``'d'`` (lower /
-        covariant) describing each index.  E.g. ``'dd'`` for *g_{ab}*,
-        ``'udd'`` for Gamma^a_{bc}.  Defaults to all-lower (``'d' * rank``).
+        covariant) describing each index. E.g. ``'dd'`` for *g_{ab}*,
+        ``'udd'`` for Gamma^a_{bc}. Defaults to all-lower (``'d' * rank``).
     """
 
     components: Float[Array, "..."]
@@ -84,10 +84,26 @@ class GridSpec(eqx.Module):
         ``(min, max)`` for each spatial dimension ``[x, y, z]``.
     shape : tuple of int
         Number of grid points in each dimension ``(Nx, Ny, Nz)``.
+    coord_arrays : tuple of tuple of float, optional
+        Non-uniform 1D coordinate arrays per axis, packed as a tuple of
+        tuples so the field stays hashable / static. Only set by
+        non-uniform generators (:func:`warpax.grids.wall_clustered`);
+        default is ``None`` for uniform linspace grids. Additive field
+        landed in ; existing callers using
+        ``GridSpec(bounds=..., shape=...)`` are unaffected.
+    volume_weights : tuple, optional
+        Flattened per-cell 3D volume weights (mitigation) packed
+        as a tuple so the field stays hashable / static. Only set by
+        non-uniform generators; default is ``None``. Reshape to
+        ``shape`` at use site via :attr:`volume_weights_array`.
     """
 
     bounds: list = eqx.field(static=True)
     shape: tuple = eqx.field(static=True)
+    # Additive non-uniform-grid fields . Both default to None
+    # so pre-11-07 callers are bit-exact unaffected.
+    coord_arrays: tuple | None = eqx.field(static=True, default=None)
+    volume_weights: tuple | None = eqx.field(static=True, default=None)
 
     # derived properties --------------------------------------------------
 
@@ -106,11 +122,24 @@ class GridSpec(eqx.Module):
 
     @property
     def axes(self) -> list[jnp.ndarray]:
-        """1-D coordinate arrays for each dimension (JAX float64)."""
+        """1-D coordinate arrays for each dimension (JAX float64).
+
+        For non-uniform grids (``coord_arrays`` set), returns the stored
+        non-uniform arrays; otherwise falls back to ``jnp.linspace``.
+        """
+        if self.coord_arrays is not None:
+            return [jnp.asarray(arr) for arr in self.coord_arrays]
         return [
             jnp.linspace(b[0], b[1], n)
             for b, n in zip(self.bounds, self.shape)
         ]
+
+    @property
+    def volume_weights_array(self) -> jnp.ndarray | None:
+        """Per-cell 3D volume weights reshaped to ``shape``, or ``None``."""
+        if self.volume_weights is None:
+            return None
+        return jnp.asarray(self.volume_weights).reshape(self.shape)
 
     @property
     def meshgrid(self) -> list[jnp.ndarray]:

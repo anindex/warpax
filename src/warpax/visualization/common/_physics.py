@@ -312,7 +312,7 @@ def build_ec_frame_sequence(
         Time values per frame.
     observer_params : jax.Array or None
         Observer parameters (K, 3) for sweep. If None, uses default
-        ``make_rapidity_observers()`` (36 observers).
+        ``make_rapidity_observers`` (36 observers).
     batch_size : int or None
         Chunk size for grid evaluation.
     progress : bool

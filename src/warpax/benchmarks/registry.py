@@ -1,7 +1,7 @@
 """Metric registry and ground truth database.
 
 Provides a ``MetricRegistry`` for looking up benchmark spacetimes with
-their associated ground truth data.  The registry is a simple Python class
+their associated ground truth data. The registry is a simple Python class
 (not an eqx.Module) since it is metadata infrastructure, not traced by JAX.
 """
 
@@ -54,9 +54,9 @@ class MetricRegistry:
 
     Usage::
 
-        registry = MetricRegistry()
+        registry = MetricRegistry
         metric, gt = registry.get("Minkowski")
-        print(gt["kretschner"])  # 0.0
+        print(gt["kretschner"]) # 0.0
     """
 
     def __init__(self) -> None:
@@ -82,7 +82,7 @@ class MetricRegistry:
         Parameters
         ----------
         name : str
-            Human-readable metric name (as returned by ``metric.name()``).
+            Human-readable metric name (as returned by ``metric.name``).
 
         Raises
         ------

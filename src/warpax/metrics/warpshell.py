@@ -10,14 +10,14 @@ because it has BOTH non-unit lapse AND non-flat spatial metric in the
 shell region.
 
 Shell structure:
-    r < R_1          : Flat interior (Minkowski with shift)
-    R_1 < r < R_2    : Curved shell (Schwarzschild-like)
-    r > R_2          : Flat exterior (Minkowski, no shift)
+    r < R_1 : Flat interior (Minkowski with shift)
+    R_1 < r < R_2 : Curved shell (Schwarzschild-like)
+    r > R_2 : Flat exterior (Minkowski, no shift)
 
 ADM components:
-    alpha != 1  (non-unit lapse in shell: Schwarzschild time dilation)
-    beta^x = -S_warp(r) * v_s  (uniform shift inside, zero outside)
-    gamma_ij != delta_ij  (Schwarzschild radial stretching in shell)
+    alpha != 1 (non-unit lapse in shell: Schwarzschild time dilation)
+    beta^x = -S_warp(r) * v_s (uniform shift inside, zero outside)
+    gamma_ij != delta_ij (Schwarzschild radial stretching in shell)
 
 The spatial metric in the shell uses a Schwarzschild-like radial
 component gamma_rr = 1/(1 - r_s_param/r), converted to Cartesian
@@ -268,6 +268,16 @@ class WarpShellMetric(ADMMetric):
 
         return gamma
 
+    @jaxtyped(typechecker=beartype)
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """Warp transition function S_warp(r): 1 inside, 0 outside."""
+        t, x, y, z = coords
+        x_rel = x - self.v_s * t
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2)
+        return _warpshell_transition(
+            r, self.R_1, self.R_2, self.R_b, order=self.transition_order
+        )
+
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 
     def symbolic(self) -> SymbolicMetric:
@@ -313,6 +323,140 @@ class WarpShellMetric(ADMMetric):
 
     def name(self) -> str:
         return "WarpShell"
+
+
+# Alias: WarpShellStressTest reads more honestly at call sites because the
+# lapse and spatial-metric clamps (``jnp.minimum(ratio, 1.0 - 1e-12)`` and
+# ``jnp.maximum(alpha, 1e-12)``) let this variant accept unphysical
+# ``r_s_param >= R_1`` configurations for sensitivity sweeps. The classic
+# ``WarpShellMetric`` name is kept for backward compatibility.
+WarpShellStressTest = WarpShellMetric
+
+
+# ---------------------------------------------------------------------------
+# WarpShellPhysical -- physical regime (r_s_param < R_1, no clamps)
+# ---------------------------------------------------------------------------
+
+
+class WarpShellPhysical(ADMMetric):
+    """Physical-regime WarpShell where the Schwarzschild radius is buried
+    inside the flat interior (``r_s_param < R_1``).
+
+    In this regime the shell coordinate ``r`` is always larger than
+    ``r_s_param``, so the Schwarzschild factor ``1 - r_s / r`` is bounded
+    away from zero and the lapse is a clean ``sqrt(1 - r_s / r)`` without
+    needing the ``minimum(ratio, 1.0 - 1e-12)`` clamp or the
+    ``maximum(alpha, 1e-12)`` lapse floor that :class:`WarpShellMetric`
+    carries. Use this class when modelling a physical thin-shell
+    configuration; use :class:`WarpShellStressTest` when you want the
+    clamps for robustness under unphysical parameter sweeps.
+
+    Construction validates ``r_s_param < R_1`` and raises ``ValueError``
+    otherwise so sensitivity studies can't accidentally silently switch
+    back to the clamped behavior.
+
+    Parameters are the same as :class:`WarpShellMetric`.
+    """
+
+    v_s: float = 0.02
+    R_1: float = 10.0
+    R_2: float = 20.0
+    R_b: float = 1.0
+    r_s_param: float = 5.0
+    smooth_width: float | None = None
+    transition_order: int = 2
+
+    def __check_init__(self) -> None:
+        if not (self.r_s_param < self.R_1):
+            raise ValueError(
+                "WarpShellPhysical requires r_s_param < R_1 (physical regime: "
+                "the Schwarzschild radius must sit strictly inside the flat "
+                f"interior).  Got r_s_param={self.r_s_param}, R_1={self.R_1}. "
+                "Use WarpShellStressTest if you want the clamped stress-test "
+                "variant."
+            )
+
+    @jaxtyped(typechecker=beartype)
+    def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        t, x, y, z = coords
+        x_rel = x - self.v_s * t
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2)
+        r_safe = jnp.sqrt(r**2 + 1e-24)
+
+        # ``r_shell`` floors the radial coordinate used inside the
+        # Schwarzschild factor to ``R_1``. Outside the shell the shell
+        # indicator ``S_shell`` is zero and the floor is irrelevant; inside
+        # the shell ``r >= R_1 > r_s_param`` so the floor is a no-op. The
+        # floor prevents ``0 * inf`` NaNs for interior points (``r < R_1``)
+        # where the unmasked ``1 - r_s_param/r`` would otherwise go negative
+        # or blow up.
+        r_shell = jnp.maximum(r_safe, self.R_1)
+        alpha_shell = jnp.sqrt(1.0 - self.r_s_param / r_shell)
+
+        sw = self.smooth_width if self.smooth_width is not None else 0.12 * (self.R_2 - self.R_1)
+        S_shell = _shell_indicator(r, self.R_1, self.R_2, sw, order=self.transition_order)
+
+        alpha = 1.0 - S_shell * (1.0 - alpha_shell)
+        return alpha
+
+    @jaxtyped(typechecker=beartype)
+    def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
+        t, x, y, z = coords
+        x_rel = x - self.v_s * t
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2)
+        S_warp = _warpshell_transition(
+            r, self.R_1, self.R_2, self.R_b, order=self.transition_order
+        )
+        return jnp.array([-S_warp * self.v_s, 0.0, 0.0])
+
+    @jaxtyped(typechecker=beartype)
+    def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
+        t, x, y, z = coords
+        x_rel = x - self.v_s * t
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2)
+        r_safe = jnp.sqrt(r**2 + 1e-24)
+
+        # Floor to ``R_1`` for the same reason as ``lapse``: outside the
+        # shell the indicator is zero, so the floored value is masked;
+        # inside the shell ``r >= R_1 > r_s_param`` so the floor is a no-op.
+        r_shell = jnp.maximum(r_safe, self.R_1)
+        gamma_rr_sph = 1.0 / (1.0 - self.r_s_param / r_shell)
+
+        sw = self.smooth_width if self.smooth_width is not None else 0.12 * (self.R_2 - self.R_1)
+        S_shell = _shell_indicator(r, self.R_1, self.R_2, sw, order=self.transition_order)
+
+        gamma_rr_eff = 1.0 + S_shell * (gamma_rr_sph - 1.0)
+
+        x_vec = jnp.array([x_rel, y, z])
+        n_hat = x_vec / r_safe
+        radial_proj = jnp.outer(n_hat, n_hat)
+        gamma = jnp.eye(3) + (gamma_rr_eff - 1.0) * radial_proj
+
+        # Deep-interior flat patch (r very close to zero) is kept because
+        # the radial projector is singular at the origin.
+        gamma = jnp.where(r < 1e-10, jnp.eye(3), gamma)
+        return gamma
+
+    @jaxtyped(typechecker=beartype)
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        t, x, y, z = coords
+        x_rel = x - self.v_s * t
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2)
+        return _warpshell_transition(
+            r, self.R_1, self.R_2, self.R_b, order=self.transition_order
+        )
+
+    def symbolic(self) -> SymbolicMetric:
+        """Same symbolic form as WarpShellMetric -- the clamps live in the
+        numeric path only."""
+        return WarpShellMetric(
+            v_s=self.v_s, R_1=self.R_1, R_2=self.R_2, R_b=self.R_b,
+            r_s_param=self.r_s_param, smooth_width=self.smooth_width,
+            transition_order=self.transition_order,
+        ).symbolic()
+
+    def name(self) -> str:
+        return "WarpShellPhysical"
 
 
 # ---------------------------------------------------------------------------

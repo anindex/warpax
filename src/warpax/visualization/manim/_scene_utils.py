@@ -166,8 +166,8 @@ def compute_global_clim(
     percentile : float, optional
         If given, use the *percentile*-th and (100-percentile)-th
         percentiles of the **actual data** across all frames instead
-        of raw min/max from pre-stored clim.  Useful for fields with
-        extreme outliers (e.g. WEC margin at high rapidity).  Typical
+        of raw min/max from pre-stored clim. Useful for fields with
+        extreme outliers (e.g. WEC margin at high rapidity). Typical
         value: 2.0 (clips the most extreme 2 % on each tail).
 
     Returns

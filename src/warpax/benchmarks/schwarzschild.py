@@ -8,7 +8,7 @@ where r_iso = sqrt(x^2 + y^2 + z^2) is the isotropic radial coordinate.
 
 Ground truth:
 - Vacuum solution: T_{mu nu} = 0
-- Kretschner scalar: K = 48 M^2 / r^6  (in Schwarzschild r, not isotropic r_iso)
+- Kretschner scalar: K = 48 M^2 / r^6 (in Schwarzschild r, not isotropic r_iso)
   In isotropic coords: r = r_iso * (1 + M/(2*r_iso))^2,
   so K = 48 M^2 / [r_iso * (1 + M/(2*r_iso))^2]^6
 - All energy conditions trivially satisfied (vacuum)
@@ -33,7 +33,7 @@ class SchwarzschildMetric(MetricSpecification):
     Parameters
     ----------
     M : float
-        Mass parameter.  Dynamic field (no recompilation on change).
+        Mass parameter. Dynamic field (no recompilation on change).
     """
 
     M: float = 1.0
@@ -53,6 +53,11 @@ class SchwarzschildMetric(MetricSpecification):
         g = g.at[2, 2].set(psi4)
         g = g.at[3, 3].set(psi4)
         return g
+
+    @jaxtyped(typechecker=beartype)
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """No warp deformation -- shape function is identically zero."""
+        return jnp.array(0.0)
 
     def symbolic(self) -> SymbolicMetric:
         """Return SymPy symbolic form for inspection and cross-validation."""
@@ -82,7 +87,7 @@ def schwarzschild_symbolic(M: sp.Symbol | None = None) -> SymbolicMetric:
     Parameters
     ----------
     M : sp.Symbol or None
-        Mass symbol.  If *None*, creates ``Symbol('M', positive=True)``.
+        Mass symbol. If *None*, creates ``Symbol('M', positive=True)``.
     """
     t, x, y, z = sp.symbols("t x y z")
     if M is None:
@@ -110,7 +115,7 @@ def kretschner_isotropic(
 ) -> Float[Array, "..."]:
     """Analytical Kretschner scalar in isotropic coordinates.
 
-    K = 48 M^2 / r_schw^6  where  r_schw = r_iso * (1 + M / (2 * r_iso))^2
+    K = 48 M^2 / r_schw^6 where r_schw = r_iso * (1 + M / (2 * r_iso))^2
     """
     r_iso = jnp.sqrt(x**2 + y**2 + z**2)
     r_iso = jnp.maximum(r_iso, 1e-10)

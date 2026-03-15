@@ -1,7 +1,7 @@
 """Richardson extrapolation for grid convergence validation.
 
 Given a quantity Q computed at multiple grid resolutions, estimates the
-true (continuum) value and the observed convergence order.  This is
+true (continuum) value and the observed convergence order. This is
 essential for validating that energy condition results are numerically
 converged and not grid artefacts.
 

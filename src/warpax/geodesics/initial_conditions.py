@@ -4,7 +4,7 @@ Provides helpers that construct properly normalized initial 4-velocities
 for geodesic integration. Each function evaluates the metric at the initial
 point and solves the appropriate norm constraint:
     - Timelike: g_ab v^a v^b = -1
-    - Null:     g_ab k^a k^b = 0
+    - Null: g_ab k^a k^b = 0
 
 Also provides Schwarzschild-specific IC builders for circular orbits and
 radial infall in isotropic coordinates.
@@ -197,8 +197,8 @@ def circular_orbit_ic(
     # Compute 4-velocity directly from Schwarzschild conserved quantities.
     #
     # For a circular orbit at Schwarzschild radius r_schw:
-    #   u^t = dt/dtau = 1 / sqrt(1 - 3M/r_schw)
-    #   dphi/dtau = sqrt(M/r_schw) / (r_schw * sqrt(1 - 3M/r_schw))
+    # u^t = dt/dtau = 1 / sqrt(1 - 3M/r_schw)
+    # dphi/dtau = sqrt(M/r_schw) / (r_schw * sqrt(1 - 3M/r_schw))
     #
     # Since the time coordinate t and the azimuthal angle phi are the
     # same in both Schwarzschild and isotropic coordinates, these

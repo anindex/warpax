@@ -8,9 +8,9 @@ Computes gauge-invariant curvature scalars at a single spacetime point:
 
 These invariants are useful for identifying physical singularities (vs.
 coordinate singularities), classifying spacetimes, and validating numerical
-pipelines.  All three quadratic invariants are non-negative in Riemannian
+pipelines. All three quadratic invariants are non-negative in Riemannian
 geometry; in Lorentzian geometry Kretschner is always real but may take any
-sign.  The Chern-Pontryagin scalar detects parity violation and vanishes
+sign. The Chern-Pontryagin scalar detects parity violation and vanishes
 identically for conformally flat spacetimes.
 
 Index conventions (matching geometry.py):
@@ -20,7 +20,7 @@ Index conventions (matching geometry.py):
     - Inverse metric: g^{ab} as (4,4) array [upper, upper]
 
 These are pointwise functions operating on raw JAX arrays (no grid/batch
-dimensions).  For grid-level evaluation, use the vmap-based pipeline in
+dimensions). For grid-level evaluation, use the vmap-based pipeline in
 ``grid.py``.
 """
 from __future__ import annotations
@@ -148,7 +148,7 @@ def _levi_civita_4d(
     """4D Levi-Civita tensor epsilon_{abcd} = sqrt(|det(g)|) * [abcd].
 
     Constructs the totally antisymmetric Levi-Civita tensor from the
-    metric determinant and the permutation symbol.  The permutation
+    metric determinant and the permutation symbol. The permutation
     symbol is built as a static array using hardcoded index tuples for
     all 24 permutations, ensuring JIT compatibility (no Python loops
     at trace time).
@@ -181,7 +181,7 @@ def chern_pontryagin(
     """Chern-Pontryagin scalar *R_{abcd} R^{abcd} at a single point.
 
     Computes the contraction of the (left) Hodge dual of the Riemann
-    tensor with the fully contravariant Riemann tensor.  This scalar
+    tensor with the fully contravariant Riemann tensor. This scalar
     detects parity violation in the spacetime geometry and vanishes
     identically for conformally flat or maximally symmetric spacetimes.
 
@@ -199,26 +199,26 @@ def chern_pontryagin(
     Float[Array, ""]
         Chern-Pontryagin scalar.
     """
-    # Step 1: Lower first index  R_{abcd} = g_{ae} R^e_{bcd}
+    # Step 1: Lower first index R_{abcd} = g_{ae} R^e_{bcd}
     R_down = jnp.einsum("ae,ebcd->abcd", metric, riemann)
 
-    # Step 2: Raise first two indices  R^{ab}_{cd} = g^{ae} g^{bf} R_{efcd}
+    # Step 2: Raise first two indices R^{ab}_{cd} = g^{ae} g^{bf} R_{efcd}
     R_up_cd = jnp.einsum("ae,bf,efcd->abcd", metric_inv, metric_inv, R_down)
 
     # Step 3: Levi-Civita tensor
     epsilon = _levi_civita_4d(metric)
 
-    # Step 4: Hodge dual  *R_{abcd} = (1/2) epsilon_{abef} R^{ef}_{cd}
+    # Step 4: Hodge dual *R_{abcd} = (1/2) epsilon_{abef} R^{ef}_{cd}
     R_dual = 0.5 * jnp.einsum("abef,efcd->abcd", epsilon, R_up_cd)
 
     # Step 5: Fully raise R_down for contraction
-    #   R^{abcd} = g^{ae} g^{bf} g^{cg} g^{dh} R_{efgh}
+    # R^{abcd} = g^{ae} g^{bf} g^{cg} g^{dh} R_{efgh}
     R_up_all = jnp.einsum(
         "ae,bf,cg,dh,efgh->abcd",
         metric_inv, metric_inv, metric_inv, metric_inv, R_down,
     )
 
-    # Step 6: Contract  *R_{abcd} R^{abcd}
+    # Step 6: Contract *R_{abcd} R^{abcd}
     return jnp.einsum("abcd,abcd->", R_dual, R_up_all)
 
 
@@ -243,7 +243,7 @@ def compute_invariants(
         The four curvature invariants as scalar arrays:
         - K: Kretschner scalar R_{abcd} R^{abcd}
         - R2: Ricci-squared R_{ab} R^{ab}
-        - W2: Weyl-squared C_{abcd} C^{abcd}
+        - Weyl-squared C_{abcd} C^{abcd}
         - CP: Chern-Pontryagin *R_{abcd} R^{abcd}
     """
     K = kretschner_scalar(result.riemann, result.metric, result.metric_inv)

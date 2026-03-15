@@ -2,7 +2,7 @@
 
 Renders multi-panel histograms showing the distribution of alignment angles
 between the BFGS worst-case observer boost direction and the eigenvector
-predicted by algebraic analysis.  Each panel corresponds to a different
+predicted by algebraic analysis. Each panel corresponds to a different
 warp velocity, demonstrating that the worst-case observer is typically
 misaligned with the eigenvector prediction.
 """
@@ -25,11 +25,11 @@ def plot_alignment_histogram(
     ----------
     angle_arrays : dict[float, np.ndarray]
         Mapping from warp velocity (v_s) to array of alignment angles
-        in degrees.  Each array contains angles at DEC-violation points.
+        in degrees. Each array contains angles at DEC-violation points.
     save_path : str or None
         If provided, save the figure to this path.
     figsize : tuple[float, float] or None
-        Figure size in inches.  Defaults to (DOUBLE_COL, DOUBLE_COL * 0.3).
+        Figure size in inches. Defaults to (DOUBLE_COL, DOUBLE_COL * 0.3).
 
     Returns
     -------

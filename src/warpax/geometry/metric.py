@@ -30,7 +30,7 @@ class SymbolicMetric:
     """Symbolic metric specification using SymPy.
 
     Holds a coordinate symbol list and a 4x4 SymPy Matrix representing
-    the metric tensor *g_{ab}*.  The inverse is computed lazily and cached.
+    the metric tensor *g_{ab}*. The inverse is computed lazily and cached.
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ class MetricSpecification(eqx.Module):
 
     Being an ``eqx.Module``, every ``MetricSpecification`` is automatically a
     JAX pytree, compatible with ``jax.jit``, ``jax.vmap``, and other
-    transformations.  Numeric parameters stored as regular (non-static)
+    transformations. Numeric parameters stored as regular (non-static)
     fields are treated as *dynamic* leaves, so the compiled code is reusable
     when only those values change.
     """
@@ -107,6 +107,25 @@ class MetricSpecification(eqx.Module):
         """Human-readable metric name."""
         ...
 
+    @abstractmethod
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """Shape function value f(r) at a single spacetime point.
+
+        Returns a scalar in [0, 1] indicating the warp bubble deformation
+        intensity. Non-warp metrics return 0.0 (no deformation).
+
+        Parameters
+        ----------
+        coords : Float[Array, "4"]
+            Spacetime coordinates ``(t, x, y, z)``.
+
+        Returns
+        -------
+        Float[Array, ""]
+            Shape function value.
+        """
+        ...
+
 
 # ---------------------------------------------------------------------------
 # ADMMetric (abstract 3+1 decomposition interface)
@@ -116,7 +135,7 @@ class MetricSpecification(eqx.Module):
 class ADMMetric(MetricSpecification):
     """Abstract base for metrics defined via the ADM 3+1 decomposition.
 
-    Subclasses provide pointwise lapse, shift, and spatial metric.  The full
+    Subclasses provide pointwise lapse, shift, and spatial metric. The full
     4x4 spacetime metric is reconstructed automatically by ``__call__`` via
     :func:`adm_to_full_metric`.
     """
@@ -190,7 +209,7 @@ def adm_to_full_metric(
 
     where :math:`\\beta_i = \\gamma_{ij} \\beta^j`.
 
-    All operations use JAX functional array updates (``.at[].set()``).
+    All operations use JAX functional array updates (``.at[].set``).
 
     Parameters
     ----------

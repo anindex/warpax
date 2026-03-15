@@ -4,7 +4,7 @@ from .lentz import LentzMetric
 from .natario import NatarioMetric
 from .rodal import RodalMetric
 from .van_den_broeck import VanDenBroeckMetric
-from .warpshell import WarpShellMetric
+from .warpshell import WarpShellMetric, WarpShellPhysical, WarpShellStressTest
 
 __all__ = [
     "LentzMetric",
@@ -12,4 +12,6 @@ __all__ = [
     "RodalMetric",
     "VanDenBroeckMetric",
     "WarpShellMetric",
+    "WarpShellPhysical",
+    "WarpShellStressTest",
 ]

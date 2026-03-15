@@ -2,9 +2,9 @@
 
 Implements the Lentz soliton warp drive (arXiv:2006.07125) using the
 WarpFactory-style piecewise diamond-pattern shift construction
-(arXiv:2404.03095).  The original Lentz formulation is based on solving
+(arXiv:2404.03095). The original Lentz formulation is based on solving
 a hyperbolic wave equation for a scalar shift potential; no closed-form
-analytical solution exists.  The WarpFactory piecewise approach is used
+analytical solution exists. The WarpFactory piecewise approach is used
 instead because:
 
   (a) Lentz's original paper has known algebraic errors
@@ -13,13 +13,13 @@ instead because:
   (c) It is the community standard implementation.
 
 The soliton creates a "flying formation" of shift blocks surrounding
-a flat interior.  The shift vector pattern in the x-y plane forms a
+a flat interior. The shift vector pattern in the x-y plane forms a
 diamond/rhombus shape using the L1 (Manhattan) distance.
 
 ADM components:
-    alpha = 1  (unit lapse)
-    beta^x = -v_s * f_diamond(d),  beta^y = beta^z = 0  (shift)
-    gamma_ij = delta_ij  (flat spatial metric)
+    alpha = 1 (unit lapse)
+    beta^x = -v_s * f_diamond(d), beta^y = beta^z = 0 (shift)
+    gamma_ij = delta_ij (flat spatial metric)
 
 Shape function (diamond geometry via L1 norm):
     d = |x - v_s*t| + sqrt(y^2 + z^2)
@@ -90,7 +90,7 @@ class LentzMetric(ADMMetric):
     Parameters
     ----------
     v_s : float
-        Warp bubble velocity.  Subluminal (< 1) or superluminal (> 1).
+        Warp bubble velocity. Subluminal (< 1) or superluminal (> 1).
     R : float
         Central flat-interior region radius.
     sigma : float
@@ -125,6 +125,15 @@ class LentzMetric(ADMMetric):
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
         return jnp.eye(3)
 
+    @jaxtyped(typechecker=beartype)
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """Diamond-pattern shape function via L1 distance."""
+        t, x, y, z = coords
+        x_rel = x - self.v_s * t
+        rho_perp = jnp.sqrt(y**2 + z**2)
+        d = jnp.abs(x_rel) + rho_perp
+        return _diamond_shape(d, self.R, self.sigma)
+
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 
     def symbolic(self) -> SymbolicMetric:
@@ -147,7 +156,7 @@ class LentzMetric(ADMMetric):
 
         # Full metric from ADM with unit lapse, flat spatial, shift = (-v_s*f, 0, 0)
         # g_00 = -(alpha^2 - beta_i beta^i) = -(1 - v_s^2 f^2)
-        # g_0x = beta_x = gamma_xj beta^j = -v_s f  (gamma = delta)
+        # g_0x = beta_x = gamma_xj beta^j = -v_s f (gamma = delta)
         # g_ij = delta_ij
         g = sp.Matrix([
             [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],

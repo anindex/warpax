@@ -52,7 +52,7 @@ def christoffel_symbols(
     """
     g = metric_fn(coords)
     g_inv = jnp.linalg.inv(g)
-    # dg[a, b, c] = d g_{ab} / d x^c  (derivative index is LAST per JAX jacfwd convention)
+    # dg[a, b, c] = d g_{ab} / d x^c (derivative index is LAST per JAX jacfwd convention)
     dg = jax.jacfwd(metric_fn)(coords)
 
     # Gamma^lam_{mu nu} = 0.5 * g^{lam sig} * (d_mu g_{nu sig} + d_nu g_{mu sig} - d_sig g_{mu nu})
@@ -88,7 +88,7 @@ def riemann_tensor(
         return christoffel_symbols(metric_fn, x)
 
     gamma = gamma_at(coords)
-    # dgamma[l, m, n, s] = d Gamma^l_{mn} / d x^s  (derivative index LAST)
+    # dgamma[l, m, n, s] = d Gamma^l_{mn} / d x^s (derivative index LAST)
     dgamma = jax.jacfwd(gamma_at)(coords)
 
     # d_n Gamma^l_{mr} = dgamma[l, m, r, n] -> swap axes 2,3 of dgamma
@@ -157,15 +157,30 @@ def einstein_tensor(
 def stress_energy_tensor(einstein: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
     """Stress-energy tensor from Einstein field equations (geometric units G=c=1).
 
-    T_{mu nu} = G_{mu nu} / (8 pi).
+    T_{mu nu} = G_{mu nu} / (8 pi), projected onto the symmetric subspace.
+
+    the return value is post-compute-symmetrized via
+    ``T = 0.5 * (T + T.T)``. Einstein's equations guarantee
+    ``T_{ab} = T_{ba}`` analytically; this projection guarantees it
+    bit-exactly at the pipeline exit regardless of XLA reduction order.
+    The projection is IDEMPOTENT on symmetric inputs (zero delta for
+    well-behaved metrics; ``TestStressEnergySymmetry`` at 1e-13 on
+    10x10x10 interior slabs stays green) and DEFENSIVE against any
+    future reduction-order regression that could perturb the tensor.
+
+    See the source code for the
+    empirical investigation that showed this projection is scope-honest
+    defensive hardening rather than a cure for the upstream Hawking-Ellis
+    classifier basis-choice issue at non-Minkowski metrics.
 
     Args:
         einstein: Einstein tensor of shape (4, 4).
 
     Returns:
-        Stress-energy tensor of shape (4, 4).
+        Stress-energy tensor of shape (4, 4), symmetrized.
     """
-    return einstein / (8.0 * jnp.pi)
+    T = einstein / (8.0 * jnp.pi)
+    return 0.5 * (T + T.T)  # idempotent projection onto symmetric subspace
 
 
 def compute_curvature_chain(

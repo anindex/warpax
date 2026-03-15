@@ -72,7 +72,7 @@ def _feature_extent(
     Returns (xlim, ylim) or None if the feature fills >60% of the domain.
 
     Handles bimodal features (e.g. Lentz with two separated bubble walls)
-    by detecting large gaps and zooming to one cluster.  Enforces a
+    by detecting large gaps and zooming to one cluster. Enforces a
     minimum zoom extent so point-like features are shown in sufficient
     spatial context.
     """

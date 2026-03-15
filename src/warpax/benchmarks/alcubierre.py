@@ -4,9 +4,9 @@ The Alcubierre metric in ADM form:
     ds^2 = -dt^2 + (dx - v_s f(r_s) dt)^2 + dy^2 + dz^2
 
 ADM components:
-    alpha = 1  (lapse)
-    beta^x = -v_s f(r_s),  beta^y = beta^z = 0  (shift)
-    gamma_ij = delta_ij  (flat spatial metric)
+    alpha = 1 (lapse)
+    beta^x = -v_s f(r_s), beta^y = beta^z = 0 (shift)
+    gamma_ij = delta_ij (flat spatial metric)
 
 Shape function (top-hat smoothed by tanh):
     f(r_s) = [tanh(sigma (r_s + R)) - tanh(sigma (r_s - R))] / [2 tanh(sigma R)]
@@ -90,6 +90,13 @@ class AlcubierreMetric(ADMMetric):
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
         return jnp.eye(3)
 
+    @jaxtyped(typechecker=beartype)
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """Shape function f(r_s) for the Alcubierre metric."""
+        t, x, y, z = coords
+        r_s = jnp.sqrt((x - self.x_s) ** 2 + y**2 + z**2)
+        return _shape_function(r_s, self.R, self.sigma)
+
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 
     def symbolic(self) -> SymbolicMetric:
@@ -106,7 +113,7 @@ class AlcubierreMetric(ADMMetric):
         ) / (2 * sp.tanh(sigma_val * R_val))
 
         # Full metric: ds^2 = -(1 - v_s^2 f^2) dt^2 - 2 v_s f dx dt
-        #                      + dx^2 + dy^2 + dz^2
+        # + dx^2 + dy^2 + dz^2
         g = sp.Matrix([
             [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
             [-v_s * f, 1, 0, 0],
@@ -134,7 +141,7 @@ def alcubierre_symbolic(
     Parameters
     ----------
     v_s, R_val, sigma_val : sp.Symbol or None
-        Symbolic parameters.  If *None*, fresh positive symbols are created.
+        Symbolic parameters. If *None*, fresh positive symbols are created.
     """
     t, x, y, z = sp.symbols("t x y z")
     if v_s is None:

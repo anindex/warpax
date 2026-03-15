@@ -44,7 +44,7 @@ def mp4_to_gif(
     input_path : str or Path
         Path to the input MP4 file.
     output_path : str or Path or None
-        Path for the output GIF.  If ``None``, replaces the ``.mp4``
+        Path for the output GIF. If ``None``, replaces the ``.mp4``
         extension with ``.gif``.
     fps : int
         Target frame rate for the GIF (default 20).
@@ -53,7 +53,7 @@ def mp4_to_gif(
     dither : str
         FFmpeg dither algorithm (default ``"bayer"``).
     bayer_scale : int
-        Bayer dither scale, 1--5 (default 5).  Higher values produce
+        Bayer dither scale, 1--5 (default 5). Higher values produce
         smoother gradients.
 
     Returns
@@ -177,9 +177,9 @@ def render_and_convert(
         Name of the Manim ``Scene`` subclass to render.
     quality : str
         Render quality: ``"l"`` (480p), ``"m"`` (720p), ``"h"``
-        (1080p), ``"k"`` (4K).  Default ``"h"``.
+        (1080p), ``"k"`` (4K). Default ``"h"``.
     output_dir : str or Path or None
-        Directory for output files.  If ``None``, uses Manim's default
+        Directory for output files. If ``None``, uses Manim's default
         ``media/`` directory.
     gif_fps : int
         GIF frame rate (default 20).

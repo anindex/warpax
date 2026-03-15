@@ -1,7 +1,7 @@
 """BubbleCollapse: Manim ThreeDScene showing sigma sweep + velocity turn-off.
 
 Demonstrates the Alcubierre warp bubble response to both wall thickness
-(sigma) variation and velocity collapse.  The scene has two sequential
+(sigma) variation and velocity collapse. The scene has two sequential
 phases:
 
 1. **Sigma sweep (frames 0-44):** sigma increases from 1.0 to 16.0 at
@@ -16,7 +16,7 @@ Dual-layer rendering:
 - **Lower layer:** flat heatmap showing ``nec_margin_sweep`` (RdYlGn
   colorscale: green = NEC satisfied, red = violated) throughout.
 
-Both layers are always visible.  All frames are computed with ``build_ec_frame_sequence``
+Both layers are always visible. All frames are computed with ``build_ec_frame_sequence``
 so that ``nec_margin_sweep`` is available from frame 0.
 
 Usage::
@@ -70,7 +70,7 @@ class BubbleCollapse(ThreeDScene):
     - Lower: flat heatmap (nec_margin_sweep, RdYlGn)
 
     Live parameter counters, defining equation overlay, and violation
-    status indicator.  All HUD elements are placed in non-overlapping
+    status indicator. All HUD elements are placed in non-overlapping
     zones.
     """
 
@@ -170,10 +170,10 @@ class BubbleCollapse(ThreeDScene):
         # Step 5: Parameter displays - left side, manually aligned
         # ==================================================================
         # Build aligned rows: label = value
-        # NOTE: In ThreeDScene, DecimalNumber.set_value() recreates internal
-        # submobjects that lose their fixed-in-frame registration.  We use
-        # ``become()`` in the updaters instead, which replaces geometry
-        # in-place and preserves the registration.  Each leaf mobject is
+        # NOTE: In ThreeDScene, DecimalNumber.set_value recreates internal
+        # submobjects that lose their fixed-in-frame registration. We use
+        # ``become`` in the updaters instead, which replaces geometry
+        # in-place and preserves the registration. Each leaf mobject is
         # also registered individually to avoid VGroup propagation issues.
         v_label = MathTex(r"v_s", font_size=32, color=WHITE)
         v_eq = MathTex(r"=", font_size=32, color=WHITE)

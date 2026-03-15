@@ -10,7 +10,7 @@ C1 cubic:
 
 C2 quintic:
     f(0)=0, f(1)=1, f'(0)=f'(1)=0, f''(0)=f''(1)=0
-    First derivative:  30t^4 - 60t^3 + 30t^2 = 30t^2(t-1)^2
+    First derivative: 30t^4 - 60t^3 + 30t^2 = 30t^2(t-1)^2
     Second derivative: 120t^3 - 180t^2 + 60t = 60t(2t-1)(t-1)
 
 These functions are used by WarpShell's transition helpers
@@ -28,12 +28,12 @@ def smoothstep_c1(t: Float[Array, "..."]) -> Float[Array, "..."]:
     """C1-smooth cubic Hermite smoothstep: 3t^2 - 2t^3.
 
     Boundary conditions:
-        f(0) = 0,  f(1) = 1
+        f(0) = 0, f(1) = 1
         f'(0) = 0, f'(1) = 0
 
     Second derivative (NOT zero at endpoints):
         f''(t) = 6 - 12t
-        f''(0) = 6,  f''(1) = -6
+        f''(0) = 6, f''(1) = -6
 
     Parameters
     ----------
@@ -53,8 +53,8 @@ def smoothstep_c2(t: Float[Array, "..."]) -> Float[Array, "..."]:
     """C2-smooth quintic Hermite smoothstep: 6t^5 - 15t^4 + 10t^3.
 
     Boundary conditions:
-        f(0) = 0,   f(1) = 1
-        f'(0) = 0,  f'(1) = 0
+        f(0) = 0, f(1) = 1
+        f'(0) = 0, f'(1) = 0
         f''(0) = 0, f''(1) = 0
 
     First derivative:

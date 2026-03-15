@@ -2,19 +2,19 @@
 
 For Type I tensors with eigenvalues {-rho, p1, p2, p3}:
 
-- **WEC:** rho >= 0  AND  rho + p_i >= 0   for all i
-- **NEC:** rho + p_i >= 0                   for all i
-- **DEC:** rho >= |p_i|                     for all i
-- **SEC:** rho + p_i >= 0 for all i  AND  rho + sum(p_i) >= 0
+- **WEC:** rho >= 0 AND rho + p_i >= 0 for all i
+- **NEC:** rho + p_i >= 0 for all i
+- **DEC:** rho >= |p_i| for all i
+- **SEC:** rho + p_i >= 0 for all i AND rho + sum(p_i) >= 0
 
 Each function returns a **signed margin scalar** (inequality slack):
-positive means satisfied, negative means violated.  This slack certifies
+positive means satisfied, negative means violated. This slack certifies
 the Boolean truth of the condition but is not, in general, equal to the
 minimum observer-contracted energy density ``min_u T_{ab} u^a u^b``;
 it measures proximity to the eigenvalue inequality boundary rather than
 a physical extremum over the observer manifold.
 
-The threshold for labelling a violation is ``margin < -atol``
+The threshold for labeling a violation is ``margin < -atol``
 (configurable, default 1e-10), following the convention that
 violations are labelled only when the margin falls below ``-atol``.
 
@@ -77,7 +77,7 @@ def check_sec(
 ) -> Float[Array, ""]:
     """Strong Energy Condition margin.
 
-    SEC: rho + p_i >= 0 for all i  AND  rho + sum(p_i) >= 0.
+    SEC: rho + p_i >= 0 for all i AND rho + sum(p_i) >= 0.
     Returns ``min(rho+p1, rho+p2, rho+p3, rho+p1+p2+p3)``.
     """
     trace = rho + jnp.sum(pressures)

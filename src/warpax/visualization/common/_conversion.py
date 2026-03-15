@@ -4,7 +4,7 @@ Two public functions:
 - ``freeze_curvature``: GridCurvatureResult -> FrameData (curvature invariants)
 - ``freeze_ec``: ECGridResult -> FrameData (EC margins + classification)
 
-All conversions use ``np.asarray()`` to force device-to-host transfer and
+All conversions use ``np.asarray`` to force device-to-host transfer and
 produce genuine ``np.ndarray`` objects.
 """
 from __future__ import annotations

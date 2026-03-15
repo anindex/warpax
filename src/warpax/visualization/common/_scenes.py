@@ -246,7 +246,7 @@ def scene_observer_sweep(
 
     Unlike ``build_ec_frame_sequence`` which takes worst-case across ALL
     observers, this scene shows the WEC/NEC margin landscape for a SINGLE
-    rapidity at each frame.  The geometry is computed once and reused,
+    rapidity at each frame. The geometry is computed once and reused,
     revealing how the violation landscape shifts with observer boost.
 
     Parameters

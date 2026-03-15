@@ -2,13 +2,13 @@
 
 Two parameterizations are provided:
 
-1. **3-vector (preferred):**  An unconstrained boost vector ``w in R^3``
+1. **3-vector (preferred):** An unconstrained boost vector ``w in R^3``
    where ``zeta = |w|`` and the spatial direction is ``w / |w|``.
-   When ``w = 0``, this returns the Eulerian observer exactly.  A smooth
+   When ``w = 0``, this returns the Eulerian observer exactly. A smooth
    rapidity cap ``zeta_max * tanh(|w| / zeta_max)`` is available.
 
-2. **Rapidity-angle (legacy):**  ``(zeta, theta, phi)`` with explicit
-   angular parameterization on S^2.  Retained for backward compatibility.
+2. **Rapidity-angle (legacy):** ``(zeta, theta, phi)`` with explicit
+   angular parameterization on S^2. Retained for backward compatibility.
 
 For null vectors, stereographic projection from ``R^2`` to ``S^2``
 avoids the polar singularities of ``(theta, phi)``.

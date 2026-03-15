@@ -1,7 +1,7 @@
 """Van Den Broeck volume-modified Alcubierre warp drive metric.
 
 The Van Den Broeck metric (arXiv:gr-qc/9905084) modifies the Alcubierre metric
-by introducing a conformal factor B(r_s) on the spatial metric.  This expands
+by introducing a conformal factor B(r_s) on the spatial metric. This expands
 the internal volume of the warp bubble while keeping the external surface area
 small, dramatically reducing the total negative energy requirement.
 
@@ -9,9 +9,9 @@ Line element:
     ds^2 = -dt^2 + B^2(r_s) * [(dx - v_s f(r_s) dt)^2 + dy^2 + dz^2]
 
 ADM components:
-    alpha = 1  (unit lapse)
-    beta^i = (-v_s * f(r_s), 0, 0)  (SAME shift as Alcubierre)
-    gamma_ij = B^2(r_s) * delta_ij  (conformal spatial metric)
+    alpha = 1 (unit lapse)
+    beta^i = (-v_s * f(r_s), 0, 0) (SAME shift as Alcubierre)
+    gamma_ij = B^2(r_s) * delta_ij (conformal spatial metric)
 
 where B(r_s) = 1 + alpha_vdb * f_B(r_s) is the conformal factor with
 a second shape function f_B controlling the volume expansion region.
@@ -106,6 +106,13 @@ class VanDenBroeckMetric(ADMMetric):
         r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2)
         B = _van_den_broeck_B(r_s, self.R_tilde, self.alpha_vdb, self.sigma_B)
         return B**2 * jnp.eye(3)
+
+    @jaxtyped(typechecker=beartype)
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """Alcubierre shape function f(r_s) for the VDB metric."""
+        t, x, y, z = coords
+        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2)
+        return alcubierre_shape(r_s, self.R, self.sigma)
 
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 

@@ -11,7 +11,7 @@ Dual-layer rendering:
   colorscale: green = NEC satisfied, red = violated) throughout.
 
 Both layers are always visible, enabling simultaneous comparison of
-curvature magnitude and violation structure.  All frames are computed
+curvature magnitude and violation structure. All frames are computed
 with ``build_ec_frame_sequence`` so that ``nec_margin_sweep`` is
 available from frame 0.
 
@@ -162,9 +162,9 @@ class VelocityRamp(ThreeDScene):
         # ==================================================================
         # Step 5: Parameter display - upper-left (DecimalNumber + become)
         # ==================================================================
-        # NOTE: In ThreeDScene, DecimalNumber.set_value() recreates internal
-        # submobjects that lose their fixed-in-frame registration.  We use
-        # ``become()`` in the updaters instead, which replaces geometry
+        # NOTE: In ThreeDScene, DecimalNumber.set_value recreates internal
+        # submobjects that lose their fixed-in-frame registration. We use
+        # ``become`` in the updaters instead, which replaces geometry
         # in-place and preserves the registration.
         v_label = MathTex(r"v_s", font_size=32, color=WHITE)
         v_eq = MathTex(r"=", font_size=32, color=WHITE)

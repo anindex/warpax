@@ -21,13 +21,18 @@ from ..geometry.metric import MetricSpecification, SymbolicMetric
 class MinkowskiMetric(MetricSpecification):
     """Flat Minkowski spacetime in Cartesian coordinates.
 
-    No parameters (empty pytree leaf set).  The metric is simply
+    No parameters (empty pytree leaf set). The metric is simply
     ``diag(-1, 1, 1, 1)`` everywhere.
     """
 
     @jaxtyped(typechecker=beartype)
     def __call__(self, coords: Float[Array, "4"]) -> Float[Array, "4 4"]:
         return jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+
+    @jaxtyped(typechecker=beartype)
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """No warp deformation -- shape function is identically zero."""
+        return jnp.array(0.0)
 
     def symbolic(self) -> SymbolicMetric:
         """Return SymPy symbolic form for inspection and cross-validation."""

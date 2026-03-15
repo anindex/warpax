@@ -1,23 +1,23 @@
 """Natario zero-expansion warp drive metric.
 
 The Natario metric (arXiv:gr-qc/0110086) demonstrates that spatial expansion
-and contraction are NOT essential features of warp drive operation.  The trace
+and contraction are NOT essential features of warp drive operation. The trace
 of the extrinsic curvature K = div(beta) = 0 everywhere by construction,
 meaning there is no volume change of spatial slices.
 
 ADM components:
-    alpha = 1  (unit lapse)
-    gamma_ij = delta_ij  (flat spatial metric)
+    alpha = 1 (unit lapse)
+    gamma_ij = delta_ij (flat spatial metric)
     beta^i: two-component shift with zero-expansion constraint
 
 The shift in the co-moving bubble frame (direct Cartesian form):
     beta^x = -v_s * (2*n(r) + r*n'(r)*sin^2(theta))
-    beta^y =  v_s * r*n'(r) * x*y/r^2
-    beta^z =  v_s * r*n'(r) * x*z/r^2
+    beta^y = v_s * r*n'(r) * x*y/r^2
+    beta^z = v_s * r*n'(r) * x*z/r^2
 
 Shape function:
     n(r_s) = (1/2) * (1 - f_Alc(r_s))
-    n(0) = 0  (flat interior),  n(inf) = 1/2  (asymptotic)
+    n(0) = 0 (flat interior), n(inf) = 1/2 (asymptotic)
 
 At bubble center: n(0) = 0 and n'(0) = 0, so shift = 0 (flat Minkowski interior).
 At far field: shift = -v_s * x_hat (uniform flow past bubble).
@@ -28,7 +28,7 @@ This means K (trace of extrinsic curvature) vanishes identically.
 Energy density (Eulerian observers):
     rho = -(v_s^2 / kappa) * [3*(dn/dr)^2*cos^2(theta)
            + (dn/dr + r/2*d2n/dr2)^2*sin^2(theta)]
-    where kappa = 16*pi.  Strictly negative -> WEC/NEC violation everywhere.
+    where kappa = 16*pi. Strictly negative -> WEC/NEC violation everywhere.
 
 Note: The Natario metric uses the co-moving bubble frame where the interior
 is Minkowski and the exterior has a uniform flow. This differs from the
@@ -110,7 +110,7 @@ class NatarioMetric(ADMMetric):
     """Natario zero-expansion warp drive metric via ADM 3+1 decomposition.
 
     Uses the co-moving bubble frame where the interior is Minkowski and
-    the exterior has a uniform flow of -v_s in the x-direction.  This is
+    the exterior has a uniform flow of -v_s in the x-direction. This is
     the natural Natario convention with div(beta) = 0 exactly.
 
     All parameters are dynamic fields (no recompilation on change).
@@ -146,8 +146,8 @@ class NatarioMetric(ADMMetric):
         # Direct Cartesian shift satisfying div(beta) = 0 exactly.
         #
         # Derived from coordinate-basis spherical shift:
-        #   beta^r = -2*v_s*n(r)*cos(theta)
-        #   beta^theta_coord = v_s*(2n + r*dn/dr)*sin(theta)
+        # beta^r = -2*v_s*n(r)*cos(theta)
+        # beta^theta_coord = v_s*(2n + r*dn/dr)*sin(theta)
         # converted via Jacobian to Cartesian.
         sin_theta_sq = (y**2 + z**2) / r_s**2
 
@@ -165,6 +165,14 @@ class NatarioMetric(ADMMetric):
     @jaxtyped(typechecker=beartype)
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
         return jnp.eye(3)
+
+    @jaxtyped(typechecker=beartype)
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """Alcubierre-convention shape function f(r_s) underlying the Natario n(r)."""
+        t, x, y, z = coords
+        dx = x - self.v_s * t
+        r_s = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-24)
+        return alcubierre_shape(r_s, self.R, self.sigma)
 
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 

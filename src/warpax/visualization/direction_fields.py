@@ -27,7 +27,7 @@ def plot_worst_observer_field(
     """Plot quiver field of worst-observer boost directions.
 
     Arrows are normalized to unit length to show *direction* only.
-    Color encodes rapidity magnitude (sinh ζ).  Points where the observer
+    Color encodes rapidity magnitude (sinh ζ). Points where the observer
     choice is physically irrelevant (flat spacetime) are suppressed via
     the significance_mask.
 

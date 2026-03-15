@@ -15,7 +15,7 @@ The deviation equations use the tidal tensor K^mu_rho = R^mu_{nu rho sigma} v^nu
 and Christoffel transport terms, giving:
 
     d(xi)/dtau = w - Gamma^mu_{ab} v^a xi^b
-    d(w)/dtau  = -K^mu_rho xi^rho - Gamma^mu_{ab} v^a w^b
+    d(w)/dtau = -K^mu_rho xi^rho - Gamma^mu_{ab} v^a w^b
 
 The Riemann tensor R^lam_{mu nu rho} is computed at each integration step via
 exact nested JAX autodiff (riemann_tensor from geometry.py).

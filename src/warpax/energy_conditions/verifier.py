@@ -8,7 +8,7 @@ Strategy
 1. Classify T^a_b via Hawking-Ellis at every grid point (vmapped).
 2. For Type I points: fast eigenvalue algebraic checks.
 3. For ALL points (including Type I): optimization over observer space
-   to find worst-case margins.  For Type I, the final margin is the
+   to find worst-case margins. For Type I, the final margin is the
    worse (smaller) of eigenvalue and optimization results.
 4. Eulerian-frame EC results are computed SEPARATELY (not baked into
    optimization) via ``compute_eulerian_ec``, enabling clean comparison
@@ -54,6 +54,8 @@ def verify_point(
     n_starts: int = 16,
     zeta_max: float = 5.0,
     key=None,
+    *,
+    solver: str = 'standard',
 ) -> ECPointResult:
     """Verify all energy conditions at a single spacetime point.
 
@@ -76,6 +78,11 @@ def verify_point(
         Maximum rapidity.
     key : PRNGKey or None
         Random key for optimization initial conditions.
+    solver : {'standard', 'generalized'}, keyword-only
+        Eigenvalue backend forwarded to :func:`classify_hawking_ellis`
+        . ``'generalized'`` carries host-callback overhead; see
+        :func:`classify_hawking_ellis` and :mod:`._gen_eig_callback` for
+        full semantics.
 
     Returns
     -------
@@ -94,7 +101,11 @@ def verify_point(
 
     # Classify
     T_mixed = g_inv @ T_ab
-    cls = classify_hawking_ellis(T_mixed, g_ab)
+    cls = classify_hawking_ellis(
+        T_mixed, g_ab,
+        solver=solver,
+        T_ab=T_ab if solver == 'generalized' else None,
+    )
     he_type = cls.he_type
     rho = cls.rho
     pressures = cls.pressures
@@ -118,9 +129,9 @@ def verify_point(
     worst_params = opt_results["wec"].worst_params
 
     # For Type I: algebraic eigenvalue margins are exact (authoritative for
-    # violation detection).  Optimizer provides worst-observer parameters
+    # violation detection). Optimizer provides worst-observer parameters
     # and zeta_max-capped severity diagnostics.
-    # int() concretizes a JAX tracer -- prevents jax.jit (see docstring).
+    # int concretizes a JAX tracer -- prevents jax.jit (see docstring).
     he_type_int = int(he_type)
     if he_type_int == 1:
         nec_eig, wec_eig, sec_eig, dec_eig = check_all(rho, pressures)
@@ -189,6 +200,8 @@ def verify_grid(
     batch_size: int | None = None,
     key=None,
     compute_eulerian: bool = False,
+    *,
+    solver: str = 'standard',
 ) -> ECGridResult:
     """Verify energy conditions across an entire grid.
 
@@ -209,12 +222,18 @@ def verify_grid(
         Maximum rapidity.
     batch_size : int or None
         If set, use ``lax.map`` with this batch size for memory-safe
-        processing.  If None, use ``jax.vmap``.
+        processing. If None, use ``jax.vmap``.
     key : PRNGKey or None
         Random key for optimization.
     compute_eulerian : bool
         If True, also compute Eulerian-frame EC at each point and take
         the worse margin. Default False.
+    solver : {'standard', 'generalized'}, keyword-only
+        Eigenvalue backend forwarded to :func:`classify_hawking_ellis`
+        . ``'generalized'`` carries grid-level host-callback
+        overhead (~5-10x slower; vmap is sequential). See
+        :func:`classify_hawking_ellis` and :mod:`._gen_eig_callback`
+        for full semantics.
 
     Returns
     -------
@@ -224,7 +243,7 @@ def verify_grid(
 
     Note
     ----
-    This function uses ``int()``/``float()`` on JAX arrays for diagnostic
+    This function uses ``int``/``float`` on JAX arrays for diagnostic
     warnings and classification statistics (non-Type-I count, type census,
     max imaginary eigenvalue). These concretize traced values and prevent
     the function from being wrapped in ``jax.jit``. The inner optimization
@@ -248,7 +267,14 @@ def verify_grid(
 
     # Step 1: Classify all points (vmapped)
     flat_T_mixed = jax.vmap(jnp.matmul)(flat_g_inv, flat_T)
-    cls_results = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
+    if solver == 'standard':
+        cls_results = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
+    else:  # solver == 'generalized' - also needs T_ab at every point
+        def _classify_gen(T_mixed_i, g_i, T_ab_i):
+            return classify_hawking_ellis(
+                T_mixed_i, g_i, solver='generalized', T_ab=T_ab_i,
+            )
+        cls_results = jax.vmap(_classify_gen)(flat_T_mixed, flat_g, flat_T)
 
     he_types = cls_results.he_type      # (N,)
     eigenvalues = cls_results.eigenvalues  # (N, 4)
@@ -308,7 +334,7 @@ def verify_grid(
     is_type_i = (he_types == 1.0)
 
     # Diagnostic: warn if non-Type-I points exist (DEC future-directedness caveat).
-    # int() concretizes a JAX tracer -- prevents jax.jit (see docstring).
+    # int concretizes a JAX tracer -- prevents jax.jit (see docstring).
     n_non_type_i = int(jnp.sum(~is_type_i))
     if n_non_type_i > 0:
         import warnings
@@ -348,7 +374,7 @@ def verify_grid(
     dec_summary = _compute_summary(dec_margins)
 
     # Step 6b: Classification statistics.
-    # int()/float() concretize JAX tracers -- prevents jax.jit (see docstring).
+    # int/float concretize JAX tracers -- prevents jax.jit (see docstring).
     n_type_i = int(jnp.sum(he_types == 1.0))
     n_type_ii = int(jnp.sum(he_types == 2.0))
     n_type_iii = int(jnp.sum(he_types == 3.0))
@@ -460,7 +486,7 @@ def compute_eulerian_ec(
     """Compute energy condition margins for the Eulerian observer ONLY.
 
     This is the "Eulerian-frame EC result computed on request" for clean
-    comparison against observer-robust margins.  The Eulerian observer is
+    comparison against observer-robust margins. The Eulerian observer is
     the unit normal to constant-time spatial hypersurfaces:
     ``n^a = (1/alpha, -beta^i/alpha)``.
 
@@ -471,7 +497,7 @@ def compute_eulerian_ec(
     g_ab : Float[Array, "4 4"]
         Covariant metric at the same point.
     g_inv : Float[Array, "4 4"] or None
-        Inverse metric.  Computed if not provided.
+        Inverse metric. Computed if not provided.
 
     Returns
     -------
@@ -495,9 +521,12 @@ def anec_integrand(
 ) -> Float[Array, ""]:
     """Pointwise ANEC integrand: T_{ab} k^a k^b.
 
-    Computes the integrand for the Averaged Null Energy Condition.
-    The full ANEC integral along a null geodesic requires geodesic
-    data (not yet implemented).
+    Computes the integrand for the Averaged Null Energy Condition at a
+    single spacetime point. Retained as a primitive integrand helper.
+
+    For the full line integral along a null geodesic, use
+    ``warpax.averaged.anec`` , which replaces the v0.1.x stub
+    ``anec_integral`` with a + mitigated implementation.
 
     Parameters
     ----------
@@ -515,13 +544,19 @@ def anec_integrand(
 
 
 def anec_integral(T_field, geodesic):
-    """ANEC line integral along a null geodesic.
+    """Deprecated. Use ``warpax.averaged.anec`` instead.
 
-    Raises
-    ------
-    NotImplementedError
-        ANEC line integral requires geodesic data (not yet implemented).
+    The v0.1.x stub ``raise NotImplementedError`` is replaced by a
+    delegating call with a ``DeprecationWarning``.
     """
-    raise NotImplementedError(
-        "ANEC line integral requires geodesic data (not yet implemented)"
+    import warnings
+
+    warnings.warn(
+        "warpax.energy_conditions.verifier.anec_integral is deprecated; "
+        "use warpax.averaged.anec instead ().",
+        DeprecationWarning,
+        stacklevel=2,
     )
+    from ..averaged.anec import anec
+
+    return anec(T_field, geodesic)

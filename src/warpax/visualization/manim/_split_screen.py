@@ -7,7 +7,7 @@ visual comparison of how observer choice affects violation severity.
 
 Layout
 ------
-- **Top centre**: title + metric equation (static)
+- **Top center**: title + metric equation (static)
 - **Left panel**: Eulerian NEC margin with contours
 - **Right panel**: Observer-robust NEC margin with contours
 - **Centre**: vertical divider
@@ -57,7 +57,7 @@ from warpax.visualization.manim._scene_utils import COLORS_3B1B
 # Dark-midpoint diverging colormap
 # ---------------------------------------------------------------------------
 _DARK_DIVERGE_SS = LinearSegmentedColormap.from_list(
-    "dark_diverge_ss", ["#3B4CC0", "#1A1A2E", "#B40426"], N=256,
+    "dark_diverge_ss", ["#3B4CC0", "#1A1A2E", "#"], N=256,
 )
 try:
     _mcm.register_cmap(name="dark_diverge_ss", cmap=_DARK_DIVERGE_SS)
@@ -425,9 +425,9 @@ class SplitScreen(Scene):
         vs_display = always_redraw(_make_vs)
 
         # ==============================================================
-        # Step 8: Color legend - lower-centre
+        # Step 8: Color legend - lower-center
         # ==============================================================
-        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#B40426"]
+        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#"]
         bg_strips = VGroup(*[
             Rectangle(
                 width=0.22, height=0.07,
@@ -440,7 +440,7 @@ class SplitScreen(Scene):
             font_size=12, color=WHITE, weight="LIGHT",
         )
         bg_lo = MathTex(r"-", font_size=14, color="#3B4CC0")
-        bg_hi = MathTex(r"+", font_size=14, color="#B40426")
+        bg_hi = MathTex(r"+", font_size=14, color="#")
         bg_bar = VGroup(bg_lo, bg_strips, bg_hi).arrange(RIGHT, buff=0.04)
         color_legend = VGroup(bg_title, bg_bar).arrange(DOWN, buff=0.04)
         color_legend.to_edge(RIGHT, buff=0.15).shift(DOWN * 2.0)

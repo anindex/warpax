@@ -6,8 +6,8 @@ at each grid point which boost direction and magnitude produces the
 worst-case energy condition violation.
 
 The arrow direction is the spatial direction of the worst-case observer
-boost projected onto the equatorial (x-y) plane.  Arrow **length**
-encodes boost magnitude ``|sinh(ζ*)|`` and arrow **colour** encodes
+boost projected onto the equatorial (x-y) plane. Arrow **length**
+encodes boost magnitude ``|sinh(ζ*)|`` and arrow **color** encodes
 the local NEC margin value (red = violated, green = satisfied),
 matching the RdYlGn colorscale used in the BubbleCollapse heatmap
 layer.
@@ -63,7 +63,7 @@ from warpax.visualization.manim._scene_utils import COLORS_3B1B
 # Dark-midpoint diverging colormap: blue -> dark gray -> red.
 _DARK_DIVERGE = LinearSegmentedColormap.from_list(
     "dark_diverge",
-    ["#3B4CC0", "#1A1A2E", "#B40426"],
+    ["#3B4CC0", "#1A1A2E", "#"],
     N=256,
 )
 import matplotlib.cm as _mcm
@@ -291,7 +291,7 @@ def _make_arrow_field(
     min_magnitude: float = 0.05,
     max_arrow_length: float = 0.6,
 ) -> VGroup:
-    """Create Manim Arrow mobjects coloured by local NEC margin.
+    """Create Manim Arrow mobjects colored by local NEC margin.
 
     Parameters
     ----------
@@ -300,7 +300,7 @@ def _make_arrow_field(
     magnitude_2d : np.ndarray
         ``(Nx, Ny)`` boost magnitudes.
     nec_margin_2d : np.ndarray
-        ``(Nx, Ny)`` NEC margin values for colouring (negative = violated).
+        ``(Nx, Ny)`` NEC margin values for coloring (negative = violated).
     x_range, y_range : tuple[float, float]
         Data coordinate ranges.
     scene_width, scene_height : float
@@ -317,7 +317,7 @@ def _make_arrow_field(
     Returns
     -------
     VGroup
-        Group of coloured Manim Arrow mobjects.
+        Group of colored Manim Arrow mobjects.
     """
     Nx, Ny = direction_2d.shape[:2]
     max_mag = float(np.max(magnitude_2d))
@@ -327,12 +327,12 @@ def _make_arrow_field(
     # Normalize magnitudes for display
     norm_mag = magnitude_2d / max_mag  # [0, 1]
 
-    # NEC margin -> colour via RdYlGn 5-stop scale
+    # NEC margin -> color via RdYlGn 5-stop scale
     nec_abs_max = max(abs(float(np.nanmin(nec_margin_2d))),
                       abs(float(np.nanmax(nec_margin_2d))),
                       1e-15)
 
-    # 5-stop RdYlGn colour stops (same as BubbleCollapse heatmap)
+    # 5-stop RdYlGn color stops (same as BubbleCollapse heatmap)
     _RdYlGn_stops = [
         (-1.0, np.array([0.647, 0.000, 0.149])),   # #A50026
         (-0.4, np.array([0.957, 0.427, 0.263])),   # #F46D43
@@ -342,7 +342,7 @@ def _make_arrow_field(
     ]
 
     def _nec_to_hex(val: float) -> str:
-        """Map a NEC margin value to an RdYlGn hex colour."""
+        """Map a NEC margin value to an RdYlGn hex color."""
         t = np.clip(val / nec_abs_max, -1.0, 1.0)
         # Piecewise interpolation through 5 stops
         for k in range(len(_RdYlGn_stops) - 1):
@@ -418,12 +418,12 @@ class BoostArrows(Scene):
     direction near the bubble wall, explaining why the robust margin
     finds deeper violations than the Eulerian observer.
 
-    Arrows are coloured by local NEC margin (RdYlGn: red = violated,
+    Arrows are colored by local NEC margin (RdYlGn: red = violated,
     green = satisfied) so one can see at a glance *where* violations
     are worst and *which boost* triggers them.
 
     Static scene for a single velocity (v_s = 0.5 by default) with a
-    brief fade-in of arrows.  Holds for 5 seconds total.
+    brief fade-in of arrows. Holds for 5 seconds total.
     """
 
     # Configurable class attributes
@@ -465,7 +465,7 @@ class BoostArrows(Scene):
         # ==============================================================
         mid_z = frame.grid_shape[2] // 2
         data_2d = frame.scalar_fields["nec_margin_sweep"][:, :, mid_z]
-        nec_margin_eq = data_2d  # keep for arrow colouring
+        nec_margin_eq = data_2d  # keep for arrow coloring
         x_1d = frame.x[:, 0, 0]
         y_1d = frame.y[0, :, 0]
         x_range = (float(x_1d[0]), float(x_1d[-1]))
@@ -474,7 +474,7 @@ class BoostArrows(Scene):
         # Near-zero contour (margin ≈ 0): white dashed line.
         # The observer-swept NEC margin is everywhere ≤ 0 (worst-case is
         # always non-positive), so level=0.0 sits exactly on the data
-        # boundary and yields an empty contour.  Use a small negative
+        # boundary and yields an empty contour. Use a small negative
         # threshold to mark the onset of significant violation.
         nec_min = float(np.min(data_2d))
         nec_threshold = nec_min * 1e-2 if nec_min < 0 else -1e-6
@@ -497,7 +497,7 @@ class BoostArrows(Scene):
         self.add(bubble_contour)
 
         # ==============================================================
-        # Step 4: Arrow field overlay (coloured by NEC margin)
+        # Step 4: Arrow field overlay (colored by NEC margin)
         # ==============================================================
         arrow_field = _make_arrow_field(
             dir_eq, mag_eq,
@@ -554,7 +554,7 @@ class BoostArrows(Scene):
         # ==============================================================
 
         # NEC margin heatmap legend (dark-midpoint diverging) --
-        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#B40426"]
+        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#"]
         bg_strips = VGroup(*[
             Rectangle(
                 width=0.28, height=0.10,
@@ -567,13 +567,13 @@ class BoostArrows(Scene):
             font_size=16, color=WHITE, weight="LIGHT",
         )
         bg_lo = MathTex(r"-", font_size=18, color="#3B4CC0")
-        bg_hi = MathTex(r"+", font_size=18, color="#B40426")
+        bg_hi = MathTex(r"+", font_size=18, color="#")
         bg_bar_row = VGroup(bg_lo, bg_strips, bg_hi).arrange(RIGHT, buff=0.06)
         bg_legend = VGroup(bg_title, bg_bar_row).arrange(
             DOWN, buff=0.08, aligned_edge=LEFT,
         )
 
-        # Arrow colour legend (RdYlGn) --
+        # Arrow color legend (RdYlGn) --
         arrow_colors = ["#A50026", "#F46D43", "#FFFFBF", "#66BD63", "#006837"]
         arrow_strips = VGroup(*[
             Rectangle(
@@ -583,7 +583,7 @@ class BoostArrows(Scene):
             ) for c in arrow_colors
         ]).arrange(RIGHT, buff=0)
         arrow_title = Text(
-            "Arrow colour (NEC at point)",
+            "Arrow color (NEC at point)",
             font_size=16, color=WHITE, weight="LIGHT",
         )
         arrow_lo = MathTex(

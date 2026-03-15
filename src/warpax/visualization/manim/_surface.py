@@ -36,13 +36,13 @@ def framedata_to_surface(
     axes : ThreeDAxes
         Manim axes used for coordinate conversion and color mapping.
     slice_idx : int, optional
-        Index along the z-axis for the equatorial slice.  Defaults to
+        Index along the z-axis for the equatorial slice. Defaults to
         ``frame.grid_shape[2] // 2`` (z-midplane).
     exaggeration : float, optional
         Vertical exaggeration factor. If *None*, auto-computed as
         ``0.3 * extent / max(|warp|)``.
     resolution : tuple[int, int], optional
-        Manim surface resolution ``(u_res, v_res)``.  Defaults to
+        Manim surface resolution ``(u_res, v_res)``. Defaults to
         ``(min(Nx-1, 32), min(Ny-1, 32))``.
 
     Returns

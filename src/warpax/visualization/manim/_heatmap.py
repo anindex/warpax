@@ -1,7 +1,7 @@
 """FrameData-to-Manim flat colored surface (equatorial heatmap).
 
 Creates a Manim ``Surface`` where the z-coordinate encodes the scalar
-field value for color mapping via ``set_fill_by_value()``, then shifts
+field value for color mapping via ``set_fill_by_value``, then shifts
 the surface to a desired visual position.
 """
 from __future__ import annotations
@@ -25,7 +25,7 @@ def _build_colorscale(
     vmax: float,
     colormap: str,
 ) -> list[tuple[str, float]]:
-    """Build a 5-stop colorscale for ``set_fill_by_value()``.
+    """Build a 5-stop colorscale for ``set_fill_by_value``.
 
     Parameters
     ----------
@@ -113,8 +113,8 @@ def framedata_to_heatmap(
     """Convert a FrameData equatorial slice to a flat colored surface (heatmap).
 
     The surface is constructed with z = field_value so that
-    ``set_fill_by_value()`` can map the scalar data to colors via
-    ``axis=2``.  The surface is then visually shifted to ``z_offset``.
+    ``set_fill_by_value`` can map the scalar data to colors via
+    ``axis=2``. The surface is then visually shifted to ``z_offset``.
 
     Parameters
     ----------
@@ -125,12 +125,12 @@ def framedata_to_heatmap(
     axes : ThreeDAxes
         Manim axes used for coordinate conversion and color mapping.
     slice_idx : int, optional
-        Index along the z-axis for the equatorial slice.  Defaults to
+        Index along the z-axis for the equatorial slice. Defaults to
         ``frame.grid_shape[2] // 2`` (z-midplane).
     z_offset : float, optional
         Visual z-position of the heatmap plane (default 0.0).
     resolution : tuple[int, int], optional
-        Manim surface resolution ``(u_res, v_res)``.  Defaults to
+        Manim surface resolution ``(u_res, v_res)``. Defaults to
         ``(min(Nx-1, 32), min(Ny-1, 32))``.
     colormap : str, optional
         Color scale name: ``"RdBu_r"`` (default diverging blue-red),

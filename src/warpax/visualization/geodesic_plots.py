@@ -44,7 +44,7 @@ def plot_tidal_evolution(
     Parameters
     ----------
     tidal_eigenvalues : NDArray, shape (N, 3) or (N, 4)
-        Tidal eigenvalues at each saved point along the geodesic.  If 4
+        Tidal eigenvalues at each saved point along the geodesic. If 4
         columns are provided, the near-zero eigenvalue (associated with the
         velocity direction) is dropped automatically.
     proper_times : NDArray, shape (N,)

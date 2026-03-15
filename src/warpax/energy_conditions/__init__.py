@@ -2,7 +2,7 @@
 
 Two-tier strategy: Hawking-Ellis classification + eigenvalue checks
 for Type I points, Optimistix BFGS optimization over observer space
-for all types.  Eulerian-frame comparison available separately.
+for all types. Eulerian-frame comparison available separately.
 """
 
 # Types
@@ -11,10 +11,16 @@ from .types import (
     ECGridResult,
     ECPointResult,
     ECSummary,
+    WallRestrictedStats,
 )
 
 # Classification
 from .classification import classify_hawking_ellis, classify_mixed_tensor
+from .classification_mpmath import (
+    classify_hawking_ellis_mpmath,
+    eigenvalues_mpmath,
+    verify_classification_at_points,
+)
 
 # Eigenvalue checks
 from .eigenvalue_checks import (
@@ -65,6 +71,14 @@ from .verifier import (
     verify_point,
 )
 
+# Filtering
+from .filtering import (
+    compute_wall_restricted_stats,
+    determinant_guard_mask,
+    frobenius_norm_mask,
+    shape_function_mask,
+)
+
 __all__ = [
     # Types
     "ClassificationResult",
@@ -72,9 +86,13 @@ __all__ = [
     "ECPointResult",
     "ECSummary",
     "OptimizationResult",
+    "WallRestrictedStats",
     # Classification
     "classify_hawking_ellis",
+    "classify_hawking_ellis_mpmath",
     "classify_mixed_tensor",
+    "eigenvalues_mpmath",
+    "verify_classification_at_points",
     # Eigenvalue checks
     "check_all",
     "check_dec",
@@ -108,4 +126,9 @@ __all__ = [
     "compute_eulerian_ec",
     "verify_grid",
     "verify_point",
+    # Filtering
+    "compute_wall_restricted_stats",
+    "determinant_guard_mask",
+    "frobenius_norm_mask",
+    "shape_function_mask",
 ]

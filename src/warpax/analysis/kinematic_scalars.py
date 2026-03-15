@@ -1,17 +1,38 @@
 """Kinematic scalars for the Eulerian congruence.
 
 Computes the expansion scalar theta, shear scalar sigma^2, and
-vorticity scalar omega^2 at each point, characterizing the
-kinematics of the Eulerian (hypersurface-orthogonal) observer
-congruence u^a = n^a.
+vorticity scalar omega^2 at each point, characterising the kinematics
+of the Eulerian (hypersurface-orthogonal) observer congruence
+u^a = n^a.
 
 For Eulerian observers:
-- theta = -K  (expansion = negative trace of extrinsic curvature)
-- sigma^2 = K_{ij} K^{ij} - (1/3) K^2  (shear scalar)
-- omega^2 = 0  (vorticity vanishes identically by Frobenius theorem)
+- theta = -K (expansion = negative trace of extrinsic curvature)
+- sigma^2 = K_{ij} K^{ij} - (1/3) K^2 (shear scalar)
+- omega^2 = 0 (vorticity vanishes identically by Frobenius theorem)
 
 K_{ij} is computed directly from the 4D Christoffel symbols:
 K_{ij} = -alpha * Gamma^0_{ij}.
+
+Scope note on the Raychaudhuri interpretation
+---------------------------------------------
+The vanishing vorticity ``omega^2 = 0`` is a consequence of the
+Eulerian congruence being hypersurface-orthogonal (Frobenius's
+theorem), independent of whether that congruence is also geodesic.
+For the unit-lapse warp metrics (Alcubierre, Lentz, Natario, Van den
+Broeck, Rodal) the lapse is constant, so ``n^a`` has zero 4-
+acceleration and ``theta`` / ``sigma^2`` plug directly into the usual
+Raychaudhuri focusing equation.
+
+For WarpShell (``alpha != 1`` in the shell) the Eulerian observer is
+*accelerated*; the full Raychaudhuri equation picks up an acceleration
+divergence term ``(3+1)D: -D_a a^a`` that the kinematic scalars here
+do not compute. The ``theta`` / ``sigma^2`` values remain correct as
+measures of the congruence's expansion and shear, but their
+interpretation via Raychaudhuri focusing is qualitative rather than
+quantitative in the WarpShell shell region. Users integrating these
+scalars along a timelike worldline should consult, e.g., Wald
+*General Relativity* eq. (9.2.11) for the accelerated-congruence
+variant of the focusing theorem.
 """
 from __future__ import annotations
 
@@ -34,9 +55,9 @@ def compute_kinematic_scalars(
     """Compute expansion, shear-squared, vorticity-squared at a point.
 
     For the Eulerian congruence u^a = n^a (normal to t=const slices):
-        theta = -K  (trace of extrinsic curvature)
+        theta = -K (trace of extrinsic curvature)
         sigma^2 = K_{ij} K^{ij} - (1/3) K^2
-        omega^2 = 0  (hypersurface-orthogonal)
+        omega^2 = 0 (hypersurface-orthogonal)
 
     K_{ij} = -alpha * Gamma^0_{ij} where Gamma are the 4D Christoffel
     symbols and alpha = 1/sqrt(-g^{00}).

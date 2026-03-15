@@ -14,7 +14,7 @@ space contracts.
 
 Layout
 ------
-- **Top centre**: title + metric equation (static)
+- **Top center**: title + metric equation (static)
 - **Upper-left**: live v_s parameter display
 - **Upper-right**: dual color legend (θ heatmap + σ² contour)
 - **Lower-left**: contour annotation legend
@@ -66,7 +66,7 @@ from warpax.visualization.manim._scene_utils import COLORS_3B1B
 # Dark-midpoint diverging colormap for θ: blue (contraction) -> dark -> red (expansion)
 # ---------------------------------------------------------------------------
 _DARK_DIVERGE_THETA = LinearSegmentedColormap.from_list(
-    "dark_diverge_theta", ["#3B4CC0", "#1A1A2E", "#B40426"], N=256,
+    "dark_diverge_theta", ["#3B4CC0", "#1A1A2E", "#"], N=256,
 )
 try:
     _mcm.register_cmap(name="dark_diverge_theta", cmap=_DARK_DIVERGE_THETA)
@@ -296,7 +296,7 @@ class ExpansionShear(Scene):
         # Step 8: Dual color legends - upper-right
         # ==================================================================
         # θ heatmap legend --
-        theta_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#B40426"]
+        theta_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#"]
         theta_strips = VGroup(*[
             Rectangle(
                 width=0.24, height=0.08,
@@ -308,7 +308,7 @@ class ExpansionShear(Scene):
             "θ (expansion)", font_size=14, color=WHITE, weight="LIGHT",
         )
         theta_lo = MathTex(r"-", font_size=16, color="#3B4CC0")
-        theta_hi = MathTex(r"+", font_size=16, color="#B40426")
+        theta_hi = MathTex(r"+", font_size=16, color="#")
         theta_bar = VGroup(theta_lo, theta_strips, theta_hi).arrange(RIGHT, buff=0.05)
         theta_legend = VGroup(theta_title, theta_bar).arrange(
             DOWN, buff=0.06, aligned_edge=LEFT,

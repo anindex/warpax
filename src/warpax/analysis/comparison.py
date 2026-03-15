@@ -6,7 +6,7 @@ to detect violations that non-Eulerian observers can see.
 
 The key insight from Santiago-Schuster-Visser (2022): energy conditions
 are observer-dependent, so checking only the Eulerian frame is
-insufficient.  This module computes the per-point "missed" flag and
+insufficient. This module computes the per-point "missed" flag and
 severity ratio that quantifies how much worse the optimized observer
 sees compared to the Eulerian one.
 """
@@ -40,7 +40,7 @@ class ComparisonResult(NamedTuple):
         Observer-robust (optimized) margins with shape ``(*grid_shape,)``.
     missed : dict[str, Array]
         Boolean mask: True where Eulerian says satisfied but robust says
-        violated.  ``(eul >= 0) & (rob < -1e-10)``.
+        violated. ``(eul >= 0) & (rob < -1e-10)``.
     severity : dict[str, Array]
         Severity ratio: ``eul_margin - rob_margin`` at missed points,
         zero elsewhere.
@@ -234,7 +234,7 @@ def build_comparison_table(
     Returns
     -------
     list[dict]
-        Rows of the comparison table.  Also saved to
+        Rows of the comparison table. Also saved to
         ``{results_dir}/comparison_table.json``.
     """
     rows: list[dict] = []

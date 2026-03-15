@@ -1,13 +1,13 @@
 """Rodal irrotational warp drive metric.
 
 The Rodal metric (arXiv:2512.18008) modifies the Alcubierre metric to produce
-an *irrotational* shift vector derived from a scalar potential.  This ensures
+an *irrotational* shift vector derived from a scalar potential. This ensures
 the shift one-form is exact (curl-free), guaranteeing globally Hawking-Ellis
 Type I everywhere.
 
 ADM components:
-    alpha = 1  (unit lapse)
-    gamma_ij = delta_ij  (flat spatial metric)
+    alpha = 1 (unit lapse)
+    gamma_ij = delta_ij (flat spatial metric)
     beta^i: irrotational shift with radial profile f(r) and angular profile g(r)
 
 The paper defines shape functions f_paper(r) (f_paper(0)=0, f_paper(inf)=1)
@@ -15,8 +15,8 @@ and g_paper(r) (g_paper(0)=0, g_paper(inf)=1) in the co-moving bubble frame.
 For consistency with Alcubierre convention (far field = Minkowski), we use
 the lab-frame forms:
 
-    F(r) = f_Alc(r) = 1 - f_paper(r)   [F(0)=1, F(inf)=0]
-    G(r) = 1 - g_paper(r)               [G(0)=1, G(inf)=0]
+    F(r) = f_Alc(r) = 1 - f_paper(r) [F(0)=1, F(inf)=0]
+    G(r) = 1 - g_paper(r) [G(0)=1, G(inf)=0]
 
 The shift in direct Cartesian form (Rodal's vector formula):
     beta = -v_s * [G(r_s) * x_hat + (F(r_s) - G(r_s)) * n_x * n]
@@ -75,11 +75,11 @@ def _rodal_g_paper(
 
     where log_ratio = stable_logcosh(sigma*(r-R)) - stable_logcosh(sigma*(r+R)).
 
-    For small r, log_ratio/r has the 0/0 removable form.  The analytic limit is
-        lim_{r->0} log_ratio / r  =  Delta'(0)  =  -2*sigma*tanh(sigma*R)
+    For small r, log_ratio/r has the 0/0 removable form. The analytic limit is
+        lim_{r->0} log_ratio / r = Delta'(0) = -2*sigma*tanh(sigma*R)
     which gives g_paper(0) = 0 exactly for all R*sigma.
 
-    g_paper(0) = 0, g_paper(inf) = 1.  (Paper co-moving frame convention.)
+    g_paper(0) = 0, g_paper(inf) = 1. (Paper co-moving frame convention.)
     """
     # C-inf regularization for autodiff stability (not physical repair).
     r_safe = jnp.sqrt(r**2 + 1e-24)
@@ -110,7 +110,7 @@ def _rodal_G(
 ) -> Float[Array, "..."]:
     """Lab-frame irrotational angular profile G(r) = 1 - g_paper(r).
 
-    G(0) = 1, G(inf) = 0.  Matches Alcubierre far-field convention.
+    G(0) = 1, G(inf) = 0. Matches Alcubierre far-field convention.
     """
     return 1.0 - _rodal_g_paper(r, R, sigma)
 
@@ -173,6 +173,14 @@ class RodalMetric(ADMMetric):
     @jaxtyped(typechecker=beartype)
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
         return jnp.eye(3)
+
+    @jaxtyped(typechecker=beartype)
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """Shape function f(r_s) for the Rodal metric."""
+        t, x, y, z = coords
+        dx = x - self.v_s * t
+        r_safe = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-24)
+        return alcubierre_shape(r_safe, self.R, self.sigma)
 
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 
