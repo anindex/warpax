@@ -55,7 +55,7 @@ class TestSchwarzschild:
         assert not jnp.allclose(g1, g2, atol=1e-10)
 
     def test_schwarzschild_symbolic(self):
-        """symbolic() returns valid SymbolicMetric."""
+        """symbolic returns valid SymbolicMetric."""
         m = SchwarzschildMetric()
         sm = m.symbolic()
         assert isinstance(sm, SymbolicMetric)
@@ -63,7 +63,7 @@ class TestSchwarzschild:
         assert len(sm.coords) == 4
 
     def test_schwarzschild_name(self):
-        """name() returns 'Schwarzschild'."""
+        """name returns 'Schwarzschild'."""
         m = SchwarzschildMetric()
         assert m.name() == "Schwarzschild"
 

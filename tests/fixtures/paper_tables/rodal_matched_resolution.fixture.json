@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "date": "2026-01-01T00:00:00Z",
+    "parameters": {"v_s": 0.5, "R": 1.0, "sigma": 8.0},
+    "resolutions": [30, 50, 70],
+    "domain": [-3, 3]
+  },
+  "per_resolution": [
+    {"N": 30, "n_total": 27000,  "nec_total": 87.05185185185185, "nec_missed": 0.7703703703703704, "nec_min": -0.164},
+    {"N": 50, "n_total": 125000, "nec_total": 87.03999999999999, "nec_missed": 0.8768,             "nec_min": -0.164},
+    {"N": 70, "n_total": 343000, "nec_total": 87.02973760932944, "nec_missed": 0.9189504373177843, "nec_min": -0.164}
+  ],
+  "stability": {
+    "nec": {
+      "values": [0.7703703703703704, 0.8768, 0.9189504373177843],
+      "mean":   0.8553736025627182,
+      "max_deviation": 0.09937556166998407,
+      "stable": false
+    }
+  },
+  "verdict": {
+    "feasible": false,
+    "criterion": "f_miss stable within +/-5% across N=[30, 50, 70]"
+  }
+}

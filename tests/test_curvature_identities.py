@@ -52,8 +52,8 @@ def einstein_divergence(metric_fn, coords):
     """Compute nabla_a G^{ab} via autodiff.
 
     Uses the identity nabla_a V^{ab} = partial_a V^{ab} + Gamma^a_{ac} V^{cb}
-    + Gamma^b_{ac} V^{ac}.  We compute G^{ab} = g^{ac} g^{bd} G_{cd} at
-    neighbouring points and differentiate.
+    + Gamma^b_{ac} V^{ac}. We compute G^{ab} = g^{ac} g^{bd} G_{cd} at
+    neighboring points and differentiate.
     """
     def G_upper(x):
         result = compute_curvature_chain(metric_fn, x)

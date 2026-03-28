@@ -4,7 +4,7 @@ Validates the core mathematical guarantee that observer-robust (optimized)
 margins are at least as severe as Eulerian-frame margins at every grid point.
 
 The optimizer searches over ALL timelike observers (WEC/SEC/DEC) or all null
-directions (NEC).  The Eulerian observer is one specific observer in that
+directions (NEC). The Eulerian observer is one specific observer in that
 search space, so the optimizer should always find margins that are at least
 as negative (i.e. robust <= Eulerian + tolerance).
 

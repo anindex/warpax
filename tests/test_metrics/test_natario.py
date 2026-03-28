@@ -95,7 +95,7 @@ class TestNatario:
         assert jnp.allclose(g_call, g_adm, atol=1e-15)
 
     def test_natario_symbolic(self):
-        """symbolic() returns valid SymbolicMetric."""
+        """symbolic returns valid SymbolicMetric."""
         m = NatarioMetric()
         sm = m.symbolic()
         assert isinstance(sm, SymbolicMetric)

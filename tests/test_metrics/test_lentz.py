@@ -78,7 +78,7 @@ class TestLentz:
         assert jnp.allclose(g_call, g_adm, atol=1e-15)
 
     def test_lentz_symbolic(self):
-        """symbolic() returns valid SymbolicMetric."""
+        """symbolic returns valid SymbolicMetric."""
         m = LentzMetric()
         sm = m.symbolic()
         assert isinstance(sm, SymbolicMetric)

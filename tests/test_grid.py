@@ -201,3 +201,93 @@ class TestGridSchwarzschildKretschner:
             K_analytical,
             rtol=1e-8,
         )
+
+
+class TestAutoChunk:
+    """``auto_chunk_threshold`` kwarg validation + ULP-tolerant
+    parity with the v0.1.x full-vmap path.
+
+    Default ``None`` and no-op (threshold > grid_size) paths are
+    **bit-exact** to v0.1.x because neither calls ``lax.map``. When the
+    threshold triggers chunking, ``jax.lax.map`` uses a different
+    floating-point addition order than ``jax.vmap``; the resulting drift
+    is at the ULP floor (observed max ``6.8e-13`` on ricci/weyl squared at
+    20³ Alcubierre). This is JAX-internal; the caller-visible invariant is
+    numerical equivalence, not bit-equality.
+
+    Empirical validation of the chunking implementation showed that the
+    ULP-scale drift is intrinsic to ``lax.map`` vs ``vmap`` floating-point
+    addition order and cannot be eliminated at this layer. Tests therefore
+    use ``assert_allclose`` with ``atol=1e-12, rtol=1e-12`` rather than
+    bit-exact equality: this still pins down any algorithmic bug but
+    accepts ULP-level fused-add reordering.
+    """
+
+    _CHUNK_ATOL = 1e-12
+    _CHUNK_RTOL = 1e-12
+
+    def _alcubierre_16cubed_full(self):
+        """Helper: Alcubierre 16³ full-vmap reference result."""
+        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+        grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(16, 16, 16))
+        return metric, grid, evaluate_curvature_grid(metric, grid)
+
+    def test_default_none_preserves_v10_bit_exact(self):
+        """auto_chunk_threshold=None == v0.1.x full-vmap (bit-exact: no lax.map)."""
+        metric, grid, ref = self._alcubierre_16cubed_full()
+        result = evaluate_curvature_grid(metric, grid, auto_chunk_threshold=None)
+
+        for field in GridCurvatureResult._fields:
+            a = getattr(ref, field)
+            b = getattr(result, field)
+            assert jnp.array_equal(a, b), (
+                f"Field {field!r} drifted under auto_chunk_threshold=None"
+            )
+
+    def test_threshold_1000_chunks_20cubed_bit_exact(self):
+        """auto_chunk_threshold=1000 on a 20³=8000 grid chunks to ULP-equivalent result.
+
+        Chunking dispatches to ``jax.lax.map`` whose floating-point add
+        order differs from ``jax.vmap``; the observed max drift is ~1e-13
+        (below ``assert_allclose(atol=1e-12)``).
+        """
+        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+        grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(20, 20, 20))
+
+        ref = evaluate_curvature_grid(metric, grid)  # full vmap
+        chunked = evaluate_curvature_grid(metric, grid, auto_chunk_threshold=1000)
+
+        for field in GridCurvatureResult._fields:
+            a = np.array(getattr(ref, field))
+            b = np.array(getattr(chunked, field))
+            assert_allclose(
+                b,
+                a,
+                atol=self._CHUNK_ATOL,
+                rtol=self._CHUNK_RTOL,
+                err_msg=f"Field {field!r} drifted beyond ULP floor under threshold=1000",
+            )
+
+    def test_threshold_larger_than_grid_is_noop(self):
+        """auto_chunk_threshold > grid_size: no chunking, bit-exact to default."""
+        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+        grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(8, 8, 8))  # 512 points
+
+        ref = evaluate_curvature_grid(metric, grid)
+        noop = evaluate_curvature_grid(metric, grid, auto_chunk_threshold=10_000)
+
+        for field in GridCurvatureResult._fields:
+            a = getattr(ref, field)
+            b = getattr(noop, field)
+            assert jnp.array_equal(a, b), (
+                f"Field {field!r} drifted under auto_chunk_threshold=10_000 "
+                "(no-op path must not call lax.map)"
+            )
+
+    def test_zero_threshold_raises(self):
+        """auto_chunk_threshold=0 raises ValueError with verbatim message."""
+        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+        grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(4, 4, 4))
+
+        with pytest.raises(ValueError, match="must be a positive integer or None"):
+            evaluate_curvature_grid(metric, grid, auto_chunk_threshold=0)

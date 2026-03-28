@@ -151,9 +151,9 @@ class TestNonDiagonalT:
     """Off-diagonal T_{ab} where the worst observer deviates from Eulerian.
 
     T_{ab} = [[rho, q, 0, 0],
-              [q,   p, 0, 0],
-              [0,   0, p, 0],
-              [0,   0, 0, p]]
+              [q, p, 0, 0],
+              [0, 0, p, 0],
+              [0, 0, 0, p]]
 
     For the Eulerian observer: T_{ab} u^a u^b = rho.
     For a boosted observer in x-direction with rapidity zeta:
@@ -524,4 +524,180 @@ class TestBFGSBoundaryStall:
         )
         assert zeta < 5.01, (
             f"Zeta should not exceed zeta_max=5.0, got zeta={zeta:.3f}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# ProjectedBFGS hard-bound solver
+# ---------------------------------------------------------------------------
+
+
+class TestProjectedBFGS:
+    """hard-bound projected-gradient BFGS for EC optimisation.
+
+    - ``test_projected_bfgs_hits_kkt_at_bound_active``: 1D quadratic
+      ``min_{|w| <= 1} (w - 2)^2``, true KKT point at ``w = 1.0`` (bound-active).
+    - ``test_tanh_vs_hard_bound_agree_at_bound_inactive``: bound-inactive
+      regression; the two strategies must agree to ``5e-6 * scale`` per
+      ) must yield the bit-exact v0.1.x result.
+    """
+
+    def test_projected_bfgs_hits_kkt_at_bound_active(self):
+        """KKT correctness on a 1D quadratic with active bound.
+
+        ``f(w) = (w - 2)^2`` on ``|w|_2 <= 1``. Unconstrained minimum at
+        ``w = 2``; the KKT-active-bound optimum is ``w = 1.0`` (radially
+        nearest feasible point). ``ProjectedBFGSSolver`` must project each
+        iterate onto the ball, so the terminal iterate lies on the sphere.
+        """
+        from warpax.energy_conditions.optimization import ProjectedBFGSSolver
+        import optimistix as optx
+
+        def fn(w, args):
+            return (w[0] - 2.0) ** 2
+
+        solver = ProjectedBFGSSolver(rtol=1e-10, atol=1e-10, zeta_max=1.0)
+        sol = optx.minimise(
+            fn, solver, y0=jnp.array([0.0]), throw=False, max_steps=256
+        )
+        # KKT point at active bound: w = 1.0, f(w) = 1.0
+        assert abs(float(sol.value[0]) - 1.0) < 1e-6, (
+            f"Expected w ~ 1.0 (bound-active KKT), got {float(sol.value[0])}"
+        )
+        assert abs(float(fn(sol.value, None)) - 1.0) < 1e-6, (
+            f"Expected f(w) ~ 1.0 at KKT point, got {float(fn(sol.value, None))}"
+        )
+
+    def test_tanh_vs_hard_bound_agree_at_bound_inactive(self):
+        """regression: bound-inactive points see same margin from both strategies.
+
+        Construct a T_ab whose worst-WEC observer is strictly interior to
+        the rapidity ball. ``T = diag(-0.1, 0.3, 0.3, 0.3)`` has
+        ``rho + p = 0.2 > 0`` so ``f(zeta) = rho + (rho+p)*sinh^2(zeta)`` is
+        monotonically increasing in zeta - the Eulerian observer (``zeta=0``)
+        is optimum, well inside ``zeta_max=5.0``.
+        """
+        T = jnp.diag(jnp.array([-0.1, 0.3, 0.3, 0.3]))
+        key = jax.random.PRNGKey(2026_04_19)
+
+        r_tanh = optimize_wec(T, ETA, n_starts=16, zeta_max=5.0, key=key,
+                              strategy='tanh')
+        r_hard = optimize_wec(T, ETA, n_starts=16, zeta_max=5.0, key=key,
+                              strategy='hard_bound')
+
+        # Confirm bound is genuinely inactive at this point
+        assert float(r_tanh.worst_params[0]) < 0.5 * 5.0, (
+            f"Test setup violation: |w_opt|={float(r_tanh.worst_params[0])} "
+            f"is not bound-inactive. Pick a different T_ab."
+        )
+
+        scale = max(abs(float(r_tanh.margin)), 1.0)
+        delta = abs(float(r_tanh.margin) - float(r_hard.margin))
+        assert delta < 5e-6 * scale, (
+            f"SCI-2 violation: |margin_tanh - margin_hard|={delta} "
+            f"exceeds 5e-6 * scale={5e-6 * scale}"
+        )
+
+    def test_default_strategy_preserves_v1_0(self):
+        """v0.1.x default flow: omitting ``strategy`` MUST hit the tanh path bit-exactly.
+
+        Pre-v0.1.x sentinel captured at initial commit via
+        ``optimize_wec(T=diag(-1, 0.5, 0.5, 0.5), ETA, key=PRNGKey(42))``.
+        The sentinel is a regression witness: a silent default flip
+        (e.g., ``n_starts`` 16 -> 8) would move the margin by >> 1e-9.
+        """
+        T = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
+        key = jax.random.PRNGKey(42)
+
+        r_default = optimize_wec(T, ETA, key=key)
+        r_explicit_tanh = optimize_wec(T, ETA, key=key, strategy='tanh')
+
+        assert float(r_default.margin) == float(r_explicit_tanh.margin), (
+            f"Default strategy must be bit-exact with strategy='tanh'. "
+            f"default={float(r_default.margin)}, "
+            f"explicit_tanh={float(r_explicit_tanh.margin)}"
+        )
+
+        # v0.1.x regression sentinel (pinned 2026-04-19 RED).
+        v1_0_margin = -2754.058230025833
+        assert float(r_default.margin) == pytest.approx(v1_0_margin, abs=1e-9), (
+            f"v0.1.x margin regression: expected {v1_0_margin}, "
+            f"got {float(r_default.margin)}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# per-subcondition DEC composite (independent BFGS per sub-inequality)
+# ---------------------------------------------------------------------------
+
+
+class TestDECPerSubcondition:
+    """per-subcondition mode for `optimize_dec`.
+
+    - ``test_dec_per_sub_agrees_with_three_way_min_at_well_behaved_point``: at a
+      DEC-satisfying point both modes must converge to the same margin within
+      1e-6*scale.
+    - ``test_dec_per_sub_keys_are_distinct``: seed isolation -
+      ``fold_in`` against three distinct salts gives three pairwise-distinct keys
+      and is reproducible within a single process.
+    - ``test_default_mode_preserves_v1_0``: omitting ``mode=`` MUST hit the
+      ``three_term_min`` path bit-exactly (v0.1.x surface pin).
+    """
+
+    def test_dec_per_sub_agrees_with_three_way_min_at_well_behaved_point(self):
+        """Both modes converge at a DEC-satisfying point (no sub-crossover kinks)."""
+        # Dust under Minkowski: WEC margin = rho > 0; flux = 0; future-directed.
+        T = jnp.diag(jnp.array([1.0, 0.0, 0.0, 0.0]))
+        key = jax.random.PRNGKey(2026_04_19)
+
+        r_three = optimize_dec(T, ETA, n_starts=16, zeta_max=5.0, key=key,
+                               mode='three_term_min')
+        r_per_sub = optimize_dec(T, ETA, n_starts=16, zeta_max=5.0, key=key,
+                                 mode='per_subcondition_min')
+
+        scale = max(abs(float(r_three.margin)), 1.0)
+        delta = abs(float(r_three.margin) - float(r_per_sub.margin))
+        assert delta < 1e-6 * scale, (
+            f"DEC per-sub vs three-term-min disagree at well-behaved point: "
+            f"delta={delta}, scale={scale}, "
+            f"three_term={float(r_three.margin)}, "
+            f"per_sub={float(r_per_sub.margin)}"
+        )
+
+    def test_dec_per_sub_keys_are_distinct(self):
+        """fold_in against three salts yields pairwise-distinct, reproducible keys."""
+        from warpax.energy_conditions.optimization import _DEC_SUB_SALTS
+
+        assert set(_DEC_SUB_SALTS.keys()) == {'wec', 'flux', 'future'}, (
+            f"_DEC_SUB_SALTS must have exactly the 3 sub names, got "
+            f"{set(_DEC_SUB_SALTS.keys())}"
+        )
+
+        key = jax.random.PRNGKey(42)
+        k_wec = jax.random.fold_in(key, _DEC_SUB_SALTS['wec'])
+        k_flux = jax.random.fold_in(key, _DEC_SUB_SALTS['flux'])
+        k_future = jax.random.fold_in(key, _DEC_SUB_SALTS['future'])
+
+        # Pairwise distinctness
+        assert not jnp.array_equal(k_wec, k_flux), "wec/flux keys identical"
+        assert not jnp.array_equal(k_flux, k_future), "flux/future keys identical"
+        assert not jnp.array_equal(k_wec, k_future), "wec/future keys identical"
+
+        # Reproducibility within process
+        assert jnp.array_equal(
+            k_wec, jax.random.fold_in(key, _DEC_SUB_SALTS['wec'])
+        ), "fold_in not reproducible within process for 'wec' salt"
+
+    def test_default_mode_preserves_v1_0(self):
+        """v0.1.x default flow: omitting ``mode`` MUST hit three_term_min bit-exactly."""
+        T = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
+        key = jax.random.PRNGKey(42)
+
+        r_default = optimize_dec(T, ETA, key=key)
+        r_explicit = optimize_dec(T, ETA, key=key, mode='three_term_min')
+
+        assert float(r_default.margin) == float(r_explicit.margin), (
+            f"Default mode must be bit-exact with mode='three_term_min'. "
+            f"default={float(r_default.margin)}, "
+            f"explicit={float(r_explicit.margin)}"
         )

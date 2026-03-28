@@ -1,0 +1,429 @@
+{
+  "warpax.analysis.compare_eulerian_vs_robust": {
+    "batch_size": "64",
+    "key": "None",
+    "n_starts": "16",
+    "zeta_max": "5.0"
+  },
+  "warpax.analysis.compute_convergence_quantity": {
+    "cell_volume": "1.0"
+  },
+  "warpax.analysis.compute_kinematic_scalars_grid": {
+    "batch_size": "None",
+    "t": "0.0"
+  },
+  "warpax.analysis.richardson_extrapolation": {
+    "expected_order": "2"
+  },
+  "warpax.averaged.anec": {
+    "affine_bounds": "(-5.0, 5.0)",
+    "n_samples": "256",
+    "tangent_norm": "'renormalized'"
+  },
+  "warpax.averaged.awec": {
+    "affine_bounds": "(-5.0, 5.0)",
+    "n_samples": "256",
+    "tangent_norm": "'renormalized'"
+  },
+  "warpax.benchmarks.AlcubierreMetric.__init__": {
+    "R": "1.0",
+    "sigma": "8.0",
+    "v_s": "0.5",
+    "x_s": "0.0"
+  },
+  "warpax.benchmarks.GroundTruth.__init__": {
+    "properties": "<factory>"
+  },
+  "warpax.benchmarks.SchwarzschildMetric.__init__": {
+    "M": "1.0"
+  },
+  "warpax.benchmarks.alcubierre_symbolic": {
+    "R_val": "None",
+    "sigma_val": "None",
+    "v_s": "None"
+  },
+  "warpax.benchmarks.schwarzschild_symbolic": {
+    "M": "None"
+  },
+  "warpax.classify.bobrick_martire": {
+    "probe_coords": "None",
+    "tol": "1e-10"
+  },
+  "warpax.design.ShapeFunction.__init__": {
+    "order": "3"
+  },
+  "warpax.design.ShapeFunctionMetric.__init__": {
+    "R": "1.0",
+    "lapse_floor": "1e-06",
+    "sigma": "0.1",
+    "strict": "True"
+  },
+  "warpax.design.averaged_objective": {
+    "kind": "'anec'"
+  },
+  "warpax.design.boundedness_constraint": {
+    "amp_max": "1.0",
+    "probe_r": "None"
+  },
+  "warpax.design.bubble_size_constraint": {
+    "max_radius": "10.0"
+  },
+  "warpax.design.design_metric": {
+    "atol": "1e-08",
+    "constraints": "None",
+    "key": "None",
+    "max_steps": "256",
+    "n_starts": "16",
+    "objective": "'nec'",
+    "rtol": "1e-08",
+    "strategy": "'hard_bound'",
+    "v_s": "0.5"
+  },
+  "warpax.design.ec_margin_objective": {
+    "bounds": "((-2.0, 2.0), (-2.0, 2.0), (-2.0, 2.0))",
+    "grid_shape": "(16, 16, 16)",
+    "n_starts": "4",
+    "objective": "'nec'",
+    "t": "0.0"
+  },
+  "warpax.design.quantum_objective": {
+    "tau0": "1.0"
+  },
+  "warpax.design.velocity_constraint": {
+    "max_v": "10.0"
+  },
+  "warpax.energy_conditions.boost_vector_to_params": {
+    "zeta_max": "None"
+  },
+  "warpax.energy_conditions.classify_hawking_ellis": {
+    "T_ab": "None",
+    "imag_rtol": "0.003",
+    "solver": "'standard'",
+    "tol": "1e-10"
+  },
+  "warpax.energy_conditions.classify_hawking_ellis_mpmath": {
+    "imag_rtol": "0.0",
+    "precision": "50",
+    "tol": "1e-10"
+  },
+  "warpax.energy_conditions.classify_mixed_tensor": {
+    "solver": "'standard'",
+    "tol": "1e-10"
+  },
+  "warpax.energy_conditions.compute_eulerian_ec": {
+    "g_inv": "None"
+  },
+  "warpax.energy_conditions.compute_wall_restricted_stats": {
+    "atol": "1e-10",
+    "eulerian_margins": "None"
+  },
+  "warpax.energy_conditions.cross_validate_sweep": {
+    "key": "None",
+    "n_starts": "16",
+    "n_validation_points": "50",
+    "rtol": "0.1",
+    "zeta_max": "5.0"
+  },
+  "warpax.energy_conditions.determinant_guard_mask": {
+    "threshold": "1e-10"
+  },
+  "warpax.energy_conditions.eigenvalues_mpmath": {
+    "precision": "50"
+  },
+  "warpax.energy_conditions.frobenius_norm_mask": {
+    "threshold": "1e-12"
+  },
+  "warpax.energy_conditions.make_angular_observers": {
+    "n_phi": "6",
+    "n_theta": "6",
+    "zeta_fixed": "1.0"
+  },
+  "warpax.energy_conditions.make_rapidity_observers": {
+    "n_directions": "3",
+    "n_rapidity": "12",
+    "zeta_max": "5.0"
+  },
+  "warpax.energy_conditions.optimize_dec": {
+    "atol": "1e-08",
+    "backend": "'cpu'",
+    "key": "None",
+    "max_steps": "256",
+    "mode": "'three_term_min'",
+    "n_starts": "16",
+    "neighbor_fraction": "0.0625",
+    "neighbor_observer": "None",
+    "rtol": "1e-08",
+    "starts": "'axis+gaussian'",
+    "strategy": "'tanh'",
+    "warm_start": "'cold'",
+    "zeta_max": "5.0"
+  },
+  "warpax.energy_conditions.optimize_nec": {
+    "atol": "1e-08",
+    "backend": "'cpu'",
+    "key": "None",
+    "max_steps": "256",
+    "n_starts": "16",
+    "neighbor_fraction": "0.0625",
+    "neighbor_observer": "None",
+    "rtol": "1e-08",
+    "starts": "'axis+gaussian'",
+    "strategy": "'tanh'",
+    "warm_start": "'cold'"
+  },
+  "warpax.energy_conditions.optimize_point": {
+    "atol": "1e-08",
+    "conditions": "('nec', 'wec', 'sec', 'dec')",
+    "key": "None",
+    "max_steps": "256",
+    "n_starts": "16",
+    "rtol": "1e-08",
+    "strategy": "'tanh'",
+    "zeta_max": "5.0"
+  },
+  "warpax.energy_conditions.optimize_sec": {
+    "atol": "1e-08",
+    "backend": "'cpu'",
+    "key": "None",
+    "max_steps": "256",
+    "n_starts": "16",
+    "neighbor_fraction": "0.0625",
+    "neighbor_observer": "None",
+    "rtol": "1e-08",
+    "starts": "'axis+gaussian'",
+    "strategy": "'tanh'",
+    "warm_start": "'cold'",
+    "zeta_max": "5.0"
+  },
+  "warpax.energy_conditions.optimize_wec": {
+    "atol": "1e-08",
+    "backend": "'cpu'",
+    "key": "None",
+    "max_steps": "256",
+    "n_starts": "16",
+    "neighbor_fraction": "0.0625",
+    "neighbor_observer": "None",
+    "rtol": "1e-08",
+    "starts": "'axis+gaussian'",
+    "strategy": "'tanh'",
+    "warm_start": "'cold'",
+    "zeta_max": "5.0"
+  },
+  "warpax.energy_conditions.shape_function_mask": {
+    "f_high": "0.9",
+    "f_low": "0.1"
+  },
+  "warpax.energy_conditions.timelike_from_boost_vector": {
+    "zeta_max": "None"
+  },
+  "warpax.energy_conditions.verify_classification_at_points": {
+    "imag_rtol": "0.0",
+    "precision": "50",
+    "tol": "1e-10"
+  },
+  "warpax.energy_conditions.verify_grid": {
+    "batch_size": "None",
+    "compute_eulerian": "False",
+    "g_inv_field": "None",
+    "key": "None",
+    "n_starts": "16",
+    "solver": "'standard'",
+    "zeta_max": "5.0"
+  },
+  "warpax.energy_conditions.verify_point": {
+    "g_inv": "None",
+    "key": "None",
+    "n_starts": "16",
+    "solver": "'standard'",
+    "zeta_max": "5.0"
+  },
+  "warpax.geodesics.circular_orbit_ic": {
+    "M": "1.0",
+    "r_schw": "10.0"
+  },
+  "warpax.geodesics.integrate_geodesic": {
+    "atol": "1e-10",
+    "dt0": "0.01",
+    "event": "None",
+    "max_steps": "16384",
+    "num_points": "1000",
+    "rtol": "1e-10"
+  },
+  "warpax.geodesics.integrate_geodesic_with_deviation": {
+    "atol": "1e-10",
+    "dt0": "0.01",
+    "event": "None",
+    "max_steps": "32768",
+    "num_points": "1000",
+    "rtol": "1e-10"
+  },
+  "warpax.geodesics.radial_infall_ic": {
+    "M": "1.0",
+    "r_start_schw": "10.0"
+  },
+  "warpax.geometry.GridSpec.__init__": {
+    "coord_arrays": "None",
+    "volume_weights": "None"
+  },
+  "warpax.geometry.TensorField.__init__": {
+    "index_positions": "''"
+  },
+  "warpax.geometry.build_coord_batch": {
+    "t": "0.0"
+  },
+  "warpax.geometry.evaluate_curvature_grid": {
+    "auto_chunk_threshold": "None",
+    "backend": "'cpu'",
+    "batch_size": "None",
+    "compute_invariants": "True",
+    "fp32_band_tol": "0.0005",
+    "precision": "'fp64'",
+    "t": "0.0"
+  },
+  "warpax.geometry.smoothstep": {
+    "order": "2"
+  },
+  "warpax.grids.GridSpec.__init__": {
+    "coord_arrays": "None",
+    "volume_weights": "None"
+  },
+  "warpax.grids.wall_clustered": {
+    "a": "1.2",
+    "clustering": "'cosh'",
+    "wall_radius": "None"
+  },
+  "warpax.grids.wall_refined": {
+    "refine_factor": "2"
+  },
+  "warpax.io.InterpolatedADMMetric.__init__": {
+    "interp_method": "'cubic'",
+    "name": "'interpolated'"
+  },
+  "warpax.io.load_cactus_slice": {
+    "interp_method": "'cubic'",
+    "iteration": "0",
+    "timelevel": "0"
+  },
+  "warpax.io.load_einfield": {
+    "interp_method": "'cubic'",
+    "name": "None",
+    "sample_bounds": "((-1.0, 1.0), (-5.0, 5.0), (-5.0, 5.0), (-5.0, 5.0))",
+    "sample_shape": "(2, 8, 8, 8)"
+  },
+  "warpax.io.load_warpfactory": {
+    "interp_method": "'cubic'"
+  },
+  "warpax.junction.darmois": {
+    "probe_coords_inside": "None",
+    "probe_coords_outside": "None",
+    "tol": "1e-08"
+  },
+  "warpax.metrics.LentzMetric.__init__": {
+    "R": "100.0",
+    "sigma": "8.0",
+    "v_s": "0.1"
+  },
+  "warpax.metrics.NatarioMetric.__init__": {
+    "R": "100.0",
+    "sigma": "0.03",
+    "v_s": "0.1"
+  },
+  "warpax.metrics.RodalMetric.__init__": {
+    "R": "100.0",
+    "sigma": "0.03",
+    "v_s": "0.1"
+  },
+  "warpax.metrics.VanDenBroeckMetric.__init__": {
+    "R": "350.0",
+    "R_tilde": "200.0",
+    "alpha_vdb": "0.5",
+    "sigma": "8.0",
+    "sigma_B": "8.0",
+    "v_s": "0.1"
+  },
+  "warpax.metrics.WarpShellMetric.__init__": {
+    "R_1": "10.0",
+    "R_2": "20.0",
+    "R_b": "1.0",
+    "r_s_param": "5.0",
+    "smooth_width": "None",
+    "transition_order": "2",
+    "v_s": "0.02"
+  },
+  "warpax.metrics.WarpShellPhysical.__init__": {
+    "R_1": "10.0",
+    "R_2": "20.0",
+    "R_b": "1.0",
+    "r_s_param": "5.0",
+    "smooth_width": "None",
+    "transition_order": "2",
+    "v_s": "0.02"
+  },
+  "warpax.metrics.WarpShellStressTest.__init__": {
+    "R_1": "10.0",
+    "R_2": "20.0",
+    "R_b": "1.0",
+    "r_s_param": "5.0",
+    "smooth_width": "None",
+    "transition_order": "2",
+    "v_s": "0.02"
+  },
+  "warpax.quantum.ford_roman": {
+    "n_samples": "256",
+    "sampling": "'lorentzian'"
+  },
+  "warpax.visualization.plot_alignment_histogram": {
+    "figsize": "None",
+    "save_path": "None"
+  },
+  "warpax.visualization.plot_blueshift_profile": {
+    "ax": "None",
+    "bubble_center": "0.0",
+    "bubble_radius": "1.0",
+    "bubble_sigma": "8.0",
+    "save_path": "None",
+    "title": "None"
+  },
+  "warpax.visualization.plot_comparison_grid": {
+    "conditions": "('nec', 'wec', 'sec', 'dec')",
+    "save_path": "None",
+    "slice_axis": "2"
+  },
+  "warpax.visualization.plot_comparison_panel": {
+    "figsize": "None",
+    "save_path": "None",
+    "slice_axis": "2",
+    "title": "''"
+  },
+  "warpax.visualization.plot_comparison_table": {
+    "save_path": "None"
+  },
+  "warpax.visualization.plot_convergence": {
+    "ax": "None",
+    "quantity": "'min_margin_nec'",
+    "save_path": "None"
+  },
+  "warpax.visualization.plot_convergence_table": {
+    "save_path": "None"
+  },
+  "warpax.visualization.plot_kinematic_comparison": {
+    "save_path": "None",
+    "slice_axis": "2",
+    "v_s": "0.5"
+  },
+  "warpax.visualization.plot_kinematic_scalars": {
+    "save_path": "None",
+    "slice_axis": "2",
+    "title": "''"
+  },
+  "warpax.visualization.plot_tidal_evolution": {
+    "ax": "None",
+    "save_path": "None",
+    "title": "None"
+  },
+  "warpax.visualization.plot_velocity_sweep": {
+    "ax": "None",
+    "condition": "'nec'",
+    "save_path": "None"
+  }
+}

@@ -116,9 +116,9 @@ class TestEulerianVsObserverRobust:
 
     For an off-diagonal T_{ab} in Minkowski:
     T = [[rho, q, 0, 0],
-         [q,   p, 0, 0],
-         [0,   0, p, 0],
-         [0,   0, 0, p]]
+         [q, p, 0, 0],
+         [0, 0, p, 0],
+         [0, 0, 0, p]]
 
     Eulerian: T_{ab} u^a u^b = T_{00} = rho (positive).
     Boosted in x: T_{ab} u^a u^b = rho*cosh^2 + 2q*cosh*sinh + p*sinh^2
@@ -242,6 +242,45 @@ class TestAlcubierreGrid:
         )
         assert float(ec.nec_summary.fraction_violated) > 0
         assert float(ec.wec_summary.fraction_violated) > 0
+
+
+# ---------------------------------------------------------------------------
+# 4b. verify_point / verify_grid with solver='generalized'
+# ---------------------------------------------------------------------------
+
+
+class TestGeneralizedSolverIntegration:
+    """integration: verify_point / verify_grid with solver='generalized'."""
+
+    T_dust = jnp.diag(jnp.array([1.0, 0.0, 0.0, 0.0]))
+
+    def test_verify_point_generalized_dust(self):
+        """verify_point(..., solver='generalized') on dust classifies Type I, all ECs satisfied."""
+        r = verify_point(self.T_dust, ETA, n_starts=4, solver='generalized')
+        assert int(r.he_type) == 1
+        assert float(r.wec_margin) >= 0
+
+    @pytest.fixture(scope="class")
+    def alcubierre_grid_data(self):
+        """Compute curvature grid for Alcubierre metric (5x5x5)."""
+        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
+        grid = GridSpec(
+            bounds=[(-2.0, 2.0), (-2.0, 2.0), (-2.0, 2.0)],
+            shape=(5, 5, 5),
+        )
+        result = evaluate_curvature_grid(metric, grid, compute_invariants=False)
+        return result, grid
+
+    @pytest.mark.slow
+    def test_verify_grid_generalized_small(self, alcubierre_grid_data):
+        """verify_grid(..., solver='generalized') completes on a 5x5x5 Alcubierre grid."""
+        result, grid = alcubierre_grid_data
+        ec = verify_grid(
+            result.stress_energy, result.metric, result.metric_inv,
+            n_starts=4, solver='generalized',
+        )
+        assert isinstance(ec, ECGridResult)
+        assert ec.he_types.shape == (5, 5, 5)
 
 
 # ---------------------------------------------------------------------------
@@ -388,11 +427,32 @@ class TestANECIntegrand:
 
 
 class TestANECIntegralStub:
-    """anec_integral raises NotImplementedError."""
+    """anec_integral is deprecated - emits DeprecationWarning and delegates to
+    ``warpax.averaged.anec`` .
 
-    def test_raises(self):
-        with pytest.raises(NotImplementedError, match="not yet implemented"):
-            anec_integral(None, None)
+    The v0.1.x behavior (``raise NotImplementedError``) is replaced; calling
+    ``anec_integral(None, None)`` no longer raises NotImplementedError - it
+    first emits DeprecationWarning then fails type-check on the None inputs.
+    This test validates that the DeprecationWarning path is active.
+    """
+
+    def test_emits_deprecation_warning(self):
+        import warnings
+
+        from warpax.benchmarks import MinkowskiMetric
+
+        gl = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            # Valid call path delegates to warpax.averaged.anec
+            from warpax.energy_conditions.verifier import anec_integral as ai
+
+            ai(MinkowskiMetric(), gl)
+            assert any(
+                issubclass(ww.category, DeprecationWarning)
+                and "warpax.averaged.anec" in str(ww.message)
+                for ww in w
+            )
 
 
 # ---------------------------------------------------------------------------

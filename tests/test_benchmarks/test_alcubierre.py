@@ -85,7 +85,7 @@ class TestAlcubierre:
         assert jnp.allclose(g_call, g_adm, atol=1e-15)
 
     def test_alcubierre_symbolic(self):
-        """symbolic() returns valid SymbolicMetric."""
+        """symbolic returns valid SymbolicMetric."""
         m = AlcubierreMetric()
         sm = m.symbolic()
         assert isinstance(sm, SymbolicMetric)

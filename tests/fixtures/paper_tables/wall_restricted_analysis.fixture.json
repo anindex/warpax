@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "date": "2026-01-01T00:00:00Z",
+    "script": "scripts/run_wall_restricted_analysis.py",
+    "grid_resolution": 50,
+    "wall_bounds": [0.1, 0.9],
+    "velocity": 0.5
+  },
+  "metrics": {
+    "alcubierre": {
+      "full_grid":       {"frac_type_i": 0.980, "frac_type_ii": 0.000, "frac_type_iv": 0.020, "max_im_lambda_over_s": 0.27, "n_total": 125000},
+      "wall_restricted": {"frac_type_i": 0.020, "frac_type_iv": 0.980, "n_total": 416},
+      "caveat": null
+    },
+    "natario": {
+      "full_grid":       {"frac_type_i": 0.975, "frac_type_ii": 0.000, "frac_type_iv": 0.025, "max_im_lambda_over_s": 1.7, "n_total": 125000},
+      "wall_restricted": {"frac_type_i": 0.022, "frac_type_iv": 0.978, "n_total": 416},
+      "caveat": null
+    },
+    "vdb": {
+      "full_grid":       {"frac_type_i": 0.984, "frac_type_ii": 0.000, "frac_type_iv": 0.016, "max_im_lambda_over_s": 0.22, "n_total": 125000},
+      "wall_restricted": {"frac_type_i": 0.030, "frac_type_iv": 0.970, "n_total": 416},
+      "caveat": null
+    },
+    "rodal": {
+      "full_grid":       {"frac_type_i": 1.000, "frac_type_ii": 0.000, "frac_type_iv": 0.000, "max_im_lambda_over_s": 0.0, "n_total": 125000},
+      "wall_restricted": {"frac_type_i": 1.000, "frac_type_iv": 0.000, "n_total": 2800},
+      "caveat": null
+    },
+    "lentz": {
+      "full_grid":       {"frac_type_i": 0.999, "frac_type_ii": 0.000, "frac_type_iv": 0.001, "max_im_lambda_over_s": 0.28, "n_total": 125000},
+      "wall_restricted": {"frac_type_i": 0.900, "frac_type_iv": 0.100, "n_total": 16},
+      "caveat": "unresolved_lower_bound"
+    },
+    "warpshell": {
+      "full_grid":       {"frac_type_i": 0.996, "frac_type_ii": 0.003, "frac_type_iv": 0.001, "max_im_lambda_over_s": 1.4e34, "n_total": 125000},
+      "wall_restricted": {"frac_type_i": 0.800, "frac_type_iv": 0.200, "n_total": 36},
+      "caveat": null
+    },
+    "schwarzschild": {
+      "full_grid":       {"frac_type_i": 1.000, "frac_type_ii": 0.000, "frac_type_iv": 0.000, "max_im_lambda_over_s": 7.3e-19, "n_total": 125000},
+      "wall_restricted": {"frac_type_i": 1.000, "frac_type_iv": 0.000, "n_total": 0},
+      "caveat": null
+    }
+  }
+}

@@ -153,7 +153,7 @@ class TestAlcubierreSympyBridge:
     def test_alcubierre_sympy_matches_jax(self):
         """Evaluate JAX metric and sympy bridge at several points.
 
-        Note: Alcubierre symbolic() uses x_s=0 (bubble at origin), matching
+        Note: Alcubierre symbolic uses x_s=0 (bubble at origin), matching
         the default AlcubierreMetric(x_s=0.0).
         """
         m = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)

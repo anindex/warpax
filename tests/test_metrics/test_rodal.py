@@ -80,7 +80,7 @@ class TestRodal:
         assert jnp.allclose(g_call, g_adm, atol=1e-15)
 
     def test_rodal_symbolic(self):
-        """symbolic() returns valid SymbolicMetric."""
+        """symbolic returns valid SymbolicMetric."""
         m = RodalMetric()
         sm = m.symbolic()
         assert isinstance(sm, SymbolicMetric)
@@ -254,7 +254,7 @@ class TestRodal:
         m = RodalMetric()  # v_s=0.1, R=100.0, sigma=0.03
         # Pre-computed reference values (from spherical-tetrad implementation)
         test_cases = [
-            # (coords, expected_shift) — values from original implementation
+            # (coords, expected_shift) - values from original implementation
             (jnp.array([0.0, 50.0, 10.0, 0.0]),
              jnp.array([-0.09557155, 0.0006476, 0.0])),
             (jnp.array([0.0, 100.0, 1.0, 0.0]),
@@ -275,3 +275,75 @@ class TestRodal:
                 assert jnp.allclose(shift, expected, atol=1e-4), (
                     f"Mismatch at coords={coords}: got {shift}, expected {expected}"
                 )
+
+
+class TestRodalAutodiffAtOrigin:
+    """Regression tests for JAX autodiff stability at r_s = 0.
+
+    The Rodal G(r_s) angular profile has a removable 0/0 form at the origin
+    (``log_ratio / r_safe`` where both sides go to zero); the analytic
+    limit ``lim_{r->0} log_ratio / r = -2*sigma*tanh(sigma*R)`` is applied
+    via a ``jnp.where(r < 1e-8, ...)`` branch in ``_rodal_g_paper``. These
+    tests ensure the branch keeps the metric, the first-order Jacobian,
+    and the Hessian finite across a sweep of coordinate scales.
+    """
+
+    def test_metric_finite_at_origin(self):
+        m = RodalMetric(v_s=0.5, R=1.0, sigma=0.1)
+        g = m(jnp.array([0.0, 0.0, 0.0, 0.0]))
+        assert bool(jnp.all(jnp.isfinite(g))), f"non-finite metric at origin: {g}"
+
+    def test_jacfwd_finite_at_origin(self):
+        m = RodalMetric(v_s=0.5, R=1.0, sigma=0.1)
+        dg = jax.jacfwd(m)(jnp.array([0.0, 0.0, 0.0, 0.0]))
+        assert bool(jnp.all(jnp.isfinite(dg))), f"non-finite grad at origin: {dg}"
+
+    def test_hessian_finite_at_origin(self):
+        """Second-order autodiff stability: the Hessian of g_00 must be
+        finite for the curvature chain (which composes two jacfwd calls)
+        to produce a finite Riemann tensor."""
+        m = RodalMetric(v_s=0.5, R=1.0, sigma=0.1)
+        def g00(c):
+            return m(c)[0, 0]
+        h = jax.hessian(g00)(jnp.array([0.0, 0.0, 0.0, 0.0]))
+        assert bool(jnp.all(jnp.isfinite(h))), f"non-finite Hessian at origin: {h}"
+
+    def test_autodiff_finite_across_small_r_sweep(self):
+        """Gradient remains finite across coordinate scales spanning the
+        analytic-limit threshold (1e-8)."""
+        m = RodalMetric(v_s=0.5, R=1.0, sigma=0.1)
+        for r in (1e-4, 1e-6, 1e-8, 1e-10, 1e-12, 1e-14, 0.0):
+            coords = jnp.array([0.0, r, 0.0, 0.0])
+            dg = jax.jacfwd(m)(coords)
+            assert bool(jnp.all(jnp.isfinite(dg))), (
+                f"non-finite grad at r={r!r}: {dg}"
+            )
+
+    def test_curvature_chain_finite_at_origin(self):
+        """Full curvature chain (metric -> Christoffel -> Riemann -> Ricci
+        -> Einstein -> T) stays finite at r_s = 0, so
+        ``compute_curvature_chain`` never emits NaN that would corrupt the
+        grid aggregate."""
+        m = RodalMetric(v_s=0.5, R=1.0, sigma=0.1)
+        result = compute_curvature_chain(m, jnp.array([0.0, 0.0, 0.0, 0.0]))
+        for name in ("metric", "christoffel", "riemann", "ricci",
+                     "einstein", "stress_energy"):
+            arr = getattr(result, name)
+            assert bool(jnp.all(jnp.isfinite(arr))), (
+                f"non-finite {name} at origin"
+            )
+
+    def test_g_paper_analytic_limit_matches_numerical_approach(self):
+        """At r -> 0 the analytic-limit branch value matches what a
+        truncated-but-safe numerical evaluation approaches. This guards
+        against a regression where the constant used in the branch
+        (``-2*sigma*tanh(sigma*R)``) drifts from the true limit."""
+        R, sigma = 1.0, 0.1
+        g_at_zero = _rodal_g_paper(jnp.array(0.0), R, sigma)
+        # Limit value: derived from Delta'(0) = -2*sigma*tanh(sigma*R)
+        # plugged back into g_paper = 1 + cosh(R*sigma) * limit / (2*sigma*sinh(R*sigma))
+        # which simplifies to 1 - cosh(R*sigma)*tanh(sigma*R)/sinh(R*sigma) = 0.
+        assert jnp.isclose(g_at_zero, 0.0, atol=1e-14)
+        # Compare against a tiny-but-nonzero r evaluation to confirm continuity.
+        g_near = _rodal_g_paper(jnp.array(1e-6), R, sigma)
+        assert jnp.isclose(g_near, 0.0, atol=1e-8)

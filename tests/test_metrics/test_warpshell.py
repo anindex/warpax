@@ -2,8 +2,9 @@
 
 import jax
 import jax.numpy as jnp
+import pytest
 
-from warpax.metrics import WarpShellMetric
+from warpax.metrics import WarpShellMetric, WarpShellPhysical, WarpShellStressTest
 from warpax.geometry import compute_curvature_chain, SymbolicMetric, adm_to_full_metric
 
 
@@ -73,7 +74,7 @@ class TestWarpShell:
         assert jnp.allclose(g_call, g_adm, atol=1e-15)
 
     def test_warpshell_symbolic(self):
-        """symbolic() returns valid SymbolicMetric."""
+        """symbolic returns valid SymbolicMetric."""
         m = WarpShellMetric()
         sm = m.symbolic()
         assert isinstance(sm, SymbolicMetric)
@@ -543,3 +544,70 @@ class TestWarpShell:
             f"C1 and C2 Riemann tensors are identical at seam "
             f"(max diff = {riemann_diff:.2e}). Expected them to differ."
         )
+
+
+class TestWarpShellPhysical:
+    """Tests for the physical-regime WarpShellPhysical class.
+
+    The physical regime requires ``r_s_param < R_1`` so the Schwarzschild
+    radius sits inside the flat interior, well clear of the shell where
+    the Schwarzschild-like geometry takes over. Without the clamp the
+    lapse is a clean ``sqrt(1 - r_s / r)`` in the shell, with no
+    ``minimum(ratio, 1.0 - 1e-12)`` or ``maximum(alpha, 1e-12)`` safety
+    patches.
+    """
+
+    def test_physical_accepts_r_s_less_than_R_1(self):
+        """Default r_s_param=5.0 < R_1=10.0 -- construction must succeed."""
+        m = WarpShellPhysical()
+        assert m.r_s_param < m.R_1
+
+    def test_physical_rejects_r_s_not_less_than_R_1(self):
+        """r_s_param >= R_1 must raise at construction."""
+        with pytest.raises(ValueError, match="r_s_param"):
+            WarpShellPhysical(r_s_param=10.0, R_1=10.0, R_2=20.0)
+        with pytest.raises(ValueError, match="r_s_param"):
+            WarpShellPhysical(r_s_param=15.0, R_1=10.0, R_2=20.0)
+
+    def test_physical_matches_stress_test_in_physical_regime(self):
+        """When r_s_param < R_1, the clamp never triggers, so the two
+        variants produce identical metrics at every shell coordinate."""
+        phys = WarpShellPhysical(v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0)
+        stress = WarpShellStressTest(v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0)
+        for x in (5.0, 11.0, 15.0, 19.0, 25.0):
+            coords = jnp.array([0.0, x, 0.0, 0.0])
+            assert jnp.allclose(phys(coords), stress(coords), atol=1e-14)
+
+    def test_physical_far_field(self):
+        """Far from bubble the metric approaches Minkowski."""
+        m = WarpShellPhysical()
+        g = m(jnp.array([0.0, 1000.0, 0.0, 0.0]))
+        minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+        assert jnp.allclose(g, minkowski, atol=1e-6)
+
+    def test_physical_jit(self):
+        m = WarpShellPhysical()
+        coords = jnp.array([0.0, 15.0, 2.0, 3.0])
+        assert jnp.allclose(m(coords), jax.jit(m)(coords), atol=1e-15)
+
+    def test_physical_float64(self):
+        g = WarpShellPhysical()(jnp.array([0.0, 15.0, 2.0, 3.0]))
+        assert g.dtype == jnp.float64
+
+    def test_physical_lapse_positive_without_floor(self):
+        """Within the shell, r_s_param / r < 1 by construction, so the
+        lapse is strictly positive without relying on the 1e-12 floor."""
+        m = WarpShellPhysical(r_s_param=5.0, R_1=10.0, R_2=20.0)
+        for x in (10.0, 12.5, 15.0, 17.5, 20.0):
+            coords = jnp.array([0.0, x, 0.0, 0.0])
+            alpha = m.lapse(coords)
+            # In the shell the lapse is sqrt(1 - r_s/r); well away from 0.
+            assert float(alpha) > 0.1
+
+    def test_stress_test_alias_matches_legacy_metric(self):
+        """WarpShellStressTest must expose the same behavior as the
+        legacy WarpShellMetric class."""
+        legacy = WarpShellMetric()
+        renamed = WarpShellStressTest()
+        coords = jnp.array([0.0, 15.0, 2.0, 3.0])
+        assert jnp.allclose(legacy(coords), renamed(coords), atol=1e-14)

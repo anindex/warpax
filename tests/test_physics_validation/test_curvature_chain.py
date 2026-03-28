@@ -283,3 +283,109 @@ class TestAlcubierreEulerianEnergyDensity:
             rho_autodiff, 0.0, atol=1e-12,
             err_msg=f"Autodiff rho should be zero far from bubble at ({x}, {y}, {z})",
         )
+
+
+# ---------------------------------------------------------------------------
+# Stress-energy tensor symmetry across every warp metric
+# ---------------------------------------------------------------------------
+
+
+class TestStressEnergySymmetry:
+    """Einstein's equations guarantee T_{ab} = T_{ba}. The autodiff chain
+    computes T via the Einstein tensor, which inherits its symmetry from
+    the Riemann pair-interchange symmetry. Floating-point reduction order
+    determined by XLA can perturb this slightly.
+
+    This suite bounds the relative antisymmetric drift per metric at
+    ``|T - T^T|_max / |T|_max < 1e-13`` over a 10x10x10 coordinate slab;
+    a regression that breaks the bound would surface a reduction-order
+    change in the curvature chain and is worth investigating before
+    accepting the diff.
+    """
+
+    GRID_N = 10
+    REL_TOL = 1e-13
+
+    @staticmethod
+    def _slab_coords(bounds, n):
+        import jax.numpy as jnp_
+
+        xs = jnp_.linspace(bounds[0], bounds[1], n)
+        ys = jnp_.linspace(bounds[0], bounds[1], n)
+        zs = jnp_.linspace(bounds[0], bounds[1], n)
+        return jnp_.stack(
+            [
+                jnp_.broadcast_to(jnp_.float64(0.0), (n * n * n,)),
+                jnp_.repeat(jnp_.repeat(xs, n), n),
+                jnp_.tile(jnp_.repeat(ys, n), n),
+                jnp_.tile(zs, n * n),
+            ],
+            axis=-1,
+        )
+
+    def _assert_symmetric_over_slab(self, metric, bounds):
+        import jax
+
+        coords = self._slab_coords(bounds, self.GRID_N)
+
+        def stress_at(c):
+            return compute_curvature_chain(metric, c).stress_energy
+
+        T = jax.vmap(stress_at)(coords)
+        asym = jnp.max(jnp.abs(T - jnp.swapaxes(T, -1, -2)))
+        scale = jnp.max(jnp.abs(T)) + jnp.finfo(T.dtype).tiny
+        rel = asym / scale
+        assert float(rel) < self.REL_TOL, (
+            f"stress-energy antisymmetric drift above tolerance: "
+            f"|T-T^T|_max = {asym:.2e}, |T|_max = {scale:.2e}, "
+            f"rel = {rel:.2e} (tol {self.REL_TOL:.1e})"
+        )
+
+    def test_alcubierre_stress_energy_symmetric(self):
+        self._assert_symmetric_over_slab(
+            AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0), bounds=(-2.0, 2.0)
+        )
+
+    def test_rodal_stress_energy_symmetric(self):
+        from warpax.metrics import RodalMetric
+
+        self._assert_symmetric_over_slab(
+            RodalMetric(v_s=0.5, R=1.0, sigma=0.1), bounds=(-2.0, 2.0)
+        )
+
+    def test_natario_stress_energy_symmetric(self):
+        from warpax.metrics import NatarioMetric
+
+        self._assert_symmetric_over_slab(
+            NatarioMetric(v_s=0.1, R=100.0, sigma=0.03), bounds=(-150.0, 150.0)
+        )
+
+    def test_lentz_stress_energy_symmetric(self):
+        from warpax.metrics import LentzMetric
+
+        self._assert_symmetric_over_slab(
+            LentzMetric(v_s=0.1, R=100.0, sigma=8.0), bounds=(-150.0, 150.0)
+        )
+
+    def test_vdb_stress_energy_symmetric(self):
+        from warpax.metrics import VanDenBroeckMetric
+
+        self._assert_symmetric_over_slab(
+            VanDenBroeckMetric(v_s=0.5), bounds=(-2.0, 2.0)
+        )
+
+    def test_warpshell_stress_energy_symmetric(self):
+        from warpax.metrics import WarpShellMetric
+
+        self._assert_symmetric_over_slab(
+            WarpShellMetric(v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0),
+            bounds=(5.0, 25.0),
+        )
+
+    def test_warpshell_physical_stress_energy_symmetric(self):
+        from warpax.metrics import WarpShellPhysical
+
+        self._assert_symmetric_over_slab(
+            WarpShellPhysical(v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0),
+            bounds=(5.0, 25.0),
+        )
