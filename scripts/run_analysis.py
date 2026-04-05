@@ -3,7 +3,7 @@
 
 Runs compare_eulerian_vs_robust for all 6 warp metrics across 4 warp
 velocities (v_s = 0.1, 0.5, 0.9, 0.99), plus Schwarzschild as a
-velocity-independent baseline.  Results are cached as .npz files in
+velocity-independent baseline. Results are cached as .npz files in
 results/ and a comparison table is saved to results/comparison_table.json.
 
 Usage

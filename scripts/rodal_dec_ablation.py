@@ -9,8 +9,8 @@ three independent parameter sweeps with Alcubierre as control:
 3. Sigma sweep: sigma in {0.01, 0.03, 0.1, 0.3}
 
 Outputs:
-  - results/rodal_dec_diagnosis.json  (structured diagnosis)
-  - figures/rodal_dec_ablation.pdf    (3-panel ablation figure)
+  - results/rodal_dec_diagnosis.json (structured diagnosis)
+  - figures/rodal_dec_ablation.pdf (3-panel ablation figure)
 
 Usage
 -----
@@ -36,7 +36,13 @@ import numpy as np
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import RodalMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.geometry.grid import build_coord_batch
 from warpax.analysis import compare_eulerian_vs_robust
+from warpax.energy_conditions.filtering import (
+    compute_wall_restricted_stats,
+    shape_function_mask,
+)
+from warpax.energy_conditions.verifier import verify_grid
 from warpax.visualization._style import apply_style, COLORS, DOUBLE_COL, LINE_STYLES
 
 
@@ -61,8 +67,24 @@ BASELINE = {
 # Sweep functions
 # ---------------------------------------------------------------------------
 
-def _run_single(metric, grid, label=""):
-    """Run curvature + comparison for a single metric/grid pair."""
+def _run_single(metric, grid, label="", return_full=False):
+    """Run curvature + comparison for a single metric/grid pair.
+
+    Parameters
+    ----------
+    metric : MetricSpecification
+        Instantiated warp metric.
+    grid : GridSpec
+        Evaluation grid.
+    label : str
+        Optional log label.
+    return_full : bool, optional
+        When True, returns ``(dec_miss, curv, comparison)`` so callers
+        can run downstream analyses (e.g. wall-restricted stats) without
+        recomputing the curvature chain. Default False preserves the
+        original scalar-only contract used by the resolution and
+        regularization sweeps.
+    """
     t0 = time.time()
     curv = evaluate_curvature_grid(
         metric, grid, batch_size=BASELINE["batch_size_curv"],
@@ -79,7 +101,45 @@ def _run_single(metric, grid, label=""):
     dec_miss = comparison.pct_missed["dec"]
     if label:
         print(f"  {label}: DEC miss = {dec_miss:.2f}% ({elapsed:.1f}s)")
+    if return_full:
+        return dec_miss, curv, comparison
     return dec_miss
+
+
+def _wall_restricted_stats(metric, grid, curv, comparison):
+    """Compute wall-restricted stats reusing an already-evaluated curvature chain.
+
+    Parameters
+    ----------
+    metric : MetricSpecification
+        Metric supplying ``shape_function_value`` for the wall mask.
+    grid : GridSpec
+        Grid used for the pre-computed curvature chain.
+    curv : GridCurvatureResult
+        Output of ``evaluate_curvature_grid`` on ``(metric, grid)``.
+    comparison : ComparisonResult
+        Output of ``compare_eulerian_vs_robust`` for the same inputs.
+
+    Returns
+    -------
+    WallRestrictedStats
+        Wall-restricted Type breakdown and EC miss rates within the wall
+        region (shape function in [0.1, 0.9]).
+    """
+    ec_grid = verify_grid(
+        curv.stress_energy,
+        curv.metric,
+        curv.metric_inv,
+        n_starts=BASELINE["n_starts"],
+        batch_size=BASELINE["batch_size_opt"],
+        compute_eulerian=False,
+    )
+    coords_batch = build_coord_batch(grid, t=0.0)
+    wall_mask = shape_function_mask(metric, coords_batch, grid.shape)
+    eul = {
+        c: comparison.eulerian_margins[c] for c in ("nec", "wec", "sec", "dec")
+    }
+    return compute_wall_restricted_stats(ec_grid, wall_mask, eulerian_margins=eul)
 
 
 def run_resolution_sweep():
@@ -199,38 +259,108 @@ def run_sigma_sweep():
     alcubierre_sigma_values = [2.0, 8.0, 16.0, 32.0]
     N = 50
 
-    rodal_results = []
-    alcubierre_results = []
+    rodal_dec_miss: list[float] = []
+    alcubierre_dec_miss: list[float] = []
+    wall_rodal: list[dict] = []
+    wall_alcubierre: list[dict] = []
 
     for i, (sig_r, sig_a) in enumerate(
         zip(rodal_sigma_values, alcubierre_sigma_values)
     ):
         print(f"\n--- Rodal sigma={sig_r}, Alcubierre sigma={sig_a} ---")
 
-        # Rodal
+        # Rodal: compute DEC miss + wall-restricted stats (reusing curvature)
         grid_r = GridSpec(bounds=[(-300, 300)] * 3, shape=(N, N, N))
         metric_r = RodalMetric(
             v_s=BASELINE["v_s"], R=BASELINE["R_rodal"], sigma=sig_r,
         )
-        dec_miss_r = _run_single(metric_r, grid_r, label="Rodal")
-        rodal_results.append(dec_miss_r)
+        dec_miss_r, curv_r, cmp_r = _run_single(
+            metric_r, grid_r, label="Rodal", return_full=True,
+        )
+        rodal_dec_miss.append(dec_miss_r)
+        stats_r = _wall_restricted_stats(metric_r, grid_r, curv_r, cmp_r)
+        wall_rodal.append({
+            "sigma": sig_r,
+            "dec_miss": float(dec_miss_r),
+            "wall_dec_miss_rate": (
+                float(stats_r.dec_miss_rate)
+                if stats_r.dec_miss_rate is not None else None
+            ),
+            "wall_nec_miss_rate": (
+                float(stats_r.nec_miss_rate)
+                if stats_r.nec_miss_rate is not None else None
+            ),
+            "wall_wec_miss_rate": (
+                float(stats_r.wec_miss_rate)
+                if stats_r.wec_miss_rate is not None else None
+            ),
+            "wall_sec_miss_rate": (
+                float(stats_r.sec_miss_rate)
+                if stats_r.sec_miss_rate is not None else None
+            ),
+            "wall_type_iv_frac": float(stats_r.frac_type_iv),
+            "wall_type_i_frac": float(stats_r.frac_type_i),
+            "wall_type_ii_frac": float(stats_r.frac_type_ii),
+            "wall_type_iii_frac": float(stats_r.frac_type_iii),
+            "wall_n_total": int(stats_r.n_total),
+        })
+        print(
+            f"    Wall (Rodal): n_total={stats_r.n_total}, "
+            f"Type-IV={stats_r.frac_type_iv:.2%}, "
+            f"DEC miss={stats_r.dec_miss_rate}"
+        )
 
-        # Alcubierre
+        # Alcubierre: same treatment
         grid_a = GridSpec(bounds=[(-5, 5)] * 3, shape=(N, N, N))
         metric_a = AlcubierreMetric(
             v_s=BASELINE["v_s"], R=BASELINE["R_alcubierre"], sigma=sig_a,
         )
-        dec_miss_a = _run_single(metric_a, grid_a, label="Alcubierre")
-        alcubierre_results.append(dec_miss_a)
+        dec_miss_a, curv_a, cmp_a = _run_single(
+            metric_a, grid_a, label="Alcubierre", return_full=True,
+        )
+        alcubierre_dec_miss.append(dec_miss_a)
+        stats_a = _wall_restricted_stats(metric_a, grid_a, curv_a, cmp_a)
+        wall_alcubierre.append({
+            "sigma": sig_a,
+            "dec_miss": float(dec_miss_a),
+            "wall_dec_miss_rate": (
+                float(stats_a.dec_miss_rate)
+                if stats_a.dec_miss_rate is not None else None
+            ),
+            "wall_nec_miss_rate": (
+                float(stats_a.nec_miss_rate)
+                if stats_a.nec_miss_rate is not None else None
+            ),
+            "wall_wec_miss_rate": (
+                float(stats_a.wec_miss_rate)
+                if stats_a.wec_miss_rate is not None else None
+            ),
+            "wall_sec_miss_rate": (
+                float(stats_a.sec_miss_rate)
+                if stats_a.sec_miss_rate is not None else None
+            ),
+            "wall_type_iv_frac": float(stats_a.frac_type_iv),
+            "wall_type_i_frac": float(stats_a.frac_type_i),
+            "wall_type_ii_frac": float(stats_a.frac_type_ii),
+            "wall_type_iii_frac": float(stats_a.frac_type_iii),
+            "wall_n_total": int(stats_a.n_total),
+        })
+        print(
+            f"    Wall (Alcubierre): n_total={stats_a.n_total}, "
+            f"Type-IV={stats_a.frac_type_iv:.2%}, "
+            f"DEC miss={stats_a.dec_miss_rate}"
+        )
 
-    rodal_rounded = [round(v, 2) for v in rodal_results]
+    rodal_rounded = [round(v, 2) for v in rodal_dec_miss]
     return {
         "parameter": "sigma (wall thickness)",
         "values": rodal_sigma_values,
         "values_rodal": rodal_sigma_values,
         "values_alcubierre": alcubierre_sigma_values,
         "rodal_dec_miss_pct": rodal_rounded,
-        "alcubierre_dec_miss_pct": [round(v, 2) for v in alcubierre_results],
+        "alcubierre_dec_miss_pct": [round(v, 2) for v in alcubierre_dec_miss],
+        "wall_rodal_results": wall_rodal,
+        "wall_alcubierre_results": wall_alcubierre,
         "sensitivity": (
             "sensitive" if _max_variation(rodal_rounded) > 5.0 else "insensitive"
         ),

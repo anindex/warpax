@@ -97,7 +97,7 @@ def main():
         flat_coords = coords.reshape(-1, 4)
 
         # Evaluate curvature chain
-        print("  Computing curvature chain...")
+        print(" Computing curvature chain...")
         t0 = time.time()
         chain_fn = lambda x: compute_curvature_chain(metric, x)
         chain_batch = jax.vmap(chain_fn)
@@ -208,7 +208,6 @@ def fibonacci_sphere(n_points: int) -> np.ndarray:
     return np.stack([theta, phi], axis=-1)
 
 
-
 def fibonacci_dec_comparison():
     """Deterministic Fibonacci-lattice DEC comparison for Rodal.
 
@@ -275,9 +274,9 @@ def fibonacci_dec_comparison():
         wec = jnp.einsum("a,ab,b->", u, T_ab, u)
         # Energy-momentum current: j^a = -T^a_b u^b
         j = -jnp.einsum("ab,b->a", T_mixed, u)
-        # Causal flux: -j^a g_{ab} j^b  (should be >= 0 if j is causal)
+        # Causal flux: -j^a g_{ab} j^b (should be >= 0 if j is causal)
         flux = -jnp.einsum("a,ab,b->", j, g_ab, j)
-        # Future-directed: -j^a n_a  (should be >= 0)
+        # Future-directed: -j^a n_a (should be >= 0)
         n_down = jnp.einsum("ab,b->a", g_ab, tetrad[0])
         future = -jnp.einsum("a,a->", j, n_down)
         return jnp.minimum(wec, jnp.minimum(flux, future))

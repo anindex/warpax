@@ -12,26 +12,26 @@ observers - warpax searches the full timelike observer manifold via BFGS.
 All computation flows from analytic metric functions through a single JAX AD chain:
 
 ```
-MetricFunction  g_{μν}(x)
+MetricFunction g_{μν}(x)
       │
-      ▼  (JAX jacfwd)
-Christoffel  Γ^α_{βγ}
+      ▼ (JAX jacfwd)
+Christoffel Γ^α_{βγ}
       │
-      ▼  (JAX jacfwd)
-Riemann  R^α_{βγδ}
+      ▼ (JAX jacfwd)
+Riemann R^α_{βγδ}
       │
-      ├──▶ Ricci tensor  R_{μν}
-      │         │
-      │         ├──▶ Ricci scalar  R
-      │         │
-      │         ▼
-      │    Einstein tensor  G_{μν}
-      │         │
-      │         ▼  (Einstein field equations)
-      │    Stress-energy  T_{μν}
+      ├──▶ Ricci tensor R_{μν}
+      │ │
+      │ ├──▶ Ricci scalar R
+      │ │
+      │ ▼
+      │ Einstein tensor G_{μν}
+      │ │
+      │ ▼ (Einstein field equations)
+      │ Stress-energy T_{μν}
       │
       ▼
-Curvature invariants  (Kretschner, Ricci², Weyl²)
+Curvature invariants (Kretschner, Ricci², Weyl²)
 ```
 
 No symbolic algebra or finite-difference stencils are used. JAX's forward-mode AD
@@ -75,7 +75,7 @@ Higher-level analysis utilities:
 - Kinematic scalars: expansion θ, shear σ², vorticity ω²
 
 ### `visualization`
-- **Matplotlib**:  static figures (heatmaps, convergence plots,
+- **Matplotlib**: static figures (heatmaps, convergence plots,
   comparison grids, kinematic scalar maps, geodesic observables)
 - **Manim CE**: Animated 3D scenes (bubble collapse, velocity ramp, EC heatmap
   contours, observer sweep)

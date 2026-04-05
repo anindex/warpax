@@ -5,6 +5,9 @@ Rodal is 100% Type I, so the ground truth is algebraic eigenvalue
 checks (no BFGS needed for truth). This script runs at N = {25, 50, 100}
 and reports f_miss for NEC/WEC/SEC/DEC, verifying resolution stability.
 
+See also: ``run_rodal_matched_resolution.py`` for the parameter-matched
+feasibility study at R=1, sigma=8 used for the comparison table.
+
 Usage
 -----
     python scripts/run_rodal_resolution.py

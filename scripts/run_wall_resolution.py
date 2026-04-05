@@ -3,7 +3,7 @@
 
 Computes the analytical transition wall width for each metric's shape
 function and compares it to the grid spacing at the standard 50^3
-resolution.  No JAX or curvature computation is needed all values
+resolution. No JAX or curvature computation is needed all values
 are derived from closed-form expressions.
 
 For tanh-based metrics the 10-90% transition width is

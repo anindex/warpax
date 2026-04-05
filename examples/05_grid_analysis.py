@@ -106,6 +106,6 @@ fig = plot_comparison_panel(
 
 print(f"\n  Figure saved: {save_path}")
 print("\nDone! The figure shows three panels:")
-print("  Left:   Eulerian NEC margin (what standard analysis sees)")
-print("  Center: Robust NEC margin (worst-case over all observers)")
-print("  Right:  Missed violations (red = Eulerian misses, robust catches)")
+print(" Left: Eulerian NEC margin (what standard analysis sees)")
+print(" Center: Robust NEC margin (worst-case over all observers)")
+print(" Right: Missed violations (red = Eulerian misses, robust catches)")

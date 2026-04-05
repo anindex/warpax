@@ -45,7 +45,7 @@ x0_pos = jnp.array([0.0, 1.0, 0.0, 0.0])
 v_spatial = jnp.array([0.0, 0.0, 0.0])  # initially at rest
 x0, v0 = timelike_ic(metric, x0_pos, v_spatial)
 
-# Ensure future-directed: v^t > 0  (the quadratic solver may return
+# Ensure future-directed: v^t > 0 (the quadratic solver may return
 # the past-directed root for g_00 < 0).
 v0 = v0.at[0].set(jnp.abs(v0[0]))
 

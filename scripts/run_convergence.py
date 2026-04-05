@@ -15,9 +15,9 @@ Custom metric/resolutions:
     python scripts/run_convergence.py --metric natario --resolutions 10 20 40
 
 IMPORTANT: At 100^3 the observer optimizer is extremely expensive
-(1M points x 8 starts x 4 conditions).  By default, the 100^3 resolution
+(1M points x 8 starts x 4 conditions). By default, the 100^3 resolution
 uses Eulerian-only EC (skipping optimization) and computes Eulerian min
-margin for convergence.  Use --full-100 to force optimization at 100^3
+margin for convergence. Use --full-100 to force optimization at 100^3
 (may take hours).
 """
 from __future__ import annotations

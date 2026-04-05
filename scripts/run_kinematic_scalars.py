@@ -2,7 +2,7 @@
 """Kinematic scalar field computation for warp drive metrics.
 
 Computes expansion (theta), shear-squared, and vorticity-squared for the
-Eulerian congruence across all 6 warp metrics at v_s=0.5.  Results are
+Eulerian congruence across all 6 warp metrics at v_s=0.5. Results are
 cached as .npz files in results/.
 
 Usage

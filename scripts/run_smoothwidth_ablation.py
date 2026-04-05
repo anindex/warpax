@@ -107,7 +107,7 @@ def main():
         metric = WarpShellMetric(R_1=R_1, R_2=R_2, v_s=V_S, smooth_width=sw)
 
         # Compute curvature grid (must recompute metric changes)
-        print("  Computing curvature grid...")
+        print(" Computing curvature grid...")
         t0 = time.time()
         curv = evaluate_curvature_grid(metric, GRID_SPEC, batch_size=256)
         t_curv = time.time() - t0

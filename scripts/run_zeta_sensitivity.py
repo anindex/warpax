@@ -3,7 +3,7 @@
 
 Measures how the minimum energy-condition margins (Eulerian and robust)
 vary with the maximum rapidity zeta_max used in the observer-space
-optimization.  A larger zeta_max explores more highly boosted observers,
+optimization. A larger zeta_max explores more highly boosted observers,
 potentially uncovering deeper violations that the Eulerian frame misses.
 
 Metric configuration

@@ -127,7 +127,7 @@ def compute_tidal_analysis(
     max_steps = MAX_STEPS_HIGH_VS if v_s >= 0.95 else MAX_STEPS
 
     # Integrate geodesic with deviation
-    print("  Integrating timelike geodesic with deviation equations...")
+    print(" Integrating timelike geodesic with deviation equations...")
     print(f"    x0 = {x0}, v0 = {v0}")
     print(f"    tau_span = {TAU_SPAN_TIMELIKE}, max_steps = {max_steps}")
     t0 = time.time()
@@ -143,10 +143,10 @@ def compute_tidal_analysis(
     print(f"    Integration time: {t_int:.1f}s")
     print(f"    Result code: {dev_result.result}")
     if dev_result.result == diffrax.RESULTS.max_steps_reached:
-        print("    WARNING: Integrator hit max_steps. Partial data will be used.")
+        print(" WARNING: Integrator hit max_steps. Partial data will be used.")
 
     # Extract tidal eigenvalues at each saved point
-    print("  Computing tidal eigenvalues along trajectory...")
+    print(" Computing tidal eigenvalues along trajectory...")
     t0 = time.time()
     all_eigs = []
     for i in range(NUM_POINTS):
@@ -229,7 +229,7 @@ def compute_blueshift_analysis(
     max_steps = MAX_STEPS_HIGH_VS if v_s >= 0.95 else MAX_STEPS
 
     # Integrate null geodesic
-    print("  Integrating null geodesic...")
+    print(" Integrating null geodesic...")
     print(f"    x0 = {x0}, k0 = {k0}")
     print(f"    tau_span = {TAU_SPAN_NULL}, max_steps = {max_steps}")
     t0 = time.time()
@@ -245,11 +245,11 @@ def compute_blueshift_analysis(
     print(f"    Integration time: {t_int:.1f}s")
     print(f"    Result code: {null_result.result}")
     if null_result.result == diffrax.RESULTS.max_steps_reached:
-        print("    WARNING: Integrator hit max_steps. Partial data will be used.")
+        print(" WARNING: Integrator hit max_steps. Partial data will be used.")
 
     # Compute blueshift along trajectory using static observers
     # Static observer 4-velocity: u^a = (1/sqrt(-g_00), 0, 0, 0)
-    print("  Computing blueshift along trajectory...")
+    print(" Computing blueshift along trajectory...")
     t0 = time.time()
 
     def static_observer(x):

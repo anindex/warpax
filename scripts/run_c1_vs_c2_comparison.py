@@ -2,14 +2,14 @@
 """C1-vs-C2 WarpShell transition comparison.
 
 Computes Eulerian vs robust EC analysis for WarpShell at both transition
-orders (C1 cubic and C2 quintic) across 4 warp velocities.  Generates:
+orders (C1 cubic and C2 quintic) across 4 warp velocities. Generates:
 
-    results/c1_vs_c2_comparison.json   machine-readable comparison data
-    results/c1_vs_c2_comparison.tex    LaTeX table for paper appendix
-    figures/c1_vs_c2_margins.pdf       2-panel comparison plot
+    results/c1_vs_c2_comparison.json machine-readable comparison data
+    results/c1_vs_c2_comparison.tex LaTeX table for paper appendix
+    figures/c1_vs_c2_margins.pdf 2-panel comparison plot
 
 This script is self-contained: it computes both C1 and C2 in-memory and
-does NOT read from or write to the main cached .npz files.  Run it before
+does NOT read from or write to the main cached .npz files. Run it before
 the main analysis overwrites the results cache.
 
 Usage

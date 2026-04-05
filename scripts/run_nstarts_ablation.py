@@ -3,9 +3,9 @@
 
 Sweeps N_starts in {1, 2, 4, 8, 16} for three representative metrics at
 v_s = 0.5:
-  - Alcubierre  (missed=0, severity-only)
-  - Rodal       (largest missed%)
-  - WarpShell   (small missed%)
+  - Alcubierre (missed=0, severity-only)
+  - Rodal (largest missed%)
+  - WarpShell (small missed%)
 
 The curvature grid is computed ONCE per metric (expensive), then
 compare_eulerian_vs_robust is called with different n_starts values
@@ -104,7 +104,7 @@ def main():
 
         # Build metric and evaluate curvature grid ONCE
         metric = metric_cls(**params)
-        print("  Computing curvature grid (one-time cost)...")
+        print(" Computing curvature grid (one-time cost)...")
         t0 = time.time()
         curv = evaluate_curvature_grid(metric, grid_spec, batch_size=256)
         t_curv = time.time() - t0

@@ -227,9 +227,9 @@ def main():
 
     print("\n" + "=" * 78)
     print("INTERPRETATION GUIDE:")
-    print("  - If %AtBdry is high (>50%): violations are boundary artifacts")
-    print("  - If %AtBdry is low and Filt% ~ Full%: violations are genuine physics")
-    print("  - Radial profile shows spatial distribution of missed violations")
+    print(" - If %AtBdry is high (>50%): violations are boundary artifacts")
+    print(" - If %AtBdry is low and Filt% ~ Full%: violations are genuine physics")
+    print(" - Radial profile shows spatial distribution of missed violations")
     print("=" * 78)
 
 

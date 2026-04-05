@@ -2,7 +2,7 @@
 """Reproduce all paper figures from cached results.
 
 Single-command figure generator that loads cached .npz/.json results from
-results/ and generates PDF figures in figures/.  No computation is performed
+results/ and generates PDF figures in figures/. No computation is performed
 -- this script only reads cached data and renders plots.
 
 Usage
@@ -300,7 +300,7 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
     """Generate the 'money shot': missed WEC violations vs velocity for Rodal.
 
     2x2 grid showing missed WEC violations for Rodal at
-    v_s = 0.1, 0.5, 0.9, 0.99.  Rodal shows ~15% WEC missed by Eulerian
+    v_s = 0.1, 0.5, 0.9, 0.99. Rodal shows ~15% WEC missed by Eulerian
     analysis, making it the most visually striking demonstration of
     observer-dependent violations.
 
@@ -397,80 +397,6 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
     return 1
 
 
-def generate_type_breakdown_table(figures_dir: str, results_dir: str) -> int:
-    """Generate Hawking-Ellis type breakdown table across all metrics.
-
-    Shows % Type I per metric and max |Im lambda|/scale.
-
-    Returns the number of figures generated.
-    """
-    _ensure_dir(figures_dir)
-
-    rows = []
-    for name in ALL_WARP_METRICS + ["schwarzschild"]:
-        # Try v_s=0.5 first, then v_s=0.0 for Schwarzschild
-        npz_path = os.path.join(results_dir, f"{name}_vs0.5.npz")
-        if not os.path.exists(npz_path):
-            npz_path = os.path.join(results_dir, f"{name}_vs0.0.npz")
-        data = _load_npz(npz_path)
-        if data is None:
-            continue
-
-        n_type_i = int(data["n_type_i"]) if "n_type_i" in data else -1
-        n_type_iv = int(data["n_type_iv"]) if "n_type_iv" in data else -1
-        max_imag = float(data["max_imag_eigenvalue"]) if "max_imag_eigenvalue" in data else -1.0
-        grid_shape = tuple(data["grid_shape"])
-        n_total = int(np.prod(grid_shape))
-
-        pct_type_i = n_type_i / n_total * 100.0 if n_type_i >= 0 else -1.0
-
-        rows.append({
-            "metric": name,
-            "n_total": n_total,
-            "n_type_i": n_type_i,
-            "pct_type_i": pct_type_i,
-            "n_type_iv": n_type_iv,
-            "max_imag": max_imag,
-        })
-
-    if not rows:
-        warnings.warn("No data for type breakdown table")
-        return 0
-
-    # Render as matplotlib table
-    fig, ax = plt.subplots(figsize=(DOUBLE_COL * 0.7, 0.4 + 0.25 * len(rows)))
-    ax.axis("off")
-
-    col_labels = ["Metric", "Grid", "% Type I", "Non-Type I", r"max $|{\rm Im}\lambda|$"]
-    cell_text = []
-    for r in rows:
-        cell_text.append([
-            r["metric"].capitalize(),
-            f"{r['n_total']:,}",
-            f"{r['pct_type_i']:.1f}%" if r["pct_type_i"] >= 0 else "N/A",
-            str(r["n_type_iv"]) if r["n_type_iv"] >= 0 else "N/A",
-            f"{r['max_imag']:.2e}" if r["max_imag"] >= 0 else "N/A",
-        ])
-
-    table = ax.table(
-        cellText=cell_text,
-        colLabels=col_labels,
-        loc="center",
-        cellLoc="center",
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(8)
-    table.scale(1, 1.3)
-
-    ax.set_title("Hawking-Ellis Type Breakdown", fontsize=9, pad=10)
-
-    save_path = os.path.join(figures_dir, "type_breakdown_table.pdf")
-    fig.savefig(save_path, format="pdf", bbox_inches="tight", dpi=300)
-    plt.close(fig)
-    print(f"  Generated: {save_path}")
-    return 1
-
-
 def generate_geodesic_figures(figures_dir: str, results_dir: str) -> int:
     """Generate geodesic tidal force and blueshift figures.
 
@@ -558,7 +484,7 @@ def generate_alignment_figures(figures_dir: str, results_dir: str) -> int:
 # ---------------------------------------------------------------------------
 # Standalone-script figure wrappers
 # ---------------------------------------------------------------------------
-# These figures require computation (not just cached data).  The wrapper
+# These figures require computation (not just cached data). The wrapper
 # functions call the standalone scripts via subprocess so that
 # ``reproduce_figures.py`` remains a single entry-point for ALL paper figures.
 
@@ -672,7 +598,6 @@ FIGURE_SETS = {
     "kinematic": generate_kinematic_figures,
     "missed": generate_missed_violations_figure,
     "geodesic": generate_geodesic_figures,
-    "type_breakdown": generate_type_breakdown_table,
     "alignment": generate_alignment_figures,
     "c1_vs_c2": generate_c1_vs_c2_figure,
     "rodal_dec_ablation": generate_rodal_dec_ablation_figure,
@@ -723,10 +648,10 @@ def main():
     if not os.path.isdir(results_dir):
         print(f"WARNING: Results directory '{results_dir}' does not exist.")
         print("Run the analysis scripts first to generate cached results.")
-        print("  python scripts/run_analysis.py")
-        print("  python scripts/run_convergence.py")
-        print("  python scripts/run_kinematic_scalars.py")
-        print("  python scripts/run_geodesics.py")
+        print(" python scripts/run_analysis.py")
+        print(" python scripts/run_convergence.py")
+        print(" python scripts/run_kinematic_scalars.py")
+        print(" python scripts/run_geodesics.py")
         return
 
     sets_to_run = args.only if args.only else list(FIGURE_SETS.keys())

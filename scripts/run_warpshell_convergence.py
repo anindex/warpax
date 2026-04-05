@@ -61,14 +61,14 @@ def main():
         print(f"{'='*60}")
 
         # Step 1: Compute curvature grid
-        print("  Computing curvature grid...")
+        print(" Computing curvature grid...")
         t0 = time.time()
         curv = evaluate_curvature_grid(metric, grid_spec, batch_size=256)
         t_curv = time.time() - t0
         print(f"  Curvature grid: {t_curv:.1f}s")
 
         # Step 2: Eulerian EC evaluation (always)
-        print("  Computing Eulerian EC margins...")
+        print(" Computing Eulerian EC margins...")
         flat_T = curv.stress_energy.reshape(n_points, 4, 4)
         flat_g = curv.metric.reshape(n_points, 4, 4)
         flat_g_inv = curv.metric_inv.reshape(n_points, 4, 4)
@@ -135,7 +135,7 @@ def main():
             results["n_type_i"].append(None)
             results["n_type_iv"].append(None)
             results["time_s"].append(round(t_curv, 1))
-            print("  [Skipping robust EC at 100^3 Eulerian-only]")
+            print(" [Skipping robust EC at 100^3 Eulerian-only]")
 
     # Step 4: Richardson extrapolation on Eulerian min NEC margin
     f25, f50, f100 = results["min_nec_margin_eulerian"]

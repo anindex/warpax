@@ -224,7 +224,7 @@ def _render_2d_frame(frame_data, field="energy_density", title=""):
 
 def render_scene_collapse(grid_spec, n_frames, output_dir, formats, quick):
     """Render bubble collapse scene: Alcubierre v_s ramps down."""
-    print("  Building frames...")
+    print(" Building frames...")
     frames = scene_bubble_collapse(grid_spec, n_frames=n_frames)
 
     images = []
@@ -242,7 +242,7 @@ def render_scene_collapse(grid_spec, n_frames, output_dir, formats, quick):
 
 def render_scene_ramp(grid_spec, n_frames, output_dir, formats, quick):
     """Render velocity ramp-up scene: EC violations intensify."""
-    print("  Building frames...")
+    print(" Building frames...")
     frames = scene_velocity_ramp(grid_spec, n_frames=n_frames)
 
     images = []
@@ -261,7 +261,7 @@ def render_scene_ramp(grid_spec, n_frames, output_dir, formats, quick):
 
 def render_scene_observer(grid_spec, n_frames, output_dir, formats, quick):
     """Render observer sweep scene: per-rapidity EC margins."""
-    print("  Building frames...")
+    print(" Building frames...")
     frames = scene_observer_sweep(grid_spec, n_frames=n_frames)
 
     images = []

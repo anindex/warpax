@@ -3,7 +3,7 @@
 
 Surveys all five warp drive metrics in warpax at a representative bubble-wall
 point, computing curvature, Hawking–Ellis stress-energy type, and
-observer-robust energy condition margins.  Shows how violations scale with
+observer-robust energy condition margins. Shows how violations scale with
 warp bubble velocity.
 
 Demonstrates:

@@ -5,7 +5,7 @@ Verifies that the Alcubierre violation pattern at t=0 shifts by exactly
 1 unit in x when evaluated at t=1/v_s (traveling wave property).
 
 The Alcubierre metric has x_s(t) = v_s * t, so the bubble center
-moves from x_s=0 at t=0 to x_s=1 at t=1/v_s.  The violation pattern
+moves from x_s=0 at t=0 to x_s=1 at t=1/v_s. The violation pattern
 in the spatial domain should translate by exactly 1 unit in x.
 
 Usage
