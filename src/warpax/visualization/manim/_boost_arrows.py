@@ -49,7 +49,6 @@ from manim import (
     VMobject,
 )
 
-import matplotlib.colors as mcolors
 from matplotlib.colors import LinearSegmentedColormap
 
 from warpax.visualization.manim._image_utils import (

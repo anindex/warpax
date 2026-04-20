@@ -1,0 +1,225 @@
+{
+  "metadata": {
+    "date": "2026-04-18T14:12:02Z",
+    "script": "scripts/run_wall_restricted_analysis.py",
+    "grid_resolution": 50,
+    "wall_bounds": [
+      0.1,
+      0.9
+    ],
+    "velocity": 0.5,
+    "n_starts": 8
+  },
+  "metrics": {
+    "alcubierre": {
+      "full_grid": {
+        "n_type_i": 122440,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 2560,
+        "n_total": 125000,
+        "frac_type_i": 0.97952,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.02048,
+        "nec_pct_missed": 0.0,
+        "wec_pct_missed": 0.0,
+        "sec_pct_missed": 0.32,
+        "dec_pct_missed": 0.0
+      },
+      "wall_restricted": {
+        "n_total": 416,
+        "n_type_i": 8,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 408,
+        "frac_type_i": 0.019230769230769232,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.9807692307692307,
+        "nec_miss_rate": 0.0,
+        "wec_miss_rate": 0.0,
+        "sec_miss_rate": 0.23076923076923078,
+        "dec_miss_rate": 0.0
+      },
+      "caveat": null,
+      "wall_mask_sum": 416,
+      "elapsed_s": 70.11399507522583
+    },
+    "rodal": {
+      "full_grid": {
+        "n_type_i": 125000,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 0,
+        "n_total": 125000,
+        "frac_type_i": 1.0,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.0,
+        "nec_pct_missed": 1.5808,
+        "wec_pct_missed": 15.5968,
+        "sec_pct_missed": 28.0064,
+        "dec_pct_missed": 28.531200000000002
+      },
+      "wall_restricted": {
+        "n_total": 5208,
+        "n_type_i": 5208,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 0,
+        "frac_type_i": 1.0,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.0,
+        "nec_miss_rate": 0.10130718954248366,
+        "wec_miss_rate": 0.6078431372549019,
+        "sec_miss_rate": 0.11601307189542484,
+        "dec_miss_rate": 0.6267496111975117
+      },
+      "caveat": null,
+      "wall_mask_sum": 5208,
+      "elapsed_s": 191.26528596878052
+    },
+    "vdb": {
+      "full_grid": {
+        "n_type_i": 123048,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 1952,
+        "n_total": 125000,
+        "frac_type_i": 0.984384,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.015616,
+        "nec_pct_missed": 0.10239999999999999,
+        "wec_pct_missed": 0.3648,
+        "sec_pct_missed": 1.1520000000000001,
+        "dec_pct_missed": 0.30720000000000003
+      },
+      "wall_restricted": {
+        "n_total": 416,
+        "n_type_i": 64,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 352,
+        "frac_type_i": 0.15384615384615385,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.8461538461538461,
+        "nec_miss_rate": 0.13333333333333333,
+        "wec_miss_rate": 0.5333333333333333,
+        "sec_miss_rate": 0.1346153846153846,
+        "dec_miss_rate": 0.3333333333333333
+      },
+      "caveat": null,
+      "wall_mask_sum": 416,
+      "elapsed_s": 50.90061283111572
+    },
+    "natario": {
+      "full_grid": {
+        "n_type_i": 121920,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 3080,
+        "n_total": 125000,
+        "frac_type_i": 0.97536,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.02464,
+        "nec_pct_missed": 0.0,
+        "wec_pct_missed": 0.0,
+        "sec_pct_missed": 0.0,
+        "dec_pct_missed": 0.0
+      },
+      "wall_restricted": {
+        "n_total": 416,
+        "n_type_i": 40,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 376,
+        "frac_type_i": 0.09615384615384616,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.9038461538461539,
+        "nec_miss_rate": 0.0,
+        "wec_miss_rate": 0.0,
+        "sec_miss_rate": 0.0,
+        "dec_miss_rate": 0.0
+      },
+      "caveat": null,
+      "wall_mask_sum": 416,
+      "elapsed_s": 190.17793369293213
+    },
+    "lentz": {
+      "full_grid": {
+        "n_type_i": 124912,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 88,
+        "n_total": 125000,
+        "frac_type_i": 0.999296,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.000704,
+        "nec_pct_missed": 0.0,
+        "wec_pct_missed": 0.0,
+        "sec_pct_missed": 0.051199999999999996,
+        "dec_pct_missed": 0.0
+      },
+      "wall_restricted": {
+        "n_total": 16,
+        "n_type_i": 0,
+        "n_type_ii": 0,
+        "n_type_iii": 0,
+        "n_type_iv": 16,
+        "frac_type_i": 0.0,
+        "frac_type_ii": 0.0,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 1.0,
+        "nec_miss_rate": 0.0,
+        "wec_miss_rate": 0.0,
+        "sec_miss_rate": 0.0,
+        "dec_miss_rate": 0.0
+      },
+      "caveat": "unresolved_lower_bound",
+      "wall_mask_sum": 16,
+      "elapsed_s": 14.079368591308594
+    },
+    "warpshell": {
+      "full_grid": {
+        "n_type_i": 124743,
+        "n_type_ii": 172,
+        "n_type_iii": 0,
+        "n_type_iv": 85,
+        "n_total": 125000,
+        "frac_type_i": 0.997944,
+        "frac_type_ii": 0.001376,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.00068,
+        "nec_pct_missed": 0.0048000000000000004,
+        "wec_pct_missed": 0.0224,
+        "sec_pct_missed": 0.027999999999999997,
+        "dec_pct_missed": 0.008
+      },
+      "wall_restricted": {
+        "n_total": 168,
+        "n_type_i": 90,
+        "n_type_ii": 57,
+        "n_type_iii": 0,
+        "n_type_iv": 21,
+        "frac_type_i": 0.5357142857142857,
+        "frac_type_ii": 0.3392857142857143,
+        "frac_type_iii": 0.0,
+        "frac_type_iv": 0.125,
+        "nec_miss_rate": 0.12903225806451613,
+        "wec_miss_rate": 0.2647058823529412,
+        "sec_miss_rate": 0.25806451612903225,
+        "dec_miss_rate": 0.0
+      },
+      "caveat": null,
+      "wall_mask_sum": 168,
+      "elapsed_s": 15.650908470153809
+    }
+  }
+}

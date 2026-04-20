@@ -255,7 +255,7 @@ class WarpShellMetric(ADMMetric):
         # gamma_ij = delta_ij + (gamma_rr_eff - 1) * (x_i * x_j / r^2)
         # This stretches only the radial direction.
         x_vec = jnp.array([x_rel, y, z])
-        r_sq = r_safe**2
+        _r_sq = r_safe**2
 
         # Outer product x_i x_j / r^2
         n_hat = x_vec / r_safe

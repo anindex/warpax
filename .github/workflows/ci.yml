@@ -6,25 +6,107 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  JAX_PLATFORMS: cpu
+
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: ${{ matrix.python-version }}
+          version: "0.10.9"
+          enable-cache: true
 
-      - name: Install dependencies
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install package + dev deps
+        run: uv sync --extra dev
+
+      - name: Core tests (physics, classification, curvature, observers)
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          uv run pytest -x -q --tb=short \
+            tests/test_curvature_identities.py \
+            tests/test_ec_classification.py \
+            tests/test_ec_observer.py \
+            tests/test_ec_verifier.py \
+            tests/test_invariants.py \
+            tests/test_edge_cases.py \
+            tests/test_t_ab_symmetry.py \
+            tests/test_precision_parity.py
 
-      - name: Run tests
-        run: pytest -m "not slow"
+      - name: API surface and infrastructure tests
+        run: |
+          uv run pytest -x -q --tb=short \
+            tests/test_v1_api_surface.py \
+            tests/test_beartype_optin.py \
+            tests/test_jit_cache.py \
+            tests/test_reproduce_cpu_pin.py
+
+      - name: Analysis and integration tests
+        run: |
+          uv run pytest -x -q --tb=short \
+            tests/test_analysis.py \
+            tests/test_analysis_integration.py \
+            tests/test_integration.py
+
+      - name: Golden-fixture determinism tests
+        run: |
+          uv run pytest -x -q --tb=short \
+            tests/test_optimizer_prng_golden.py \
+            tests/test_design_optimization.py \
+            tests/test_starts_fibonacci_pool.py \
+            tests/test_warm_start_spatial_neighbor.py
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.10.9"
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install package + dev deps
+        run: uv sync --extra dev
+
+      - name: Ruff check
+        run: uv run ruff check src/ tests/ scripts/
+
+      - name: Bash syntax check
+        run: |
+          bash -n reproduce_all.sh
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.10.9"
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install package + docs extra
+        run: uv sync --extra docs
+
+      - name: Build docs with --strict
+        run: uv run mkdocs build --strict

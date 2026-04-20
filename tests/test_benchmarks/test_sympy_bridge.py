@@ -8,7 +8,6 @@ precision (atol=1e-14).
 import jax
 import jax.numpy as jnp
 import sympy as sp
-import pytest
 
 from warpax.geometry.metric import sympy_metric_to_jax
 from warpax.benchmarks.minkowski import MinkowskiMetric

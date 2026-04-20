@@ -6,7 +6,6 @@ analytical ground truth for Schwarzschild and Minkowski spacetimes.
 from __future__ import annotations
 
 import jax.numpy as jnp
-import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 

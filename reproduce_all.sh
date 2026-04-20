@@ -1,19 +1,20 @@
-
-# reproduce_all.sh Regenerate ALL results and figures
+#!/usr/bin/env bash
+# reproduce_all.sh - Regenerate ALL results and figures
 #
 # Single-command reproducibility script for warpax.
 # Deletes all cached results and figures, re-runs every analysis script
 # in dependency order, and regenerates all figure PDFs.
 #
 # Usage:
-#   ./reproduce_all.sh              Full regeneration (delete cache + recompute)
-#   ./reproduce_all.sh --keep-cache Skip cache deletion (re-run only missing)
-#   ./reproduce_all.sh --phase N    Run only phase N (1, 2, or 3)
+# ./reproduce_all.sh Full regeneration + paper build
+# ./reproduce_all.sh --keep-cache Skip cache deletion (re-run only missing)
+# ./reproduce_all.sh --phase N Run only phase N (1, 2, 3, or 4)
 #
 # Phases:
-#   1 - Core computation (analysis, convergence, kinematic scalars, geodesics)
-#   2 - Ablation studies (C1/C2, N-starts, zeta, Rodal DEC, WarpShell, etc.)
-#   3 - Figure generation
+# 1 - Core computation (analysis, convergence, kinematic scalars, geodesics)
+# 2 - Ablation studies (C1/C2, N-starts, zeta, Rodal DEC, WarpShell, etc.)
+# 3 - Figure generation
+# 4 - Paper build (pdflatex + bibtex + pdflatex + pdflatex)
 #
 set -euo pipefail
 
@@ -30,16 +31,16 @@ while [ $# -gt 0 ]; do
         --phase)
             shift
             if [ $# -eq 0 ]; then
-                echo "Error: --phase requires an argument (1, 2, or 3)" >&2
+                echo "Error: --phase requires an argument (1, 2, 3, or 4)" >&2
                 exit 1
             fi
             PHASE_ONLY="$1"
             ;;
-        1|2|3)        PHASE_ONLY="$1" ;;
+        1|2|3|4) PHASE_ONLY="$1" ;;
         -h|--help)
             echo "Usage: $0 [--keep-cache] [--phase N]"
-            echo "  --keep-cache  Skip cache deletion (only recompute missing results)"
-            echo "  --phase N     Run only phase N (1=core, 2=ablations, 3=figures)"
+            echo " --keep-cache Skip cache deletion (only recompute missing results)"
+            echo " --phase N Run only phase N (1=core, 2=ablations, 3=figures, 4=paper)"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -49,6 +50,30 @@ done
 
 PYTHON="${PYTHON:-python}"
 
+# Pin JAX backend to CPU by default for deterministic reproduction.
+#
+# On Blackwell sm_120 with jax[cuda12]==0.10.0 installed, reproduce_all.sh
+# crashes on two independent blockers:
+# - Mode 1: cuBLAS LT matmul autotuner (matches JAX #33910)
+# - Mode 3: gpusolverDnCreate cuSolver DN handle creation
+#
+# The committed CPU-provenanced cache is the canonical reproduction target.
+# Override via:
+# JAX_PLATFORMS=gpu bash reproduce_all.sh   # explicit opt-in; non-deterministic
+export JAX_PLATFORMS="${JAX_PLATFORMS:-cpu}"
+echo "[reproduce_all.sh] JAX backend pinned: JAX_PLATFORMS=${JAX_PLATFORMS}" >&2
+if [ "${JAX_PLATFORMS}" != "cpu" ]; then
+    echo "[reproduce_all.sh] WARNING: GPU/non-CPU backend selected. This is NOT" >&2
+    echo "[reproduce_all.sh] the canonical CPU reproduction backend." >&2
+    echo "[reproduce_all.sh] GPU may be non-deterministic; use JAX_PLATFORMS=cpu" >&2
+fi
+
+# All Python scripts (run_analysis.py etc.) use CWD-relative "results/" as their
+# output directory default. Ensure the CWD is the warpax package root regardless
+# of where reproduce_all.sh was invoked from, so artifacts land in
+# warpax/results/ (not the caller's CWD).
+cd "${SCRIPT_DIR}"
+
 # Track elapsed time
 SECONDS=0
 
@@ -57,13 +82,17 @@ SECONDS=0
 # ------------------------------------------------------------------
 if [ "$KEEP_CACHE" = false ] && [ -z "$PHASE_ONLY" -o "$PHASE_ONLY" = "1" ]; then
     echo "============================================================"
-    echo "  Step 0: Clearing cached results and figures"
+    echo " Step 0: Clearing cached results and figures"
     echo "============================================================"
     find "${RESULTS_DIR}" -name '*.npz' -delete 2>/dev/null || true
     find "${RESULTS_DIR}" -name '*.json' ! -name 'paper_constants.json' -delete 2>/dev/null || true
     find "${RESULTS_DIR}" -name '*.tex' -delete 2>/dev/null || true
     find "${FIGURES_DIR}" -name '*.pdf' -delete 2>/dev/null || true
-    echo "  Cleared results/ (except paper_constants.json) and figures/*.pdf"
+    # Clear auto-generated paper table snippets so regeneration is hermetic.
+    if [ -d "${SCRIPT_DIR}/../warpax_arxiv/tables" ]; then
+        find "${SCRIPT_DIR}/../warpax_arxiv/tables" -name '*.tex' -delete 2>/dev/null || true
+    fi
+    echo " Cleared results/ (except paper_constants.json), figures/*.pdf, and warpax_arxiv/tables/*.tex"
     echo ""
 fi
 
@@ -72,7 +101,7 @@ fi
 # ------------------------------------------------------------------
 run_phase_1() {
     echo "============================================================"
-    echo "  Phase 1: Core computation"
+    echo " Phase 1: Core computation"
     echo "============================================================"
 
     echo ""
@@ -92,7 +121,7 @@ run_phase_1() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_geodesics.py"
 
     echo ""
-    echo "  Phase 1 complete."
+    echo " Phase 1 complete."
     echo ""
 }
 
@@ -101,7 +130,7 @@ run_phase_1() {
 # ------------------------------------------------------------------
 run_phase_2() {
     echo "============================================================"
-    echo "  Phase 2: Ablation & supplementary studies"
+    echo " Phase 2: Ablation & supplementary studies"
     echo "============================================================"
 
     echo ""
@@ -145,7 +174,23 @@ run_phase_2() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_missed_detection_comparison.py"
 
     echo ""
-    echo "  Phase 2 complete."
+    echo "[+] run_superluminal_investigation.py Superluminal characterization"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_superluminal_investigation.py"
+
+    echo ""
+    echo "[+] run_rodal_matched_resolution.py Rodal matched-param feasibility"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_rodal_matched_resolution.py"
+
+    echo ""
+    echo "[+] run_lentz_wall_assessment.py Lentz wall resolution assessment"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_lentz_wall_assessment.py"
+
+    echo ""
+    echo "[+] run_wall_restricted_analysis.py Wall-restricted Type-IV analysis"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_wall_restricted_analysis.py"
+
+    echo ""
+    echo " Phase 2 complete."
     echo ""
 }
 
@@ -154,17 +199,74 @@ run_phase_2() {
 # ------------------------------------------------------------------
 run_phase_3() {
     echo "============================================================"
-    echo "  Phase 3: Figure generation"
+    echo " Phase 3: Figure generation"
     echo "============================================================"
 
     echo ""
-    echo "[1/1] reproduce_figures.py Generate all figure PDFs"
+    echo "[1/2] reproduce_figures.py Generate all figure PDFs"
     $PYTHON "${SCRIPT_DIR}/scripts/reproduce_figures.py" \
         --figures-dir "${FIGURES_DIR}/" \
         --results-dir "${RESULTS_DIR}/"
 
     echo ""
-    echo "  Phase 3 complete."
+    echo "[2/2] generate_vdb_comparison_figures.py VdB NEC/WEC/SEC/DEC comparison panels"
+    $PYTHON "${SCRIPT_DIR}/scripts/generate_vdb_comparison_figures.py"
+
+    echo ""
+    echo "[sync] cp warpax/figures/*.pdf -> warpax_arxiv/figures/"
+    ARXIV_FIGURES="${SCRIPT_DIR}/../warpax_arxiv/figures"
+    mkdir -p "${ARXIV_FIGURES}"
+    if compgen -G "${FIGURES_DIR}/*.pdf" > /dev/null; then
+        cp "${FIGURES_DIR}"/*.pdf "${ARXIV_FIGURES}/"
+        echo " Synced $(ls "${FIGURES_DIR}"/*.pdf | wc -l) PDFs to warpax_arxiv/figures/"
+    else
+        echo " WARNING: no PDFs in ${FIGURES_DIR} to sync"
+    fi
+    echo ""
+    echo " Phase 3 complete."
+    echo ""
+}
+
+# ------------------------------------------------------------------
+# Phase 4: Paper build (bibtex + pdflatex)
+# ------------------------------------------------------------------
+run_phase_4() {
+    echo "============================================================"
+    echo " Phase 4: Paper build (pdflatex + bibtex)"
+    echo "============================================================"
+
+    cd "${SCRIPT_DIR}/../warpax_arxiv"
+
+    # pdflatex may exit non-zero on benign hyperref/caption warnings while
+    # still producing main.pdf; do not abort the script in that case. The
+    # script-level `set -e` is temporarily suspended for the LaTeX passes.
+    set +e
+
+    echo ""
+    echo "[1/4] pdflatex main (pass 1 -- resolve refs)"
+    pdflatex -interaction=nonstopmode main > /dev/null
+
+    echo ""
+    echo "[2/4] bibtex main (resolve citations from main.bib)"
+    bibtex main
+
+    echo ""
+    echo "[3/4] pdflatex main (pass 2 -- insert bibliography)"
+    pdflatex -interaction=nonstopmode main > /dev/null
+
+    echo ""
+    echo "[4/4] pdflatex main (pass 3 -- finalize cross-refs)"
+    pdflatex -interaction=nonstopmode main > /dev/null
+
+    set -e
+
+    # Fail fast if main.pdf was not produced at all (hard build failure)
+    test -s main.pdf || { echo "ERROR: main.pdf not produced"; exit 1; }
+
+    cd - > /dev/null
+
+    echo ""
+    echo " Phase 4 complete."
     echo ""
 }
 
@@ -175,10 +277,12 @@ case "${PHASE_ONLY}" in
     1) run_phase_1 ;;
     2) run_phase_2 ;;
     3) run_phase_3 ;;
+    4) run_phase_4 ;;
     "")
         run_phase_1
         run_phase_2
         run_phase_3
+        run_phase_4
         ;;
 esac
 
@@ -190,9 +294,9 @@ MINS=$((ELAPSED / 60))
 SECS=$((ELAPSED % 60))
 
 echo "============================================================"
-echo "  Reproduction complete!"
-echo "  Total time: ${MINS}m ${SECS}s"
+echo " Reproduction complete!"
+echo " Total time: ${MINS}m ${SECS}s"
 echo ""
-echo "  Results:  $(find "${RESULTS_DIR}" -name '*.json' -o -name '*.npz' | wc -l) files"
-echo "  Figures:  $(find "${FIGURES_DIR}" -name '*.pdf' 2>/dev/null | wc -l) PDFs"
+echo " Results: $(find "${RESULTS_DIR}" -name '*.json' -o -name '*.npz' | wc -l) files"
+echo " Figures: $(find "${FIGURES_DIR}" -name '*.pdf' 2>/dev/null | wc -l) PDFs"
 echo "============================================================"

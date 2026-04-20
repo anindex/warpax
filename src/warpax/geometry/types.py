@@ -10,7 +10,6 @@ compatible with ``jax.jit``, ``jax.vmap``, and other JAX transformations.
 from __future__ import annotations
 
 import equinox as eqx
-import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 

@@ -215,7 +215,7 @@ def proper_time_elapsed(
         Cumulative proper time at each saved point. First element is 0.
     """
     positions = sol.positions  # (N, 4)
-    N = positions.shape[0]
+    _N = positions.shape[0]
 
     # Coordinate differences between successive saved points
     dx = positions[1:] - positions[:-1]  # (N-1, 4)

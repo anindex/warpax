@@ -447,10 +447,10 @@ def main():
         print(f"v_s = {v_s}")
         print(f"{'=' * 50}")
 
-        print(f"\n  --- Tidal Force Analysis (timelike geodesic + deviation) ---")
+        print("\n  --- Tidal Force Analysis (timelike geodesic + deviation) ---")
         compute_tidal_analysis(results_dir, v_s=v_s, force=args.force)
 
-        print(f"\n  --- Blueshift Analysis (null geodesic) ---")
+        print("\n  --- Blueshift Analysis (null geodesic) ---")
         compute_blueshift_analysis(results_dir, v_s=v_s, force=args.force)
 
     # Post-computation analysis (only if we have multiple velocities)

@@ -33,7 +33,6 @@ matplotlib.use("Agg")
 import numpy as np
 
 import jax
-import jax.numpy as jnp
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import RodalMetric, WarpShellMetric

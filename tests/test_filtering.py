@@ -14,7 +14,7 @@ import pytest
 
 jax.config.update("jax_enable_x64", True)
 
-from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric
+from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions import WallRestrictedStats
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,

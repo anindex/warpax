@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "warpax"
-version = "0.1.0"
+version = "0.2.0"
 description = "Observer-robust energy condition verification for warp drive spacetimes"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -18,20 +18,21 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Scientific/Engineering :: Astronomy",
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
-    "jax>=0.9.0",
-    "equinox>=0.13.4",
+    "jax>=0.10.0,<0.11.0",
+    "equinox>=0.13.6,<0.14.0",
     "optimistix>=0.1.0",
     "diffrax>=0.7.2",
     "jaxtyping>=0.3.9",
-    "beartype>=0.22",
+    "beartype>=0.22.9,<0.23.0",
     "sympy>=1.14",
-    "matplotlib>=3.9",
-    "numpy>=1.26",
+    "matplotlib>=3.10.0,<4.0.0",
+    "numpy>=2.2.0,<3.0.0",
     "tqdm>=4.0",
 ]
 
@@ -44,17 +45,42 @@ Author = "https://github.com/anindex"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "ruff>=0.1",
+    "pytest>=9.0.0,<10.0.0",
+    "pytest-cov>=7.0.0,<8.0.0",
+    "pytest-xdist>=3.6.0",
+    "ruff>=0.15.0,<1.0.0",
 ]
 viz = [
-    "scipy>=1.11",
+    "scipy>=1.17.0",
+]
+solver = [
+    "scipy>=1.17.0",
 ]
 manim = [
     "manim>=0.19.2",
     "imageio>=2.31",
     "imageio-ffmpeg>=0.4.9",
+]
+docs = [
+    "mkdocs-material>=9.7.6,<10.0",
+    "mkdocstrings>=1.0.4,<2.0",
+    "mkdocstrings-python>=2.0.3,<3.0",
+    "griffe>=2.0.2,<3.0",
+    "pymdown-extensions>=10.0",
+]
+bench = [
+    "asv>=0.6.5,<1.0",
+]
+interop = [
+    "h5py>=3.16.0,<4.0.0",
+    "mat73>=0.65,<1.0",
+]
+einfields = [
+    "orbax-checkpoint>=0.11.36,<0.12.0",
+    "flax>=0.10",
+]
+design = [
+    "interpax>=0.3.14,<0.4.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -68,3 +94,21 @@ markers = ["slow: marks tests as slow (expensive grid tests)"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint]
+# F722: jaxtyping string annotations (e.g., Float[Array, "4 4"])
+# F821: jaxtyping beartype-decorated type annotations resolved at runtime
+# E402: JAX config must run before importing jax submodules
+# E731: lambda assignments used in metric/shape-function definitions
+# E741: short variable names (l, T, g) standard in physics
+ignore = ["F722", "F821", "E402", "E731", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-exports in __init__.py
+"__init__.py" = ["F401"]
+# Tests: unused variables from tuple unpacking, truth-value comparisons
+"tests/**" = ["F841", "E712"]
+# Scripts: unused intermediate variables from exploratory analysis
+"scripts/**" = ["F841"]
+# Benchmarks: same as scripts
+"benchmarks/**" = ["F841"]

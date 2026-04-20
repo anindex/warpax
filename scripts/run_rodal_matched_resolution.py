@@ -233,7 +233,7 @@ def save_report(results, stability, start_time):
     lines = []
     lines.append("# Rodal Matched-Parameter Feasibility Report\n")
     lines.append(f"**Date:** {start_time}\n")
-    lines.append(f"**Script:** `scripts/run_rodal_matched_resolution.py`\n")
+    lines.append("**Script:** `scripts/run_rodal_matched_resolution.py`\n")
     lines.append(
         f"**Parameters:** v_s={V_S}, R={R}, sigma={SIGMA}, "
         f"domain=[{DOMAIN[0][0]},{DOMAIN[0][1]}]^3\n"

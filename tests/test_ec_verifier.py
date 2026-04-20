@@ -27,10 +27,8 @@ from warpax.energy_conditions import (
 )
 from warpax.energy_conditions.verifier import (
     anec_integrand,
-    anec_integral,
     compute_eulerian_ec,
 )
-from warpax.geometry.geometry import compute_curvature_chain
 from warpax.geometry.grid import evaluate_curvature_grid
 from warpax.geometry.types import GridSpec
 
@@ -578,7 +576,6 @@ class TestDECFutureDirectedness:
         from warpax.energy_conditions.optimization import _dec_objective
         from warpax.energy_conditions.observer import (
             compute_orthonormal_tetrad,
-            timelike_from_boost_vector,
         )
 
         # Construct T_ab in Minkowski where Eulerian flux is past-directed:

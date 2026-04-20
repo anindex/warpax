@@ -25,7 +25,6 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 import optimistix as optx

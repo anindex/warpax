@@ -10,7 +10,6 @@ Verifies:
 import jax
 import jax.numpy as jnp
 import equinox as eqx
-import pytest
 
 from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.geometry.grid import build_coord_batch, evaluate_curvature_grid

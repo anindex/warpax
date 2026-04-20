@@ -12,7 +12,7 @@ import numpy as np
 from matplotlib.colors import TwoSlopeNorm
 from numpy.typing import NDArray
 
-from ._style import DOUBLE_COL, SINGLE_COL, apply_style
+from ._style import DOUBLE_COL, apply_style
 
 apply_style()
 

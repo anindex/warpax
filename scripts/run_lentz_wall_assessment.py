@@ -122,7 +122,7 @@ def radial_cut_assessment():
     r_values = np.linspace(RADIAL_RANGE[0], RADIAL_RANGE[1], N_RADIAL)
 
     print(f"\n--- 1D Radial Cut (N={N_RADIAL}, r=[{RADIAL_RANGE[0]}, {RADIAL_RANGE[1]}]) ---")
-    print(f"  y=0.01 offset (L1 kink avoidance)")
+    print("  y=0.01 offset (L1 kink avoidance)")
 
     results = []
     t0 = time.time()
@@ -228,7 +228,7 @@ def save_report(analytical, radial_cut, start_time):
     lines = []
     lines.append("# Lentz Wall Resolution Assessment\n")
     lines.append(f"**Date:** {start_time}\n")
-    lines.append(f"**Script:** `scripts/run_lentz_wall_assessment.py`\n")
+    lines.append("**Script:** `scripts/run_lentz_wall_assessment.py`\n")
 
     # Verdict
     lines.append("## Verdict\n")

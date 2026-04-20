@@ -13,7 +13,6 @@ captured under ``jax==0.10.0`` on x86_64 / CPU / float64.
 from __future__ import annotations
 
 import jax
-import jax.numpy as jnp
 import numpy as np
 import numpy.testing as npt
 

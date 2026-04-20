@@ -9,8 +9,8 @@ authors:
     orcid: "https://orcid.org/0000-0003-0929-3316"
 repository-code: "https://github.com/anindex/warpax"
 license: MIT
-version: 0.1.0
-date-released: "2026-02-21"
+version: 0.2.0
+date-released: "2026-04-25"
 keywords:
   - warp drive
   - general relativity

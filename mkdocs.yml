@@ -1,0 +1,89 @@
+site_name: warpax
+site_description: "Observer-robust energy condition verification for warp drive spacetimes"
+site_url: "https://anindex.github.io/warpax/"
+repo_url: https://github.com/anindex/warpax
+repo_name: anindex/warpax
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.annotate
+    - content.code.copy
+    - search.suggest
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+markdown_extensions:
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: false
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            docstring_style: numpy
+            filters: ["!^_"]
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            force_inspection: true
+
+strict: true
+
+nav:
+  - Home: index.md
+  - Tutorials:
+      - tutorials/quickstart.md
+      - tutorials/first_curvature_computation.md
+  - How-To:
+      - how-to/custom_metric_tutorial.md
+      - how-to/interpreting_ec_results.md
+      - how-to/loading_external_metrics.md
+  - Reference:
+      - reference/index.md
+      - reference/metric_catalog.md
+      - reference/api_defaults.md
+      - reference/benchmarks.md
+  - Explanation:
+      - explanation/ARCHITECTURE.md
+      - explanation/theory.md
+      - explanation/release_notes.md

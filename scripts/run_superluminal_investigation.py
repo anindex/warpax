@@ -453,7 +453,7 @@ def save_report(results, summary, start_time):
     lines.append("")
     lines.append(f"**Date:** {start_time}")
     lines.append("**Script:** `scripts/run_superluminal_investigation.py`")
-    lines.append(f"**Metrics tested:** Alcubierre (tanh), Lentz (L1/diamond)")
+    lines.append("**Metrics tested:** Alcubierre (tanh), Lentz (L1/diamond)")
     lines.append(f"**Velocities:** {', '.join(str(v) for v in VELOCITIES)}")
     lines.append("")
 

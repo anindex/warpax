@@ -1,0 +1,25 @@
+{
+    "//": "NOTE: this top-level benchmarks/ directory hosts the asv perf harness. The Python module warpax.benchmarks (src/warpax/benchmarks/) is a DIFFERENT thing -- reference spacetimes (Schwarzschild, Alcubierre, Minkowski). That module's public API is pinned; renaming is not an option. See benchmarks/README.md for the disambiguation.",
+    "version": 1,
+    "project": "warpax",
+    "project_url": "https://github.com/anindex/warpax",
+    "repo": ".",
+    "branches": ["main"],
+    "install_command": ["in-dir={env_dir} python -mpip install {build_dir}"],
+    "uninstall_command": ["return-code=any python -mpip uninstall -y {project}"],
+    "environment_type": "virtualenv",
+    "matrix": {
+        "req": {
+            "jax": ["0.10.0"]
+        }
+    },
+    "pythons": ["3.12", "3.13", "3.14"],
+    "benchmark_dir": "benchmarks",
+    "env_dir": ".asv/env",
+    "results_dir": ".asv/results",
+    "html_dir": ".asv/html",
+    "regressions_thresholds": {
+        "default": 0.20
+    },
+    "build_cache_size": 2
+}

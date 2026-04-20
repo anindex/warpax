@@ -16,7 +16,6 @@ import numpy as np
 import pytest
 
 from warpax.benchmarks.alcubierre import AlcubierreMetric
-from warpax.benchmarks.minkowski import MinkowskiMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
 from warpax.energy_conditions.observer import (
     bounded_param,

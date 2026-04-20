@@ -25,11 +25,10 @@ from warpax.geodesics import (
     integrate_geodesic,
     monitor_conservation,
     tidal_eigenvalues,
-    tidal_tensor,
     make_event,
     horizon_event,
 )
-from warpax.energy_conditions import verify_point, check_all, compute_eulerian_ec
+from warpax.energy_conditions import verify_point, check_all
 
 
 # ---------------------------------------------------------------------------
