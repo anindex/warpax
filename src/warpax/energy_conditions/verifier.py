@@ -21,7 +21,6 @@ eigenvalue and optimization paths and merging results with ``jnp.where``.
 """
 from __future__ import annotations
 
-from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -31,14 +30,9 @@ from jaxtyping import Array, Float
 from .classification import classify_hawking_ellis
 from .eigenvalue_checks import check_all
 from .optimization import (
-    OptimizationResult,
-    optimize_dec,
-    optimize_nec,
     optimize_point,
-    optimize_sec,
-    optimize_wec,
 )
-from .observer import compute_orthonormal_tetrad, null_from_angles, timelike_from_rapidity
+from .observer import compute_orthonormal_tetrad
 from .types import ECGridResult, ECPointResult, ECSummary
 
 

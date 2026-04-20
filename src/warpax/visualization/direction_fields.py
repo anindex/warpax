@@ -11,7 +11,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ..geometry.types import GridSpec
-from ._style import DOUBLE_COL, SINGLE_COL
+from ._style import DOUBLE_COL
 
 
 def plot_worst_observer_field(

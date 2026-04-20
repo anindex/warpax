@@ -297,7 +297,7 @@ def save_report(results: dict, start_time: str) -> None:
     lines.append("")
     lines.append(f"**Date:** {start_time}")
     lines.append("**Script:** `scripts/run_wall_restricted_analysis.py`")
-    lines.append(f"**Grid resolution:** 50^3 (per metric; bounds follow run_analysis.py)")
+    lines.append("**Grid resolution:** 50^3 (per metric; bounds follow run_analysis.py)")
     lines.append(f"**Wall region:** shape function in [{F_LOW}, {F_HIGH}]")
     lines.append(f"**Velocity:** v_s = {V_S}")
     lines.append("")

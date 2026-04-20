@@ -9,7 +9,6 @@ Verifies:
 6. BFGS cross-validation: sign agreement >= 85%
 7. Sweep is faster than per-point BFGS
 """
-import jax
 import jax.numpy as jnp
 import pytest
 

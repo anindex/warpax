@@ -37,7 +37,6 @@ Alcubierre convention where the far field is Minkowski.
 
 from __future__ import annotations
 
-import jax
 import jax.numpy as jnp
 import sympy as sp
 from beartype import beartype

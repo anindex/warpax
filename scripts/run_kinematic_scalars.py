@@ -156,7 +156,7 @@ def main():
         # Natario should have theta ~ 0 (zero-expansion by construction)
         if name == "natario":
             if abs(theta_min) < 1e-6 and abs(theta_max) < 1e-6:
-                print(f"  [OK] Natario: theta ~ 0 (zero-expansion confirmed)")
+                print("  [OK] Natario: theta ~ 0 (zero-expansion confirmed)")
             else:
                 print(
                     f"  [WARN] Natario: theta not near zero! "

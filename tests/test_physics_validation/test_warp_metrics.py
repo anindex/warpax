@@ -20,7 +20,6 @@ from warpax.geometry import (
     GridSpec,
     compute_curvature_chain,
     evaluate_curvature_grid,
-    kretschner_scalar,
 )
 from warpax.analysis import compute_kinematic_scalars, compute_kinematic_scalars_grid
 from warpax.energy_conditions import (

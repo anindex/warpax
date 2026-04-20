@@ -64,7 +64,7 @@ def richardson_extrapolation(
     # Use the last 3 resolutions (coarsest -> finest)
     Q1, Q2, Q3 = values[-3], values[-2], values[-1]
     N1, N2, N3 = grid_sizes[-3], grid_sizes[-2], grid_sizes[-1]
-    h1, h2, h3 = 1.0 / N1, 1.0 / N2, 1.0 / N3
+    h1, h2, _h3 = 1.0 / N1, 1.0 / N2, 1.0 / N3
 
     # Refinement ratio
     r = h1 / h2

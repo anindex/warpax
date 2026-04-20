@@ -14,7 +14,6 @@ Usage
 """
 from __future__ import annotations
 
-import os
 import time
 
 import matplotlib
@@ -145,7 +144,7 @@ def run_invariance_check():
 
         expected_dx = x_shift
 
-        print(f"\nCenter of violation mass:")
+        print("\nCenter of violation mass:")
         print(f"  x_s=0:      ({cx0:.3f}, {cy0:.3f}, {cz0:.3f})")
         print(f"  x_s={x_shift}: ({cx1:.3f}, {cy1:.3f}, {cz1:.3f})")
         print(f"  Shift:    ({dx:.3f}, {dy:.3f}, {dz:.3f})")

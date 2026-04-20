@@ -9,7 +9,6 @@ Also tests all 6 metrics across 60 v_s values and EC-enriched frame sequences.
 import time
 
 import equinox as eqx
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest

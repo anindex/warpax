@@ -217,7 +217,7 @@ class TestIdentitySummary:
             res4 = float(jnp.max(jnp.abs(bianchi)))
             max_bianchi = max(max_bianchi, res4)
 
-        print(f"\n  Curvature identity residuals (max across all test points):")
+        print("\n  Curvature identity residuals (max across all test points):")
         print(f"    R_{{abcd}} = -R_{{bacd}}:  {max_antisym_1:.2e}")
         print(f"    R_{{abcd}} = -R_{{abdc}}:  {max_antisym_2:.2e}")
         print(f"    R_{{abcd}} = R_{{cdab}}:   {max_pair_sym:.2e}")

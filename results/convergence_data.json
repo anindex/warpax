@@ -1,0 +1,41 @@
+{
+  "metric": "alcubierre",
+  "resolutions": [
+    25,
+    50,
+    100
+  ],
+  "min_margin_nec": {
+    "values": [
+      -0.6310512295451954,
+      -0.6263116093865744,
+      -0.6294798988825571
+    ],
+    "extrapolated_value": -0.630535995381218,
+    "observed_order": 2.0,
+    "error_estimate": 0.0010560964986608967,
+    "converged": true
+  },
+  "l2_violation_nec": {
+    "values": [
+      3.001653843184546,
+      8.75525443399913,
+      23.245437553913135
+    ],
+    "extrapolated_value": -0.7874615973622467,
+    "observed_order": -1.332538847868696,
+    "error_estimate": 24.03289915127538,
+    "converged": false
+  },
+  "integrated_violation_nec": {
+    "values": [
+      1.8128416522769077,
+      1.9045007389186626,
+      1.7444544937483268
+    ],
+    "extrapolated_value": 1.6911057453582148,
+    "observed_order": 2.0,
+    "error_estimate": 0.053348748390112055,
+    "converged": true
+  }
+}

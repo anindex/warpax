@@ -176,7 +176,7 @@ def main():
                 )
 
         # 2. Radial profile for WEC
-        print(f"\n  Radial profile of missed WEC violations:")
+        print("\n  Radial profile of missed WEC violations:")
         print(f"  {'r_center':>8s} | {'#missed':>8s} | {'#total':>8s} | {'frac':>8s} | note")
         print(f"  {'-'*8}-+-{'-'*8}-+-{'-'*8}-+-{'-'*8}-+------")
 
@@ -201,7 +201,7 @@ def main():
                 )
 
         # 3. DEC radial profile (DEC shows larger missed fractions)
-        print(f"\n  Radial profile of missed DEC violations:")
+        print("\n  Radial profile of missed DEC violations:")
         print(f"  {'r_center':>8s} | {'#missed':>8s} | {'#total':>8s} | {'frac':>8s} | note")
         print(f"  {'-'*8}-+-{'-'*8}-+-{'-'*8}-+-{'-'*8}-+------")
 

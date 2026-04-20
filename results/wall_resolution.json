@@ -1,0 +1,107 @@
+[
+  {
+    "metric": "alcubierre",
+    "shape_function": "tanh",
+    "sigma": 8.0,
+    "wall_width": 0.2747,
+    "domain": [
+      -5,
+      5
+    ],
+    "grid_n": 50,
+    "dx": 0.2041,
+    "cells_resolving_wall": 1.35,
+    "resolved": false,
+    "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
+  },
+  {
+    "metric": "vdb",
+    "shape_function": "tanh",
+    "sigma": 8.0,
+    "wall_width": 0.2747,
+    "domain": [
+      -5,
+      5
+    ],
+    "grid_n": 50,
+    "dx": 0.2041,
+    "cells_resolving_wall": 1.35,
+    "resolved": false,
+    "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
+  },
+  {
+    "metric": "natario",
+    "shape_function": "tanh",
+    "sigma": 8.0,
+    "wall_width": 0.2747,
+    "domain": [
+      -5,
+      5
+    ],
+    "grid_n": 50,
+    "dx": 0.2041,
+    "cells_resolving_wall": 1.35,
+    "resolved": false,
+    "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
+  },
+  {
+    "metric": "lentz",
+    "shape_function": "tanh",
+    "sigma": 8.0,
+    "wall_width": 0.2747,
+    "domain": [
+      -300,
+      300
+    ],
+    "grid_n": 50,
+    "dx": 12.2449,
+    "cells_resolving_wall": 0.02,
+    "resolved": false,
+    "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
+  },
+  {
+    "metric": "rodal",
+    "shape_function": "tanh",
+    "sigma": 0.03,
+    "wall_width": 73.2408,
+    "domain": [
+      -300,
+      300
+    ],
+    "grid_n": 50,
+    "dx": 12.2449,
+    "cells_resolving_wall": 5.98,
+    "resolved": true,
+    "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
+  },
+  {
+    "metric": "warpshell",
+    "shape_function": "hermite",
+    "sigma": null,
+    "wall_width": 0.06,
+    "domain": [
+      -5,
+      5
+    ],
+    "grid_n": 50,
+    "dx": 0.2041,
+    "cells_resolving_wall": 0.29,
+    "resolved": false,
+    "notes": "Hermite smoothstep transition; smooth_width = 0.12 * (R_2 - R_1) = 0.0600"
+  },
+  {
+    "metric": "schwarzschild",
+    "shape_function": null,
+    "sigma": null,
+    "wall_width": null,
+    "domain": [
+      -20,
+      20
+    ],
+    "grid_n": 50,
+    "dx": 0.8163,
+    "cells_resolving_wall": null,
+    "resolved": null,
+    "notes": "No shape function; relevant length scale is Schwarzschild radius r_s = 2M = 2.0"
+  }
+]

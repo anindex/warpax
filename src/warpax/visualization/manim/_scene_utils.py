@@ -13,12 +13,10 @@ Provides reusable helpers used by all four showcase scenes:
 """
 from __future__ import annotations
 
-import copy
 from typing import TYPE_CHECKING
 
 import numpy as np
 from manim import (
-    DEGREES,
     DOWN,
     RIGHT,
     DL,

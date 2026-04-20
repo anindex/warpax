@@ -17,12 +17,10 @@ drift at machine precision.
 """
 from __future__ import annotations
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from warpax.geometry import GridSpec, compute_curvature_chain, evaluate_curvature_grid
+from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import (
     LentzMetric,

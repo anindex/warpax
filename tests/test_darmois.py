@@ -10,7 +10,6 @@ Four tests:
 from __future__ import annotations
 
 import jax.numpy as jnp
-import pytest
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.junction import DarmoisResult, darmois

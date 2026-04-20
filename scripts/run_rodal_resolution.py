@@ -23,7 +23,6 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
-import numpy as np
 
 from warpax.metrics import RodalMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid

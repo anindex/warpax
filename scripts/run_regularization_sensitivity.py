@@ -26,7 +26,7 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.metrics.rodal import RodalMetric, _rodal_g_paper
+from warpax.metrics.rodal import RodalMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.energy_conditions.verifier import verify_grid
 

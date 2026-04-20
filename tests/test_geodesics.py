@@ -21,8 +21,6 @@ from warpax.benchmarks import (
     SchwarzschildMetric,
 )
 from warpax.geodesics import (
-    GeodesicResult,
-    bounding_box_event,
     circular_orbit_ic,
     horizon_event,
     integrate_geodesic,

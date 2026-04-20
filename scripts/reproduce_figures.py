@@ -21,7 +21,6 @@ Available figure sets: comparison, velocity_convergence, velocity, observer,
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 import warnings
@@ -33,7 +32,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from warpax.visualization._style import apply_style, SINGLE_COL, DOUBLE_COL
+from warpax.visualization._style import apply_style, DOUBLE_COL
 
 apply_style()
 
@@ -665,7 +664,7 @@ def main():
         count = gen_fn(figures_dir, results_dir)
         total_count += count
         if count == 0:
-            print(f"  (no figures generated cached results may be missing)")
+            print("  (no figures generated cached results may be missing)")
 
     print(f"\nDone: {total_count} PDF figures generated in {figures_dir}")
 

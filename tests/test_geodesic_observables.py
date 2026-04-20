@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import jax.numpy as jnp
 import numpy as np
-import pytest
 
 from warpax.benchmarks import (
     MinkowskiMetric,
@@ -23,9 +22,6 @@ from warpax.geodesics import (
     null_ic,
     radial_infall_ic,
     tidal_eigenvalues,
-    tidal_tensor,
-    timelike_ic,
-    velocity_norm,
 )
 
 

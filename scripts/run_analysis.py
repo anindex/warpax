@@ -133,7 +133,7 @@ def analyze_single(
     print(f"    Comparison: {t_comp:.1f}s")
 
     # Run verify_grid for worst_params and worst_observers
-    print(f"  Running verify_grid for worst-observer data...")
+    print("  Running verify_grid for worst-observer data...")
     t0 = time.time()
     ec_grid = verify_grid(
         curv.stress_energy,

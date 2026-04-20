@@ -1,0 +1,78 @@
+{
+  "metadata": {
+    "date": "2026-04-18T14:21:10Z",
+    "script": "scripts/generate_paper_tables.py",
+    "schema_version": 1,
+    "source_jsons": [
+      "wall_restricted_analysis.json",
+      "lentz_wall_assessment.json",
+      "rodal_matched_resolution.json",
+      "wall_resolution.json"
+    ]
+  },
+  "metrics": {
+    "alcubierre": {
+      "unit_lapse": true,
+      "convergence_support": "richardson",
+      "wall_resolved": false,
+      "wall_cells_per_width": 1.35,
+      "matched_param_feasible": true,
+      "matched_param_reason": "uses matched (R_b=1, sigma=8) as native parameters",
+      "intrinsic_caveat": null
+    },
+    "natario": {
+      "unit_lapse": true,
+      "convergence_support": "none",
+      "wall_resolved": false,
+      "wall_cells_per_width": 1.35,
+      "matched_param_feasible": true,
+      "matched_param_reason": "uses matched (R_b=1, sigma=8) as native parameters",
+      "intrinsic_caveat": null
+    },
+    "vdb": {
+      "unit_lapse": true,
+      "convergence_support": "none",
+      "wall_resolved": false,
+      "wall_cells_per_width": 1.35,
+      "matched_param_feasible": true,
+      "matched_param_reason": "uses matched (R_b=1, sigma=8) as native parameters",
+      "intrinsic_caveat": null
+    },
+    "rodal": {
+      "unit_lapse": true,
+      "convergence_support": "stability",
+      "wall_resolved": true,
+      "wall_cells_per_width": 5.98,
+      "matched_param_feasible": false,
+      "matched_param_reason": "NEC f_miss unstable at R_b=1, sigma=8 across N=30/50/70 (max deviation 9.9% > 5% threshold; see results/rodal_matched_resolution.json)",
+      "intrinsic_caveat": null
+    },
+    "lentz": {
+      "unit_lapse": true,
+      "convergence_support": "none",
+      "wall_resolved": false,
+      "wall_cells_per_width": 0.02,
+      "matched_param_feasible": false,
+      "matched_param_reason": "wall is 44x under-resolved at practical 3D grid sizes",
+      "intrinsic_caveat": "unresolved_lower_bound"
+    },
+    "warpshell": {
+      "unit_lapse": false,
+      "convergence_support": "weakest",
+      "wall_resolved": false,
+      "wall_cells_per_width": 0.29,
+      "matched_param_feasible": false,
+      "matched_param_reason": "different parameter family (R1, R2, smooth_width); not a direct match",
+      "intrinsic_caveat": "stress_test"
+    },
+    "schwarzschild": {
+      "unit_lapse": false,
+      "convergence_support": "richardson",
+      "wall_resolved": null,
+      "wall_cells_per_width": null,
+      "matched_param_feasible": null,
+      "matched_param_reason": "reference metric, not compared at matched warp params",
+      "intrinsic_caveat": null
+    }
+  }
+}

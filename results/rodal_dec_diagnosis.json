@@ -1,0 +1,217 @@
+{
+  "metadata": {
+    "date": "2026-04-18T14:22:48Z",
+    "script": "scripts/rodal_dec_ablation.py",
+    "baseline": {
+      "v_s": 0.5,
+      "R_rodal": 100.0,
+      "R_alcubierre": 1.0,
+      "sigma_rodal": 0.03,
+      "sigma_alcubierre": 8.0,
+      "eps_sq": 1e-24,
+      "n_starts": 8,
+      "batch_size_curv": 256,
+      "batch_size_opt": 64
+    }
+  },
+  "sweeps": {
+    "resolution": {
+      "parameter": "N (grid points per dimension)",
+      "values": [
+        25,
+        50,
+        100
+      ],
+      "rodal_dec_miss_pct": [
+        28.36,
+        28.53,
+        28.68
+      ],
+      "alcubierre_dec_miss_pct": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "sensitivity": "insensitive"
+    },
+    "regularization": {
+      "parameter": "eps^2",
+      "values": [
+        1e-24,
+        1e-18,
+        1e-12,
+        1e-06
+      ],
+      "rodal_dec_miss_pct": [
+        28.53,
+        28.53,
+        28.53,
+        28.53
+      ],
+      "alcubierre_dec_miss_pct": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "alcubierre_control_dec_miss_pct": 0.0,
+      "sensitivity": "insensitive"
+    },
+    "sigma": {
+      "parameter": "sigma (wall thickness)",
+      "values": [
+        0.01,
+        0.03,
+        0.1,
+        0.3
+      ],
+      "values_rodal": [
+        0.01,
+        0.03,
+        0.1,
+        0.3
+      ],
+      "values_alcubierre": [
+        2.0,
+        8.0,
+        16.0,
+        32.0
+      ],
+      "rodal_dec_miss_pct": [
+        38.5,
+        28.53,
+        26.94,
+        26.07
+      ],
+      "alcubierre_dec_miss_pct": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "wall_rodal_results": [
+        {
+          "sigma": 0.01,
+          "dec_miss": 38.502399999999994,
+          "wall_dec_miss_rate": 0.5289200936141759,
+          "wall_nec_miss_rate": 0.08987108655616943,
+          "wall_wec_miss_rate": 0.48103130755064455,
+          "wall_sec_miss_rate": 0.07469180565627266,
+          "wall_type_iv_frac": 0.0,
+          "wall_type_i_frac": 1.0,
+          "wall_type_ii_frac": 0.0,
+          "wall_type_iii_frac": 0.0,
+          "wall_n_total": 25296
+        },
+        {
+          "sigma": 0.03,
+          "dec_miss": 28.531200000000002,
+          "wall_dec_miss_rate": 0.6267496111975117,
+          "wall_nec_miss_rate": 0.10130718954248366,
+          "wall_wec_miss_rate": 0.6078431372549019,
+          "wall_sec_miss_rate": 0.11601307189542484,
+          "wall_type_iv_frac": 0.0,
+          "wall_type_i_frac": 1.0,
+          "wall_type_ii_frac": 0.0,
+          "wall_type_iii_frac": 0.0,
+          "wall_n_total": 5208
+        },
+        {
+          "sigma": 0.1,
+          "dec_miss": 26.944000000000003,
+          "wall_dec_miss_rate": 0.7540983606557377,
+          "wall_nec_miss_rate": 0.09826589595375723,
+          "wall_wec_miss_rate": 0.7398843930635838,
+          "wall_sec_miss_rate": 0.23699421965317918,
+          "wall_type_iv_frac": 0.0,
+          "wall_type_i_frac": 1.0,
+          "wall_type_ii_frac": 0.0,
+          "wall_type_iii_frac": 0.0,
+          "wall_n_total": 1472
+        },
+        {
+          "sigma": 0.3,
+          "dec_miss": 26.0672,
+          "wall_dec_miss_rate": 0.873015873015873,
+          "wall_nec_miss_rate": 0.19672131147540983,
+          "wall_wec_miss_rate": 0.8688524590163934,
+          "wall_sec_miss_rate": 0.32786885245901637,
+          "wall_type_iv_frac": 0.0,
+          "wall_type_i_frac": 1.0,
+          "wall_type_ii_frac": 0.0,
+          "wall_type_iii_frac": 0.0,
+          "wall_n_total": 504
+        }
+      ],
+      "wall_alcubierre_results": [
+        {
+          "sigma": 2.0,
+          "dec_miss": 0.0,
+          "wall_dec_miss_rate": 0.0,
+          "wall_nec_miss_rate": 0.0,
+          "wall_wec_miss_rate": 0.0,
+          "wall_sec_miss_rate": 0.18666666666666668,
+          "wall_type_iv_frac": 0.9644444444444444,
+          "wall_type_i_frac": 0.035555555555555556,
+          "wall_type_ii_frac": 0.0,
+          "wall_type_iii_frac": 0.0,
+          "wall_n_total": 1800
+        },
+        {
+          "sigma": 8.0,
+          "dec_miss": 0.0,
+          "wall_dec_miss_rate": 0.0,
+          "wall_nec_miss_rate": 0.0,
+          "wall_wec_miss_rate": 0.0,
+          "wall_sec_miss_rate": 0.23076923076923078,
+          "wall_type_iv_frac": 0.9807692307692307,
+          "wall_type_i_frac": 0.019230769230769232,
+          "wall_type_ii_frac": 0.0,
+          "wall_type_iii_frac": 0.0,
+          "wall_n_total": 416
+        },
+        {
+          "sigma": 16.0,
+          "dec_miss": 0.0,
+          "wall_dec_miss_rate": 0.0,
+          "wall_nec_miss_rate": 0.0,
+          "wall_wec_miss_rate": 0.0,
+          "wall_sec_miss_rate": 0.08333333333333333,
+          "wall_type_iv_frac": 1.0,
+          "wall_type_i_frac": 0.0,
+          "wall_type_ii_frac": 0.0,
+          "wall_type_iii_frac": 0.0,
+          "wall_n_total": 192
+        },
+        {
+          "sigma": 32.0,
+          "dec_miss": 0.0,
+          "wall_dec_miss_rate": 0.0,
+          "wall_nec_miss_rate": 0.0,
+          "wall_wec_miss_rate": 0.0,
+          "wall_sec_miss_rate": 0.13333333333333333,
+          "wall_type_iv_frac": 0.8666666666666667,
+          "wall_type_i_frac": 0.13333333333333333,
+          "wall_type_ii_frac": 0.0,
+          "wall_type_iii_frac": 0.0,
+          "wall_n_total": 120
+        }
+      ],
+      "sensitivity": "sensitive"
+    }
+  },
+  "diagnosis": {
+    "dominant_factor": "sigma",
+    "classification": "geometry_dependent",
+    "evidence": "DEC miss rate varies by 12.4 pp across sigma values [0.01, 0.03, 0.1, 0.3], indicating dependence on wall thickness geometry.",
+    "rodal_baseline_dec_miss_pct": 28.53,
+    "alcubierre_max_dec_miss_pct": 0.0,
+    "control_valid": true,
+    "sensitivity": {
+      "resolution_pp": 0.32,
+      "regularization_pp": 0.0,
+      "sigma_pp": 12.43
+    }
+  },
+  "summary": "Controlled experiments indicate the Rodal DEC anomaly depends on wall thickness (sigma), suggesting it is geometry-dependent rather than a pure numerical artifact. The miss rate varies by 12.4 pp across sigma values, while resolution and regularization show insensitivity. The Alcubierre control confirms experiment validity."
+}
