@@ -2,7 +2,7 @@
 
 A compact primer on the two physics formalisms that warpax uses everywhere.
 Full derivations live in the CQG paper
-(`warpax_arxiv/main.tex`, Sections 2–3).
+(the accompanying paper, Sections 2–3).
 
 ## ADM 3+1 decomposition
 
@@ -99,4 +99,4 @@ violations hide.
 - Baumgarte, T. W., & Shapiro, S. L. (2010). *Numerical Relativity:
   Solving Einstein's Equations on the Computer*. Cambridge University
   Press. Chapter 2.
-- `warpax_arxiv/main.tex` - the CQG-115130 submission (Sections 2–5).
+- The accompanying paper (arXiv:2602.18023) - methodology and benchmark results (Sections 2–5).

@@ -8,13 +8,12 @@
 # Usage:
 # ./reproduce_all.sh Full regeneration + paper build
 # ./reproduce_all.sh --keep-cache Skip cache deletion (re-run only missing)
-# ./reproduce_all.sh --phase N Run only phase N (1, 2, 3, or 4)
+# ./reproduce_all.sh --phase N Run only phase N (1, 2, or 3)
 #
 # Phases:
 # 1 - Core computation (analysis, convergence, kinematic scalars, geodesics)
 # 2 - Ablation studies (C1/C2, N-starts, zeta, Rodal DEC, WarpShell, etc.)
 # 3 - Figure generation
-# 4 - Paper build (pdflatex + bibtex + pdflatex + pdflatex)
 #
 set -euo pipefail
 
@@ -88,11 +87,7 @@ if [ "$KEEP_CACHE" = false ] && [ -z "$PHASE_ONLY" -o "$PHASE_ONLY" = "1" ]; the
     find "${RESULTS_DIR}" -name '*.json' ! -name 'paper_constants.json' -delete 2>/dev/null || true
     find "${RESULTS_DIR}" -name '*.tex' -delete 2>/dev/null || true
     find "${FIGURES_DIR}" -name '*.pdf' -delete 2>/dev/null || true
-    # Clear auto-generated paper table snippets so regeneration is hermetic.
-    if [ -d "${SCRIPT_DIR}/../warpax_arxiv/tables" ]; then
-        find "${SCRIPT_DIR}/../warpax_arxiv/tables" -name '*.tex' -delete 2>/dev/null || true
-    fi
-    echo " Cleared results/ (except paper_constants.json), figures/*.pdf, and warpax_arxiv/tables/*.tex"
+    echo " Cleared results/ (except paper_constants.json) and figures/*.pdf"
     echo ""
 fi
 
@@ -213,62 +208,11 @@ run_phase_3() {
     $PYTHON "${SCRIPT_DIR}/scripts/generate_vdb_comparison_figures.py"
 
     echo ""
-    echo "[sync] cp warpax/figures/*.pdf -> warpax_arxiv/figures/"
-    ARXIV_FIGURES="${SCRIPT_DIR}/../warpax_arxiv/figures"
-    mkdir -p "${ARXIV_FIGURES}"
-    if compgen -G "${FIGURES_DIR}/*.pdf" > /dev/null; then
-        cp "${FIGURES_DIR}"/*.pdf "${ARXIV_FIGURES}/"
-        echo " Synced $(ls "${FIGURES_DIR}"/*.pdf | wc -l) PDFs to warpax_arxiv/figures/"
-    else
-        echo " WARNING: no PDFs in ${FIGURES_DIR} to sync"
-    fi
-    echo ""
     echo " Phase 3 complete."
     echo ""
 }
 
-# ------------------------------------------------------------------
-# Phase 4: Paper build (bibtex + pdflatex)
-# ------------------------------------------------------------------
-run_phase_4() {
-    echo "============================================================"
-    echo " Phase 4: Paper build (pdflatex + bibtex)"
-    echo "============================================================"
 
-    cd "${SCRIPT_DIR}/../warpax_arxiv"
-
-    # pdflatex may exit non-zero on benign hyperref/caption warnings while
-    # still producing main.pdf; do not abort the script in that case. The
-    # script-level `set -e` is temporarily suspended for the LaTeX passes.
-    set +e
-
-    echo ""
-    echo "[1/4] pdflatex main (pass 1 -- resolve refs)"
-    pdflatex -interaction=nonstopmode main > /dev/null
-
-    echo ""
-    echo "[2/4] bibtex main (resolve citations from main.bib)"
-    bibtex main
-
-    echo ""
-    echo "[3/4] pdflatex main (pass 2 -- insert bibliography)"
-    pdflatex -interaction=nonstopmode main > /dev/null
-
-    echo ""
-    echo "[4/4] pdflatex main (pass 3 -- finalize cross-refs)"
-    pdflatex -interaction=nonstopmode main > /dev/null
-
-    set -e
-
-    # Fail fast if main.pdf was not produced at all (hard build failure)
-    test -s main.pdf || { echo "ERROR: main.pdf not produced"; exit 1; }
-
-    cd - > /dev/null
-
-    echo ""
-    echo " Phase 4 complete."
-    echo ""
-}
 
 # ------------------------------------------------------------------
 # Execute requested phases
@@ -277,12 +221,10 @@ case "${PHASE_ONLY}" in
     1) run_phase_1 ;;
     2) run_phase_2 ;;
     3) run_phase_3 ;;
-    4) run_phase_4 ;;
     "")
         run_phase_1
         run_phase_2
         run_phase_3
-        run_phase_4
         ;;
 esac
 

@@ -173,7 +173,7 @@ Two metrics in the paper carry special caveats:
   `results/lentz_wall_assessment.json`). Lentz fractions in
   `wall_restricted_analysis.json` are flagged `unresolved_lower_bound`
   and should be read as lower bounds, not point estimates. The full
-  assessment is in `warpax_arxiv/main.tex` Section 4.
+  assessment is in the accompanying paper Section 4.
 - **WarpShell** -- `C^2` quintic Hermite regularization of the
   thin-shell; curvature scales are extreme (max Kretschmann ~1e34).
   Results are physically valid for the regularized implementation but
@@ -189,4 +189,4 @@ Two metrics in the paper carry special caveats:
 - [`custom_metric_tutorial.md`](custom_metric_tutorial.md) -- defining your
   own metric
 - [`ARCHITECTURE.md`](../explanation/ARCHITECTURE.md) -- autodiff curvature pipeline
-- `warpax_arxiv/main.tex` Sections 3-5 -- methodology paper
+- The accompanying paper Sections 3-5 -- methodology paper

@@ -6,7 +6,7 @@ Validates the two-tier verifier orchestrator end-to-end:
 - Eulerian vs observer-robust comparison (core paper argument)
 - Grid-level Alcubierre verification with NEC/WEC violations
 - Summary statistics correctness
-- ANEC integrand and stub
+- ANEC integrand and placeholder
 - Float64 dtype enforcement
 """
 from __future__ import annotations
@@ -420,7 +420,7 @@ class TestANECIntegrand:
 
 
 # ---------------------------------------------------------------------------
-# 9. ANEC line-integral stub
+# 9. ANEC line-integral placeholder
 # ---------------------------------------------------------------------------
 
 

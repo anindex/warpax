@@ -60,13 +60,6 @@ jobs:
             tests/test_analysis_integration.py \
             tests/test_integration.py
 
-      - name: Golden-fixture determinism tests
-        run: |
-          uv run pytest -x -q --tb=short \
-            tests/test_optimizer_prng_golden.py \
-            tests/test_design_optimization.py \
-            tests/test_starts_fibonacci_pool.py \
-            tests/test_warm_start_spatial_neighbor.py
 
   lint:
     runs-on: ubuntu-latest

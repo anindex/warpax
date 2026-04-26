@@ -13,7 +13,7 @@ the checkpoint at ``tests/fixtures/einfields/minkowski.ckpt``.
     pip install 'warpax[einfields]'
     python tests/fixtures/einfields/generate_minkowski_ckpt.py
 
-The committed ``.gitkeep`` directory stub keeps the path under version
+The committed ``.gitkeep`` directory placeholder keeps the path under version
 control when the Orbax-populated checkpoint content is absent (CI where
 ``warpax[einfields]`` is not installed).
 """

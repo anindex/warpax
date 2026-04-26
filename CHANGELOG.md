@@ -110,11 +110,10 @@ Revision addressing the CQG-115130 major-revision reviewer report.
 - `scripts/generate_paper_tables.py` emits canonical `metric_metadata.json` and
   wall-restricted Table 8, Table 3 family.
 - Additional ablation and investigation scripts under `scripts/`.
-- `reproduce_all.sh` wires core computation, ablations, figure generation, and
-  the paper LaTeX build into a single entry point.
+- `reproduce_all.sh` wires core computation, ablations, and figure generation into a single entry point.
 
 ### Changed
-- Paper text (`warpax_arxiv/main.tex`) revised against CQG reviewer report:
+- Accompanying paper revised against CQG reviewer report:
   terminology, framing, Lentz/WarpShell segregation, wall-restricted narrative.
 
 ## [0.1.0] - 2026-03 (initial public release)

@@ -59,7 +59,7 @@ class OptimizationReport(NamedTuple):
         :class:`PhysicalityVerdict` of the final
         :class:`ShapeFunctionMetric`.
     strategy
-        The strategy label passed in (for audit).
+        The strategy label passed in (for logging).
     n_starts
         The ``n_starts`` value used.
     """
