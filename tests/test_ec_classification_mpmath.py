@@ -12,7 +12,7 @@ Synthetic tests below pin:
    as Type I, verifying that the mpmath classifier correctly returns
    Type IV,
 2. a perfect-fluid Type I point, verifying mpmath agrees with float64,
-3. the :func:`verify_classification_at_points` audit function on a
+3. the :func:`verify_classification_at_points` cross-check function on a
    mixed batch, checking flip-rate accounting.
 """
 from __future__ import annotations
@@ -129,7 +129,7 @@ class TestMpmathClassifier:
 
 
 class TestVerifyClassificationAtPoints:
-    """Pin the audit function's flip-rate accounting."""
+    """Pin the cross-check function's flip-rate accounting."""
 
     def test_batch_flip_rate_is_correct(self) -> None:
         T_flip = np.asarray(_type_iv_block_diag(imag=2.0e-5))

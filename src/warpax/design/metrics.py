@@ -23,7 +23,7 @@ enforces three must-pass checks on a 16**3 probe grid:
 
 ``strict=True`` (default) raises :class:`UnphysicalMetricError` on
 failure; ``strict=False`` warns via :class:`UnphysicalMetricWarning`
-and returns the metric anyway (audit mode for the optimizer).
+and returns the metric anyway (inspection mode for the optimizer).
 
 Reference: see module-level docstring.
 §5 (Physics Constraints).
@@ -53,7 +53,7 @@ class UnphysicalMetricError(ValueError):
 
 
 class UnphysicalMetricWarning(UserWarning):
-    """warning variant of UnphysicalMetricError for strict=False (audit mode)."""
+    """warning variant of UnphysicalMetricError for strict=False (inspection mode)."""
 
 
 # ---------------------------------------------------------------------------

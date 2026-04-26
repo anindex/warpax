@@ -9,7 +9,7 @@ at ``imag_rtol = 3e-3``).
 
 This module offers a post-hoc 50-digit recomputation path. It is **not**
 wired into the JAX grid pipeline (mpmath is pure-Python and thousands of
-times slower than ``jnp.linalg.eig``). Intended use: audit a small
+times slower than ``jnp.linalg.eig``). Intended use: cross-check a small
 subset of Type-IV grid points reported by the paper to confirm they are
 genuinely Type IV at 50-digit precision, and flag any that flip.
 
@@ -19,7 +19,7 @@ Functions
 - :func:`classify_hawking_ellis_mpmath` - single-point 50-digit verdict
   mirroring the float64 branch logic (same tolerances, more accurate
   imaginary parts).
-- :func:`verify_classification_at_points` - batched audit returning a
+- :func:`verify_classification_at_points` - batched cross-check returning a
   flip-rate report against an existing float64 ``he_types`` array.
 
 Rationale: see classify_hawking_ellis docstring for context.
@@ -105,7 +105,7 @@ def classify_hawking_ellis_mpmath(
         marks the spectrum as real. Default matches the float64 classifier.
     imag_rtol : float
         Relative imaginary-part threshold (default 0.0 - absolute-only
-        audit; see note above).
+        cross-check; see note above).
 
     Returns
     -------
