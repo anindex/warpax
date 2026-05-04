@@ -32,17 +32,20 @@ from .invariants import (
     ricci_squared,
     weyl_squared,
 )
+from .adm_split import ADMSplit, adm_split
 from .transitions import smoothstep, smoothstep_c1, smoothstep_c2
 from .types import GridSpec, TensorField
 
 __all__ = [
     "ADMMetric",
+    "ADMSplit",
     "CurvatureResult",
     "GridCurvatureResult",
     "GridSpec",
     "MetricSpecification",
     "SymbolicMetric",
     "TensorField",
+    "adm_split",
     "adm_to_full_metric",
     "build_coord_batch",
     "chern_pontryagin",

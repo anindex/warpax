@@ -196,3 +196,60 @@ def darmois(
         second_form_discontinuity=second_form_disc,
         physical=physical,
     )
+
+
+@jaxtyped(typechecker=beartype)
+def surface_stress_energy(
+    metric: MetricSpecification,
+    boundary_fn: Callable[[Float[Array, "4"]], Float[Array, ""]],
+    probe_coords_inside: Float[Array, "4"],
+    probe_coords_outside: Float[Array, "4"],
+) -> Float[Array, "4 4"]:
+    """Compute surface stress-energy S_{ab} via Israel junction conditions.
+
+    Uses the proper two-sided jump formulation:
+        S_{ab} = -(1/8pi)([K_{ab}] - [K] h_{ab})
+
+    where [K_{ab}] = K^+_{ab} - K^-_{ab} is the jump of extrinsic curvature
+    across the surface Sigma, and h_{ab} is the induced metric (averaged).
+
+    The sign convention follows Israel (1966): the normal points from
+    inside (-) to outside (+). The jump is [X] = X^+ - X^-.
+
+    The minus sign in front of 1/8pi is the standard convention where
+    S_{ab} has dimensions of stress (energy per area).
+
+    Parameters
+    ----------
+    metric : MetricSpecification
+    boundary_fn : level-set function defining Sigma
+    probe_coords_inside : point on the (-) side of Sigma
+    probe_coords_outside : point on the (+) side of Sigma
+
+    Returns
+    -------
+    S_{ab} : surface stress-energy tensor (full 4x4, tangential to Sigma)
+    """
+    h_in, K_in = _induced_and_extrinsic(metric, boundary_fn, probe_coords_inside)
+    h_out, K_out = _induced_and_extrinsic(metric, boundary_fn, probe_coords_outside)
+
+    # Jump of extrinsic curvature: [K_{ab}] = K^+ - K^-
+    delta_K = K_out - K_in
+
+    # Average induced metric for the trace computation
+    h_avg = 0.5 * (h_in + h_out)
+
+    # Trace of the jump using the 4D inverse metric (valid because K is tangential)
+    # We use the average of the two metric evaluations for consistency
+    g_in = metric(probe_coords_inside)
+    g_out = metric(probe_coords_outside)
+    g_avg = 0.5 * (g_in + g_out)
+    g_inv_avg = jnp.linalg.inv(g_avg)
+
+    delta_K_trace = jnp.einsum("ab,ab->", g_inv_avg, delta_K)
+
+    # Israel formula: S_{ab} = -(1/8pi)([K_{ab}] - [K] h_{ab})
+    S_ab = -(1.0 / (8.0 * jnp.pi)) * (delta_K - delta_K_trace * h_avg)
+
+    return S_ab
+

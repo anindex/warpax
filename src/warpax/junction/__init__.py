@@ -15,9 +15,10 @@ magnitudes plus a physicality verdict.
 """
 from __future__ import annotations
 
-from .darmois import DarmoisResult, darmois
+from .darmois import DarmoisResult, darmois, surface_stress_energy
 
 __all__ = [
     "DarmoisResult",
     "darmois",
+    "surface_stress_energy",
 ]

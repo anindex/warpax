@@ -5,6 +5,53 @@ All notable changes to `warpax` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0]
+
+Source-consistent warp shell infrastructure: 3+1 ADM decomposition, hardened
+constraint residuals, Fuchs metric, surface-integral ADM mass, Israel junction
+upgrade, geodesic-based transport diagnostics, and source-consistency checks.
+
+### Added
+- `warpax.geometry.adm_split(metric, coords)` - extract (alpha, beta^i, gamma_{ij},
+  K_{ij}) from any 4D metric via JAX autodiff. Returns an `ADMSplit` named
+  tuple.
+- `warpax.constraints.source_consistency.stress_energy_residual(metric, coords,
+  T_input)` - compute DeltaT = T_input - G/(8pi) for source-consistency validation.
+- `warpax.metrics.FuchsMetric` + `fuchs_default()` - Fuchs et al. (CQG 2024)
+  constant-velocity subluminal warp shell with paper-matched parameters
+  (v_s=0.01, R_1=10, R_2=20, r_s=5).
+- `warpax.exceptions` - domain-specific exception hierarchy:
+  `ConstraintViolationError`, `TOVInconsistencyError`,
+  `JunctionDiscontinuityError`, `AsymptoticFalloffError`,
+  `TransportUndefinedError`.
+- `examples/09_admissibility_diagnostics.py` - end-to-end admissibility
+  report on the Fuchs warp shell exercising all new modules.
+- `tests/test_physics_verification.py` - 25 physics-property tests covering
+  ADM split, constraints, TOV, ADM mass, Fuchs metric, transport, junction,
+  and source-consistency against Minkowski/Schwarzschild/WarpShell analytical
+  results.
+
+### Changed
+- `constraints.residuals` - full 3+1 decomposition via `adm_split()` (was
+  assuming K=0); covariant momentum divergence D_j(K^j_i - delta^j_i K) via
+  autodiff; scale-invariant normalization with floor=1.0 for vacuum stability.
+- `tov.residuals` - `jax.grad` replaces finite differences for dp_r/dr;
+  new `tov_residual_from_metric()` auto-extracts Phi' from g_{tt}.
+- `adm.mass` - proper surface integral with Gauss-Legendre angular quadrature
+  (was single-point trace estimate); new `adm_mass_richardson()` for convergence
+  verification at multiple radii.
+- `transport.diagnostics` - all three observables are now geodesic-based:
+  `null_round_trip_asymmetry` uses the Diffrax integrator,
+  `geodesic_deviation_diagnostic` uses tidal eigenvalues,
+  `blueshift_hazard` fires null geodesics in 6 directions (were returning 0).
+- `junction.darmois.surface_stress_energy` - two-sided Israel jump formulation
+  [K_{ab}] = K+_{ab} - K-_{ab} with averaged induced metric (was single-sided).
+- Bumped version to 0.3.0.
+
+### Fixed
+- Normalized constraint residuals returning eps ~1 for vacuum Schwarzschild due
+  to 0/eps division; fixed with floor=1.0 normalization denominator.
+
 ## [0.2.0]
 
 Major revision addressing the CQG-115130 reviewer report and extending the
@@ -58,7 +105,7 @@ improvements, a metric design API, and additional quantum/averaged modules.
   via `lax.map` dispatch.
 - Persistent JIT compilation cache via `WARPAX_JIT_CACHE` env var;
   version-salted path prevents cross-version/cross-backend poisoning.
-- `pytest --gpu-baseline` harness + sm_120 xfail registry for CPU↔GPU
+- `pytest --gpu-baseline` harness + sm_120 xfail registry for CPU-GPU
   delta-report.
 - `make bench-gpu` Makefile target + asv CUDA matrix row.
 - `warpax.energy_conditions.classification_mpmath` module for post-hoc
@@ -69,7 +116,7 @@ improvements, a metric design API, and additional quantum/averaged modules.
 - `pytest-xdist>=3.6.0` added for `pytest -n auto` parallel test runs.
 - `requirements-lock.txt` and `requirements-dev-lock.txt` for pip-only users.
 - `solver='generalized'` kwarg to `classify_hawking_ellis` and
-  `classify_mixed_tensor`; the generalized path solves `(T − λg)v = 0` directly
+  `classify_mixed_tensor`; the generalized path solves `(T - lambda*g)v = 0` directly
   via `scipy.linalg.eig(T_ab, g_ab)` wrapped in `jax.pure_callback`.
 
 ### Changed
@@ -87,7 +134,7 @@ improvements, a metric design API, and additional quantum/averaged modules.
 - Added `Programming Language :: Python :: 3.14` classifier.
 
 ### Fixed
-- GPU-speedup scope caveat added to manuscript §Scope-and-limitations.
+- GPU-speedup scope caveat added to manuscript Sec. Scope-and-limitations.
 - Close pre-v0.1.1 WarpShell cache non-determinism. Add `--deterministic` CLI flag
   to `scripts/run_analysis.py` that pins `JAX_PLATFORMS=cpu` +
   `XLA_FLAGS=--xla_cpu_enable_fast_math=false` + classifier `solver='standard'`.
@@ -122,11 +169,12 @@ Initial public release accompanying arXiv:2602.18023. JAX-based observer-robust
 energy-condition verification for warp-drive spacetimes: autodiff curvature
 chain, Hawking-Ellis classification, BFGS observer optimization, geodesic
 integration, six warp-drive metrics (Alcubierre, Lentz, Van den Broeck,
-Natário, Rodal, WarpShell). See paper §3 for full method description.
+Natario, Rodal, WarpShell). See paper Sec. 3 for full method description.
 
 ---
 
-[Unreleased]: https://github.com/anindex/warpax/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/anindex/warpax/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/anindex/warpax/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/anindex/warpax/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/anindex/warpax/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/anindex/warpax/releases/tag/v0.1.0
