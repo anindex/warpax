@@ -72,6 +72,7 @@ See [`examples/07_custom_warp_metric.py`](examples/07_custom_warp_metric.py) for
 | `examples/06_geodesic_through_warp_bubble.py` | Geodesic integration with tidal forces and blueshift |
 | `examples/07_custom_warp_metric.py` | Custom warp manifold design with robust EC validation |
 | `examples/08_metric_design.py` | Shape-function metric design with constrained optimization |
+| `examples/09_admissibility_diagnostics.py` | Admissibility diagnostics on the Fuchs warp shell |
 
 Run any example:
 
