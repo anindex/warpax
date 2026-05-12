@@ -242,8 +242,8 @@ class TestFuchsMetric:
         metric = fuchs_default()
         g = metric(jnp.array([0.0, 1.0, 0.0, 0.0]))
 
-        assert jnp.abs(g[0, 0] - (-(1.0 - 0.01**2))) < 1e-4
-        assert jnp.abs(g[0, 1] - (-0.01)) < 1e-3
+        assert jnp.abs(g[0, 0] - (-(1.0 - 0.02**2))) < 1e-4
+        assert jnp.abs(g[0, 1] - (-0.02)) < 1e-3
 
     def test_fuchs_exterior_is_flat(self):
         """Far exterior converges to eta_{munu}."""

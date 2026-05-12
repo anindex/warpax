@@ -173,7 +173,6 @@ def adm_mass_richardson(
 
         # Convergence order from first 3 points
         if len(radii) >= 3:
-            radii[-3]
             M0 = M_values[-3]
             # n = log((M0-M1)/(M1-M2)) / log(r1/r0) approximately
             dM01 = abs(M0 - M1)
@@ -240,3 +239,102 @@ def falloff_check(
         results[name] = bool(is_flat or (measured_order[i, i] >= expected_order - tol))
 
     return results
+
+
+def asymptotic_flatness_report(
+    metric: MetricSpecification,
+    radii: list[float] | None = None,
+    expected_order: int = 1,
+    tol: float = 0.1,
+) -> dict[str, object]:
+    """Comprehensive asymptotic flatness diagnostic.
+
+    Evaluates metric deviations from Minkowski at multiple radii,
+    fits power-law falloff exponents for each component (including
+    off-diagonal shift terms), and assesses overall asymptotic flatness.
+
+    For a Schwarzschild-like metric, diagonal deviations should fall off
+    as 1/r. For warp metrics with compact-support shift, g_{0i} should
+    fall to zero at finite radius (faster than any power law).
+
+    Parameters
+    ----------
+    metric : MetricSpecification
+    radii : list of evaluation radii (default: [50, 100, 200, 400])
+    expected_order : expected diagonal falloff power (default: 1 for 1/r)
+    tol : tolerance on measured exponent (default: 0.1)
+
+    Returns
+    -------
+    dict with keys:
+        'diagonal' : dict per component with 'passed', 'measured_order',
+                      'deviations'
+        'shift' : dict per shift component with 'passed', 'deviations'
+        'is_asymptotically_flat' : bool (all components pass)
+        'radii' : list of radii used
+    """
+    if radii is None:
+        radii = [50.0, 100.0, 200.0, 400.0]
+
+    eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0], dtype=jnp.float64))
+
+    # Evaluate metric at each radius along x-axis
+    g_at_r = []
+    for r in radii:
+        coords = jnp.array([0.0, r, 0.0, 0.0], dtype=jnp.float64)
+        g_at_r.append(metric(coords))
+
+    # Diagonal falloff analysis
+    diagonal_names = ["g_tt", "g_xx", "g_yy", "g_zz"]
+    diagonal_indices = [(0, 0), (1, 1), (2, 2), (3, 3)]
+    diagonal_results = {}
+
+    for name, (i, j) in zip(diagonal_names, diagonal_indices):
+        deviations = [float(jnp.abs(g[i, j] - eta[i, j])) for g in g_at_r]
+
+        # Fit power-law: deviation ~ C / r^n
+        # Use last two points: n = log(dev1/dev2) / log(r2/r1)
+        if len(radii) >= 2 and deviations[-2] > 1e-15 and deviations[-1] > 1e-15:
+            measured = float(
+                jnp.log(deviations[-2] / deviations[-1])
+                / jnp.log(radii[-1] / radii[-2])
+            )
+        elif all(d < 1e-15 for d in deviations):
+            measured = float("inf")  # Exactly flat
+        else:
+            measured = 0.0
+
+        is_flat = all(d < 1e-12 for d in deviations)
+        passed = is_flat or (measured >= expected_order - tol)
+
+        diagonal_results[name] = {
+            "passed": bool(passed),
+            "measured_order": measured,
+            "deviations": deviations,
+        }
+
+    # Off-diagonal shift falloff (g_{0i})
+    shift_names = ["g_tx", "g_ty", "g_tz"]
+    shift_indices = [(0, 1), (0, 2), (0, 3)]
+    shift_results = {}
+
+    for name, (i, j) in zip(shift_names, shift_indices):
+        deviations = [float(jnp.abs(g[i, j])) for g in g_at_r]
+        # Shift should be zero (compact support) at all test radii
+        all_zero = all(d < 1e-10 for d in deviations)
+        shift_results[name] = {
+            "passed": bool(all_zero),
+            "deviations": deviations,
+        }
+
+    # Overall assessment
+    all_diag_pass = all(r["passed"] for r in diagonal_results.values())
+    all_shift_pass = all(r["passed"] for r in shift_results.values())
+
+    return {
+        "diagonal": diagonal_results,
+        "shift": shift_results,
+        "is_asymptotically_flat": all_diag_pass and all_shift_pass,
+        "radii": radii,
+    }
+
