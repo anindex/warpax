@@ -33,6 +33,12 @@ from .invariants import (
     weyl_squared,
 )
 from .adm_split import ADMSplit, adm_split
+from .regularity import (
+    RegularityDiagnostic,
+    RegularityReport,
+    metric_c2_diagnostic,
+    regularity_report,
+)
 from .transitions import smoothstep, smoothstep_c1, smoothstep_c2
 from .types import GridSpec, TensorField
 
@@ -43,6 +49,8 @@ __all__ = [
     "GridCurvatureResult",
     "GridSpec",
     "MetricSpecification",
+    "RegularityDiagnostic",
+    "RegularityReport",
     "SymbolicMetric",
     "TensorField",
     "adm_split",
@@ -55,6 +63,8 @@ __all__ = [
     "einstein_tensor",
     "evaluate_curvature_grid",
     "kretschner_scalar",
+    "metric_c2_diagnostic",
+    "regularity_report",
     "ricci_scalar",
     "ricci_squared",
     "ricci_tensor",
