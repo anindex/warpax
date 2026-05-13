@@ -204,23 +204,15 @@ class TestGridSchwarzschildKretschner:
 
 
 class TestAutoChunk:
-    """``auto_chunk_threshold`` kwarg validation + ULP-tolerant
-    parity with the v0.1.x full-vmap path.
+    """``auto_chunk_threshold`` kwarg validation and ULP-tolerant parity
+    with the full-vmap path.
 
-    Default ``None`` and no-op (threshold > grid_size) paths are
-    **bit-exact** to v0.1.x because neither calls ``lax.map``. When the
-    threshold triggers chunking, ``jax.lax.map`` uses a different
+    Default ``None`` and the no-op (threshold > grid_size) paths are
+    bit-exact to the full-vmap path because neither calls ``lax.map``.
+    When the threshold triggers chunking, ``jax.lax.map`` uses a different
     floating-point addition order than ``jax.vmap``; the resulting drift
-    is at the ULP floor (observed max ``6.8e-13`` on ricci/weyl squared at
-    20³ Alcubierre). This is JAX-internal; the caller-visible invariant is
-    numerical equivalence, not bit-equality.
-
-    Empirical validation of the chunking implementation showed that the
-    ULP-scale drift is intrinsic to ``lax.map`` vs ``vmap`` floating-point
-    addition order and cannot be eliminated at this layer. Tests therefore
-    use ``assert_allclose`` with ``atol=1e-12, rtol=1e-12`` rather than
-    bit-exact equality: this still pins down any algorithmic bug but
-    accepts ULP-level fused-add reordering.
+    is at the ULP floor (observed max ~6.8e-13 on ricci/weyl squared at
+    20³ Alcubierre). Tests use ``assert_allclose`` with ``atol=rtol=1e-12``.
     """
 
     _CHUNK_ATOL = 1e-12
@@ -232,8 +224,8 @@ class TestAutoChunk:
         grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(16, 16, 16))
         return metric, grid, evaluate_curvature_grid(metric, grid)
 
-    def test_default_none_preserves_v10_bit_exact(self):
-        """auto_chunk_threshold=None == v0.1.x full-vmap (bit-exact: no lax.map)."""
+    def test_default_none_matches_full_vmap(self):
+        """auto_chunk_threshold=None reduces to plain vmap (bit-exact)."""
         metric, grid, ref = self._alcubierre_16cubed_full()
         result = evaluate_curvature_grid(metric, grid, auto_chunk_threshold=None)
 

@@ -23,15 +23,15 @@ from warpax.energy_conditions import (
 
 
 class TestStartsFibonacciPool:
-    """starts kwarg contract tests (v1.1+ API surface)."""
+    """starts kwarg contract tests."""
 
     def _bench_inputs(self):
         g = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
         T = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
         return T, g, jax.random.PRNGKey(42)
 
-    def test_default_axis_gaussian_preserves_v10(self):
-        """Default + explicit starts='axis+gaussian' are bit-identical to v1.0."""
+    def test_default_axis_gaussian_matches_explicit(self):
+        """Default and explicit starts='axis+gaussian' produce identical margins."""
         T, g, key = self._bench_inputs()
         for fn in [optimize_wec, optimize_sec, optimize_dec]:
             r_default = fn(T, g, key=key)

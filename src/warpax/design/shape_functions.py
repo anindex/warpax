@@ -1,11 +1,11 @@
 """- ShapeFunction: differentiable shape-function basis library.
 
 A shape function ``f : R -> R`` (typically ``f(r)`` for a radial coordinate)
-is the scalar profile that modulates the warp-bubble metric. v0.1.x warpax
-exposes five hand-picked shape families (Alcubierre tanh, Rodal Gaussian
-wall, Natario dual-lobe, Van den Broeck compound, Lentz walls); this module
-introduces a *differentiable parameter family* so that the optimizer
-can search the shape space via ``jax.grad`` over the full
+is the scalar profile that modulates the warp-bubble metric. The hand-picked
+shape families used in the literature (Alcubierre tanh, Rodal Gaussian
+wall, Natario dual-lobe, Van den Broeck compound, Lentz walls) are
+complemented here by a *differentiable parameter family* so that the
+optimizer can search the shape space via ``jax.grad`` over the full
 curvature chain.
 
 This module provides three basis families, each exposed as a

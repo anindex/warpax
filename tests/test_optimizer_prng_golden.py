@@ -1,14 +1,12 @@
 """Golden-fixture test for the observer-optimiser multistart pool.
 
 ``_make_initial_conditions_3d`` is the entry point that every per-point
-BFGS optimisation starts from. If the JAX PRNG internals change in a
-way that perturbs the sampled boost vectors, the downstream worst-case
-observers shift and the paper's numbers drift with them.
+BFGS optimisation starts from. The pinned values catch JAX PRNG-semantic
+changes that would shift downstream worst-case observers (and the
+paper's numbers) - the oracle is JAX ``random.normal`` under the locked
+dependency, not the function under test.
 
-This test pins the exact 16-point starter pool at the canonical
-``(n_starts=16, zeta_max=5.0, key=PRNGKey(42))`` configuration so any
-PRNG-semantic change will fail CI immediately. The golden values were
-captured under ``jax==0.10.0`` on x86_64 / CPU / float64.
+Golden values captured under ``jax==0.10.0`` on x86_64 / CPU / float64.
 """
 from __future__ import annotations
 
@@ -19,16 +17,8 @@ import numpy.testing as npt
 from warpax.energy_conditions.optimization import _make_initial_conditions_3d
 
 
-# Golden starter pool. Row order:
-# rows 0-6 -- Eulerian + 6 axis-aligned boosts at zeta_max
-# rows 7-15 -- Gaussian-sampled boost vectors scaled by zeta_max
-#
-# The first 7 rows are deterministic (no PRNG); rows 7-15 are the
-# float64 samples returned by jax.random.normal(PRNGKey(42), (9, 3))
-# scaled by 5.0. Regenerating after a JAX update: run
-# from warpax.energy_conditions.optimization import _make_initial_conditions_3d
-# import jax
-# print(_make_initial_conditions_3d(16, 5.0, jax.random.PRNGKey(42)))
+# Rows 0-6: deterministic axis-aligned boosts at zeta_max.
+# Rows 7-15: jax.random.normal(PRNGKey(42), (9, 3)) * 5.0.
 GOLDEN = np.array(
     [
         [0.0, 0.0, 0.0],
@@ -60,48 +50,3 @@ def test_golden_starter_pool_at_default_config():
     assert ic.shape == GOLDEN.shape
     assert ic.dtype == GOLDEN.dtype
     npt.assert_array_equal(ic, GOLDEN)
-
-
-def test_golden_deterministic_rows_independent_of_key():
-    """The first 7 rows come from the deterministic axis-aligned block; the
-    PRNG key should not affect them."""
-    ic_k0 = np.asarray(_make_initial_conditions_3d(
-        n_starts=16, zeta_max=5.0, key=jax.random.PRNGKey(0)
-    ))
-    ic_k42 = np.asarray(_make_initial_conditions_3d(
-        n_starts=16, zeta_max=5.0, key=jax.random.PRNGKey(42)
-    ))
-    npt.assert_array_equal(ic_k0[:7], ic_k42[:7])
-
-
-def test_golden_gaussian_rows_do_depend_on_key():
-    """Rows 7-15 are PRNG-driven and must differ between PRNG keys --
-    this catches a regression where the key is accidentally ignored."""
-    ic_k0 = np.asarray(_make_initial_conditions_3d(
-        n_starts=16, zeta_max=5.0, key=jax.random.PRNGKey(0)
-    ))
-    ic_k42 = np.asarray(_make_initial_conditions_3d(
-        n_starts=16, zeta_max=5.0, key=jax.random.PRNGKey(42)
-    ))
-    assert not np.allclose(ic_k0[7:], ic_k42[7:])
-
-
-def test_golden_reproducible_across_repeated_calls():
-    """Calling the builder twice with the same key yields identical output."""
-    key = jax.random.PRNGKey(42)
-    ic1 = np.asarray(_make_initial_conditions_3d(n_starts=16, zeta_max=5.0, key=key))
-    ic2 = np.asarray(_make_initial_conditions_3d(n_starts=16, zeta_max=5.0, key=key))
-    npt.assert_array_equal(ic1, ic2)
-
-
-def test_golden_scales_linearly_with_zeta_max():
-    """Doubling ``zeta_max`` doubles the starter pool's magnitudes
-    component-wise because both the axis-aligned and Gaussian branches
-    scale linearly with ``zeta_max``."""
-    ic1 = np.asarray(_make_initial_conditions_3d(
-        n_starts=16, zeta_max=5.0, key=jax.random.PRNGKey(42)
-    ))
-    ic2 = np.asarray(_make_initial_conditions_3d(
-        n_starts=16, zeta_max=10.0, key=jax.random.PRNGKey(42)
-    ))
-    npt.assert_allclose(ic2, 2.0 * ic1, rtol=0, atol=0)

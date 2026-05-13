@@ -2,10 +2,9 @@
 
 Four tests:
 
-- ``test_C_constant_unit_audit``: C constant pinned to
-  Fewster 2012 eq. 2.1.
+- ``test_C_constant_units``: C constant pinned to Fewster 2012 eq. 2.1.
 - ``test_minkowski_vacuum_satisfies_qi``: on vacuum, margin is positive.
-- ``test_alcubierre_offaxis_sentinel``: regression sentinel for an
+- ``test_alcubierre_offaxis_pin``: pinned-value check for an
   off-axis static worldline inside the bubble. (On-axis is degenerate
   at y=z=0; we use a finite y-offset instead.)
 - ``test_invalid_sampling_raises``: ``sampling='gaussian'`` raises
@@ -24,15 +23,15 @@ from warpax.quantum.ford_roman import FORD_ROMAN_CONSTANT_C
 
 
 class TestFordRoman:
-    """Ford-Roman QI regression tests.
+    """Ford-Roman QI tests.
 
-    - test_C_constant_unit_audit: C constant pinned
+    - test_C_constant_units: C constant pinned
     - test_minkowski_vacuum_satisfies_qi: on vacuum, margin is positive
-    - test_alcubierre_offaxis_sentinel: regression sentinel
+    - test_alcubierre_offaxis_pin: pinned-value check
     - test_invalid_sampling_raises: validate input
     """
 
-    def test_C_constant_unit_audit(self):
+    def test_C_constant_units(self):
         """C = 3 / (32 pi^2) per Fewster 2012 eq. 2.1."""
         C_ref = 3.0 / (32.0 * math.pi ** 2)
         assert abs(float(FORD_ROMAN_CONSTANT_C) - C_ref) < 1e-15
@@ -47,12 +46,12 @@ class TestFordRoman:
         # Bound is negative (Ford-Roman bound is -C/tau0^4).
         assert float(result.bound) < 0
 
-    def test_alcubierre_offaxis_sentinel(self):
-        """Regression sentinel: static worldline at y=0.5 inside bubble.
+    def test_alcubierre_offaxis_pin(self):
+        """Pinned-value check: static worldline at y=0.5 inside bubble.
 
         On-axis (y=z=0) is degenerate for the Alcubierre metric; we
-        use a small y-offset. The exact margin value is pinned by
-        reproducibility - the test asserts finiteness + repeatability.
+        use a small y-offset. The test asserts finiteness and repeatability
+        of the resulting margin.
         """
         metric = AlcubierreMetric()
         # Off-axis worldline: constant position at y=0.5

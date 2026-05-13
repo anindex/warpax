@@ -77,36 +77,28 @@ def all_metrics() -> list:
 # --gpu-baseline pytest plugin
 # ---------------------------------------------------------------------------
 #
-# Default invocation (no --gpu-baseline) is a no-op from the plugin's
-# perspective - v0.1.x behavior preserved bit-exactly. When the flag is
-# present, the plugin:
-# 1. Applies xfail markers from _gpu_xfail_registry.EXPECTED_GPU_FAILURES
-# to the 79 known-bad tests on Blackwell sm_120.
-# 2. Emits a 5-line summary at session finish: expected xfails counted,
-# resolved xfails (now passing - investigate), new regressions.
-#
-# Minimal v0.2.0 scope: single-session summary. Full CPU↔GPU double-run
-# orchestration is a future enhancement; here we register the backend-
-# tolerated failures so future CI runs surface real regressions without
-# drowning in sm_120 expected failures.
+# When --gpu-baseline is passed, this plugin applies xfail markers from
+# ``_gpu_xfail_registry.EXPECTED_GPU_FAILURES`` to known-bad tests on
+# Blackwell sm_120 GPUs and emits a short summary at session finish so
+# real regressions surface without drowning in expected sm_120 failures.
 
 
 def pytest_addoption(parser) -> None:
-    """add --gpu-baseline flag."""
+    """Add --gpu-baseline flag."""
     parser.addoption(
         "--gpu-baseline",
         action="store_true",
         default=False,
         help=(
-            "apply xfail markers to the 79 Blackwell sm_120 "
-            "expected failures (registry: tests/_gpu_xfail_registry.py) "
-            "and emit a CPU/GPU delta-report summary at session finish."
+            "apply xfail markers to the Blackwell sm_120 expected failures "
+            "(registry: tests/_gpu_xfail_registry.py) and emit a CPU/GPU "
+            "delta-report summary at session finish."
         ),
     )
 
 
 def pytest_collection_modifyitems(config, items) -> None:
-    """xfail-tag the 79 registry entries when --gpu-baseline is set."""
+    """xfail-tag the registry entries when --gpu-baseline is set."""
     if not config.getoption("--gpu-baseline"):
         return
 

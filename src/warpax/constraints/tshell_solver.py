@@ -15,12 +15,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import NamedTuple
 
-import numpy as np
 import interpax
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
-from scipy.linalg import solve_banded
 
 
 class TShellPotentials(NamedTuple):
@@ -164,10 +162,7 @@ def solve_tshell_potentials(
     B_coeff = jnp.where(r_grid < 1e-6, 0.0, B_coeff)
 
     # Tridiagonal finite-difference BVP solve
-    beta_x_grid = _solve_shift_bvp(
-        np.asarray(A_coeff), np.asarray(B_coeff),
-        np.asarray(source_beta), float(dr), n_grid,
-    )
+    beta_x_grid = _solve_shift_bvp(A_coeff, B_coeff, source_beta, dr, n_grid)
 
     # Interpolated callables
     def Phi_fn(r: Float[Array, ""]) -> Float[Array, ""]:
@@ -205,45 +200,39 @@ def solve_tshell_potentials(
 
 
 def _solve_shift_bvp(
-    A: np.ndarray,
-    B: np.ndarray,
-    source: np.ndarray,
+    A: Float[Array, "N"],
+    B: Float[Array, "N"],
+    source: Float[Array, "N"],
     dr: float,
     n_pts: int,
 ) -> Float[Array, "N"]:
     """Solve beta'' + A beta' + B beta = source via tridiagonal FD.
 
     BCs: beta'(0) = 0 (regularity), beta(r_max) = 0 (asymptotic flatness).
-    Uses second-order central differences and scipy solve_banded.
+    Uses second-order central differences and jax.lax.linalg.tridiagonal_solve.
     """
     inv_dr2 = 1.0 / dr**2
     inv_2dr = 1.0 / (2.0 * dr)
 
-    # Vectorized coefficient assembly (no Python loop)
-    idx = np.arange(1, n_pts - 1)
-    lower = np.zeros(n_pts)
-    main = np.zeros(n_pts)
-    upper = np.zeros(n_pts)
-    rhs_vec = np.zeros(n_pts)
+    lower_interior = inv_dr2 - A[1:-1] * inv_2dr
+    main_interior = -2.0 * inv_dr2 + B[1:-1]
+    upper_interior = inv_dr2 + A[1:-1] * inv_2dr
 
-    lower[idx] = inv_dr2 - A[idx] * inv_2dr
-    main[idx] = -2.0 * inv_dr2 + B[idx]
-    upper[idx] = inv_dr2 + A[idx] * inv_2dr
-    rhs_vec[idx] = source[idx]
+    # BC: beta'(0) = 0 (regularity)
+    main_0 = -2.0 * inv_dr2 + B[0]
+    upper_0 = 2.0 * inv_dr2
 
-    # BC at i=0: regularity (beta'=0 => beta_{-1} = beta_1)
-    main[0] = -2.0 * inv_dr2 + B[0]
-    upper[0] = 2.0 * inv_dr2
-    rhs_vec[0] = source[0]
+    # BC: beta(r_max) = 0
+    main_last = 1.0
 
-    # BC at i=n-1: beta(r_max) = 0
-    main[-1] = 1.0
-    lower[-1] = 0.0
-    rhs_vec[-1] = 0.0
+    # Assemble tridiagonal system
+    dl = jnp.concatenate([jnp.array([0.0]), lower_interior, jnp.array([0.0])])
+    d = jnp.concatenate([jnp.array([main_0]), main_interior, jnp.array([main_last])])
+    du = jnp.concatenate([jnp.array([upper_0]), upper_interior, jnp.array([0.0])])
+    rhs = jnp.concatenate([
+        jnp.array([source[0]]),
+        source[1:-1],
+        jnp.array([0.0]),
+    ])
 
-    ab = np.zeros((3, n_pts))
-    ab[0, 1:] = upper[:-1]
-    ab[1, :] = main
-    ab[2, :-1] = lower[1:]
-
-    return jnp.array(solve_banded((1, 1), ab, rhs_vec))
+    return jax.lax.linalg.tridiagonal_solve(dl, d, du, rhs[:, None])[:, 0]

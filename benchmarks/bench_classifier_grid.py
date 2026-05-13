@@ -59,11 +59,10 @@ class ClassifierGrid32Generalised:
     ``jax.pure_callback(..., vmap_method='sequential')`` serialising the
     ``scipy.linalg.eig`` calls per grid point. This is documented in
 
-    as a known and accepted cost of the LAPACK QZ binding
-    (native Lorentzian pencil handling, no Cholesky-whiten). The standard
-    path preserves the original behavior bit-exactly; this sibling class benchmarks the
-    opt-in generalised path for regression-tracking the host-callback
-    overhead across releases.
+    overhead of the LAPACK QZ binding (native Lorentzian pencil handling,
+    no Cholesky-whiten). The standard path is the default; this sibling
+    class benchmarks the opt-in generalised path so the host-callback
+    overhead can be tracked across releases.
     """
 
     warmup_time = 3.0

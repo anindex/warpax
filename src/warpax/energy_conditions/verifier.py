@@ -519,8 +519,7 @@ def anec_integrand(
     single spacetime point. Retained as a primitive integrand helper.
 
     For the full line integral along a null geodesic, use
-    ``warpax.averaged.anec`` , which replaces the v0.1.x placeholder
-    ``anec_integral`` with a + mitigated implementation.
+    ``warpax.averaged.anec``.
 
     Parameters
     ----------
@@ -538,11 +537,7 @@ def anec_integrand(
 
 
 def anec_integral(T_field, geodesic):
-    """Deprecated. Use ``warpax.averaged.anec`` instead.
-
-    The v0.1.x placeholder ``raise NotImplementedError`` is replaced by a
-    delegating call with a ``DeprecationWarning``.
-    """
+    """Deprecated. Use ``warpax.averaged.anec`` instead."""
     import warnings
 
     warnings.warn(

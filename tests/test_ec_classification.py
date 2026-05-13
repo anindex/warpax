@@ -288,11 +288,11 @@ class TestStandardSolverBitExact:
     """
 
     def test_default_is_standard(self):
-        """solver kwarg absent vs solver='standard': bit-exact."""
+        """solver kwarg absent vs solver='standard': identical output."""
         T = jnp.diag(jnp.array([-1.5, 0.3, 0.3, 0.3]))
         r_default = classify_hawking_ellis(T, ETA)
         r_standard = classify_hawking_ellis(T, ETA, solver='standard')
-        # BIT-EXACT - use array_equal not allclose
+        # Identical outputs: use array_equal, not allclose
         assert jnp.array_equal(r_default.he_type, r_standard.he_type)
         assert jnp.array_equal(r_default.eigenvalues, r_standard.eigenvalues)
         assert jnp.array_equal(r_default.eigenvectors, r_standard.eigenvectors)
@@ -327,7 +327,7 @@ class TestStandardSolverBitExact:
         np.testing.assert_array_equal(
             np.asarray(r_std.he_type),
             fixture['he_type'],
-            err_msg="solver='standard' drifted from v0.2.0 bit-exact",
+            err_msg="solver='standard' drifted from pinned fixture",
         )
 
 

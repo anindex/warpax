@@ -5,6 +5,37 @@ All notable changes to `warpax` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1]
+
+Cleanup release. Removes dead test scaffolding, fixes a spot bug in
+`optimize_sec`, tightens a loose tolerance, and merges duplicated fuchs
+test modules. No public-API changes.
+
+### Fixed
+- `optimize_sec(...)` crashed with `NameError: _resolve_backend is not
+  defined`. The helper had been deleted but two call-sites survived.
+
+### Removed
+- v1 API-surface tests and their golden fixtures (`test_v1_api_surface.py`,
+  `v1_api_surface_v1_0.json`, `v1_api_defaults_v1_0.json`,
+  `docs/reference/api_defaults.md`).
+- Tests that exercised infrastructure rather than physics:
+  `test_t_ab_symmetry`, `test_jit_cache`, `test_beartype_optin`,
+  `test_reproduce_cpu_pin`, `test_gpu_baseline_harness`,
+  `test_precision_parity`.
+- The `precision='fp32_screen+fp64_verify'` path from
+  `evaluate_curvature_grid` and its benchmark. fp32 screening did not save
+  wall time at production grid sizes.
+
+### Changed
+- Merged `test_fuchs.py` + `test_fuchs_hardened.py` into `test_fuchs_metric.py`
+  (33 tests; dropped 4 that only checked `isfinite`).
+- Renamed `test_integration_audit.py` to `test_admissibility_smoke.py`.
+- Schwarzschild tidal-eigenvalue tolerance `rtol=0.10` → `1e-6` (the
+  analytical answer is exact).
+- Pruned the sm_120 GPU xfail registry to entries that still fail.
+- Trimmed revision-history comments from public docstrings.
+
 ## [0.3.0]
 
 Source-consistent warp shell infrastructure: 3+1 ADM decomposition, hardened

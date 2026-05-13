@@ -538,8 +538,7 @@ class TestProjectedBFGS:
     - ``test_projected_bfgs_hits_kkt_at_bound_active``: 1D quadratic
       ``min_{|w| <= 1} (w - 2)^2``, true KKT point at ``w = 1.0`` (bound-active).
     - ``test_tanh_vs_hard_bound_agree_at_bound_inactive``: bound-inactive
-      regression; the two strategies must agree to ``5e-6 * scale`` per
-      ) must yield the bit-exact v0.1.x result.
+      regression; the two strategies must agree to ``5e-6 * scale``.
     """
 
     def test_projected_bfgs_hits_kkt_at_bound_active(self):
@@ -598,13 +597,11 @@ class TestProjectedBFGS:
             f"exceeds 5e-6 * scale={5e-6 * scale}"
         )
 
-    def test_default_strategy_preserves_v1_0(self):
-        """v0.1.x default flow: omitting ``strategy`` MUST hit the tanh path bit-exactly.
+    def test_default_strategy_matches_tanh(self):
+        """Default flow: omitting ``strategy`` must hit the tanh path exactly.
 
-        Pre-v0.1.x sentinel captured at initial commit via
-        ``optimize_wec(T=diag(-1, 0.5, 0.5, 0.5), ETA, key=PRNGKey(42))``.
-        The sentinel is a regression witness: a silent default flip
-        (e.g., ``n_starts`` 16 -> 8) would move the margin by >> 1e-9.
+        A silent default flip (e.g., ``n_starts`` 16 -> 8) would move the
+        margin by >> 1e-9, so the pinned sentinel margin captures regressions.
         """
         T = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
         key = jax.random.PRNGKey(42)
@@ -613,15 +610,14 @@ class TestProjectedBFGS:
         r_explicit_tanh = optimize_wec(T, ETA, key=key, strategy='tanh')
 
         assert float(r_default.margin) == float(r_explicit_tanh.margin), (
-            f"Default strategy must be bit-exact with strategy='tanh'. "
+            f"Default strategy must match strategy='tanh' exactly. "
             f"default={float(r_default.margin)}, "
             f"explicit_tanh={float(r_explicit_tanh.margin)}"
         )
 
-        # v0.1.x regression sentinel (pinned 2026-04-19 RED).
-        v1_0_margin = -2754.058230025833
-        assert float(r_default.margin) == pytest.approx(v1_0_margin, abs=1e-9), (
-            f"v0.1.x margin regression: expected {v1_0_margin}, "
+        pinned_margin = -2754.058230025833
+        assert float(r_default.margin) == pytest.approx(pinned_margin, abs=1e-9), (
+            f"WEC margin regression: expected {pinned_margin}, "
             f"got {float(r_default.margin)}"
         )
 
@@ -640,8 +636,8 @@ class TestDECPerSubcondition:
     - ``test_dec_per_sub_keys_are_distinct``: seed isolation -
       ``fold_in`` against three distinct salts gives three pairwise-distinct keys
       and is reproducible within a single process.
-    - ``test_default_mode_preserves_v1_0``: omitting ``mode=`` MUST hit the
-      ``three_term_min`` path bit-exactly (v0.1.x surface pin).
+    - ``test_default_mode_matches_three_term_min``: omitting ``mode=`` MUST hit the
+      ``three_term_min`` path exactly.
     """
 
     def test_dec_per_sub_agrees_with_three_way_min_at_well_behaved_point(self):
@@ -688,8 +684,8 @@ class TestDECPerSubcondition:
             k_wec, jax.random.fold_in(key, _DEC_SUB_SALTS['wec'])
         ), "fold_in not reproducible within process for 'wec' salt"
 
-    def test_default_mode_preserves_v1_0(self):
-        """v0.1.x default flow: omitting ``mode`` MUST hit three_term_min bit-exactly."""
+    def test_default_mode_matches_three_term_min(self):
+        """Default flow: omitting ``mode`` must hit three_term_min exactly."""
         T = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
         key = jax.random.PRNGKey(42)
 
@@ -697,7 +693,7 @@ class TestDECPerSubcondition:
         r_explicit = optimize_dec(T, ETA, key=key, mode='three_term_min')
 
         assert float(r_default.margin) == float(r_explicit.margin), (
-            f"Default mode must be bit-exact with mode='three_term_min'. "
+            f"Default mode must match mode='three_term_min' exactly. "
             f"default={float(r_default.margin)}, "
             f"explicit={float(r_explicit.margin)}"
         )

@@ -157,21 +157,12 @@ def einstein_tensor(
 def stress_energy_tensor(einstein: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
     """Stress-energy tensor from Einstein field equations (geometric units G=c=1).
 
-    T_{mu nu} = G_{mu nu} / (8 pi), projected onto the symmetric subspace.
+    T_{mu nu} = G_{mu nu} / (8 pi), explicitly symmetrized.
 
-    the return value is post-compute-symmetrized via
-    ``T = 0.5 * (T + T.T)``. Einstein's equations guarantee
-    ``T_{ab} = T_{ba}`` analytically; this projection guarantees it
-    bit-exactly at the pipeline exit regardless of XLA reduction order.
-    The projection is IDEMPOTENT on symmetric inputs (zero delta for
-    well-behaved metrics; ``TestStressEnergySymmetry`` at 1e-13 on
-    10x10x10 interior slabs stays green) and DEFENSIVE against any
-    future reduction-order regression that could perturb the tensor.
-
-    See the source code for the
-    empirical investigation that showed this projection is scope-honest
-    defensive hardening rather than a cure for the upstream Hawking-Ellis
-    classifier basis-choice issue at non-Minkowski metrics.
+    Einstein's equations guarantee ``T_{ab} = T_{ba}`` analytically; the
+    explicit ``0.5 * (T + T.T)`` projection enforces it numerically
+    regardless of XLA reduction order. It is idempotent on symmetric
+    inputs.
 
     Args:
         einstein: Einstein tensor of shape (4, 4).
@@ -180,7 +171,7 @@ def stress_energy_tensor(einstein: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
         Stress-energy tensor of shape (4, 4), symmetrized.
     """
     T = einstein / (8.0 * jnp.pi)
-    return 0.5 * (T + T.T)  # idempotent projection onto symmetric subspace
+    return 0.5 * (T + T.T)
 
 
 def compute_curvature_chain(

@@ -3,7 +3,7 @@
 Four benchmarks running the Optimistix BFGS multistart over the bounded
 timelike observer manifold for NEC / WEC / SEC / DEC on a single
 Alcubierre wall point. Uses the default ``n_starts=16`` and
-``zeta_max=5.0`` from v0.1.x API defaults.
+``zeta_max=5.0``.
 """
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ class DECOptimizer(_OptimizerBenchmark):
     """asv benchmark - optimize_dec multistart, three-term-min (#6)."""
 
     def _run(self, T, g, key):
-        # Default v0.1.x mode='three_term_min' (default).
+        # Default mode='three_term_min'.
         return optimize_dec(T, g, key=key).margin
 
     def time_multistart_dec(self) -> None:

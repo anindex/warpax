@@ -31,14 +31,10 @@ overlap.
 ``starts='fibonacci+bfgs_top_k'`` adds a Fibonacci lattice + BFGS-top-k
 blended starter pool.  Default ``starts='axis+gaussian'`` preserves the
 original behavior.
-
-``backend='cpu'|'gpu'`` selects the JAX device context (default ``'cpu'``).
-The env var ``WARPAX_PERF_BACKEND`` overrides the kwarg.
 """
 
 from __future__ import annotations
 
-import os
 from typing import NamedTuple
 
 import jax
@@ -54,7 +50,6 @@ from jaxtyping import Array, Float
 
 _VALID_WARM_STARTS: frozenset[str] = frozenset({"cold", "spatial_neighbor"})
 _VALID_STARTS: frozenset[str] = frozenset({"axis+gaussian", "fibonacci+bfgs_top_k"})
-_VALID_BACKENDS: frozenset[str] = frozenset({"cpu", "gpu"})
 
 
 def _validate_warm_start(warm_start: str) -> None:
@@ -82,21 +77,6 @@ def _validate_starts(starts: str) -> None:
             f"starts must be one of {{'axis+gaussian', 'fibonacci+bfgs_top_k'}}, "
             f"got {starts!r}"
         )
-
-
-def _validate_backend(backend: str) -> None:
-    """Raise ValueError if backend is not in the allowed set."""
-    if backend not in _VALID_BACKENDS:
-        raise ValueError(
-            f"backend must be one of {{'cpu', 'gpu'}}, got {backend!r}"
-        )
-
-
-def _resolve_backend(backend: str) -> str:
-    """WARPAX_PERF_BACKEND env var overrides kwarg."""
-    effective = os.environ.get("WARPAX_PERF_BACKEND", backend)
-    _validate_backend(effective)
-    return effective
 
 from .observer import (
     boost_vector_to_params,
@@ -179,8 +159,7 @@ def _dec_objective(w, args):
 # ---------------------------------------------------------------------------
 # per-subcondition DEC objectives + seed salts
 # Each sub returns its margin with sign convention `positive = sub satisfied,
-# negative = violated` - byte-equivalent to the corresponding ``jnp.minimum``
-# argument in the v0.1.x ``_dec_objective`` above.
+# negative = violated`.
 # ---------------------------------------------------------------------------
 
 # Canonical salts: ``hash('label') & 0x7FFFFFFF`` gives a positive 32-bit
@@ -425,9 +404,8 @@ def _solve_multistart_3d_projected(objective_fn, args, n_starts, zeta_max,
 
     Mirrors the original multistart pool composition (same
     :func:`_make_initial_conditions_3d`, same key, same vmap structure) - ONLY
-    the solver is swapped for :class:`ProjectedBFGSSolver`. This keeps
-    bound-inactive points bit-equivalent to the tanh path within
-    ``5e-6 * scale``.
+    the solver is swapped for :class:`ProjectedBFGSSolver`. Bound-inactive
+    points agree with the tanh path to within ``5e-6 * scale``.
 
     Returns (best_obj, best_raw, best_physical, best_converged, best_n_steps).
     """
@@ -465,10 +443,9 @@ def _dispatch_multistart_3d(strategy, objective_fn, args, n_starts, zeta_max,
                             rtol, atol, max_steps, key):
     """strategy dispatcher for 3D multistart BFGS.
 
-    Routes ``strategy='tanh'`` to the original :func:`_solve_multistart_3d` (bit-
-    exact preservation) and ``strategy='hard_bound'`` to
-    :func:`_solve_multistart_3d_projected`. Any other value raises a
-    ``ValueError`` with the allowed set.
+    Routes ``strategy='tanh'`` to :func:`_solve_multistart_3d` and
+    ``strategy='hard_bound'`` to :func:`_solve_multistart_3d_projected`.
+    Any other value raises a ``ValueError`` with the allowed set.
     """
     if strategy == "tanh":
         return _solve_multistart_3d(
@@ -497,11 +474,11 @@ def _dec_per_subcondition_min(T_ab, T_mixed, g_ab, tetrad, n_starts, zeta_max,
     Each sub gets a seed-isolated PRNG key via ``jax.random.fold_in(key, salt)``.
     Combines via outer min-of-mins: the overall DEC margin is the MOST violated
     sub. Returns the worst sub's margin + observer + convergence info,
-    matching the :class:`OptimizationResult` shape from the v0.1.x path.
+    matching the :class:`OptimizationResult` shape from the default path.
 
     Parameters mirror :func:`_solve_multistart_3d`. ``strategy`` is passed
-    through to select the v0.1.x BFGS (``'tanh'``) vs ProjectedBFGS
-    (``'hard_bound'``) for each sub-multistart (so + compose:
+    through to select BFGS (``'tanh'``) vs ProjectedBFGS
+    (``'hard_bound'``) for each sub-multistart (so they compose:
     ``mode='per_subcondition_min', strategy='hard_bound'`` runs three
     ProjectedBFGS multistarts with seed isolation).
 
@@ -574,7 +551,6 @@ def optimize_wec(
     warm_start: str = "cold",
     neighbor_fraction: float = 1.0 / 16.0,
     starts: str = "axis+gaussian",
-    backend: str = "cpu",
     neighbor_observer: Float[Array, "4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case WEC observer via Optimistix BFGS.
@@ -614,12 +590,9 @@ def optimize_wec(
     OptimizationResult
         Contains margin, worst observer 4-vector, params, convergence info.
     """
-    # Validate additive kwargs (fail-fast; fp64 defaults preserve original behavior)
     _validate_warm_start(warm_start)
     _validate_neighbor_fraction(neighbor_fraction)
     _validate_starts(starts)
-    effective_backend = _resolve_backend(backend)
-    del effective_backend  # reserved for future backend-context dispatch
 
     if key is None:
         key = jax.random.PRNGKey(42)
@@ -659,7 +632,6 @@ def optimize_nec(
     warm_start: str = "cold",
     neighbor_fraction: float = 1.0 / 16.0,
     starts: str = "axis+gaussian",
-    backend: str = "cpu",
     neighbor_observer: Float[Array, "4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case NEC null direction via Optimistix BFGS.
@@ -704,8 +676,6 @@ def optimize_nec(
     _validate_warm_start(warm_start)
     _validate_neighbor_fraction(neighbor_fraction)
     _validate_starts(starts)
-    effective_backend = _resolve_backend(backend)
-    del effective_backend  # reserved for future backend-context dispatch
 
     if key is None:
         key = jax.random.PRNGKey(42)
@@ -745,7 +715,6 @@ def optimize_sec(
     warm_start: str = "cold",
     neighbor_fraction: float = 1.0 / 16.0,
     starts: str = "axis+gaussian",
-    backend: str = "cpu",
     neighbor_observer: Float[Array, "4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case SEC observer via Optimistix BFGS.
@@ -761,7 +730,7 @@ def optimize_sec(
         Metric tensor (covariant) at the same point.
     n_starts, zeta_max, rtol, atol, max_steps, key, strategy
         Same as optimize_wec (strategy is the dispatch).
-    warm_start, neighbor_fraction, starts, backend, neighbor_observer
+    warm_start, neighbor_fraction, starts, neighbor_observer
         Additive kwargs - same semantics as optimize_wec.
 
     Returns
@@ -773,8 +742,6 @@ def optimize_sec(
     _validate_warm_start(warm_start)
     _validate_neighbor_fraction(neighbor_fraction)
     _validate_starts(starts)
-    effective_backend = _resolve_backend(backend)
-    del effective_backend  # reserved for future backend-context dispatch
 
     if key is None:
         key = jax.random.PRNGKey(42)
@@ -819,7 +786,6 @@ def optimize_dec(
     warm_start: str = "cold",
     neighbor_fraction: float = 1.0 / 16.0,
     starts: str = "axis+gaussian",
-    backend: str = "cpu",
     neighbor_observer: Float[Array, "4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case DEC observer via Optimistix BFGS.
@@ -862,8 +828,6 @@ def optimize_dec(
     _validate_warm_start(warm_start)
     _validate_neighbor_fraction(neighbor_fraction)
     _validate_starts(starts)
-    effective_backend = _resolve_backend(backend)
-    del effective_backend  # reserved for future backend-context dispatch
 
     if key is None:
         key = jax.random.PRNGKey(42)
@@ -873,14 +837,11 @@ def optimize_dec(
     # NOTE (W-1): The original _dec_objective closes over T_mixed computed via
     # ``jnp.einsum("ac,cb->ab", g_inv, T_ab)``. Do NOT substitute
     # ``jnp.linalg.solve(g_ab, T_ab)`` - float-point residuals differ at the
-    # last few ULPs and would break the bit-exact regression sentinel
-    # (``test_default_mode_preserves_v1_0``).
+    # last few ULPs.
     T_mixed = jnp.einsum("ac,cb->ab", g_inv, T_ab)  # T^a_b
     zeta_max_arr = jnp.float64(zeta_max)
 
     if mode == "three_term_min":
-        # Default path - preserved bit-exact via existing _dispatch_multistart_3d
-        # routing (strategy='tanh' hits _solve_multistart_3d byte-identically).
         args = (T_ab, T_mixed, g_ab, tetrad, zeta_max_arr)
         best_obj, best_raw, best_physical, best_converged, best_n_steps = (
             _dispatch_multistart_3d(

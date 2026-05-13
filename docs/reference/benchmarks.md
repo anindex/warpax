@@ -15,7 +15,7 @@ in this repo:
 - **top-level `benchmarks/`** - the asv perf harness you are reading about.
 - **Python module `warpax.benchmarks`** (at `src/warpax/benchmarks/`) -
   a library of *reference spacetimes* (Minkowski, Schwarzschild,
-  Alcubierre). Pinned by the v0.1.x public API; renaming is not an
+  Alcubierre). Pinned by the public API; renaming is not an
   option.
 
 The top-level directory follows the SciPy / NumPy / Astropy convention

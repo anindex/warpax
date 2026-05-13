@@ -37,7 +37,7 @@ import sympy as sp
 from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
-# Defensively ensure float64 for standalone script execution
+# Ensure float64 for standalone script execution
 # (warpax/__init__.py already enables this; keep the redundant call so
 # the script also works when run standalone with a stale import order.)
 jax.config.update("jax_enable_x64", True)
