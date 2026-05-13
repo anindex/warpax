@@ -304,3 +304,66 @@ def fuchs_shell_profiles(
     FuchsShellProfiles
     """
     return _constant_density_shell_profiles(R_1, R_2, r_s_param)
+
+
+# ---------------------------------------------------------------------------
+# Input stress-energy from shell profiles
+# ---------------------------------------------------------------------------
+
+
+def fuchs_input_stress_energy(
+    metric: "FuchsMetric",
+    coords: Float[Array, "4"],
+) -> Float[Array, "4 4"]:
+    """Construct the claimed anisotropic-fluid T_input at a spacetime point.
+
+    T_{ab} = (rho + p_r) u_a u_b + p_r g_{ab} + (p_t - p_r) s_a s_b
+
+    where u^a = (1/alpha, 0, 0, 0) is the static-observer 4-velocity
+    and s^a is the unit radial spacelike vector orthogonal to u^a.
+
+    Parameters
+    ----------
+    metric : FuchsMetric
+    coords : Float[Array, "4"]
+        (t, x, y, z).
+
+    Returns
+    -------
+    Float[Array, "4 4"]
+        Covariant T_input_{ab}.
+    """
+    profiles = metric.shell_profiles()
+    g = metric(coords)
+
+    t, x, y, z = coords
+    x_rel = x - metric.v_s * t
+    r = jnp.sqrt(x_rel**2 + y**2 + z**2)
+
+    rho = profiles.density(r)
+    p_r = profiles.radial_pressure(r)
+    p_t = profiles.tangential_pressure(r)
+
+    alpha = metric.lapse(coords)
+
+    # Static observer
+    u_up = jnp.array([1.0 / alpha, 0.0, 0.0, 0.0])
+    u_down = g @ u_up
+
+    # Radial unit spacelike vector, orthogonalised against u
+    r_safe = jnp.maximum(r, 1e-30)
+    e_r = jnp.array([0.0, x_rel / r_safe, y / r_safe, z / r_safe])
+    e_r_dot_u = jnp.dot(g @ e_r, u_up)
+    s_up = e_r - e_r_dot_u * u_up
+    s_norm_sq = jnp.maximum(jnp.dot(g @ s_up, s_up), 1e-30)
+    s_up = s_up / jnp.sqrt(s_norm_sq)
+    s_down = g @ s_up
+
+    T_input = (
+        (rho + p_r) * jnp.outer(u_down, u_down)
+        + p_r * g
+        + (p_t - p_r) * jnp.outer(s_down, s_down)
+    )
+
+    return 0.5 * (T_input + T_input.T)
+

@@ -1,6 +1,12 @@
 """Warp drive spacetime metrics for observer-robust analysis."""
 
-from .fuchs import FuchsMetric, FuchsShellProfiles, fuchs_default, fuchs_shell_profiles
+from .fuchs import (
+    FuchsMetric,
+    FuchsShellProfiles,
+    fuchs_default,
+    fuchs_input_stress_energy,
+    fuchs_shell_profiles,
+)
 from .lentz import LentzMetric
 from .natario import NatarioMetric
 from .rodal import RodalMetric
@@ -18,6 +24,7 @@ __all__ = [
     "WarpShellPhysical",
     "WarpShellStressTest",
     "fuchs_default",
+    "fuchs_input_stress_energy",
     "fuchs_shell_profiles",
 ]
 
