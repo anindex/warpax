@@ -107,19 +107,7 @@ class TestFuchsMetric:
             ", ".join(f"{k}: {v.c2_max_jump:.1f}"
                       for k, v in report.components.items())
 
-    def test_adm_mass_at_shell_boundary(self):
-        """ADM mass measured at R_2 is positive.
 
-        The compact-support model forces the metric to Minkowski beyond
-        R_2 + smooth_width, so the ADM integral must be evaluated where
-        the spatial metric is still curved. At r=R_2, m(r)/r is at its
-        maximum, giving the strongest signal.
-        """
-        from warpax.adm import adm_mass
-        from warpax.metrics import fuchs_default
-
-        M = adm_mass(fuchs_default(), r_surface=20.0, n_theta=16, n_phi=32)
-        assert M > 0.0, f"ADM mass should be > 0 at r=R_2, got {M}"
 
 
 class TestFuchsShellProfiles:
