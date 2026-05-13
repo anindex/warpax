@@ -99,8 +99,8 @@ class GridSpec(eqx.Module):
 
     bounds: list = eqx.field(static=True)
     shape: tuple = eqx.field(static=True)
-    # Additive non-uniform-grid fields . Both default to None
-    # so pre-11-07 callers are bit-exact unaffected.
+    # Optional non-uniform-grid fields; both default to None so uniform-grid
+    # callers are unaffected.
     coord_arrays: tuple | None = eqx.field(static=True, default=None)
     volume_weights: tuple | None = eqx.field(static=True, default=None)
 

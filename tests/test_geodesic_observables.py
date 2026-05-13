@@ -96,10 +96,10 @@ class TestSchwarzschildTidalEigenvalues:
         # The most negative eigenvalue should be near -2M/r^3
         most_negative = min(eigs_np)
         np.testing.assert_allclose(
-            most_negative, radial_eig, rtol=0.10,
+            most_negative, radial_eig, rtol=1e-6,
             err_msg=(
                 f"Radial tidal eigenvalue {most_negative:.6e} does not match "
-                f"analytical {radial_eig:.6e} (10% tolerance)"
+                f"analytical {radial_eig:.6e}"
             ),
         )
 
@@ -110,10 +110,10 @@ class TestSchwarzschildTidalEigenvalues:
         )
         for pe in positive_eigs[:2]:
             np.testing.assert_allclose(
-                pe, transverse_eig, rtol=0.10,
+                pe, transverse_eig, rtol=1e-6,
                 err_msg=(
                     f"Transverse tidal eigenvalue {pe:.6e} does not match "
-                    f"analytical {transverse_eig:.6e} (10% tolerance)"
+                    f"analytical {transverse_eig:.6e}"
                 ),
             )
 

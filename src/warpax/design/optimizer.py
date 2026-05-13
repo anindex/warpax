@@ -171,7 +171,7 @@ def design_metric(
 
     # max_steps=0 short-circuit: return the input shape unchanged.
     # This is the reproduction path : the optimizer
-    # verifies that the basis preserves the input profile bit-exactly
+    # verifies that the basis preserves the input profile
     # when no BFGS step is taken (at the extreme
     # trivially a local minimum under zero step budget).
     if max_steps <= 0:
@@ -246,7 +246,7 @@ def design_metric(
     # Multistart: theta_init + small-radius Gaussian perturbations
     keys = jax.random.split(key, n_starts)
     # For the first start, use exact theta_init (no perturbation) so that
-    # reproduction preserves the Alcubierre starting point bit-exactly.
+    # reproduction preserves the Alcubierre starting point exactly.
     # Subsequent starts perturb for local-optimum exploration .
 
     # Always evaluate the starting shape as the initial best baseline.

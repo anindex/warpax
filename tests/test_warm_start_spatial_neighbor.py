@@ -7,7 +7,7 @@ would swap 1-of-16 starts with the neighbor grid point's previous
 worst-observer) requires grid-aware state plumbing through
 ``_solve_multistart_3d``. These tests therefore pin the CURRENT contract:
 
-- default ``warm_start='cold'`` is bit-exact to the v0.1.x path
+- default ``warm_start='cold'`` is bit-exact to the original cold path
 - ``warm_start='spatial_neighbor'`` is an accepted string value (no
   ValueError) and currently dispatches identically to cold
 - invalid values raise ValueError with verbatim message
@@ -29,7 +29,7 @@ from warpax.energy_conditions import (
 
 
 class TestSpatialNeighborWarmStart:
-    """warm_start kwarg contract tests (v1.1+ API surface)."""
+    """warm_start kwarg contract tests."""
 
     def _bench_inputs(self):
         """Standard Minkowski-like inputs that exercise all 4 optimize_*."""
@@ -38,8 +38,8 @@ class TestSpatialNeighborWarmStart:
         key = jax.random.PRNGKey(42)
         return T, g, key
 
-    def test_default_cold_preserves_v10_bit_exact(self):
-        """Default + explicit warm_start='cold' are bit-identical to v1.0."""
+    def test_default_cold_matches_explicit_cold(self):
+        """Default and explicit warm_start='cold' produce identical margins."""
         T, g, key = self._bench_inputs()
 
         for fn in [optimize_wec, optimize_sec, optimize_dec]:
@@ -49,7 +49,7 @@ class TestSpatialNeighborWarmStart:
                 f"{fn.__name__} drifted under warm_start='cold' explicit call"
             )
 
-        # NEC (2D) - check margin bit-exactness
+        # NEC (2D) - check margin equality
         r_default_nec = optimize_nec(T, g, key=key)
         r_explicit_nec = optimize_nec(T, g, warm_start="cold", key=key)
         assert jnp.array_equal(r_default_nec.margin, r_explicit_nec.margin)

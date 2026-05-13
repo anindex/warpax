@@ -1,13 +1,12 @@
 """asv benchmark - Fig 5 four-way EC comparison on Alcubierre.
 
 Parametrized 4-way comparison on Alcubierre matched parameters:
-1. v0.1.x ``tanh`` baseline (``strategy='tanh', warm_start='cold'``)
+1. ``tanh`` baseline (``strategy='tanh', warm_start='cold'``)
 2. ``hard_bound`` alone (``strategy='hard_bound'``)
 3. ``hard_bound + warm_start='spatial_neighbor'``
 4. ``hard_bound + starts='fibonacci+bfgs_top_k'``
 
-Target grid: Alcubierre v_s=0.5 R=1.0 σ=8.0 (the
-paper §2.1 canonical test spacetime). CPU-only; 20% asv noise budget.
+Target grid: Alcubierre v_s=0.5 R=1.0 σ=8.0. CPU-only; 20% asv noise budget.
 """
 
 from __future__ import annotations
@@ -46,11 +45,11 @@ class ECFourWayAlcubierre:
         self.key = jax.random.PRNGKey(42)
 
     def time_tanh_baseline(self) -> None:
-        """Curve 1: v0.1.x tanh + cold + axis+gaussian (baseline)."""
+        """Curve 1: tanh + cold + axis+gaussian (baseline)."""
         r = optimize_wec(
             self.T, self.g, key=self.key,
             strategy="tanh", warm_start="cold",
-            starts="axis+gaussian", backend="cpu",
+            starts="axis+gaussian",
         )
         r.margin.block_until_ready()
 
@@ -59,7 +58,7 @@ class ECFourWayAlcubierre:
         r = optimize_wec(
             self.T, self.g, key=self.key,
             strategy="hard_bound", warm_start="cold",
-            starts="axis+gaussian", backend="cpu",
+            starts="axis+gaussian",
         )
         r.margin.block_until_ready()
 
@@ -68,7 +67,7 @@ class ECFourWayAlcubierre:
         r = optimize_wec(
             self.T, self.g, key=self.key,
             strategy="hard_bound", warm_start="spatial_neighbor",
-            starts="axis+gaussian", backend="cpu",
+            starts="axis+gaussian",
         )
         r.margin.block_until_ready()
 
@@ -77,6 +76,6 @@ class ECFourWayAlcubierre:
         r = optimize_wec(
             self.T, self.g, key=self.key,
             strategy="hard_bound", warm_start="cold",
-            starts="fibonacci+bfgs_top_k", backend="cpu",
+            starts="fibonacci+bfgs_top_k",
         )
         r.margin.block_until_ready()

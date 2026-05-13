@@ -1,4 +1,4 @@
-"""Integration test: full admissibility check on known metrics."""
+"""Admissibility smoke test: constraints, ADM mass, falloff on known metrics."""
 from __future__ import annotations
 
 import jax
@@ -11,8 +11,8 @@ from warpax.constraints import normalized_residuals
 jax.config.update("jax_enable_x64", True)
 
 
-def test_admissibility_audit_minkowski():
-    """Minkowski should pass all admissibility criteria."""
+def test_admissibility_minkowski():
+    """Minkowski passes all admissibility criteria."""
     metric = MinkowskiMetric()
     coords = jnp.array([0.0, 1.0, 0.0, 0.0], dtype=jnp.float64)
 
@@ -30,8 +30,8 @@ def test_admissibility_audit_minkowski():
     assert all(falloff.values())
 
 
-def test_admissibility_audit_schwarzschild():
-    """Schwarzschild should pass constraint and mass checks."""
+def test_admissibility_schwarzschild():
+    """Schwarzschild passes constraint and mass checks."""
     metric = SchwarzschildMetric()
     coords = jnp.array([0.0, 10.0, 0.0, 0.0], dtype=jnp.float64)
 

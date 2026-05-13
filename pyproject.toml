@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "warpax"
-version = "0.3.0"
+version = "0.3.1"
 description = "Observer-robust energy condition verification for warp drive spacetimes"
 readme = "README.md"
 requires-python = ">=3.12"

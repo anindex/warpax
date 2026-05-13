@@ -38,7 +38,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-# Defensive float64 (in case this is run standalone before warpax import)
+# Ensure float64 in case this script is run standalone before warpax import.
 jax.config.update("jax_enable_x64", True)
 
 from warpax.design import ShapeFunction, design_metric
@@ -87,8 +87,8 @@ def main(argv=None):
         objective="nec",
         strategy="hard_bound",
         n_starts=16,
-        max_steps=0,  # at extreme: preserve starting spline bit-exactly
-        key=jax.random.PRNGKey(42),  # 
+        max_steps=0,  # short-circuit: preserve the starting spline
+        key=jax.random.PRNGKey(42),
     )
 
     # Verify: sample at the knots (cubic spline interpolation exact there)
@@ -118,9 +118,8 @@ def main(argv=None):
     print(f"  Shape: {final_values.shape}, dtype: {final_values.dtype}")
 
     if args.probe_grid == "dense":
-        # : dense probe grid rel_err.
-        # 100-point uniform 1D grid on [0, 12].
-        # scope-honest adaptive - measure, record, do not gate.
+        # Dense probe grid rel_err: 100-point uniform 1D grid on [0, 12].
+        # Measurement only; not a gating check.
         n_probe = args.probe_grid_size
         x_probe = jnp.linspace(0.0, 12.0, n_probe)
         f_true_probe = 1.0 - jnp.tanh((x_probe - R) / sigma) ** 2

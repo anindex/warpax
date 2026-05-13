@@ -27,7 +27,6 @@ Lookup-oriented autodoc of the public API, plus the pinned-default catalog.
 
 - [API reference](reference/index.md)
 - [Metric catalog](reference/metric_catalog.md)
-- [v0.1.x API defaults](reference/api_defaults.md)
 
 ## Explanation
 

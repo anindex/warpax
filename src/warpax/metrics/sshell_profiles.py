@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import NamedTuple
 
+import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
@@ -68,8 +69,8 @@ def _integrate_tov_pressure(
 
     dp_r/dr = -(rho + p_r)(m + 4pi r^3 p_r) / (r(r - 2m))
 
-    Boundary condition: p_r(R_2) = 0. Uses forward Euler on a fine
-    inward grid; sufficient for the smooth profiles considered here.
+    Boundary condition: p_r(R_2) = 0. Uses forward Euler via jax.lax.scan
+    on a fine inward grid; sufficient for the smooth profiles here.
 
     Parameters
     ----------
@@ -88,8 +89,8 @@ def _integrate_tov_pressure(
     r_grid = jnp.linspace(R_2, R_1, n_grid)
     dr = r_grid[1] - r_grid[0]
 
-    rho_vals = jnp.array([float(rho_fn(jnp.asarray(r))) for r in r_grid])
-    m_vals = jnp.array([float(m_fn(jnp.asarray(r))) for r in r_grid])
+    rho_vals = jax.vmap(rho_fn)(r_grid)
+    m_vals = jax.vmap(m_fn)(r_grid)
 
     def tov_rhs(r_val, p_val, rho_val, m_val):
         r_safe = jnp.maximum(r_val, 1e-30)
@@ -98,17 +99,17 @@ def _integrate_tov_pressure(
         numer = -(rho_val + p_val) * (m_val + 4.0 * jnp.pi * r_safe**3 * p_val)
         return numer / denom_safe
 
-    p_current = 0.0
-    p_list = [p_current]
-    for i in range(1, n_grid):
-        dp = float(tov_rhs(
-            r_grid[i - 1], p_current, rho_vals[i - 1], m_vals[i - 1],
-        )) * float(dr)
-        p_current = max(p_current + dp, 0.0)
-        p_list.append(p_current)
+    def scan_step(p_current, inputs):
+        r_val, rho_val, m_val = inputs
+        dp = tov_rhs(r_val, p_current, rho_val, m_val) * dr
+        p_next = jnp.maximum(p_current + dp, 0.0)
+        return p_next, p_next
+
+    _, p_scan = jax.lax.scan(scan_step, jnp.float64(0.0), (r_grid[:-1], rho_vals[:-1], m_vals[:-1]))
+    p_all = jnp.concatenate([jnp.array([0.0]), p_scan])
 
     r_ascending = jnp.flip(r_grid)
-    p_ascending = jnp.flip(jnp.array(p_list))
+    p_ascending = jnp.flip(p_all)
 
     def p_r_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         in_shell = (r >= R_1) & (r <= R_2)
@@ -134,7 +135,7 @@ def _compute_cumulative_mass(
     r_grid = jnp.linspace(0.0, r_max, n_grid)
     dr = r_grid[1] - r_grid[0]
 
-    rho_vals = jnp.array([float(rho_fn(jnp.asarray(r))) for r in r_grid])
+    rho_vals = jax.vmap(rho_fn)(r_grid)
     integrand = 4.0 * jnp.pi * rho_vals * r_grid**2
 
     m_vals = jnp.concatenate([

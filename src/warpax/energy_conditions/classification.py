@@ -45,16 +45,14 @@ def classify_hawking_ellis(
     solver : {'standard', 'generalized'}, keyword-only
         Eigenvalue backend.
 
-        - ``'standard'`` (default): ``jnp.linalg.eig(T_mixed)`` - the v1.1
-          path; preserves byte-exact behavior and remains scipy-free.
+        - ``'standard'`` (default): ``jnp.linalg.eig(T_mixed)``;
+          scipy-free pure-JAX path.
         - ``'generalized'``: ``scipy.linalg.eig(T_ab, g_ab)`` via
-          :func:`jax.pure_callback`; solves the pencil ``(T − λg)v = 0``
+          :func:`jax.pure_callback`; solves the pencil ``(T - lam g)v = 0``
           directly. Stabilises Jordan-defective classification at
           near-degenerate eigenstructure (e.g. WarpShell v_s=0.5 idx=8
-          near ``|λ| ~ 10^42``). Carries host-callback overhead (~5-10x
+          near ``|lam| ~ 10^42``). Carries host-callback overhead (~5-10x
           slower per grid; see :mod:`._gen_eig_callback` Notes).
-
-        Implements the generalized eigenvalue solver as committed in the paper.
     T_ab : Float[Array, "4 4"] or None, keyword-only
         Covariant stress-energy tensor T_{ab}, required when
         ``solver='generalized'`` for numerical stability. If ``None`` and
@@ -92,7 +90,6 @@ def classify_hawking_ellis(
     T_safe = jnp.where(jnp.isnan(T_mixed), 0.0, T_mixed)
 
     if solver == 'standard':
-        # BIT-EXACT v0.2.0 path - no edits to the code below this line
         eigenvalues, eigenvectors = jnp.linalg.eig(T_safe)
     else:  # solver == 'generalized'
         if T_ab is None:
@@ -152,15 +149,13 @@ def classify_hawking_ellis(
     # below computes the physical causal-character indicator.
     #
     # use a RELATIVE sign threshold (normalise against max
-    # |v^T g v|). The pre-fix absolute ``tol`` lost relative resolution
-    # at large g-scale: at WarpShell-style points where
-    # |g_{ab}| · |v|^2 ~ 10^{11} the spurious-noise floor for null
-    # detection scales with max|causal|, so a fixed ``tol`` over-tightens
-    # the timelike test and over-loosens the null test. The relative
-    # threshold restores scale-aware sign discrimination at all metric
-    # component scales. Behaviour at Minkowski / unit-scale (max|causal|
-    # <= 1.0) is bit-preserved because ``g_quad_scale`` floors at 1.0.
-    # See:
+    # |v^T g v|). An absolute ``tol`` loses relative resolution at large
+    # g-scale: at WarpShell-style points where |g_{ab}| * |v|^2 ~ 10^{11}
+    # the spurious-noise floor for null detection scales with max|causal|,
+    # so a fixed ``tol`` over-tightens the timelike test and over-loosens
+    # the null test. The relative threshold restores scale-aware sign
+    # discrimination at all metric component scales. ``g_quad_scale``
+    # floors at 1.0 so Minkowski / unit-scale behaviour is unchanged.
     # ------------------------------------------------------------------
     causal = jnp.einsum("ab,ak,bk->k", g_ab, evecs_real, evecs_real)
     g_quad_scale = jnp.maximum(jnp.max(jnp.abs(causal)), 1.0)

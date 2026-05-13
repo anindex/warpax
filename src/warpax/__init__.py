@@ -28,15 +28,10 @@ if os.environ.get("WARPAX_BEARTYPE") == "1":
 
     beartype_this_package()
 
-__version__ = "0.2.0"
+__version__ = "0.3.1"
 __author__ = "An T. Le"
 __email__ = "an@robot-learning.de"
 
-# Public API surface is frozen at v1.0. Any addition, rename, or removal
-# must be reflected in tests/fixtures/v1_api_surface_v1_0.json AND
-# tests/fixtures/v1_api_defaults_v1_0.json (defaults snapshot).
-# Regenerate via `pytest tests/test_v1_api_surface.py --regenerate` and
-# commit the diff with a CHANGELOG entry.
 from . import design as design
 
 __all__ = [

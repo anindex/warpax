@@ -16,10 +16,6 @@ Activation:
     WARPAX_JIT_CACHE=1 -> persistent cache enabled
     WARPAX_JIT_CACHE=0 -> explicitly disabled (equivalent to unset)
     unset -> JAX default behavior (no persistent cache)
-
-The module is private (underscore prefix): the only user-facing surface is the
-environment variable. No public symbol is added, preserving the v0.1.x API
-surface contract; ``tests/test_v1_api_surface.py`` remains green.
 """
 
 from __future__ import annotations

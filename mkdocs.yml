@@ -81,7 +81,6 @@ nav:
   - Reference:
       - reference/index.md
       - reference/metric_catalog.md
-      - reference/api_defaults.md
       - reference/benchmarks.md
   - Explanation:
       - explanation/ARCHITECTURE.md

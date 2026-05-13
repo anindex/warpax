@@ -127,7 +127,6 @@ warpax ships comprehensive documentation in [`docs/`](docs/), organized followin
 
 - [**API reference**](docs/reference/index.md) - autodoc of the public API
 - [**Metric catalog**](docs/reference/metric_catalog.md) - all eight shipped metrics
-- [**Pinned API defaults**](docs/reference/api_defaults.md) - frozen v0.1.x default parameters
 - [**Benchmarks**](docs/reference/benchmarks.md) - asv regression harness
 
 ### Explanation

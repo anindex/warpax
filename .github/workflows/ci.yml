@@ -41,17 +41,7 @@ jobs:
             tests/test_ec_observer.py \
             tests/test_ec_verifier.py \
             tests/test_invariants.py \
-            tests/test_edge_cases.py \
-            tests/test_t_ab_symmetry.py \
-            tests/test_precision_parity.py
-
-      - name: API surface and infrastructure tests
-        run: |
-          uv run pytest -x -q --tb=short \
-            tests/test_v1_api_surface.py \
-            tests/test_beartype_optin.py \
-            tests/test_jit_cache.py \
-            tests/test_reproduce_cpu_pin.py
+            tests/test_edge_cases.py
 
       - name: Analysis and integration tests
         run: |

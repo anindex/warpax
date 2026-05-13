@@ -426,9 +426,9 @@ class TestANECIntegrand:
 
 class TestANECIntegralStub:
     """anec_integral is deprecated - emits DeprecationWarning and delegates to
-    ``warpax.averaged.anec`` .
+    ``warpax.averaged.anec``.
 
-    The v0.1.x behavior (``raise NotImplementedError``) is replaced; calling
+    The legacy ``raise NotImplementedError`` is replaced; calling
     ``anec_integral(None, None)`` no longer raises NotImplementedError - it
     first emits DeprecationWarning then fails type-check on the None inputs.
     This test validates that the DeprecationWarning path is active.

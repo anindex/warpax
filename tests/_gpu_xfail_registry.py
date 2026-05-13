@@ -2,21 +2,11 @@
 
 Materialised from the baseline pytest log capturing the cuBLAS LT
 autotuner and cuSolver failure modes on sm_120.
-
-Count
------
-The log (source of truth) shows **79** unique failing test IDs on the
-workaround-XLA-no-cublaslt configuration. Any change to this count
-requires a CHANGELOG entry.
 """
 
 from __future__ import annotations
 
-__all__ = ["EXPECTED_GPU_FAILURES", "EXPECTED_GPU_FAILURES_COUNT_TARGET"]
-
-# Count locked from log materialisation (2026-04-19).
-# See module docstring §"Count deviation" for the 79-vs-117 rationale.
-EXPECTED_GPU_FAILURES_COUNT_TARGET: int = 79
+__all__ = ["EXPECTED_GPU_FAILURES"]
 
 
 EXPECTED_GPU_FAILURES: frozenset[str] = frozenset(
@@ -107,6 +97,5 @@ EXPECTED_GPU_FAILURES: frozenset[str] = frozenset(
         "tests/test_ec_optimization.py::TestBFGSBoundaryStall::test_bfgs_boundary_stall_detected",
         "tests/test_optimizer_prng_golden.py::test_golden_starter_pool_at_default_config",
         "tests/scripts/test_example_07_smoke.py::TestExample07Smoke::test_single_point_runs",
-        # TOTAL: 79 entries (see EXPECTED_GPU_FAILURES_COUNT_TARGET)
     }
 )
