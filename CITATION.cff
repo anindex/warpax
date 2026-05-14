@@ -9,8 +9,8 @@ authors:
     orcid: "https://orcid.org/0000-0003-0929-3316"
 repository-code: "https://github.com/anindex/warpax"
 license: MIT
-version: 0.2.0
-date-released: "2026-04-25"
+version: 0.4.0
+date-released: "2026-05-14"
 keywords:
   - warp drive
   - general relativity
@@ -19,11 +19,27 @@ keywords:
   - automatic differentiation
   - geodesics
   - curvature
+  - source consistency
+  - Einstein constraints
+  - Hawking-Ellis classification
 abstract: >-
   WarpAX uses JAX automatic differentiation to compute exact curvature tensors
   from analytic warp drive metrics and performs continuous BFGS optimization over
   the full timelike observer manifold to find worst-case energy condition
-  violations. This goes beyond the standard Eulerian-observer approach by
-  searching over all physically admissible observers, parameterized by bounded
-  rapidity in stereographic coordinates, to detect violations that axis-aligned
-  sampling can miss.
+  violations.  The toolkit includes source-consistency modules for Einstein
+  constraint residuals, anisotropic TOV equilibrium, ADM mass, Israel junction
+  conditions, and invariant transport diagnostics, as well as source-first shell
+  construction (S-shell Class I, T-shell Class II) with Bernstein-parameterized
+  profiles and constraint-derived metric potentials.
+preferred-citation:
+  type: article
+  authors:
+    - given-names: An T.
+      family-names: Le
+  title: "Observer-robust energy condition verification for warp drive spacetimes"
+  year: 2026
+  identifiers:
+    - type: other
+      value: "arXiv:2602.18023"
+    - type: doi
+      value: "10.5281/zenodo.18715933"

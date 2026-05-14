@@ -53,14 +53,17 @@ Two-tier verification strategy:
    T_{ab} u^a u^b across the bounded timelike observer manifold.
 
 ### `metrics`
-Six warp drive metrics, each implementing `MetricFunction: (4,) -> (4,4)`:
+Nine warp drive metrics, each implementing `MetricFunction: (4,) -> (4,4)`:
 
-- **Alcubierre** - the original warp drive (1994)
-- **Natário** - zero-expansion variant (2001)
+- **Alcubierre** (WarpShell) - the original warp drive (1994)
+- **Natario** - zero-expansion variant (2001)
 - **Lentz** - shift-only positive-energy candidate (2020)
 - **Rodal** - globally Type I algebraic solution (2025)
 - **Van den Broeck** - volume-expansion variant (1999)
-- **WarpShell** - spherical shell geometry with C¹/C² transitions
+- **WarpShell** - spherical shell geometry with C^1/C^2 transitions
+- **Fuchs** - constant-velocity physical warp shell (2024)
+- **S-shell** - source-first Class I (flow-orthogonal, constraint-derived potentials)
+- **T-shell** - source-first Class II (tilted matter flow, momentum-constraint-derived shift)
 
 ### `geodesics`
 Geodesic integration via Diffrax ODE solvers. Computes:
@@ -74,9 +77,38 @@ Higher-level analysis utilities:
 - Richardson extrapolation convergence analysis
 - Kinematic scalars: expansion θ, shear σ², vorticity ω²
 
+### `constraints`
+Source-consistency modules: Hamiltonian and momentum constraint residuals with
+scale-invariant normalization, source-consistency T_ab residual comparison,
+S-shell constraint solver (tridiagonal), T-shell constraint solver with
+momentum-constraint-derived shift. All solvers use pure JAX (no scipy).
+
+### `tov`
+Anisotropic TOV equilibrium checker for spherical shells.
+
+### `adm`
+ADM mass via surface integral with Gauss-Legendre angular quadrature.
+Asymptotic flatness report with multi-radius falloff verification.
+
+### `junction`
+Israel/Darmois junction conditions with two-sided extrinsic curvature jump.
+Surface stress-energy for thin-shell constructions.
+
+### `transport`
+Invariant transport diagnostics: geodesic deviation, null round-trip asymmetry,
+blueshift hazard. All geodesic-based via Diffrax.
+
+### `optimization`
+Source-first shell optimization: Bernstein polynomial basis for profile
+parameterization, multi-objective loss (constraints + EC penalty + tidal +
+transport + ADM mass), EC soft/hard constraint enforcement, 2D parameter
+sweep over (compactness, thickness) with `SweepResult` serialization.
+
 ### `visualization`
 - **Matplotlib**: static figures (heatmaps, convergence plots,
   comparison grids, kinematic scalar maps, geodesic observables)
+- **Phase diagrams**: transport heatmap with EC boundary hatching, 2x2
+  summary panel (transport / EC margin / constraint residual / tidal)
 - **Manim CE**: Animated 3D scenes (bubble collapse, velocity ramp, EC heatmap
   contours, observer sweep)
 

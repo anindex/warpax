@@ -1,8 +1,8 @@
 # Metric catalog
 
-warpax ships eight metrics: six warp drive variants under
+warpax ships eleven metrics: nine warp drive variants under
 ``warpax.metrics``, and two reference spacetimes (Minkowski, Schwarzschild)
-plus an Alcubierre benchmark under ``warpax.benchmarks``.
+under ``warpax.benchmarks``.
 
 ## Warp drive metrics - ``warpax.metrics``
 
@@ -27,14 +27,14 @@ unlike Alcubierre which is dominated by Type IV at the wall.
 
 Spherical-shell geometry with $C^1$ / $C^2$ smooth transitions.
 Curvature magnitudes are extreme near the shell boundary; the metric is
-useful as a stress-test of the curvature chain at large Kretschmann values.
+useful as a stress-test of the curvature chain at large Kretschner values.
 
 ::: warpax.metrics.WarpShellMetric
 
 ### `LentzMetric`
 
 Lentz (2020) shift-only, positive-energy candidate. See the paper for
-under-resolution caveats - the wall is thinly sampled at low grid
+under-resolution caveats -- the wall is thinly sampled at low grid
 resolutions.
 
 ::: warpax.metrics.LentzMetric
@@ -54,12 +54,41 @@ nested-warp envelope with an exterior radius `R` and interior radius
 
 ::: warpax.metrics.VanDenBroeckMetric
 
+### `FuchsMetric`
+
+Fuchs et al. (2024) constant-velocity physical warp shell
+(arXiv:2405.02709). Anisotropic pressures, non-unit lapse, smooth density
+profile within a compact shell ($R_1 = 10$, $R_2 = 20$, $v_s = 0.02$).
+Includes paper-exact shell source profiles via `FuchsShellProfiles`.
+
+::: warpax.metrics.FuchsMetric
+
+### `SShellMetric`
+
+Source-first Class I shell (S-shell). Flow-orthogonal matter ($u^a =
+n^a$), non-flat spatial metric, non-unit lapse, isotropic pressure. Metric
+potentials derived from the Hamiltonian constraint and anisotropic TOV
+equilibrium. Zero shift (no transport utility); serves as a clean baseline
+for constraint satisfaction.
+
+::: warpax.metrics.SShellMetric
+
+### `TShellMetric`
+
+Source-first Class II shell (T-shell). Tilted matter flow with nonzero
+Eulerian momentum density $S_i$. Shift $\beta^x$ derived from the momentum
+constraint (not prescribed). Addresses the Barzegar et al.
+source-consistency critique. Achieves $\epsilon_{\mathcal{H}} \approx 5
+\times 10^{-3}$ with positive EC margins in the deep shell interior.
+
+::: warpax.metrics.TShellMetric
+
 ## Reference spacetimes - ``warpax.benchmarks``
 
 ### `MinkowskiMetric`
 
-Pure Minkowski: $g_{ab}=\\eta_{ab}=\\mathrm{diag}(-1,1,1,1)$. The
-ground-truth sanity check - all curvature tensors vanish.
+Pure Minkowski: $g_{ab}=\eta_{ab}=\mathrm{diag}(-1,1,1,1)$. The
+ground-truth sanity check -- all curvature tensors vanish.
 
 ::: warpax.benchmarks.MinkowskiMetric
 
