@@ -5,6 +5,40 @@ All notable changes to `warpax` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0]
+
+Adds a 2D parameter sweep over (compactness, thickness) for warp-shell
+ansätze and a phase-diagram visualisation module.
+
+### Added
+- `warpax.optimization.sweep_transport(...)` sweeps (compactness,
+  thickness_ratio) for T-shell or S-shell, certifying EC admissibility at
+  every point. Returns a `SweepResult` with `.to_grids()`, `.save()`,
+  `.load()` helpers.
+- `warpax.visualization.plot_phase_diagram` and `plot_phase_summary`:
+  single-panel transport heatmap with EC boundary + hatching, and a 2x2
+  summary (transport / EC margin / constraint residual / tidal).
+- `examples/10_phase_diagram.py` end-to-end demo (`--full` for
+  paper-resolution sweep).
+- `evaluate_loss(skip_ec=, fast=)` so the inner loss can skip the
+  expensive EC pass when the constraint solver already enforces it.
+
+### Fixed
+- Sweep failures used to swallow the exception. They now warn with the
+  failing `(compactness, thickness)` point and the exception.
+- Constraint-residual probe grid used hard-coded `+/- 0.5` offsets, which
+  inverted for thin shells. Now uses 2% of the shell width.
+- `_save_or_return` returned a closed figure handle when `save_path` was
+  given. Now returns `None`.
+- `pcolormesh` used `shading="gouraud"` on cell-centred sweep data,
+  smearing the EC boundary. Now uses `shading="nearest"`.
+
+### Removed
+- `compute_invariant_transport()` built profiles via a different factory
+  than the rest of the sweep code, so the metrics it produced did not
+  match what `sweep_transport` evaluated. No external callers.
+- Unused `weights` parameter from `sweep_transport()`.
+
 ## [0.3.1]
 
 Cleanup release. Removes dead test scaffolding, fixes a spot bug in

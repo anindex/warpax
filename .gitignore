@@ -50,6 +50,7 @@ benchmarks/.asv/
 
 # Generated figure PDFs (reproducible via reproduce_all.sh)
 figures/*.pdf
+output/*
 
 # uv lock file (deterministic deps are in requirements-lock.txt)
 uv.lock

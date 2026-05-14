@@ -4,6 +4,9 @@ Float64 enforcement is verified at import time. Every test that touches
 JAX arrays should confirm dtype == float64 in its assertions.
 """
 
+import os
+os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
+
 import jax.numpy as jnp
 import pytest
 

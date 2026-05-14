@@ -2,7 +2,8 @@
 
 Compact-support Bernstein basis for source profile parameterization,
 multi-objective loss (constraints + EC + tidal + transport + mass),
-and EC constraint enforcement (soft penalty + hard feasibility).
+EC constraint enforcement (soft penalty + hard feasibility),
+and parameter space sweep for transport utility maximization.
 """
 from __future__ import annotations
 
@@ -31,6 +32,11 @@ from .optimizer import (
     OptimizationResult,
     optimize_shell,
 )
+from .sweep import (
+    SweepPoint,
+    SweepResult,
+    sweep_transport,
+)
 
 __all__ = [
     "ECFeasibilityResult",
@@ -38,6 +44,8 @@ __all__ = [
     "LossWeights",
     "OptimizationResult",
     "ShellCoeffs",
+    "SweepPoint",
+    "SweepResult",
     "bernstein_basis",
     "bernstein_eval",
     "clamp_endpoints",
@@ -49,5 +57,6 @@ __all__ = [
     "evaluate_loss",
     "optimize_shell",
     "pack_theta",
+    "sweep_transport",
     "unpack_theta",
 ]

@@ -49,6 +49,8 @@ def evaluate_loss(
     n_probes: int = 20,
     weights: LossWeights | None = None,
     n_ec_starts: int = 4,
+    skip_ec: bool = False,
+    fast: bool = False,
 ) -> tuple[Float[Array, ""], LossComponents]:
     """Evaluate multi-objective loss for a parameter vector.
 
@@ -62,6 +64,11 @@ def evaluate_loss(
     n_probes : radial probe points for EC/constraint evaluation.
     weights : loss weights.
     n_ec_starts : BFGS multi-start count for EC margin.
+    skip_ec : if True, skip EC optimization (set ec_loss=0).
+    fast : if True, skip both EC and constraint probing. Only
+        transport + mass are computed. Use for the inner
+        optimization loop when constraint residuals are not
+        needed (the constraint solver already enforces them).
     """
     if weights is None:
         weights = LossWeights()
@@ -81,9 +88,22 @@ def evaluate_loss(
     else:
         raise ValueError(f"Unknown ansatz: {ansatz!r}")
 
-    r_probes = jnp.linspace(R_1 - 1.0, R_2 + 1.0, n_probes)
+    transport = jnp.asarray(max_beta)
+    mass = jnp.asarray(float(metric.total_mass))
 
-    # Constraint residuals (vmap-safe: normalized_residuals is pure JAX)
+    if fast:
+        total = weights.w_transport * transport + weights.w_mass * mass
+        return total, LossComponents(
+            total=float(total),
+            constraint=0.0,
+            ec_penalty=0.0,
+            tidal=0.0,
+            transport=float(transport),
+            mass=float(mass),
+        )
+
+    r_probes = jnp.linspace(R_1, R_2, n_probes)
+
     from ..constraints.residuals import normalized_residuals
 
     def eval_constraint(r_val):
@@ -94,40 +114,37 @@ def evaluate_loss(
     constraint_vals = jax.vmap(eval_constraint)(r_probes)
     constraint_loss = jnp.mean(constraint_vals)
 
-    # EC margins -- Python loop over probes because EC optimizers use
-    # internal Python control flow (DEC subconditions) that is not vmap-safe
-    from ..energy_conditions.optimization import optimize_nec, optimize_wec, optimize_dec
-    from ..geometry.geometry import compute_curvature_chain
+    if skip_ec:
+        ec_loss = jnp.float64(0.0)
+    else:
+        from ..energy_conditions.optimization import optimize_nec, optimize_wec, optimize_dec
+        from ..geometry.geometry import compute_curvature_chain
 
-    ec_penalties = []
-    for i in range(n_probes):
-        r_val = r_probes[i]
-        coords = jnp.array([0.0, r_val, 0.0, 0.0])
-        cc = compute_curvature_chain(metric, coords)
-        T = jnp.where(jnp.isnan(cc.stress_energy), 0.0, cc.stress_energy)
-        g = cc.metric
+        ec_penalties = []
+        for i in range(n_probes):
+            r_val = r_probes[i]
+            coords = jnp.array([0.0, r_val, 0.0, 0.0])
+            cc = compute_curvature_chain(metric, coords)
+            T = jnp.where(jnp.isnan(cc.stress_energy), 0.0, cc.stress_energy)
+            g = cc.metric
 
-        nec_res = optimize_nec(T, g, n_starts=n_ec_starts)
-        wec_res = optimize_wec(T, g, n_starts=n_ec_starts)
-        dec_res = optimize_dec(T, g, n_starts=n_ec_starts)
+            nec_res = optimize_nec(T, g, n_starts=n_ec_starts)
+            wec_res = optimize_wec(T, g, n_starts=n_ec_starts)
+            dec_res = optimize_dec(T, g, n_starts=n_ec_starts)
 
-        penalty = (
-            jax.nn.softplus(-nec_res.margin)**2
-            + jax.nn.softplus(-wec_res.margin)**2
-            + jax.nn.softplus(-dec_res.margin)**2
-        )
-        ec_penalties.append(penalty)
+            penalty = (
+                jax.nn.softplus(-nec_res.margin)**2
+                + jax.nn.softplus(-wec_res.margin)**2
+                + jax.nn.softplus(-dec_res.margin)**2
+            )
+            ec_penalties.append(penalty)
 
-    ec_loss = jnp.mean(jnp.stack(ec_penalties))
+        ec_loss = jnp.mean(jnp.stack(ec_penalties))
 
-    # Tidal force at interior (passenger cabin, r < R_1)
     from ..transport.diagnostics import geodesic_deviation_diagnostic
     tidal = geodesic_deviation_diagnostic(
         metric, jnp.array([0.0, R_1 * 0.5, 0.0, 0.0]),
     )
-
-    transport = jnp.asarray(max_beta)
-    mass = jnp.asarray(float(metric.total_mass))
 
     total = (
         weights.w_constraint * constraint_loss

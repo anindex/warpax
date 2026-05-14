@@ -10,6 +10,7 @@ Modules
 - **kinematic_plots**: Expansion/shear/vorticity scalar field maps.
 - **geodesic_plots**: Tidal eigenvalue evolution and blueshift profile plots.
 - **alignment_plots**: Worst-observer alignment angle histograms.
+- **phase_diagram**: EC-admissible transport phase diagrams.
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from .convergence_plots import plot_convergence, plot_convergence_table
 from .geodesic_plots import plot_blueshift_profile, plot_tidal_evolution
 from .kinematic_plots import plot_kinematic_comparison, plot_kinematic_scalars
 from .alignment_plots import plot_alignment_histogram
+from .phase_diagram import plot_phase_diagram, plot_phase_summary
 
 __all__ = [
     # comparison_plots
@@ -41,4 +43,7 @@ __all__ = [
     "plot_kinematic_scalars",
     # alignment_plots
     "plot_alignment_histogram",
+    # phase_diagram
+    "plot_phase_diagram",
+    "plot_phase_summary",
 ]
