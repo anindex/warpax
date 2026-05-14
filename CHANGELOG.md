@@ -7,36 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0]
 
-Adds a 2D parameter sweep over (compactness, thickness) for warp-shell
-ansätze and a phase-diagram visualisation module.
+Source-first warp shell construction, parameter sweep, and phase-diagram
+visualization.  Introduces two new shell ansatze (S-shell Class I, T-shell
+Class II) with Bernstein-parameterized source profiles and constraint-derived
+metric potentials, a 2D design-space sweep over compactness and thickness, and
+publication-quality phase diagram plotting.
 
 ### Added
-- `warpax.optimization.sweep_transport(...)` sweeps (compactness,
+- `warpax.metrics.SShellMetric` + `sshell_default()` + `sshell_from_profiles()` -
+  source-first Class I shell with flow-orthogonal matter, non-unit lapse, and
+  isotropic pressure.  Metric potentials derived from the Hamiltonian constraint
+  and anisotropic TOV equilibrium.
+- `warpax.metrics.TShellMetric` + `tshell_default()` + `tshell_from_profiles()` -
+  source-first Class II shell with tilted matter flow.  Shift `beta^x` derived
+  from the momentum constraint (not prescribed), addressing the Barzegar et al.
+  (arXiv:2602.16495) source-consistency critique.
+- `warpax.metrics.sshell_profiles` - S-shell source profile factories:
+  `constant_density_profiles`, `parabolic_density_profiles`,
+  `bernstein_density_profiles` with `SShellSourceProfiles` container.
+- `warpax.metrics.tshell_profiles` - T-shell velocity profile factories:
+  `constant_velocity_profiles`, `parabolic_velocity_profiles`,
+  `bernstein_velocity_profiles` with `TShellSourceProfiles` container.
+- `warpax.constraints.constraint_solver` - pure-JAX S-shell constraint solver
+  using `jax.lax.linalg.tridiagonal_solve`.
+- `warpax.constraints.tshell_solver` - pure-JAX T-shell constraint solver
+  with momentum-constraint-derived shift.
+- `warpax.optimization.basis` - Bernstein polynomial basis with compact support
+  for profile parameterization: `bernstein_basis`, `bernstein_eval`,
+  `pack_theta`, `unpack_theta`, `ShellCoeffs`.
+- `warpax.optimization.loss` - multi-objective loss combining constraint
+  residuals, EC penalty, tidal force, transport proxy, and ADM mass.
+- `warpax.optimization.ec_constraints` - EC soft penalty (softplus) and hard
+  feasibility check with per-condition margin arrays.
+- `warpax.optimization.optimizer` - Nelder-Mead optimizer driver for shell
+  profile optimization.
+- `warpax.optimization.sweep` - `sweep_transport(...)` sweeps (compactness,
   thickness_ratio) for T-shell or S-shell, certifying EC admissibility at
-  every point. Returns a `SweepResult` with `.to_grids()`, `.save()`,
+  every point.  Returns a `SweepResult` with `.to_grids()`, `.save()`,
   `.load()` helpers.
 - `warpax.visualization.plot_phase_diagram` and `plot_phase_summary`:
   single-panel transport heatmap with EC boundary + hatching, and a 2x2
   summary (transport / EC margin / constraint residual / tidal).
 - `examples/10_phase_diagram.py` end-to-end demo (`--full` for
-  paper-resolution sweep).
-- `evaluate_loss(skip_ec=, fast=)` so the inner loss can skip the
-  expensive EC pass when the constraint solver already enforces it.
+  paper-resolution 20x15 sweep).
 
 ### Fixed
-- Sweep failures used to swallow the exception. They now warn with the
+- Sweep failures used to swallow the exception.  They now warn with the
   failing `(compactness, thickness)` point and the exception.
 - Constraint-residual probe grid used hard-coded `+/- 0.5` offsets, which
-  inverted for thin shells. Now uses 2% of the shell width.
+  inverted for thin shells.  Now uses 2% of the shell width.
 - `_save_or_return` returned a closed figure handle when `save_path` was
-  given. Now returns `None`.
+  given.  Now returns `None`.
 - `pcolormesh` used `shading="gouraud"` on cell-centred sweep data,
-  smearing the EC boundary. Now uses `shading="nearest"`.
+  smearing the EC boundary.  Now uses `shading="nearest"`.
 
 ### Removed
 - `compute_invariant_transport()` built profiles via a different factory
   than the rest of the sweep code, so the metrics it produced did not
-  match what `sweep_transport` evaluated. No external callers.
+  match what `sweep_transport` evaluated.  No external callers.
 - Unused `weights` parameter from `sweep_transport()`.
 
 ## [0.3.1]
@@ -64,7 +92,8 @@ test modules. No public-API changes.
 ### Changed
 - Merged `test_fuchs.py` + `test_fuchs_hardened.py` into `test_fuchs_metric.py`
   (33 tests; dropped 4 that only checked `isfinite`).
-- Renamed `test_integration_audit.py` to `test_admissibility_smoke.py`.
+- Renamed `test_integration_audit.py` to `test_admissibility_smoke.py` (later
+  removed in v0.4.0 as a duplicate of `test_adm.py` + `test_adm_constraints.py`).
 - Schwarzschild tidal-eigenvalue tolerance `rtol=0.10` → `1e-6` (the
   analytical answer is exact).
 - Pruned the sm_120 GPU xfail registry to entries that still fail.
@@ -91,10 +120,8 @@ upgrade, geodesic-based transport diagnostics, and source-consistency checks.
   `TransportUndefinedError`.
 - `examples/09_admissibility_diagnostics.py` - end-to-end admissibility
   report on the Fuchs warp shell exercising all new modules.
-- `tests/test_physics_verification.py` - 25 physics-property tests covering
-  ADM split, constraints, TOV, ADM mass, Fuchs metric, transport, junction,
-  and source-consistency against Minkowski/Schwarzschild/WarpShell analytical
-  results.
+- `tests/test_adm_constraints.py` - 9 ADM decomposition and constraint residual
+  tests against Minkowski, Schwarzschild, and WarpShell analytical solutions.
 
 ### Changed
 - `constraints.residuals` - full 3+1 decomposition via `adm_split()` (was
@@ -238,7 +265,9 @@ Natario, Rodal, WarpShell). See paper Sec. 3 for full method description.
 
 ---
 
-[Unreleased]: https://github.com/anindex/warpax/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/anindex/warpax/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/anindex/warpax/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/anindex/warpax/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/anindex/warpax/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/anindex/warpax/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/anindex/warpax/compare/v0.1.0...v0.1.1
