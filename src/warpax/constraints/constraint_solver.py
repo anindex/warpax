@@ -20,7 +20,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import NamedTuple
 
-import interpax
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
@@ -102,6 +101,8 @@ def solve_sshell_potentials(
     r_min = 1e-6
     r_grid = jnp.linspace(r_min, r_max, n_grid)
     dr = r_grid[1] - r_grid[0]
+
+    import interpax  # noqa: PLC0415  (optional dep; only needed here)
 
     # Cumulative mass: m(r) = 4pi int_0^r rho(r') r'^2 dr'
     rho_grid = jax.vmap(rho)(r_grid)

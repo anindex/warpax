@@ -15,7 +15,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import NamedTuple
 
-import interpax
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
@@ -165,6 +164,8 @@ def solve_tshell_potentials(
     beta_x_grid = _solve_shift_bvp(A_coeff, B_coeff, source_beta, dr, n_grid)
 
     # Interpolated callables
+    import interpax  # noqa: PLC0415  (optional dep; only needed here)
+
     def Phi_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(
             jnp.clip(r, r_min, r_max), r_grid, Phi_grid, method="cubic",
