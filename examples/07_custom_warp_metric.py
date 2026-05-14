@@ -221,7 +221,7 @@ def run_grid_comparison(
     Uses a small grid (default ``16^3 = 4096`` points) so the end-to-end
     script (grid comparison + a second verify_grid pass for wall-restricted
     stats) stays under 30 seconds on a laptop CPU. Increase
-    ``grid_n`` to 50+ for publication-quality density at the cost of
+    ``grid_n`` to 50+ for higher-resolution density at the cost of
     minutes rather than seconds.
     """
     grid = GridSpec(

@@ -44,6 +44,8 @@ def optimize_shell(
     method: str = "Nelder-Mead",
     maxiter: int = 200,
     certify_ec: bool = True,
+    skip_ec_in_loop: bool = False,
+    fast: bool = False,
     callback=None,
 ) -> OptimizationResult:
     """Optimize shell source profiles to minimize multi-objective loss.
@@ -61,6 +63,8 @@ def optimize_shell(
     method : scipy.optimize.minimize method.
     maxiter : maximum iterations.
     certify_ec : run full EC feasibility check post-optimization.
+    skip_ec_in_loop : skip EC during optimization loop.
+    fast : skip EC + constraint + tidal during loop (fastest).
     callback : optional callback(theta) per iteration.
     """
     if theta_init is None:
@@ -86,6 +90,8 @@ def optimize_shell(
                 n_probes=n_probes,
                 weights=weights,
                 n_ec_starts=n_ec_starts,
+                skip_ec=skip_ec_in_loop,
+                fast=fast,
             )
             return float(loss_val)
         except Exception:

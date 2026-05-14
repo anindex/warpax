@@ -92,7 +92,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install package + docs extra
-        run: uv sync --extra docs
+        run: uv sync --extra docs --extra design
 
       - name: Build docs with --strict
         run: uv run mkdocs build --strict
