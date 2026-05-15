@@ -57,9 +57,15 @@ nested-warp envelope with an exterior radius `R` and interior radius
 ### `FuchsMetric`
 
 Fuchs et al. (2024) constant-velocity physical warp shell
-(arXiv:2405.02709). Anisotropic pressures, non-unit lapse, smooth density
-profile within a compact shell ($R_1 = 10$, $R_2 = 20$, $v_s = 0.02$).
-Includes paper-exact shell source profiles via `FuchsShellProfiles`.
+(arXiv:2405.02709). Iterative Gaussian-kernel smoothing of an
+isotropic-pressure TOV intermediate, with metric functions $a(r)$ and
+$b(r)$ recovered from Carroll Eqs. 5.143 / 5.152 on a uniform radial
+grid. Default factory ``fuchs_default()`` matches the paper parameters
+($R_1 = 10$, $R_2 = 20$, $v_s = 0.02$, $r_s = 5$).
+
+The pre-smoothing analytical intermediate (constant-density shell + TOV
+pressure, steps 1-2 only) is retained in ``warpax.metrics._fuchs_legacy``
+as ``_FuchsAnalytical`` for diagnostic comparison.
 
 ::: warpax.metrics.FuchsMetric
 

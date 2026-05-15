@@ -1,4 +1,4 @@
-"""EC-admissible transport as a function of shell design parameters.
+"""EC-admissible coordinate shift as a function of shell design parameters.
 
 Figures for the design-space sweep: transport heatmap, EC boundary with
 hatching, contour isolines, and annotated optimum.
@@ -88,7 +88,7 @@ def _annotate_optimum(
         zorder=10,
     )
     ax.annotate(
-        rf"$\beta^x_{{\max}} = {t_opt:.4f}$",
+        rf"$|\beta^x|_{{\max}} = {t_opt:.4f}$",
         xy=(x_opt, y_opt),
         xytext=(12, 12),
         textcoords="offset points",
@@ -151,7 +151,7 @@ def plot_phase_diagram(
     )
 
     cbar = fig.colorbar(im, ax=ax, pad=0.03, aspect=25)
-    cbar.set_label(r"$\max|\beta^x|$", fontsize=10)
+    cbar.set_label(r"Shift proxy $\max|\beta^x|$", fontsize=10)
     cbar.ax.tick_params(labelsize=8)
 
     if show_boundary:
@@ -235,10 +235,10 @@ def plot_phase_summary(
     _add_ec_boundary(ax, x, y, ec)
     _annotate_optimum(ax, x, y, grids["transport"], ec)
     cbar_a = fig.colorbar(im_a, ax=ax, pad=0.03)
-    cbar_a.set_label(r"$\max|\beta^x|$", fontsize=9)
+    cbar_a.set_label(r"Shift proxy $\max|\beta^x|$", fontsize=9)
     cbar_a.ax.tick_params(labelsize=7)
     ax.set_ylabel(r"$\Delta R / R_2$", fontsize=10)
-    ax.set_title(r"Transport utility", fontsize=10)
+    ax.set_title(r"Coordinate shift magnitude", fontsize=10)
     ax.minorticks_on()
 
     # (b) Worst EC margin

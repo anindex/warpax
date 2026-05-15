@@ -1,9 +1,12 @@
-"""Warp drive spacetime metrics for observer-robust analysis."""
+"""Warp drive spacetime metrics."""
 
-from .fuchs import (
+from .fuchs_construction import (
     FuchsMetric,
-    FuchsShellProfiles,
+    build_fuchs_construction,
     fuchs_default,
+)
+from ._fuchs_legacy import (
+    FuchsShellProfiles,
     fuchs_input_stress_energy,
     fuchs_shell_profiles,
 )
@@ -43,6 +46,7 @@ __all__ = [
     "WarpShellStressTest",
     "bernstein_density_profiles",
     "bernstein_velocity_profiles",
+    "build_fuchs_construction",
     "constant_density_profiles",
     "constant_velocity_profiles",
     "fuchs_default",
@@ -57,4 +61,3 @@ __all__ = [
     "tshell_from_potentials",
     "tshell_from_profiles",
 ]
-

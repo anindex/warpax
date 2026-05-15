@@ -111,7 +111,10 @@ class LentzMetric(ADMMetric):
 
         # Relative position to bubble center (moving at v_s along x)
         x_rel = x - self.v_s * t
-        rho_perp = jnp.sqrt(y**2 + z**2)
+        # Safe-sqrt: floors radicand to avoid 0/0 derivative at y=z=0
+        # (autodiff of sqrt(0) is NaN; the 1e-60 floor is numerically
+        # negligible but produces well-defined Christoffels on-axis).
+        rho_perp = jnp.sqrt(y**2 + z**2 + 1e-60)
 
         # L1 (Manhattan) distance for diamond/rhombus geometry
         d = jnp.abs(x_rel) + rho_perp
@@ -130,7 +133,7 @@ class LentzMetric(ADMMetric):
         """Diamond-pattern shape function via L1 distance."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        rho_perp = jnp.sqrt(y**2 + z**2)
+        rho_perp = jnp.sqrt(y**2 + z**2 + 1e-60)
         d = jnp.abs(x_rel) + rho_perp
         return _diamond_shape(d, self.R, self.sigma)
 

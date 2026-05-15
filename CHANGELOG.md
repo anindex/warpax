@@ -5,6 +5,51 @@ All notable changes to `warpax` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1]
+
+Fuchs construction split, Lentz on-axis NaN fix, gauge-invariant
+transport in the sweep, and a small suite of per-metric verification
+scripts.
+
+### Added
+- `warpax.metrics.fuchs_construction`: canonical Fuchs metric with
+  iterative Gaussian-kernel smoothing (steps 1-5 of the construction).
+  `fuchs_default()` returns this canonical form.
+- `warpax.metrics._fuchs_legacy`: the pre-smoothing analytical
+  intermediate (constant-density + TOV pressure, steps 1-2) retained
+  for diagnostic comparison.
+- `transport_invariant` (delta_tau) field on `SweepPoint`, populated
+  during T-shell sweeps when `max|beta^x| > 1e-6`.
+- `scripts/_radial_sweep.py`: shared single-point evaluator and
+  aggregator for the verification scripts below.
+- `scripts/run_fuchs_canonical.py`, `run_lentz.py`, `run_landscape.py`
+  (Alcubierre, Natario, Van den Broeck), `run_sshell_sweep.py`,
+  `run_v0_ablation.py`, `run_tshell_convergence.py`,
+  `run_delta_tau_scan.py`, `run_anec_profiles.py`: per-metric
+  verification entry points.
+
+### Fixed
+- `LentzMetric.shift` and `shape_function_value` now floor the
+  perpendicular radius with `+ 1e-60` inside the `sqrt`. The autodiff
+  derivative of `sqrt(y**2 + z**2)` at `y = z = 0` was returning NaN
+  and silently invalidating Lentz curvature-chain results.
+- `sweep_transport` no longer swallows arbitrary exceptions from
+  `null_round_trip_asymmetry`; narrows to `(ValueError, RuntimeError,
+  FloatingPointError)` and emits a `RuntimeWarning` so failures surface
+  rather than appearing as `NaN` transport.
+
+### Changed
+- `warpax.metrics.FuchsMetric` now refers to the canonical
+  Gaussian-smoothed construction; legacy users should explicitly
+  import `_FuchsAnalytical` from `warpax.metrics._fuchs_legacy`.
+- Phase-diagram colorbar/title relabelled to "Shift proxy
+  $\\max|\\beta^x|$" / "Coordinate shift magnitude" to make the
+  gauge-dependent character explicit.
+
+### Removed
+- `warpax/src/warpax/metrics/fuchs.py`, superseded by
+  `fuchs_construction.py` and `_fuchs_legacy.py`.
+
 ## [0.4.0]
 
 Source-first warp shell construction, parameter sweep, and phase-diagram

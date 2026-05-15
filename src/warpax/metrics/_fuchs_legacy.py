@@ -1,71 +1,11 @@
-"""Fuchs et al. constant-velocity subluminal warp shell metric.
+"""Legacy Fuchs analytical shell profiles (retained for backward compat).
 
-Reference: Fuchs, Helmerich, Bobrick, Sellers, Melcher, Martire (2024).
-"Constant velocity physical warp drive solution."
-Classical and Quantum Gravity 41 (2024), DOI: 10.1088/1361-6382/ad26aa
-arXiv: 2405.02709
+The canonical FuchsMetric class is now in ``fuchs_construction.py``.
+This module provides only the analytical shell profile helpers:
 
-This module provides:
-
-- ``FuchsMetric``: ADM metric class for the Fuchs constant-velocity shell
-- ``fuchs_default()``: factory returning paper-matched parameters
-- ``FuchsShellProfiles``: shell source physics (density, pressure, mass profiles)
-- ``fuchs_shell_profiles()``: factory for shell physics with paper parameters
-
-The Fuchs metric is a constant-velocity subluminal warp drive with:
-
-- Flat Minkowski interior (passenger volume, uniform shift beta_warp)
-- Schwarzschild-like shell (positive energy density, curved spatial metric,
-  non-unit lapse) between R_1 and R_2
-- Flat Minkowski exterior (no shift)
-
-The metric is constructed in the ADM 3+1 formalism (Eq. 1 of the paper):
-
-    ds^2 = -(alpha^2 - beta_i beta^i) dt^2 + 2 beta_i dx^i dt + gamma_{ij} dx^i dx^j
-
-Shell construction follows Section 3 of the paper:
-
-    1. Start with constant-density shell (rho_0) between R_1 and R_2.
-    2. Solve the TOV equation for initial isotropic pressure P'(r).
-    3. Apply iterative smoothing to rho' and P' (moving average,
-       s_rho/s_P ~ 1.72, applied 4 times) to regularize boundaries.
-    4. Compute cumulative mass: m(r) = 4pi int_0^r rho(r') r'^2 dr'.
-    5. Metric function b: e^{2b} = 1 / (1 - 2m(r)/r) (Carroll Eq. 5.143).
-    6. Metric function a: da/dr = (m + 4pi r^3 P_tilde) / (r(r - 2m))
-       integrated inward from the Schwarzschild boundary e^{2a} = e^{-2b}
-       (Carroll Eq. 5.152).
-    7. Lapse: alpha = e^a.
-    8. Spatial metric: gamma_rr = e^{2b}, gamma_{theta theta} = r^2, etc.
-
-The shift is added per Section 4 (Eq. 30):
-
-    g_{0x} += -S_warp(r) * beta_warp
-
-where S_warp is a compact sigmoid (Eq. 31-32) that transitions from 1
-inside the shell to 0 outside, with buffer R_b ensuring derivatives stay
-interior to the bubble.
-
-Paper parameters (Section 3.2 / Section 4):
-    R_1 = 10 m  (inner shell radius)
-    R_2 = 20 m  (outer shell radius)
-    M = 4.49e27 kg = 2.365 Jupiter masses
-    beta_warp = 0.02  (shift magnitude in passenger volume)
-    r_s = 2GM/c^2  (Schwarzschild radius of shell mass)
-
-In geometric units (G=c=1), the Schwarzschild radius is r_s = 2M. The
-paper's shell mass M ~ 4.49e27 kg corresponds to r_s ~ 6.68e-3 m, but
-the warpax model uses dimensionless geometric units where the length
-scale is set by R_1, R_2. The ``r_s_param`` controls the gravitational
-strength of the shell.
-
-Implementation note: the current implementation uses the analytical
-Schwarzschild-shell form (constant r_s_param) as the WarpFactory
-"Bobrick-Martire Modified Time" simplification. This captures the correct
-ADM structure (non-unit lapse, Schwarzschild spatial metric, shift
-transition) and is compatible with JAX autodiff for curvature computations.
-The iterative smoothing procedure from the paper produces nearly identical
-large-scale metric structure; differences arise only in the boundary
-smoothing details.
+- ``FuchsShellProfiles``: source profiles (density, pressure, mass) as callables
+- ``fuchs_shell_profiles()``: factory with paper-default parameters
+- ``fuchs_input_stress_energy()``: construct T_input from profiles
 """
 from __future__ import annotations
 
@@ -214,65 +154,28 @@ def _constant_density_shell_profiles(
     )
 
 
-# ---------------------------------------------------------------------------
-# FuchsMetric
-# ---------------------------------------------------------------------------
+# _FuchsAnalytical -- retained for backward compatibility in tests
 
 
-class FuchsMetric(WarpShellPhysical):
-    """Fuchs et al. constant-velocity warp shell metric.
+class _FuchsAnalytical(WarpShellPhysical):
+    """Legacy analytical Schwarzschild-shell approximation.
 
-    Inherits from WarpShellPhysical with parameters matching the Fuchs
-    et al. (2024) CQG paper (arXiv:2405.02709). The metric uses:
-
-    - Non-unit lapse: alpha = sqrt(1 - r_s/r) in the shell
-    - Non-flat spatial metric: gamma_rr = 1/(1 - r_s/r) in the shell
-    - Uniform shift: beta^x = -v_s inside the passenger volume
-    - Smooth C2 transitions at shell boundaries
-
-    Default parameters match the canonical configuration from Section 4:
-        v_s = 0.02  (beta_warp from Eq. 30)
-        R_1 = 10    (inner shell boundary)
-        R_2 = 20    (outer shell boundary)
-        r_s_param = 5.0  (Schwarzschild radius in geometric units)
-
-    The shift magnitude v_s = 0.02 matches the paper's statement:
-    "we find that the addition of shift inside the shell is possible
-    for beta_warp = 0.02 without any energy condition violation."
+    Retained for backward compatibility. The canonical FuchsMetric is
+    in fuchs_construction.py.
     """
 
     def name(self) -> str:
-        return "Fuchs-CQG2024"
+        return "Fuchs-Analytical"
 
     def shell_profiles(self) -> FuchsShellProfiles:
-        """Return the analytical shell source profiles for this configuration.
-
-        Returns
-        -------
-        FuchsShellProfiles
-            Density, pressure, and mass profiles as functions of r.
-        """
         return _constant_density_shell_profiles(
             self.R_1, self.R_2, self.r_s_param
         )
 
 
-def fuchs_default() -> FuchsMetric:
-    """Return the canonical Fuchs metric with paper-matched parameters.
-
-    Parameters match Section 4 of arXiv:2405.02709:
-        v_s = 0.02 (beta_warp)
-        R_1 = 10 (inner shell radius)
-        R_2 = 20 (outer shell radius)
-        r_s_param = 5.0 (Schwarzschild radius parameter)
-        C2 quintic smoothstep transitions
-
-    Returns
-    -------
-    FuchsMetric
-        Paper-canonical configuration.
-    """
-    return FuchsMetric(
+def _fuchs_analytical_default() -> _FuchsAnalytical:
+    """Legacy factory, returns analytical Fuchs metric."""
+    return _FuchsAnalytical(
         v_s=0.02,
         R_1=10.0,
         R_2=20.0,
@@ -312,7 +215,7 @@ def fuchs_shell_profiles(
 
 
 def fuchs_input_stress_energy(
-    metric: "FuchsMetric",
+    metric: "_FuchsAnalytical",
     coords: Float[Array, "4"],
 ) -> Float[Array, "4 4"]:
     """Construct the claimed anisotropic-fluid T_input at a spacetime point.
