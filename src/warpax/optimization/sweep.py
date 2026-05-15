@@ -1,8 +1,12 @@
-"""Parameter space sweep for transport utility.
+"""Parameter space sweep for transport characterisation.
 
 2D sweep over (compactness, thickness_ratio). At each grid point,
 builds a T-shell/S-shell metric from the target density, evaluates
 transport and diagnostics, then certifies EC admissibility.
+
+Transport is characterised by two observables:
+  - max|beta^x|: coordinate shift magnitude (gauge-dependent proxy)
+  - delta_tau: null round-trip asymmetry (gauge-invariant)
 """
 from __future__ import annotations
 
@@ -18,6 +22,7 @@ from jaxtyping import Array, Float
 from .basis import default_theta, unpack_theta
 from .basis import coeffs_to_profiles_sshell, coeffs_to_profiles_tshell
 from .ec_constraints import ec_feasibility_check
+from ..transport.diagnostics import null_round_trip_asymmetry
 
 
 class SweepPoint(NamedTuple):
@@ -26,7 +31,8 @@ class SweepPoint(NamedTuple):
     compactness : M / R_2 (dimensionless).
     thickness_ratio : (R_2 - R_1) / R_2.
     rho_max : peak density scale.
-    transport : max|beta^x| (T-shell) or |v_s| (S-shell).
+    transport : max|beta^x| (gauge-dependent shift proxy).
+    transport_invariant : delta_tau (null round-trip asymmetry, gauge-invariant).
     ec_feasible : all NEC/WEC/DEC margins >= 0.
     worst_ec_margin : most negative observer-robust margin.
     constraint_residual : mean(eps_H^2 + eps_M^2) over probes.
@@ -38,6 +44,7 @@ class SweepPoint(NamedTuple):
     thickness_ratio: float
     rho_max: float
     transport: float
+    transport_invariant: float
     ec_feasible: bool
     worst_ec_margin: float
     constraint_residual: float
@@ -64,6 +71,7 @@ class SweepResult(NamedTuple):
 
         grids = {
             "transport": np.full((nc, nt), np.nan),
+            "transport_invariant": np.full((nc, nt), np.nan),
             "ec_feasible": np.full((nc, nt), False),
             "worst_ec_margin": np.full((nc, nt), np.nan),
             "constraint_residual": np.full((nc, nt), np.nan),
@@ -78,6 +86,7 @@ class SweepResult(NamedTuple):
             if i >= nc or j >= nt:
                 break
             grids["transport"][i, j] = pt.transport
+            grids["transport_invariant"][i, j] = pt.transport_invariant
             grids["ec_feasible"][i, j] = pt.ec_feasible
             grids["worst_ec_margin"][i, j] = pt.worst_ec_margin
             grids["constraint_residual"][i, j] = pt.constraint_residual
@@ -167,6 +176,27 @@ def _evaluate_point(
         metric = sshell_from_profiles(profiles, v_s=0.0, n_grid=n_grid)
         transport = 0.0
 
+    # Null round-trip asymmetry (gauge-invariant transport observable).
+    # Skipped for S-shell (zero shift) and tshell points with negligible
+    # shift, to avoid the per-point cost of two null-geodesic integrations.
+    transport_invariant = 0.0
+    if ansatz == "tshell" and transport > 1e-6:
+        emitter = jnp.array([0.0, R_1 * 0.5, 0.0, 0.0], dtype=jnp.float64)
+        receiver = jnp.array([0.0, R_2 * 1.5, 0.0, 0.0], dtype=jnp.float64)
+        try:
+            transport_invariant = float(null_round_trip_asymmetry(
+                metric, emitter, receiver,
+                tau_max=R_2 * 5.0, num_points=200,
+            ))
+        except (ValueError, RuntimeError, FloatingPointError) as exc:
+            warnings.warn(
+                f"null_round_trip_asymmetry failed at "
+                f"(R_1={R_1:.2f}, R_2={R_2:.2f}): {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            transport_invariant = float("nan")
+
     mass = float(metric.total_mass)
 
     # Constraint residuals
@@ -195,6 +225,7 @@ def _evaluate_point(
     return {
         "rho_max": rho_0,
         "transport": transport,
+        "transport_invariant": transport_invariant,
         "ec_feasible": ec_feas.feasible,
         "worst_ec_margin": ec_feas.worst_margin,
         "constraint_residual": constraint_residual,
@@ -295,6 +326,7 @@ def sweep_transport(
                 thickness_ratio=thickness_ratio,
                 rho_max=rho_0,
                 transport=0.0,
+                transport_invariant=0.0,
                 ec_feasible=False,
                 worst_ec_margin=-1.0,
                 constraint_residual=float("nan"),

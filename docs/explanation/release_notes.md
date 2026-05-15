@@ -5,6 +5,21 @@ line-item details, see the canonical
 [`CHANGELOG.md`](https://github.com/anindex/warpax/blob/main/CHANGELOG.md) in the
 repository root.
 
+## v0.4.1 (2026-05-16) - Fuchs canonical split + Lentz NaN fix
+
+A focused patch release. Cleans up the Fuchs construction into a
+canonical Gaussian-smoothed path (`fuchs_default()`) and a separate
+pre-smoothing analytical intermediate (`_FuchsAnalytical`). Fixes the
+on-axis autodiff NaN in `LentzMetric` that was silently invalidating
+Lentz curvature-chain results. Adds gauge-invariant `delta_tau` to the parameter sweep
+output, plus a small suite of per-metric verification scripts under
+`scripts/`.
+
+No public-API regressions. Tests: 888 passing.
+
+## v0.4.0 - Source-first ansatze + parameter sweep
+See CHANGELOG for full v0.4.0 line items.
+
 ## v0.2.0 (2026-04-25) - Major Revision + Toolkit Maturation
 
 warpax v0.2.0 is a major revision addressing the CQG-115130 reviewer report

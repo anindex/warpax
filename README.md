@@ -5,7 +5,7 @@
 [![CI](https://github.com/anindex/warpax/actions/workflows/ci.yml/badge.svg)](https://github.com/anindex/warpax/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-889_passed-brightgreen)](#running-tests)
+[![Tests](https://img.shields.io/badge/tests-888_passed-brightgreen)](#running-tests)
 
 [**Observer-robust energy condition verification for warp drive spacetimes.**](https://arxiv.org/abs/2602.18023)
 
