@@ -27,7 +27,7 @@ from warpax.metrics.tshell import tshell_default
 OUTPUT = Path("warpax/output/v0_ablation.json")
 
 R_PROBES = [10.0, 10.2, 12.5, 15.0, 17.5, 19.8]
-V0_GRID = [0.01, 0.05, 0.1, 0.2]
+V0_GRID = [0.0, 0.01, 0.05, 0.1, 0.2]  # 0.0 = static-limit endpoint
 
 
 def _eval(metric, n_starts=8):

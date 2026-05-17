@@ -27,7 +27,7 @@ from warpax.visualization.phase_diagram import plot_phase_diagram, plot_phase_su
 
 
 def main():
-    output_dir = Path("output/phase_diagram")
+    output_dir = Path(__file__).resolve().parents[1] / "output" / "phase_diagram"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if "--full" in sys.argv:
