@@ -78,6 +78,7 @@ nav:
       - how-to/custom_metric_tutorial.md
       - how-to/interpreting_ec_results.md
       - how-to/loading_external_metrics.md
+      - how-to/reproduce_warpshell_paper.md
   - Reference:
       - reference/index.md
       - reference/metric_catalog.md

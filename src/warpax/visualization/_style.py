@@ -96,6 +96,17 @@ COLORS: list[str] = [
     "#56B4E9",  # sky blue
 ]
 
+METRIC_COLORS: dict[str, str] = {
+    "Alcubierre": COLORS[0],  # blue
+    "Fuchs":      COLORS[1],  # vermilion
+    "S-shell":    COLORS[2],  # green
+    "T-shell":    COLORS[3],  # pink
+    "Lentz":      COLORS[4],  # amber
+    "Natario":    COLORS[5],  # sky blue
+}
+
+PHASE_COLORMAP: str = "RdBu_r"
+
 
 # ---------------------------------------------------------------------------
 # Style application

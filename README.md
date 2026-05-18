@@ -156,10 +156,14 @@ Phases can be run individually:
 bash reproduce_all.sh --phase 1   # Core computation
 bash reproduce_all.sh --phase 2   # Ablation studies
 bash reproduce_all.sh --phase 3   # Figure generation
-bash reproduce_all.sh --phase 4   # Paper build (pdflatex)
 ```
 
 Use `--keep-cache` to skip cache deletion and only recompute missing results.
+
+For the per-figure, per-claim mapping that backs the warp-shell admissibility
+paper (*Positive-energy warp shells and the boundary cost of source
+consistency*), see the dedicated how-to guide:
+[**Reproducing the warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md).
 
 ## Documentation
 
@@ -176,6 +180,7 @@ warpax ships comprehensive documentation in [`docs/`](docs/), organized followin
 - [**Define a custom warp metric**](docs/how-to/custom_metric_tutorial.md) -- subclass `ADMMetric` and run the verification pipeline
 - [**Interpret EC results**](docs/how-to/interpreting_ec_results.md) -- read margin signs, Hawking--Ellis types, and worst-case observers
 - [**Load an external metric**](docs/how-to/loading_external_metrics.md) -- use WarpFactory, EinFields, or Cactus data
+- [**Reproduce the warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md) -- per-figure, per-claim mapping to scripts and outputs
 
 ### Reference
 

@@ -5,7 +5,7 @@ line-item details, see the canonical
 [`CHANGELOG.md`](https://github.com/anindex/warpax/blob/main/CHANGELOG.md) in the
 repository root.
 
-## v0.4.1 (2026-05-16) - Fuchs canonical split + Lentz NaN fix
+## v0.4.2 (2026-05-16) - Fuchs canonical split + Lentz NaN fix
 
 A focused patch release. Cleans up the Fuchs construction into a
 canonical Gaussian-smoothed path (`fuchs_default()`) and a separate
