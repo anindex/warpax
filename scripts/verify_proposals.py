@@ -33,7 +33,6 @@ from warpax.energy_conditions import (
 )
 from warpax.geometry import compute_curvature_chain
 from warpax.metrics import (
-    FuchsMetric,
     LentzMetric,
     RodalMetric,
     fuchs_default,
@@ -128,7 +127,7 @@ def evaluate_fuchs():
     # Criterion C: Matter model
     # Fuchs has a prescribed source model (shell profiles)
     matter_model = True
-    print(f"  [C] Matter model: PASS (iteratively-smoothed shell, TOV-derived)")
+    print("  [C] Matter model: PASS (iteratively-smoothed shell, TOV-derived)")
 
     # Criterion D: EC margins
     n_violated = {"nec": 0, "wec": 0, "sec": 0, "dec": 0}
@@ -240,7 +239,7 @@ def _evaluate_natario_class(metric, label, *, n_sweep=50, r_range=(0.5, 500.0)):
 
     # Criterion A: Regularity (tanh-based -> C^inf)
     regularity = True
-    print(f"  [A] Regularity: PASS (C^inf tanh profiles)")
+    print("  [A] Regularity: PASS (C^inf tanh profiles)")
 
     # Criterion B: Constraints (unit lapse + flat spatial -> trivial)
     max_eps_H = max(r["constraints"]["epsilon_H"] for r in sweep_results)
@@ -250,7 +249,7 @@ def _evaluate_natario_class(metric, label, *, n_sweep=50, r_range=(0.5, 500.0)):
           f"  max ε_H={max_eps_H:.4e}  max ε_M={max_eps_M:.4e}")
 
     # Criterion C: N/A (metric-first, no source model)
-    print(f"  [C] Matter model: N/A (metric-first construction, no source prescribed)")
+    print("  [C] Matter model: N/A (metric-first construction, no source prescribed)")
 
     # Criterion D: EC margins
     n_violated = {"nec": 0, "wec": 0, "sec": 0, "dec": 0}
@@ -280,7 +279,7 @@ def _evaluate_natario_class(metric, label, *, n_sweep=50, r_range=(0.5, 500.0)):
     # Criterion E: Global - unit lapse -> M_ADM = 0 (no gravitational mass)
     M_adm = 0.0  # Natário class has M_ADM = 0 by construction
     af_pass = False  # Compact support -> no 1/r falloff
-    print(f"  [E] Global: FAIL  M_ADM=0 (Natário class), AF=False (compact support)")
+    print("  [E] Global: FAIL  M_ADM=0 (Natário class), AF=False (compact support)")
 
     # Transport
     transport_results = []
