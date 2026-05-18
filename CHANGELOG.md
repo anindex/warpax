@@ -5,6 +5,24 @@ All notable changes to `warpax` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2]
+
+Docs housekeeping: warp-shell paper reproduction guide moved out of the
+README into its own how-to page.
+
+### Added
+- `docs/how-to/reproduce_warpshell_paper.md`: self-contained per-figure,
+  per-claim reproduction guide.
+- `scripts/verify_fuchs.py`, `scripts/verify_proposals.py`: standalone
+  entry points for Fuchs and cross-proposal verification reports.
+- `results/fuchs_verification_report.json`,
+  `results/proposals_verification_report.json`: cached verification outputs.
+
+### Changed
+- `mkdocs.yml`: added `reproduce_warpshell_paper.md` to the nav.
+
+---
+
 ## [0.4.1]
 
 Fuchs construction split, Lentz on-axis NaN fix, gauge-invariant

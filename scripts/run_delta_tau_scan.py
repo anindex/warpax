@@ -2,7 +2,7 @@
 
 Gauge-invariant counterpart to the coordinate shift magnitude
 max|beta^x|. Useful as a sanity check that the shift produces a
-physical transport signal rather than a coordinate artefact.
+physical transport signal rather than a coordinate artifact.
 """
 from __future__ import annotations
 

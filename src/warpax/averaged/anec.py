@@ -122,11 +122,18 @@ def _extract_trajectory(
     ``GeodesicResult`` or a callable geodesic.
     """
     if isinstance(geodesic, GeodesicResult):
+        # Diffrax ``result`` may be a typed enumeration; coerce to plain int
+        # via the underlying numeric value (.value if present, raw int else).
+        raw = geodesic.result
+        try:
+            result_code = int(getattr(raw, "value", raw))
+        except (TypeError, ValueError):
+            result_code = _SUCCESS_CODE
         return (
             geodesic.ts,
             geodesic.positions,
             geodesic.velocities,
-            int(geodesic.result),
+            result_code,
         )
     # Callable geodesic: sample uniformly
     lam_min, lam_max = affine_bounds
