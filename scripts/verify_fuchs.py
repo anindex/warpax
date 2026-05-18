@@ -145,7 +145,7 @@ def run_fuchs_evaluation():
     for res in sweep_results:
         type_counts[res["he_type"]] += 1
     print()
-    print("  HE type census:", {f"I": type_counts[1], "II": type_counts[2],
+    print("  HE type census:", {"I": type_counts[1], "II": type_counts[2],
                                 "III": type_counts[3], "IV": type_counts[4]})
     print()
 
