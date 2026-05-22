@@ -1,0 +1,142 @@
+{
+  "metric": "alcubierre",
+  "params": {
+    "v_s": 0.5,
+    "R": 1.0,
+    "sigma": 8.0
+  },
+  "results": [
+    {
+      "metric": "alcubierre",
+      "grid": "uniform_25",
+      "shape": [
+        25,
+        25,
+        25
+      ],
+      "n_grid_total": 15625,
+      "wall_n_total": 48,
+      "wall_frac_type_i": 0.0,
+      "wall_frac_type_iv": 1.0,
+      "wall_nec_miss_rate": null,
+      "wall_dec_miss_rate": null,
+      "full_frac_type_i": 0.981504,
+      "full_frac_type_iv": 0.018496,
+      "n_vacuum": 15336,
+      "nec_min_margin": -0.6310512295451954,
+      "dec_min_margin": -3474.9345659117184,
+      "t_curvature_s": 4.438798427581787,
+      "t_verify_grid_s": 10.986721277236938
+    },
+    {
+      "metric": "alcubierre",
+      "grid": "clustered_25",
+      "shape": [
+        25,
+        25,
+        25
+      ],
+      "n_grid_total": 15625,
+      "wall_n_total": 28,
+      "wall_frac_type_i": 0.0,
+      "wall_frac_type_iv": 1.0,
+      "wall_nec_miss_rate": null,
+      "wall_dec_miss_rate": null,
+      "full_frac_type_i": 0.986048,
+      "full_frac_type_iv": 0.013952,
+      "n_vacuum": 15407,
+      "nec_min_margin": -0.5854857594362308,
+      "dec_min_margin": -3224.0278609198904,
+      "t_curvature_s": 0.6657774448394775,
+      "t_verify_grid_s": 4.984886169433594
+    },
+    {
+      "metric": "alcubierre",
+      "grid": "uniform_50",
+      "shape": [
+        50,
+        50,
+        50
+      ],
+      "n_grid_total": 125000,
+      "wall_n_total": 416,
+      "wall_frac_type_i": 0.019230769230769232,
+      "wall_frac_type_iv": 0.9807692307692307,
+      "wall_nec_miss_rate": null,
+      "wall_dec_miss_rate": null,
+      "full_frac_type_i": 0.97952,
+      "full_frac_type_iv": 0.02048,
+      "n_vacuum": 122432,
+      "nec_min_margin": -0.6263116093865744,
+      "dec_min_margin": -3448.8364505791506,
+      "t_curvature_s": 4.846160411834717,
+      "t_verify_grid_s": 36.54904055595398
+    },
+    {
+      "metric": "alcubierre",
+      "grid": "clustered_50",
+      "shape": [
+        50,
+        50,
+        50
+      ],
+      "n_grid_total": 125000,
+      "wall_n_total": 283,
+      "wall_frac_type_i": 0.0176678445229682,
+      "wall_frac_type_iv": 0.9823321554770318,
+      "wall_nec_miss_rate": null,
+      "wall_dec_miss_rate": null,
+      "full_frac_type_i": 0.985032,
+      "full_frac_type_iv": 0.014968,
+      "n_vacuum": 123124,
+      "nec_min_margin": -0.630408185682054,
+      "dec_min_margin": -3471.394634993603,
+      "t_curvature_s": 1.637134313583374,
+      "t_verify_grid_s": 27.739267110824585
+    },
+    {
+      "metric": "alcubierre",
+      "grid": "uniform_100",
+      "shape": [
+        100,
+        100,
+        100
+      ],
+      "n_grid_total": 1000000,
+      "wall_n_total": 3400,
+      "wall_frac_type_i": 0.023529411764705882,
+      "wall_frac_type_iv": 0.9764705882352941,
+      "wall_nec_miss_rate": null,
+      "wall_dec_miss_rate": null,
+      "full_frac_type_i": 0.978768,
+      "full_frac_type_iv": 0.021232,
+      "n_vacuum": 978688,
+      "nec_min_margin": -0.6298426386974479,
+      "dec_min_margin": -3468.2800645636094,
+      "t_curvature_s": 11.568830013275146,
+      "t_verify_grid_s": 224.55363130569458
+    },
+    {
+      "metric": "alcubierre",
+      "grid": "clustered_100",
+      "shape": [
+        100,
+        100,
+        100
+      ],
+      "n_grid_total": 1000000,
+      "wall_n_total": 2451,
+      "wall_frac_type_i": 0.024071807425540596,
+      "wall_frac_type_iv": 0.9759281925744594,
+      "wall_nec_miss_rate": null,
+      "wall_dec_miss_rate": null,
+      "full_frac_type_i": 0.984633,
+      "full_frac_type_iv": 0.015367,
+      "n_vacuum": 984574,
+      "nec_min_margin": -0.6305203319462056,
+      "dec_min_margin": -3472.0113023701865,
+      "t_curvature_s": 7.9396584033966064,
+      "t_verify_grid_s": 190.295880317688
+    }
+  ]
+}

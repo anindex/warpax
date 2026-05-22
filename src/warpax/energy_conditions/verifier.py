@@ -11,8 +11,8 @@ Strategy
    to find worst-case margins. For Type I, the final margin is the
    worse (smaller) of eigenvalue and optimization results.
 4. Eulerian-frame EC results are computed SEPARATELY (not baked into
-   optimization) via ``compute_eulerian_ec``, enabling clean comparison
-   for the paper.
+   optimization) via ``compute_eulerian_ec``, enabling a clean
+   single-frame vs observer-robust comparison.
 
 The per-point function ``verify_point`` uses Python control flow
 (``if he_type == 1``) and is therefore NOT directly vmappable.
@@ -196,6 +196,7 @@ def verify_grid(
     compute_eulerian: bool = False,
     *,
     solver: str = 'standard',
+    strategy: str = "tanh",
 ) -> ECGridResult:
     """Verify energy conditions across an entire grid.
 
@@ -288,6 +289,7 @@ def verify_grid(
             n_starts=n_starts,
             zeta_max=zeta_max,
             key=subkey,
+            strategy=strategy,
         )
         return (
             opt["nec"].margin,
@@ -373,6 +375,9 @@ def verify_grid(
     n_type_ii = int(jnp.sum(he_types == 2.0))
     n_type_iii = int(jnp.sum(he_types == 3.0))
     n_type_iv = int(jnp.sum(he_types == 4.0))
+    # Near-vacuum points (max|Re lambda| < tol), a subset of n_type_i;
+    # counted separately so callers can remove the vacuum contribution.
+    n_vacuum = int(jnp.sum(cls_results.is_vacuum))
     max_imag = float(jnp.max(jnp.abs(cls_results.eigenvalues_imag)))
 
     # Step 7: Reshape to grid
@@ -402,6 +407,7 @@ def verify_grid(
         n_type_ii=n_type_ii,
         n_type_iii=n_type_iii,
         n_type_iv=n_type_iv,
+        n_vacuum=n_vacuum,
         max_imag_eigenvalue=max_imag,
         nec_opt_converged=reshape(nec_conv),
         wec_opt_converged=reshape(wec_conv),

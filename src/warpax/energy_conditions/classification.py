@@ -218,6 +218,7 @@ def classify_hawking_ellis(
         rho=rho,
         pressures=pressures,
         eigenvalues_imag=evals_imag,
+        is_vacuum=near_vacuum.astype(evals_real.dtype),
     )
 
 

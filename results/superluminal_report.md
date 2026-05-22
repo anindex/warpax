@@ -1,6 +1,6 @@
 # Superluminal Characterization Report
 
-**Date:** 2026-04-18T14:04:11Z
+**Date:** 2026-05-21T13:28:51Z
 **Script:** `scripts/run_superluminal_investigation.py`
 **Metrics tested:** Alcubierre (tanh), Lentz (L1/diamond)
 **Velocities:** 1.0, 1.5, 2.0
@@ -38,7 +38,7 @@ At the luminal threshold (v_s = 1.0), g_00 = 0 exactly at points where f(r) = 1 
 
 For unit-lapse (alpha = 1) and flat-spatial (gamma_ij = delta_ij) ADM warp metrics:
 
-    det(g) = -alpha^2 * det(gamma) = -1 * 1 = -1
+ det(g) = -alpha^2 * det(gamma) = -1 * 1 = -1
 
 This holds at ALL velocities because neither the lapse nor the spatial metric depend on the shift vector magnitude. The shift only enters g_0i components but does not affect the determinant of the spatial block.
 

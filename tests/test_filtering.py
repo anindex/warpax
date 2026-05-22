@@ -80,6 +80,7 @@ def _make_synthetic_ec_result(
         n_type_ii=None,
         n_type_iii=None,
         n_type_iv=None,
+        n_vacuum=None,
         max_imag_eigenvalue=None,
         nec_opt_converged=None,
         wec_opt_converged=None,

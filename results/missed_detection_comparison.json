@@ -169,38 +169,38 @@
   },
   "warpshell_vs0.1": {
     "nec": {
-      "n_missed_total": 5,
-      "n_tested": 5,
+      "n_missed_total": 6,
+      "n_tested": 6,
       "sampling_results": {
         "100": {
-          "n_detected": 1,
-          "detection_rate_pct": 20.0
+          "n_detected": 0,
+          "detection_rate_pct": 0.0
         },
         "1000": {
-          "n_detected": 1,
-          "detection_rate_pct": 20.0
+          "n_detected": 0,
+          "detection_rate_pct": 0.0
         },
         "10000": {
-          "n_detected": 1,
-          "detection_rate_pct": 20.0
+          "n_detected": 0,
+          "detection_rate_pct": 0.0
         }
       }
     },
     "wec": {
-      "n_missed_total": 33,
-      "n_tested": 33,
+      "n_missed_total": 36,
+      "n_tested": 36,
       "sampling_results": {
         "100": {
           "n_detected": 13,
-          "detection_rate_pct": 39.39393939393939
+          "detection_rate_pct": 36.111111111111114
         },
         "1000": {
           "n_detected": 13,
-          "detection_rate_pct": 39.39393939393939
+          "detection_rate_pct": 36.111111111111114
         },
         "10000": {
           "n_detected": 13,
-          "detection_rate_pct": 39.39393939393939
+          "detection_rate_pct": 36.111111111111114
         }
       }
     },
@@ -229,34 +229,34 @@
       "n_tested": 6,
       "sampling_results": {
         "100": {
-          "n_detected": 2,
-          "detection_rate_pct": 33.333333333333336
+          "n_detected": 3,
+          "detection_rate_pct": 50.0
         },
         "1000": {
-          "n_detected": 2,
-          "detection_rate_pct": 33.333333333333336
+          "n_detected": 3,
+          "detection_rate_pct": 50.0
         },
         "10000": {
-          "n_detected": 2,
-          "detection_rate_pct": 33.333333333333336
+          "n_detected": 3,
+          "detection_rate_pct": 50.0
         }
       }
     },
     "wec": {
-      "n_missed_total": 28,
-      "n_tested": 28,
+      "n_missed_total": 27,
+      "n_tested": 27,
       "sampling_results": {
         "100": {
           "n_detected": 8,
-          "detection_rate_pct": 28.571428571428573
+          "detection_rate_pct": 29.62962962962963
         },
         "1000": {
-          "n_detected": 10,
-          "detection_rate_pct": 35.714285714285715
+          "n_detected": 9,
+          "detection_rate_pct": 33.333333333333336
         },
         "10000": {
-          "n_detected": 10,
-          "detection_rate_pct": 35.714285714285715
+          "n_detected": 9,
+          "detection_rate_pct": 33.333333333333336
         }
       }
     },
@@ -285,51 +285,51 @@
       "n_tested": 5,
       "sampling_results": {
         "100": {
-          "n_detected": 1,
-          "detection_rate_pct": 20.0
+          "n_detected": 0,
+          "detection_rate_pct": 0.0
         },
         "1000": {
-          "n_detected": 1,
-          "detection_rate_pct": 20.0
+          "n_detected": 0,
+          "detection_rate_pct": 0.0
         },
         "10000": {
-          "n_detected": 1,
-          "detection_rate_pct": 20.0
+          "n_detected": 0,
+          "detection_rate_pct": 0.0
         }
       }
     },
     "wec": {
-      "n_missed_total": 32,
-      "n_tested": 32,
+      "n_missed_total": 31,
+      "n_tested": 31,
       "sampling_results": {
         "100": {
-          "n_detected": 19,
-          "detection_rate_pct": 59.375
+          "n_detected": 20,
+          "detection_rate_pct": 64.51612903225806
         },
         "1000": {
-          "n_detected": 19,
-          "detection_rate_pct": 59.375
+          "n_detected": 20,
+          "detection_rate_pct": 64.51612903225806
         },
         "10000": {
-          "n_detected": 19,
-          "detection_rate_pct": 59.375
+          "n_detected": 20,
+          "detection_rate_pct": 64.51612903225806
         }
       }
     },
     "dec": {
-      "n_missed_total": 7,
-      "n_tested": 7,
+      "n_missed_total": 12,
+      "n_tested": 12,
       "sampling_results": {
         "100": {
-          "n_detected": 7,
+          "n_detected": 12,
           "detection_rate_pct": 100.0
         },
         "1000": {
-          "n_detected": 7,
+          "n_detected": 12,
           "detection_rate_pct": 100.0
         },
         "10000": {
-          "n_detected": 7,
+          "n_detected": 12,
           "detection_rate_pct": 100.0
         }
       }
