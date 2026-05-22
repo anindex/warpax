@@ -28,7 +28,6 @@ coordinates, to detect violations that axis-aligned sampling can miss.
 - **Source-consistency modules**: Hamiltonian/momentum constraint residuals, anisotropic TOV equilibrium, ADM mass with falloff verification, Israel junction conditions, invariant transport diagnostics
 - **Source-first shell construction**: Bernstein-parameterized source profiles with constraint-derived metric potentials (S-shell Class I, T-shell Class II)
 - **Parameter sweep**: 2D design-space sweep over (compactness, thickness) with EC certification and phase-diagram visualization
-- **889 tests**, geodesic integration, shape-function design, WarpFactory/EinFields/Cactus I/O
 
 ## Quick start
 
@@ -136,14 +135,14 @@ coordinates $x^\mu$ to the covariant metric tensor $g_{\mu\nu}$.
 ## Running tests
 
 ```bash
-pytest                      # Full suite (889 tests, 68 files)
+pytest                      # Full suite (935 tests, 70 files)
 pytest -m "not slow"        # Skip expensive grid tests
 pytest -n auto              # Parallel execution
 ```
 
 ## Reproducing results
 
-To pin the exact Python environment used for the CQG revision:
+To pin the exact Python environment used to produce the published results:
 
 ```bash
 export PYTHON=$(uv run which python)

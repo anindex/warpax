@@ -5,6 +5,33 @@ All notable changes to `warpax` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3]
+
+Wall-restricted energy-condition statistics. The full-domain Type-I
+fraction is dominated by near-vacuum points outside the bubble wall, so
+the classifier now tags those points and the analysis reports counts
+restricted to the active wall region.
+
+### Added
+- `is_vacuum` field on `ClassificationResult` and `n_vacuum` on
+  `ECGridResult`: flag near-vacuum points (max|Re lambda| < tol) so
+  statistics can exclude them.
+- Wall-restricted classification and miss-rate stats in
+  `run_analysis.py`, conditioned on the active wall (f in [0.1, 0.9]).
+- `--strategy` flag on `run_analysis.py` to select the hard-bound
+  projected-gradient observer optimizer.
+- `scripts/run_clustered_convergence.py`: wall-clustered convergence
+  study on uniform vs cosh-stretched grids.
+- `scripts/summarize_results.py`: compact summary of the result files.
+- `tests/test_adm_superluminal.py`, `tests/test_classifier_vacuum_class.py`.
+
+### Changed
+- `run_analysis.py` benchmark table excludes Lentz (wall sub-grid at
+  default parameters); Lentz is still evaluated as a qualitative check.
+- CI runs the new ADM and vacuum-classifier tests.
+
+---
+
 ## [0.4.2]
 
 Docs housekeeping: warp-shell paper reproduction guide moved out of the

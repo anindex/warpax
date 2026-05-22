@@ -41,7 +41,9 @@ jobs:
             tests/test_ec_observer.py \
             tests/test_ec_verifier.py \
             tests/test_invariants.py \
-            tests/test_edge_cases.py
+            tests/test_edge_cases.py \
+            tests/test_adm_superluminal.py \
+            tests/test_classifier_vacuum_class.py
 
       - name: Analysis and integration tests
         run: |

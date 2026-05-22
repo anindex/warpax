@@ -111,7 +111,7 @@ def main():
     if os.path.exists(wr_path):
         with open(wr_path) as f:
             wr = json.load(f)
-        print(f"WALL-RESTRICTED ANALYSIS")
+        print("WALL-RESTRICTED ANALYSIS")
         print("-" * 100)
         print(json.dumps(wr, indent=2)[:2000])
         print()
@@ -121,7 +121,7 @@ def main():
     if os.path.exists(cc_path):
         with open(cc_path) as f:
             cc = json.load(f)
-        print(f"CLUSTERED CONVERGENCE (Alcubierre)")
+        print("CLUSTERED CONVERGENCE (Alcubierre)")
         print("-" * 100)
         for r in cc.get("results", []):
             print(
@@ -137,7 +137,7 @@ def main():
     if os.path.exists(rmc_path):
         with open(rmc_path) as f:
             rmc = json.load(f)
-        print(f"CLUSTERED CONVERGENCE (Rodal matched at R=1, sigma=8)")
+        print("CLUSTERED CONVERGENCE (Rodal matched at R=1, sigma=8)")
         print("-" * 100)
         for r in rmc.get("results", []):
             if "error" in r:
