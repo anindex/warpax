@@ -34,8 +34,13 @@ import numpy as np
 
 from warpax.benchmarks import AlcubierreMetric, SchwarzschildMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.geometry.grid import build_coord_batch
 from warpax.analysis import build_comparison_table, compare_eulerian_vs_robust
 from warpax.energy_conditions.verifier import verify_grid
+from warpax.energy_conditions.filtering import (
+    compute_wall_restricted_stats,
+    shape_function_mask,
+)
 from warpax.metrics import (
     LentzMetric,
     NatarioMetric,
@@ -61,6 +66,17 @@ METRICS: dict[str, tuple[type, dict]] = {
 
 # Warp metrics: these participate in the v_s sweep
 WARP_METRICS = ["alcubierre", "rodal", "vdb", "natario", "lentz", "warpshell"]
+
+# Metrics whose wall is resolved at default parameters. Lentz is excluded
+# (wall sub-grid at ~0.02 cells, not comparable); it is still evaluated in
+# the v_s sweep above as a qualitative consistency check.
+BENCHMARK_METRICS = ["alcubierre", "rodal", "vdb", "natario", "warpshell"]
+
+# Active warp-wall transition region: f in [F_LOW, F_HIGH] excludes the
+# bubble interior (f~1) and external vacuum (f~0), where the near-vacuum
+# early-out would otherwise inflate the Type-I fraction.
+F_LOW = 0.1
+F_HIGH = 0.9
 
 # Velocity sweep values
 V_S_VALUES = [0.1, 0.5, 0.9, 0.99]
@@ -96,6 +112,7 @@ def analyze_single(
     n_starts: int,
     batch_size: int,
     cache_path: str,
+    strategy: str = "tanh",
 ) -> None:
     """Run full Eulerian vs robust EC comparison for a single metric.
 
@@ -142,6 +159,7 @@ def analyze_single(
         n_starts=n_starts,
         batch_size=batch_size,
         compute_eulerian=False,
+        strategy=strategy,
     )
     t_vg = time.time() - t0
     print(f"    verify_grid: {t_vg:.1f}s")
@@ -164,12 +182,62 @@ def analyze_single(
     save_dict["worst_observers"] = np.asarray(ec_grid.worst_observers)
     save_dict["he_types"] = np.asarray(ec_grid.he_types)
 
-    # Classification statistics
+    # Full-domain classification counts. These are vacuum-dominated on a
+    # box much larger than the wall, so the wall-restricted counts below
+    # are the physically meaningful statistics.
     save_dict["n_type_i"] = np.array(ec_grid.n_type_i)
     save_dict["n_type_ii"] = np.array(ec_grid.n_type_ii)
     save_dict["n_type_iii"] = np.array(ec_grid.n_type_iii)
     save_dict["n_type_iv"] = np.array(ec_grid.n_type_iv)
+    # Count of near-vacuum points (max|Re lambda| < tol). These are folded
+    # into n_type_i; tracking them separately lets callers remove the
+    # vacuum contribution from the Type-I count.
+    save_dict["n_vacuum"] = np.array(
+        ec_grid.n_vacuum if ec_grid.n_vacuum is not None else -1
+    )
     save_dict["max_imag_eigenvalue"] = np.array(ec_grid.max_imag_eigenvalue)
+
+    # Wall-restricted statistics: counts conditioned on the active wall
+    # region, excluding the surrounding near-vacuum that the full-domain
+    # Type-I/IV fractions inherit via the classifier's near-vacuum early-out.
+    print("  Computing wall-restricted statistics...")
+    coords_batch = build_coord_batch(grid_spec, t=0.0)
+    try:
+        wall_mask = shape_function_mask(
+            metric, coords_batch, grid_spec.shape, f_low=F_LOW, f_high=F_HIGH,
+        )
+        wall_stats = compute_wall_restricted_stats(ec_grid, wall_mask)
+        save_dict["wall_mask"] = np.asarray(wall_mask)
+        save_dict["wall_n_total"] = np.array(int(wall_stats.n_total))
+        save_dict["wall_n_type_i"] = np.array(int(wall_stats.n_type_i))
+        save_dict["wall_n_type_ii"] = np.array(int(wall_stats.n_type_ii))
+        save_dict["wall_n_type_iii"] = np.array(int(wall_stats.n_type_iii))
+        save_dict["wall_n_type_iv"] = np.array(int(wall_stats.n_type_iv))
+        save_dict["wall_frac_type_i"] = np.array(float(wall_stats.frac_type_i))
+        save_dict["wall_frac_type_ii"] = np.array(float(wall_stats.frac_type_ii))
+        save_dict["wall_frac_type_iii"] = np.array(float(wall_stats.frac_type_iii))
+        save_dict["wall_frac_type_iv"] = np.array(float(wall_stats.frac_type_iv))
+        for cond in ("nec", "wec", "sec", "dec"):
+            n_viol = getattr(wall_stats, f"n_{cond}_violated", None)
+            n_miss = getattr(wall_stats, f"n_{cond}_missed", None)
+            miss_rate = getattr(wall_stats, f"{cond}_miss_rate", None)
+            if n_viol is not None:
+                save_dict[f"wall_n_{cond}_violated"] = np.array(int(n_viol))
+            if n_miss is not None:
+                save_dict[f"wall_n_{cond}_missed"] = np.array(int(n_miss))
+            if miss_rate is not None:
+                save_dict[f"wall_{cond}_miss_rate"] = np.array(float(miss_rate))
+        print(
+            f"    Wall stats: n_total={int(wall_stats.n_total)}, "
+            f"%Type-I={100*float(wall_stats.frac_type_i):.1f}, "
+            f"%Type-IV={100*float(wall_stats.frac_type_iv):.1f}"
+        )
+    except Exception as exc:
+        # Some metrics have no [0,1] shape-function transition (e.g.
+        # Schwarzschild), so the wall mask is undefined. Fall back to
+        # full-domain stats; downstream consumers gate on wall_n_total > 0.
+        print(f"    WARNING: wall-restricted stats failed: {exc}")
+        save_dict["wall_n_total"] = np.array(0)
 
     # Optimizer convergence diagnostics
     for cond in ("nec", "wec", "sec", "dec"):
@@ -235,6 +303,20 @@ def main():
         help="Multi-start count for BFGS optimization (default: 8).",
     )
     parser.add_argument(
+        "--strategy",
+        type=str,
+        default="tanh",
+        choices=["tanh", "hard_bound"],
+        help=(
+            "Observer optimization strategy: 'tanh' (soft rapidity cap "
+            "via tanh; default) or 'hard_bound' (projected-gradient BFGS "
+            "with a hard ||w||_2 <= zeta_max constraint). The soft cap can "
+            "attenuate the gradient for near-lightlike worst-case observers; "
+            "the hard-bound variant instead clips onto the rapidity sphere "
+            "at bound-active KKT points."
+        ),
+    )
+    parser.add_argument(
         "--phase",
         type=int,
         choices=[1, 2, 3],
@@ -295,6 +377,7 @@ def main():
             n_starts=n_starts,
             batch_size=batch_size,
             cache_path=os.path.join(results_dir, "schwarzschild_vs0.0.npz"),
+            strategy=args.strategy,
         )
 
     # -----------------------------------------------------------------------
@@ -323,7 +406,8 @@ def main():
 
             print(f"\n--- {name} (v_s={v_s}) ---")
             analyze_single(
-                name, metric, grid_spec, n_starts, batch_size, cache_path
+                name, metric, grid_spec, n_starts, batch_size, cache_path,
+                strategy=args.strategy,
             )
 
     # -----------------------------------------------------------------------
@@ -333,7 +417,9 @@ def main():
     print("Building comparison table...")
     print("=" * 60)
 
-    all_metrics_for_table = warp_to_run + (
+    # The comparison table excludes Lentz (wall sub-grid at default
+    # parameters); it is still cached above for the qualitative check.
+    all_metrics_for_table = [m for m in warp_to_run if m in BENCHMARK_METRICS] + (
         ["schwarzschild"] if "schwarzschild" in run_metrics else []
     )
     all_vs_for_table = sorted(set(run_velocities + ([0.0] if "schwarzschild" in run_metrics else [])))

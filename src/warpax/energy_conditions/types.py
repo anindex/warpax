@@ -27,6 +27,9 @@ class ClassificationResult(NamedTuple):
     rho: Float[Array, ""]  # Energy density (Type I) or NaN
     pressures: Float[Array, "3"]  # Principal pressures (Type I) or NaN
     eigenvalues_imag: Float[Array, "4"]  # Imaginary parts of eigenvalues
+    # 1.0 if near-vacuum (max|Re lambda| < tol), else 0.0. Near-vacuum points
+    # are classified he_type=1; this flag lets callers exclude them.
+    is_vacuum: Float[Array, ""]
 
 
 class ECPointResult(NamedTuple):
@@ -86,6 +89,8 @@ class ECGridResult(NamedTuple):
     n_type_ii: int | None
     n_type_iii: int | None
     n_type_iv: int | None
+    # Number of near-vacuum points (||T||~0), a subset of n_type_i.
+    n_vacuum: int | None
     max_imag_eigenvalue: float | None
     # Per-condition optimizer convergence diagnostics (optional)
     nec_opt_converged: Float[Array, "..."] | None  # 1.0=converged, 0.0=hit max_steps

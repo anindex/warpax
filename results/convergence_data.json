@@ -30,10 +30,10 @@
   "integrated_violation_nec": {
     "values": [
       1.8128416522769077,
-      1.9045007389186626,
-      1.7444544937483268
+      1.904500738918663,
+      1.7444544937483266
     ],
-    "extrapolated_value": 1.6911057453582148,
+    "extrapolated_value": 1.6911057453582146,
     "observed_order": 2.0,
     "error_estimate": 0.053348748390112055,
     "converged": true

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-04-18T14:11:32Z",
+    "date": "2026-05-21T13:35:14Z",
     "script": "scripts/run_lentz_wall_assessment.py",
     "lentz_params": {
       "R": 100.0,
@@ -1506,7 +1506,7 @@
     {
       "r": 99.09819639278558,
       "kretschner": 8.195106168995186e-07,
-      "T_frobenius": 2.044978111713566e-05,
+      "T_frobenius": 2.0449781117135658e-05,
       "f": 0.9999993645029263
     },
     {

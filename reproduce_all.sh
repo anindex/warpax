@@ -49,6 +49,11 @@ done
 
 PYTHON="${PYTHON:-python}"
 
+# Ensure warpax is importable when running from a checkout without
+# `pip install -e .`. Prepending src/ to PYTHONPATH is harmless if
+# warpax is already installed (the installed package wins).
+export PYTHONPATH="${SCRIPT_DIR:-$PWD}/src${PYTHONPATH:+:${PYTHONPATH}}"
+
 # Pin JAX backend to CPU by default for deterministic reproduction.
 #
 # On Blackwell sm_120 with jax[cuda12]==0.10.0 installed, reproduce_all.sh
@@ -100,20 +105,27 @@ run_phase_1() {
     echo "============================================================"
 
     echo ""
-    echo "[1/4] run_analysis.py Full metric analysis sweep"
+    echo "[1/5] run_analysis.py Full metric analysis sweep"
     $PYTHON "${SCRIPT_DIR}/scripts/run_analysis.py"
 
     echo ""
-    echo "[2/4] run_convergence.py Richardson extrapolation convergence"
+    echo "[2/5] run_convergence.py Richardson extrapolation convergence"
     $PYTHON "${SCRIPT_DIR}/scripts/run_convergence.py"
 
     echo ""
-    echo "[3/4] run_kinematic_scalars.py Kinematic scalar fields"
+    echo "[3/5] run_kinematic_scalars.py Kinematic scalar fields"
     $PYTHON "${SCRIPT_DIR}/scripts/run_kinematic_scalars.py"
 
     echo ""
-    echo "[4/4] run_geodesics.py Geodesic integration & tidal forces"
+    echo "[4/5] run_geodesics.py Geodesic integration & tidal forces"
     $PYTHON "${SCRIPT_DIR}/scripts/run_geodesics.py"
+
+    echo ""
+    echo "[5/5] run_clustered_convergence.py Wall-clustered convergence"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_clustered_convergence.py" \
+        --resolutions 25 50 100 \
+        --include-rodal-matched \
+        --n-starts 8
 
     echo ""
     echo " Phase 1 complete."
