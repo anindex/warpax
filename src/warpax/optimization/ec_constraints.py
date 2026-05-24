@@ -2,16 +2,21 @@
 
 Soft penalty: sum of softplus(-margin)^2 for gradient-based optimization.
 Hard feasibility: binary certification with the full warpax EC pipeline.
+
+The per-probe BFGS multistart is wrapped in :func:`equinox.filter_jit`
+so the inner trace is compiled once and reused across probes.
 """
 from __future__ import annotations
 
+from functools import partial
 from typing import NamedTuple
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
-from ..energy_conditions.optimization import optimize_nec, optimize_wec, optimize_dec
+from ..energy_conditions.optimization import optimize_dec, optimize_nec, optimize_wec
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
 
@@ -36,6 +41,39 @@ class ECFeasibilityResult(NamedTuple):
 _OPTIMIZER_MAP = {"nec": optimize_nec, "wec": optimize_wec, "dec": optimize_dec}
 
 
+def _probe_coords(r_probes: Float[Array, "N"]) -> Float[Array, "N 4"]:
+    """Build (N, 4) coord batch on the x-axis at t=0 from radial probes."""
+    N = r_probes.shape[0]
+    zeros = jnp.zeros_like(r_probes)
+    return jnp.stack([zeros, r_probes, zeros, zeros], axis=-1).reshape(N, 4)
+
+
+@eqx.filter_jit
+def _probe_T_g(
+    metric: MetricSpecification,
+    r_probes: Float[Array, "N"],
+) -> tuple[Float[Array, "N 4 4"], Float[Array, "N 4 4"]]:
+    """Vmap the curvature chain across radial probes; NaN-clean T."""
+    coords_batch = _probe_coords(r_probes)
+    cc_batch = jax.vmap(lambda c: compute_curvature_chain(metric, c))(coords_batch)
+    T = jnp.where(jnp.isnan(cc_batch.stress_energy), 0.0, cc_batch.stress_energy)
+    return T, cc_batch.metric
+
+
+@partial(jax.jit, static_argnames=("conditions", "n_starts"))
+def _ec_margins_at_point(
+    T: Float[Array, "4 4"],
+    g: Float[Array, "4 4"],
+    conditions: tuple[str, ...],
+    n_starts: int,
+) -> dict[str, Float[Array, ""]]:
+    """Per-point dict of EC margins; traced once, cached across probes."""
+    out = {}
+    for cond in conditions:
+        out[cond] = _OPTIMIZER_MAP[cond](T, g, n_starts=n_starts).margin
+    return out
+
+
 def ec_penalty(
     metric: MetricSpecification,
     r_probes: Float[Array, "N"],
@@ -43,21 +81,18 @@ def ec_penalty(
     conditions: tuple[str, ...] = ("nec", "wec", "dec"),
     n_starts: int = 4,
 ) -> Float[Array, ""]:
-    """Soft EC penalty: sum of softplus(-margin)^2 over probe points.
+    """Soft EC penalty: ``sum_i sum_c softplus(-margin_{i,c})^2``.
 
-    Uses a Python loop over probes because the EC optimizers contain
-    internal Python control flow (DEC subconditions) not compatible with vmap.
+    Vectorises the curvature chain across probes and JIT-caches the
+    per-point margin evaluation, so repeated invocations during
+    optimization re-use the compiled trace instead of re-tracing.
     """
+    T_batch, g_batch = _probe_T_g(metric, r_probes)
     total_penalty = jnp.float64(0.0)
-
     for i in range(r_probes.shape[0]):
-        coords = jnp.array([0.0, r_probes[i], 0.0, 0.0])
-        cc = compute_curvature_chain(metric, coords)
-        T = jnp.where(jnp.isnan(cc.stress_energy), 0.0, cc.stress_energy)
-        g = cc.metric
+        margins = _ec_margins_at_point(T_batch[i], g_batch[i], conditions, n_starts)
         for cond in conditions:
-            res = _OPTIMIZER_MAP[cond](T, g, n_starts=n_starts)
-            total_penalty = total_penalty + jax.nn.softplus(-res.margin) ** 2
+            total_penalty = total_penalty + jax.nn.softplus(-margins[cond]) ** 2
 
     return total_penalty
 
@@ -73,20 +108,13 @@ def ec_feasibility_check(
 
     Uses n_starts=16 by default for certification quality.
     """
-    margins = {}
-    for cond in conditions:
-        opt_fn = _OPTIMIZER_MAP[cond]
-        cond_margins_list = []
-
-        for i in range(r_probes.shape[0]):
-            coords = jnp.array([0.0, r_probes[i], 0.0, 0.0])
-            cc = compute_curvature_chain(metric, coords)
-            T = jnp.where(jnp.isnan(cc.stress_energy), 0.0, cc.stress_energy)
-            g = cc.metric
-            res = opt_fn(T, g, n_starts=n_starts)
-            cond_margins_list.append(res.margin)
-
-        margins[cond] = jnp.stack(cond_margins_list)
+    T_batch, g_batch = _probe_T_g(metric, r_probes)
+    margins = {cond: [] for cond in conditions}
+    for i in range(r_probes.shape[0]):
+        per_point = _ec_margins_at_point(T_batch[i], g_batch[i], conditions, n_starts)
+        for cond in conditions:
+            margins[cond].append(per_point[cond])
+    margins = {cond: jnp.stack(vals) for cond, vals in margins.items()}
 
     worst_condition = conditions[0]
     worst_margin = float("inf")

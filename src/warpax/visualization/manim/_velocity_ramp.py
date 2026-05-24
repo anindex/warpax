@@ -1,24 +1,6 @@
-"""VelocityRamp: Manim ThreeDScene showing EC violations intensifying with speed.
+"""VelocityRamp: Alcubierre v_s sweep with NEC margin heatmap (dual-layer 3D).
 
-Demonstrates how energy condition violations in the Alcubierre warp bubble
-grow more severe as the warp velocity v_s sweeps from 0.1 to 0.99.
-
-Dual-layer rendering:
-
-- **Upper layer:** translucent wireframe embedding surface showing
-  ``energy_density`` (RdBu_r colorscale) throughout.
-- **Lower layer:** flat heatmap showing ``nec_margin_sweep`` (RdYlGn
-  colorscale: green = NEC satisfied, red = violated) throughout.
-
-Both layers are always visible, enabling simultaneous comparison of
-curvature magnitude and violation structure. All frames are computed
-with ``build_ec_frame_sequence`` so that ``nec_margin_sweep`` is
-available from frame 0.
-
-Usage::
-
-    manim render -ql --format mp4 \\
-        src/warpax/visualization/manim/_velocity_ramp.py VelocityRamp
+Usage: manim render -ql --format mp4 src/warpax/visualization/manim/_velocity_ramp.py VelocityRamp
 """
 from __future__ import annotations
 
@@ -73,9 +55,6 @@ class VelocityRamp(ThreeDScene):
         # --- Dark background ---
         self.camera.background_color = COLORS_3B1B["background"]
 
-        # ==================================================================
-        # Step 1: Pre-compute all FrameData (90 frames)
-        # ==================================================================
         from warpax.geometry import GridSpec
         from warpax.visualization.common._scenes import scene_velocity_ramp
 
@@ -92,9 +71,6 @@ class VelocityRamp(ThreeDScene):
         )
         n_total = len(all_frames)
 
-        # ==================================================================
-        # Step 2: Setup 3D scene
-        # ==================================================================
         self.set_camera_orientation(
             phi=60 * DEGREES,
             theta=-45 * DEGREES,
@@ -114,9 +90,6 @@ class VelocityRamp(ThreeDScene):
         max_abs = max(abs(ed_clim[0]), abs(ed_clim[1]))
         z_extent = max_abs * exag * 1.3
 
-        # ==================================================================
-        # Step 3: Title + equation overlay - top center
-        # ==================================================================
         title_text = Text(
             "Alcubierre Velocity Ramp",
             font_size=22, color=WHITE, weight="LIGHT",
@@ -128,9 +101,6 @@ class VelocityRamp(ThreeDScene):
         self.add_fixed_in_frame_mobjects(header)
         self.add(header)
 
-        # ==================================================================
-        # Step 4: ValueTracker + always_redraw surfaces (dual-layer)
-        # ==================================================================
         frame_idx = ValueTracker(0)
 
         def _make_surface():
@@ -159,13 +129,6 @@ class VelocityRamp(ThreeDScene):
         embedding = always_redraw(_make_surface)
         heatmap = always_redraw(_make_heatmap)
 
-        # ==================================================================
-        # Step 5: Parameter display - upper-left (DecimalNumber + become)
-        # ==================================================================
-        # NOTE: In ThreeDScene, DecimalNumber.set_value recreates internal
-        # submobjects that lose their fixed-in-frame registration. We use
-        # ``become`` in the updaters instead, which replaces geometry
-        # in-place and preserves the registration.
         v_label = MathTex(r"v_s", font_size=32, color=WHITE)
         v_eq = MathTex(r"=", font_size=32, color=WHITE)
         v_num = DecimalNumber(
@@ -191,9 +154,6 @@ class VelocityRamp(ThreeDScene):
 
         v_num.add_updater(_update_v)
 
-        # ==================================================================
-        # Step 6: Color legends - upper-right (dual legends)
-        # ==================================================================
         # Energy density legend (RdBu_r) --
         ed_colors = ["#2166AC", "#67A9CF", "#F7F7F7", "#EF8A62", "#B2182B"]
         ed_strips = VGroup(*[
@@ -212,7 +172,7 @@ class VelocityRamp(ThreeDScene):
         ed_bar_row = VGroup(ed_lo, ed_strips, ed_hi).arrange(
             RIGHT, buff=0.06,
         )
-        ed_field = MathTex(r"T_{00}", font_size=22, color=WHITE)
+        ed_field = MathTex(r"\rho_{\rm Eul}", font_size=22, color=WHITE)
         ed_top_row = VGroup(ed_field, ed_title).arrange(
             RIGHT, buff=0.12,
         )
@@ -278,9 +238,6 @@ class VelocityRamp(ThreeDScene):
         dot_mob.add_updater(_update_violation)
         self.add_fixed_in_frame_mobjects(legend_group)
 
-        # ==================================================================
-        # Step 7: Animate
-        # ==================================================================
         self.add(axes, embedding, heatmap)
         self.begin_ambient_camera_rotation(rate=0.015, about="theta")
         self.play(

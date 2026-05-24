@@ -6,23 +6,20 @@ Citations:
   *Mémorial des Sciences Mathématiques* 25.
 - Israel, W. (1966). "Singular hypersurfaces and thin shells in general
   relativity." *Il Nuovo Cimento* B 44, 1-14.
+- Poisson, E. (2004). *A Relativist's Toolkit*, §3.7.
 
 Implements the pointwise discontinuity diagnostics:
 
 1. First fundamental form: ``h_{ab} = g_{ab} - epsilon n_a n_b`` where
    ``n_a`` is the unit normal covector and ``epsilon = g(n, n)`` is its
-   sign.
+   sign (``+1`` for spacelike normals, ``-1`` for timelike normals).
 2. Second fundamental form (extrinsic curvature):
-   ``K_{ab} = h^c_a h^d_b nabla_c n_d`` - projected directional
-   derivative of the normal along the hypersurface.
+   ``K_{ab} = h^c_a h^d_b \\nabla_c n_d`` using the covariant derivative
+   ``\\nabla_c n_d = \\partial_c n_d - \\Gamma^\\lambda_{cd} n_\\lambda``.
 
 Both are evaluated at user-supplied probe points on either side of the
 boundary; the discontinuities ``[[h]] = h_in - h_out`` and
 ``[[K]] = K_in - K_out`` are compared against the tolerance ``tol``.
-
-Textbook
-classical GR; complements the `WarpShellPhysical` regularisation
-without paper-number impact.
 """
 from __future__ import annotations
 
@@ -32,8 +29,9 @@ from typing import NamedTuple
 import jax
 import jax.numpy as jnp
 from beartype import beartype
-from jaxtyping import Array, Float, jaxtyped
+from jaxtyping import Array, Bool, Float, jaxtyped
 
+from ..geometry.geometry import christoffel_symbols
 from ..geometry.metric import MetricSpecification
 
 
@@ -43,82 +41,79 @@ class DarmoisResult(NamedTuple):
     Attributes
     ----------
     first_form_discontinuity : Float[Array, ""]
-        ``|[[h_{ab}]]|_max`` - maximum component of the induced 3-metric
-        jump across the boundary hypersurface.
+        ``|[[h_{ab}]]|_max`` - maximum component of the induced metric
+        jump across the boundary hypersurface (absolute).
     second_form_discontinuity : Float[Array, ""]
-        Relative ``|[[K_{ab}]]| / ||K_{ab}||`` - extrinsic-curvature
-        jump normalized by the Frobenius scale of ``K`` on either side.
-    physical : bool
-        True iff both discontinuities are below tolerance ``tol``.
+        ``|[[K_{ab}]]|_max`` - maximum component of the extrinsic
+        curvature jump across the boundary hypersurface (absolute).
+        Directly proportional to the surface stress
+        ``|S_{ab}|`` modulo trace terms, so it is a physically
+        meaningful comparand for ``tol``.
+    physical : Bool[Array, ""]
+        Traced boolean (``first_form_disc < tol`` and
+        ``second_form_disc < tol``). Cast with ``bool(result.physical)``
+        outside JIT/vmap if a host-side decision is required.
     """
 
     first_form_discontinuity: Float[Array, ""]
     second_form_discontinuity: Float[Array, ""]
-    physical: bool
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
+    physical: Bool[Array, ""]
 
 
 def _unit_normal(
     metric: MetricSpecification,
     boundary_fn: Callable[[Float[Array, "4"]], Float[Array, ""]],
     coords: Float[Array, "4"],
-) -> tuple[Float[Array, "4"], Float[Array, "4"]]:
-    """Return ``(n_covec, n_vec)`` unit-normal covector + vector.
+) -> tuple[Float[Array, "4"], Float[Array, "4"], Float[Array, ""]]:
+    """Return ``(n_covec, n_vec, epsilon)`` for the boundary level set.
 
-    Normalisation is ``|n_norm_sq|``-based (sign-robust - timelike or
-    spacelike boundaries), with a small epsilon floor to avoid zero
-    division at degenerate boundaries.
+    The unit normal is built from the gradient of ``boundary_fn``
+    rescaled by ``sqrt(|g(n, n)|)``; ``epsilon = sign(g(n, n))`` is
+    ``+1`` for a spacelike normal (timelike hypersurface) and ``-1`` for
+    a timelike normal (spacelike hypersurface). A tiny ``1e-30`` floor
+    on the norm prevents division by zero on null boundaries.
     """
-    n_covec = jax.jacfwd(boundary_fn)(coords)
+    n_covec_raw = jax.jacfwd(boundary_fn)(coords)
     g = metric(coords)
     g_inv = jnp.linalg.inv(g)
-    n_vec = g_inv @ n_covec  # raise index: n^a = g^{ab} n_b
-    n_norm_sq = jnp.dot(n_vec, n_covec)
+    n_vec_raw = g_inv @ n_covec_raw
+    n_norm_sq = jnp.dot(n_vec_raw, n_covec_raw)
+    epsilon = jnp.where(n_norm_sq >= 0.0, 1.0, -1.0)
     scale = jnp.sqrt(jnp.abs(n_norm_sq) + 1e-30)
-    return n_covec / scale, n_vec / scale
+    return n_covec_raw / scale, n_vec_raw / scale, epsilon
 
 
 def _induced_and_extrinsic(
     metric: MetricSpecification,
     boundary_fn: Callable[[Float[Array, "4"]], Float[Array, ""]],
     coords: Float[Array, "4"],
-) -> tuple[Float[Array, "4 4"], Float[Array, "4 4"]]:
-    """Compute induced 3-metric ``h_{ab}`` and extrinsic curvature ``K_{ab}``.
+) -> tuple[Float[Array, "4 4"], Float[Array, "4 4"], Float[Array, ""]]:
+    """Compute induced metric ``h_{ab}``, extrinsic curvature ``K_{ab}``, and ``epsilon``.
 
-    Uses Gauss-Codazzi identities with the normalized normal vector
-    (either timelike or spacelike depending on the sign of
-    ``g(n, n)``). Extrinsic curvature is approximated as the projected
-    directional derivative ``h^c_a h^d_b d_c n_d``.
+    Uses the Gauss-Codazzi decomposition with a unit normal that may be
+    timelike or spacelike. The first fundamental form is
+    ``h_{ab} = g_{ab} - epsilon n_a n_b`` and the second is
+    ``K_{ab} = h^c_a h^d_b \\nabla_c n_d`` with the covariant derivative
+    ``\\nabla_c n_d = \\partial_c n_d - \\Gamma^\\lambda_{cd} n_\\lambda``.
     """
-    n_covec, _n_vec = _unit_normal(metric, boundary_fn, coords)
+    n_covec, _n_vec, epsilon = _unit_normal(metric, boundary_fn, coords)
     g = metric(coords)
 
-    # Induced 3-metric h_ab = g_ab - n_a n_b
-    h_ab = g - jnp.outer(n_covec, n_covec)
+    h_ab = g - epsilon * jnp.outer(n_covec, n_covec)
 
-    # Derivative of the unit-normal covector along the 4-direction
     def _n_covec_fn(c):
-        n, _ = _unit_normal(metric, boundary_fn, c)
+        n, _, _ = _unit_normal(metric, boundary_fn, c)
         return n
 
-    dn = jax.jacfwd(_n_covec_fn)(coords)  # shape (4, 4): d_c n_d
+    dn = jax.jacfwd(_n_covec_fn)(coords)
+    gamma = christoffel_symbols(metric, coords)
+    grad_n = dn - jnp.einsum("lcd,l->cd", gamma, n_covec)
 
-    # Project onto Sigma via h^c_a = h_{ab} g^{bc}
     g_inv = jnp.linalg.inv(g)
-    h_mixed = h_ab @ g_inv  # shape (4, 4) -- a (lower), c (upper)
-    # K_{ab} = h^c_a (d_c n_d) h^d_b
-    K_ab = h_mixed @ dn @ h_mixed.T
+    h_mixed = h_ab @ g_inv
+    K_ab = h_mixed @ grad_n @ h_mixed.T
 
-    return h_ab, K_ab
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
+    return h_ab, K_ab, epsilon
 
 
 @jaxtyped(typechecker=beartype)
@@ -146,7 +141,7 @@ def darmois(
         Sample point just outside the boundary (default:
         ``(0, 1.1, 0, 0)``).
     tol : float
-        Physicality tolerance. Default ``1e-8`` per for .
+        Physicality tolerance. Default ``1e-8``.
 
     Returns
     -------
@@ -156,40 +151,23 @@ def darmois(
 
     Notes
     -----
-    Algorithm (for a timelike or spacelike boundary ``Sigma`` with unit
-    normal ``n^a``):
-
-    1. **Induced 3-metric** on ``Sigma``: ``h_{ab} = g_{ab} - n_a n_b``.
-    2. **Extrinsic curvature** on ``Sigma``:
-       ``K_{ab} = h^c_a h^d_b nabla_c n_d`` - here computed as the
-       directional derivative of ``n_a`` projected onto ``Sigma`` via
-       ``jax.jacfwd``.
-    3. **Discontinuities**: evaluate ``h`` and ``K`` at
-       ``probe_coords_inside`` and ``probe_coords_outside``; return
-       ``|h_in - h_out|_max`` and
-       ``|K_in - K_out| / (||K_in|| + ||K_out||)``.
-
-    Note that this is a pointwise probe test, not a full Sigma integral.
-    For smooth metrics (Alcubierre-family), the discontinuity should be
-    ``O(probe_separation^2)`` and below ``tol`` by construction. For
-    genuine shell metrics (WarpShell at the shell boundary), ``K``
-    jumps discontinuously.
+    Pointwise probe test (not a full Sigma integral). Smooth metrics
+    (Alcubierre-family) give discontinuities ``O(probe_separation^2)``
+    and pass at any reasonable ``tol``; genuine shell metrics (WarpShell
+    at the shell boundary) yield finite ``[[K]]``.
     """
     if probe_coords_inside is None:
         probe_coords_inside = jnp.array([0.0, 0.9, 0.0, 0.0])
     if probe_coords_outside is None:
         probe_coords_outside = jnp.array([0.0, 1.1, 0.0, 0.0])
 
-    h_in, K_in = _induced_and_extrinsic(metric, boundary_fn, probe_coords_inside)
-    h_out, K_out = _induced_and_extrinsic(metric, boundary_fn, probe_coords_outside)
+    h_in, K_in, _ = _induced_and_extrinsic(metric, boundary_fn, probe_coords_inside)
+    h_out, K_out, _ = _induced_and_extrinsic(metric, boundary_fn, probe_coords_outside)
 
     first_form_disc = jnp.max(jnp.abs(h_in - h_out))
-    k_scale = jnp.sqrt(jnp.sum(K_in ** 2) + jnp.sum(K_out ** 2)) + 1e-30
-    second_form_disc = jnp.max(jnp.abs(K_in - K_out)) / k_scale
+    second_form_disc = jnp.max(jnp.abs(K_in - K_out))
 
-    physical = bool(
-        (first_form_disc < tol) & (second_form_disc < tol)
-    )
+    physical = (first_form_disc < tol) & (second_form_disc < tol)
 
     return DarmoisResult(
         first_form_discontinuity=first_form_disc,
@@ -205,19 +183,21 @@ def surface_stress_energy(
     probe_coords_inside: Float[Array, "4"],
     probe_coords_outside: Float[Array, "4"],
 ) -> Float[Array, "4 4"]:
-    """Compute surface stress-energy S_{ab} via Israel junction conditions.
+    """Compute surface stress-energy ``S_{ab}`` via Israel junction conditions.
 
-    Uses the proper two-sided jump formulation:
-        S_{ab} = -(1/8pi)([K_{ab}] - [K] h_{ab})
+    Uses the proper two-sided jump formulation
 
-    where [K_{ab}] = K^+_{ab} - K^-_{ab} is the jump of extrinsic curvature
-    across the surface Sigma, and h_{ab} is the induced metric (averaged).
+    .. math::
+        S_{ab} = -\\frac{\\epsilon}{8\\pi}\\bigl([K_{ab}] - [K] h_{ab}\\bigr),
+
+    where ``[K_{ab}] = K^+_{ab} - K^-_{ab}`` is the jump of extrinsic
+    curvature across ``Sigma``, ``[K] = h^{ab} [K_{ab}]`` is its trace
+    with respect to the (pseudo-)inverse induced metric, ``h_{ab}`` is
+    the averaged induced metric, and ``epsilon = g(n, n)`` is the sign
+    of the unit normal (``+1`` timelike hypersurface, ``-1`` spacelike).
 
     The sign convention follows Israel (1966): the normal points from
-    inside (-) to outside (+). The jump is [X] = X^+ - X^-.
-
-    The minus sign in front of 1/8pi is the standard convention where
-    S_{ab} has dimensions of stress (energy per area).
+    inside (-) to outside (+). The jump is ``[X] = X^+ - X^-``.
 
     Parameters
     ----------
@@ -228,28 +208,26 @@ def surface_stress_energy(
 
     Returns
     -------
-    S_{ab} : surface stress-energy tensor (full 4x4, tangential to Sigma)
+    Float[Array, "4 4"]
+        Surface stress-energy tensor (full 4x4, tangential to Sigma).
     """
-    h_in, K_in = _induced_and_extrinsic(metric, boundary_fn, probe_coords_inside)
-    h_out, K_out = _induced_and_extrinsic(metric, boundary_fn, probe_coords_outside)
+    h_in, K_in, eps_in = _induced_and_extrinsic(
+        metric, boundary_fn, probe_coords_inside
+    )
+    h_out, K_out, eps_out = _induced_and_extrinsic(
+        metric, boundary_fn, probe_coords_outside
+    )
 
-    # Jump of extrinsic curvature: [K_{ab}] = K^+ - K^-
     delta_K = K_out - K_in
-
-    # Average induced metric for the trace computation
     h_avg = 0.5 * (h_in + h_out)
+    epsilon = 0.5 * (eps_in + eps_out)
 
-    # Trace of the jump using the 4D inverse metric (valid because K is tangential)
-    # We use the average of the two metric evaluations for consistency
-    g_in = metric(probe_coords_inside)
-    g_out = metric(probe_coords_outside)
-    g_avg = 0.5 * (g_in + g_out)
-    g_inv_avg = jnp.linalg.inv(g_avg)
+    # Trace of the jump on the induced metric (h^{ab} is a 3D inverse;
+    # use the Moore-Penrose pseudo-inverse for the 4x4 representation
+    # because h_ab has a null direction along n^a).
+    h_inv_avg = jnp.linalg.pinv(h_avg)
+    delta_K_trace = jnp.einsum("ab,ab->", h_inv_avg, delta_K)
 
-    delta_K_trace = jnp.einsum("ab,ab->", g_inv_avg, delta_K)
-
-    # Israel formula: S_{ab} = -(1/8pi)([K_{ab}] - [K] h_{ab})
-    S_ab = -(1.0 / (8.0 * jnp.pi)) * (delta_K - delta_K_trace * h_avg)
-
+    S_ab = -(epsilon / (8.0 * jnp.pi)) * (delta_K - delta_K_trace * h_avg)
     return S_ab
 

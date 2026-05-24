@@ -1,25 +1,24 @@
 """objectives - EC-margin integrals + averaged + quantum.
 
-Three objective flavours for the optimizer :
+Three objective flavours for the optimizer:
 
 - :func:`ec_margin_objective(metric, objective='nec'|'wec'|'sec'|'dec')`:
   pointwise worst-observer EC margin on a probe grid; returns the
   *minimum* per-point margin (worst-point margin).
 - :func:`averaged_objective(metric, geodesic, kind='anec'|'awec')`:
-  composes with 02 line integrals.
+  composes with line integrals.
 - :func:`quantum_objective(metric, worldline, tau0)`: composes with
   Ford-Roman quantum inequality.
 
 :data:`OBJECTIVE_REGISTRY` dict provides string-dispatch for the
 ``design_metric(objective='nec')`` API.
-
-Reference:
 """
 from __future__ import annotations
 
 from functools import partial
 from typing import Callable
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
@@ -32,11 +31,6 @@ from ..energy_conditions.optimization import (
 )
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
-
-
-# ---------------------------------------------------------------------------
-# Pointwise EC margin dispatch
-# ---------------------------------------------------------------------------
 
 
 _OPTIMIZER_MAP: dict[str, Callable] = {
@@ -101,9 +95,9 @@ def ec_margin_objective(
     TT = jnp.full_like(XX, t)
     coords_stack = jnp.stack([TT, XX, YY, ZZ], axis=-1).reshape(-1, 4)
 
+    @eqx.filter_jit
     def _per_point_margin(coords):
         cc = compute_curvature_chain(metric, coords)
-        # Replace NaNs in T_ab for optimizer robustness
         T = jnp.where(jnp.isnan(cc.stress_energy), 0.0, cc.stress_energy)
         g = cc.metric
         res = optimizer(T, g, n_starts=n_starts)
@@ -117,18 +111,13 @@ def ec_margin_objective(
     return jnp.min(safe_margins)
 
 
-# ---------------------------------------------------------------------------
-# Averaged / quantum composition
-# ---------------------------------------------------------------------------
-
-
 def averaged_objective(
     metric: MetricSpecification,
     geodesic,
     kind: str = "anec",
     **kwargs,
 ) -> Float[Array, ""]:
-    """Compose ANEC / AWEC line integral as a DSGN objective.
+    """Compose ANEC / AWEC line integral as a design objective.
 
     Parameters
     ----------
@@ -167,7 +156,7 @@ def quantum_objective(
     tau0: float = 1.0,
     **kwargs,
 ) -> Float[Array, ""]:
-    """Compose Ford-Roman quantum inequality as a DSGN objective.
+    """Compose Ford-Roman quantum inequality as a design objective.
 
     Parameters
     ----------
@@ -191,11 +180,6 @@ def quantum_objective(
     from ..quantum import ford_roman
 
     return ford_roman(metric, worldline, tau0=tau0, **kwargs).margin
-
-
-# ---------------------------------------------------------------------------
-# Registry
-# ---------------------------------------------------------------------------
 
 
 OBJECTIVE_REGISTRY: dict[str, Callable] = {

@@ -12,7 +12,11 @@ from __future__ import annotations
 from ._frame_data import FrameData
 
 # JAX-to-NumPy conversion
-from ._conversion import freeze_curvature, freeze_ec
+from ._conversion import (
+    eulerian_energy_density_grid,
+    freeze_curvature,
+    freeze_ec,
+)
 
 # Color scale utilities
 from ._color import is_diverging, resolve_clim, resolve_clim_from_array, resolve_cmap
@@ -44,6 +48,7 @@ __all__ = [
     # Data bridge
     "FrameData",
     # Conversion
+    "eulerian_energy_density_grid",
     "freeze_curvature",
     "freeze_ec",
     # Color

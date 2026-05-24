@@ -4,8 +4,6 @@ Provides the abstract ``MetricSpecification`` (Equinox module / JAX pytree),
 the ``ADMMetric`` 3+1 decomposition subclass, the ``SymbolicMetric`` class
 for SymPy-based symbolic inspection, and utility functions for converting
 between representations.
-
-NumPy reference.
 """
 
 from __future__ import annotations
@@ -19,11 +17,6 @@ import jax.numpy as jnp
 import sympy as sp
 from jaxtyping import Array, Float
 from sympy import lambdify
-
-
-# ---------------------------------------------------------------------------
-# SymbolicMetric
-# ---------------------------------------------------------------------------
 
 
 class SymbolicMetric:
@@ -61,11 +54,6 @@ class SymbolicMetric:
     def g_inv(self) -> sp.Matrix:
         """Inverse metric tensor *g^{ab}* (computed once, then cached)."""
         return self.g.inv()
-
-
-# ---------------------------------------------------------------------------
-# MetricSpecification (abstract base Equinox module / JAX pytree)
-# ---------------------------------------------------------------------------
 
 
 class MetricSpecification(eqx.Module):
@@ -127,11 +115,6 @@ class MetricSpecification(eqx.Module):
         ...
 
 
-# ---------------------------------------------------------------------------
-# ADMMetric (abstract 3+1 decomposition interface)
-# ---------------------------------------------------------------------------
-
-
 class ADMMetric(MetricSpecification):
     """Abstract base for metrics defined via the ADM 3+1 decomposition.
 
@@ -186,11 +169,6 @@ class ADMMetric(MetricSpecification):
         )
 
 
-# ---------------------------------------------------------------------------
-# ADM reconstruction helper
-# ---------------------------------------------------------------------------
-
-
 def adm_to_full_metric(
     alpha: Float[Array, ""],
     beta_up: Float[Array, "3"],
@@ -234,11 +212,6 @@ def adm_to_full_metric(
     g = g.at[1:, 0].set(beta_down)
     g = g.at[1:, 1:].set(gamma)
     return g
-
-
-# ---------------------------------------------------------------------------
-# SymPy-to-JAX bridge
-# ---------------------------------------------------------------------------
 
 
 def sympy_metric_to_jax(

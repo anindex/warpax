@@ -15,7 +15,11 @@ from .types import (
 )
 
 # Classification
-from .classification import classify_hawking_ellis, classify_mixed_tensor
+from .classification import (
+    classify_hawking_ellis,
+    classify_mixed_tensor,
+    classify_with_solver,
+)
 from .classification_mpmath import (
     classify_hawking_ellis_mpmath,
     eigenvalues_mpmath,
@@ -26,6 +30,7 @@ from .classification_mpmath import (
 from .eigenvalue_checks import (
     check_all,
     check_dec,
+    check_dec_typeI_eigenvalue_bound,
     check_nec,
     check_sec,
     check_wec,
@@ -91,11 +96,13 @@ __all__ = [
     "classify_hawking_ellis",
     "classify_hawking_ellis_mpmath",
     "classify_mixed_tensor",
+    "classify_with_solver",
     "eigenvalues_mpmath",
     "verify_classification_at_points",
     # Eigenvalue checks
     "check_all",
     "check_dec",
+    "check_dec_typeI_eigenvalue_bound",
     "check_nec",
     "check_sec",
     "check_wec",

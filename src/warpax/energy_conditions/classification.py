@@ -14,15 +14,131 @@ making the classifier fully JIT-compilable and vmappable.
 """
 from __future__ import annotations
 
+import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 from warpax.energy_conditions.types import ClassificationResult
 
+_VALID_SOLVERS = frozenset({"standard", "generalized", "auto"})
+# Standard ``jnp.linalg.eig(T^a_b)`` mis-classifies near-degenerate pencils
+# (WarpShell v_s=0.5: spurious Type IV at |λ| ~ 10^42).
+_AUTO_MAX_EIGENVALUE = 1e25
+_AUTO_IMAG_RTOL = 0.05
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
+
+def _standard_solver_unreliable_scalar(
+    he_type: float,
+    eigenvalues,
+    eigenvalues_imag,
+    *,
+    max_eigenvalue: float = _AUTO_MAX_EIGENVALUE,
+    imag_rtol: float = _AUTO_IMAG_RTOL,
+) -> bool:
+    """Return True when the standard eigen solver result should be discarded."""
+    import numpy as np
+
+    ev = np.asarray(eigenvalues)
+    ev_im = np.asarray(eigenvalues_imag)
+    if float(he_type) == 4.0:
+        return True
+    if float(np.max(np.abs(ev))) > max_eigenvalue:
+        return True
+    scale = max(float(np.max(np.abs(ev))), 1.0)
+    if float(np.max(np.abs(ev_im))) > imag_rtol * scale:
+        return True
+    return False
+
+
+def _standard_solver_unreliable_mask(
+    he_types: Float[Array, "N"],
+    eigenvalues: Float[Array, "N 4"],
+    eigenvalues_imag: Float[Array, "N 4"],
+    *,
+    max_eigenvalue: float = _AUTO_MAX_EIGENVALUE,
+    imag_rtol: float = _AUTO_IMAG_RTOL,
+) -> Float[Array, "N"]:
+    """Boolean mask (float 0/1) for grid points needing generalized fallback."""
+    max_abs = jnp.max(jnp.abs(eigenvalues), axis=-1)
+    max_imag = jnp.max(jnp.abs(eigenvalues_imag), axis=-1)
+    scale = jnp.maximum(max_abs, 1.0)
+    is_type_iv = he_types == 4.0
+    huge_eig = max_abs > max_eigenvalue
+    large_imag = max_imag > imag_rtol * scale
+    return (is_type_iv | huge_eig | large_imag).astype(jnp.float64)
+
+
+def _is_unreliable_single(
+    he_type: Float[Array, ""],
+    eigenvalues: Float[Array, "4"],
+    eigenvalues_imag: Float[Array, "4"],
+    *,
+    max_eigenvalue: float = _AUTO_MAX_EIGENVALUE,
+    imag_rtol: float = _AUTO_IMAG_RTOL,
+) -> Float[Array, ""]:
+    """Traced predicate: True when the standard result needs the pencil fallback."""
+    max_abs = jnp.max(jnp.abs(eigenvalues))
+    max_imag = jnp.max(jnp.abs(eigenvalues_imag))
+    scale = jnp.maximum(max_abs, 1.0)
+    return (
+        (he_type == 4.0)
+        | (max_abs > max_eigenvalue)
+        | (max_imag > imag_rtol * scale)
+    )
+
+
+def classify_with_solver(
+    T_mixed: Float[Array, "4 4"],
+    g_ab: Float[Array, "4 4"],
+    T_ab: Float[Array, "4 4"] | None,
+    *,
+    solver: str = "auto",
+    tol: float = 1e-10,
+    imag_rtol: float = 3e-3,
+) -> ClassificationResult:
+    """Classify with optional auto-fallback to the generalized pencil solver.
+
+    With ``solver='auto'`` the pencil solver is invoked through
+    :func:`jax.lax.cond` so the routine remains JIT- and vmap-safe; the
+    fallback predicate is computed from traced eigenvalues using
+    :func:`_is_unreliable_single`.
+    """
+    if solver not in _VALID_SOLVERS:
+        raise ValueError(
+            f"solver must be one of {_VALID_SOLVERS}; got {solver!r}"
+        )
+    if solver == "standard":
+        return classify_hawking_ellis(
+            T_mixed, g_ab, solver="standard", tol=tol, imag_rtol=imag_rtol,
+        )
+    if solver == "generalized":
+        if T_ab is None:
+            T_ab = g_ab @ T_mixed
+        return classify_hawking_ellis(
+            T_mixed, g_ab, solver="generalized", T_ab=T_ab,
+            tol=tol, imag_rtol=imag_rtol,
+        )
+
+    cls_std = classify_hawking_ellis(
+        T_mixed, g_ab, solver="standard", tol=tol, imag_rtol=imag_rtol,
+    )
+    T_ab_local = g_ab @ T_mixed if T_ab is None else T_ab
+
+    needs_fallback = _is_unreliable_single(
+        cls_std.he_type, cls_std.eigenvalues, cls_std.eigenvalues_imag,
+        imag_rtol=imag_rtol,
+    )
+
+    def _gen_branch(_):
+        return classify_hawking_ellis(
+            T_mixed, g_ab, solver="generalized", T_ab=T_ab_local,
+            tol=tol, imag_rtol=imag_rtol,
+        )
+
+    def _std_branch(_):
+        return cls_std
+
+    return jax.lax.cond(needs_fallback, _gen_branch, _std_branch, operand=None)
 
 
 def classify_hawking_ellis(
@@ -49,10 +165,11 @@ def classify_hawking_ellis(
           scipy-free pure-JAX path.
         - ``'generalized'``: ``scipy.linalg.eig(T_ab, g_ab)`` via
           :func:`jax.pure_callback`; solves the pencil ``(T - lam g)v = 0``
-          directly. Stabilises Jordan-defective classification at
+          directly. Stabilizes Jordan-defective classification at
           near-degenerate eigenstructure (e.g. WarpShell v_s=0.5 idx=8
           near ``|lam| ~ 10^42``). Carries host-callback overhead (~5-10x
           slower per grid; see :mod:`._gen_eig_callback` Notes).
+        See :func:`classify_with_solver` for ``solver='auto'`` fallback.
     T_ab : Float[Array, "4 4"] or None, keyword-only
         Covariant stress-energy tensor T_{ab}, required when
         ``solver='generalized'`` for numerical stability. If ``None`` and
@@ -142,21 +259,11 @@ def classify_hawking_ellis(
     # eigenvalues can differ significantly from the Eulerian result.
     near_vacuum = jnp.max(jnp.abs(evals_real)) < tol
 
-    # ------------------------------------------------------------------
-    # Causal character of each eigenvector: g_{ab} v^a v^b
-    # Eigenvectors of T^a_b = g^{-1} T_ab are g-orthogonal for distinct
-    # eigenvalues (generalized eigenproblem (T - λg)v = 0); the formula
-    # below computes the physical causal-character indicator.
-    #
-    # use a RELATIVE sign threshold (normalise against max
-    # |v^T g v|). An absolute ``tol`` loses relative resolution at large
-    # g-scale: at WarpShell-style points where |g_{ab}| * |v|^2 ~ 10^{11}
-    # the spurious-noise floor for null detection scales with max|causal|,
-    # so a fixed ``tol`` over-tightens the timelike test and over-loosens
-    # the null test. The relative threshold restores scale-aware sign
-    # discrimination at all metric component scales. ``g_quad_scale``
-    # floors at 1.0 so Minkowski / unit-scale behaviour is unchanged.
-    # ------------------------------------------------------------------
+    # Causal character ``g_{ab} v^a v^b`` for each eigenvector. Use a
+    # RELATIVE sign threshold (normalized by ``max|v^T g v|``): an
+    # absolute ``tol`` over-tightens the timelike test at large
+    # ``|g_{ab}| |v|^2`` (e.g. WarpShell ~ 10^{11}). ``g_quad_scale``
+    # floors at 1.0 so Minkowski-scale behavior is unchanged.
     causal = jnp.einsum("ab,ak,bk->k", g_ab, evecs_real, evecs_real)
     g_quad_scale = jnp.maximum(jnp.max(jnp.abs(causal)), 1.0)
     relative_g_quad = causal / g_quad_scale
@@ -164,19 +271,14 @@ def classify_hawking_ellis(
     n_timelike = jnp.sum(relative_g_quad < -tol)
     n_null = jnp.sum(jnp.abs(relative_g_quad) <= tol)
 
-    # ------------------------------------------------------------------
-    # Degeneracy: relative tolerance |lam_i - lam_j| < tol * scale
-    # ------------------------------------------------------------------
+    # Degeneracy: relative tolerance ``|lam_i - lam_j| < tol * scale``.
     sorted_evals = jnp.sort(evals_real)
     gaps = jnp.abs(jnp.diff(sorted_evals))
     n_unique = 1 + jnp.sum(gaps > tol * scale)
 
-    # ------------------------------------------------------------------
-    # Branchless type assignment via nested jnp.where
-    # ------------------------------------------------------------------
-    # Near-vacuum points bypass all checks; their eigenvalues and
-    # eigenvectors are pure numerical noise, so Type IV from spurious
-    # imaginary parts is suppressed.
+    # Branchless type assignment via nested ``jnp.where``. Near-vacuum
+    # points bypass all checks (eigenvalues / eigenvectors are pure
+    # numerical noise) so spurious Type IV is suppressed.
     is_type_iv = ~all_real & ~near_vacuum
     is_type_i = (all_real & (n_timelike >= 1) & (n_null == 0)) | near_vacuum
     is_type_iii = all_real & ~near_vacuum & (n_null >= 1) & (n_unique == 1)
@@ -187,20 +289,16 @@ def classify_hawking_ellis(
         jnp.where(is_type_i, 1, jnp.where(is_type_iii, 3, 2)),
     )
 
-    # ------------------------------------------------------------------
-    # Type I extraction: rho = -eigenvalue(timelike), pressures = rest
-    # For non-Type-I the fields are set to NaN.
-    # ------------------------------------------------------------------
-    timelike_idx = jnp.argmin(causal)
+    # Type I extraction: ``rho = -eigenvalue(timelike)``, pressures = rest.
+    # When ``causal[i] ~ causal[j]`` (near-degenerate eigenvectors), bias
+    # the selection towards the most-negative eigenvalue with a 1e-15
+    # tiebreaker so Type-I rho is stable under f64 noise.
+    timelike_idx = jnp.argmin(causal + 1e-15 * evals_real)
 
-    # Mask for the three spacelike eigenvectors (indices != timelike_idx)
     indices = jnp.arange(4)
     is_spacelike = indices != timelike_idx
-    # Gather spacelike eigenvalues via boolean indexing (static size via where)
-    # We need exactly 3 values. Use jnp.where to zero out the timelike entry
-    # then sort and take the last 3 (the zeroed entry will sort to the front
-    # only if all others are positive, which is not guaranteed). Instead,
-    # replace timelike eigenvalue with +inf so it sorts last, then take first 3.
+    # Replace timelike eigenvalue with +inf so it sorts last; take the
+    # first three of the sorted result for the spacelike pressures.
     masked_evals = jnp.where(is_spacelike, evals_real, jnp.inf)
     sorted_masked = jnp.sort(masked_evals)
     pressures_raw = sorted_masked[:3]
@@ -230,10 +328,14 @@ def classify_mixed_tensor(
     solver: str = 'standard',
     tol: float = 1e-10,
 ) -> ClassificationResult:
-    """Convenience wrapper: raise the first index then classify.
+    """Convenience wrapper: raise the FIRST index of T then classify.
 
-    Computes ``T^a_{\\;b} = g^{ac} T_{cb}`` and delegates to
-    :func:`classify_hawking_ellis`.
+    Computes ``T^a_{\\;b} = g^{ac} T_{cb}`` (contracting the second slot
+    of ``g^{-1}`` with the first slot of ``T``) and delegates to
+    :func:`classify_hawking_ellis`. The convention matters when
+    ``T_{ab}`` is non-symmetric: this routine always raises the first
+    index, matching the eigenvalue equation
+    ``T^a_{\\;b} v^b = lambda v^a`` consumed downstream.
 
     Parameters
     ----------
@@ -245,18 +347,12 @@ def classify_mixed_tensor(
         Contravariant (inverse) metric g^{ab}, shape (4, 4).
     solver : {'standard', 'generalized'}, keyword-only
         Eigenvalue backend. When ``'generalized'`` the caller's
-        ``T_ab`` is forwarded directly to
-        :func:`classify_hawking_ellis` (skipping the second
-        ``g_ab @ T_mixed`` matmul that the fallback would perform).
-        See :func:`classify_hawking_ellis` for full semantics.
+        ``T_ab`` is forwarded directly to :func:`classify_hawking_ellis`
+        so the pencil solver runs on the original covariant tensor.
     tol : float
         Classification tolerance.
-
-    Returns
-    -------
-    ClassificationResult
     """
-    T_mixed = g_inv @ T_ab
+    T_mixed = jnp.einsum("ac,cb->ab", g_inv, T_ab)
     return classify_hawking_ellis(
         T_mixed, g_ab,
         solver=solver,

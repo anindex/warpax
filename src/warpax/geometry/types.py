@@ -13,10 +13,6 @@ import equinox as eqx
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
-# ---------------------------------------------------------------------------
-# TensorField
-# ---------------------------------------------------------------------------
-
 
 class TensorField(eqx.Module):
     """A tensor field defined on a computational grid (or at a single point).
@@ -65,11 +61,6 @@ class TensorField(eqx.Module):
         return self.components.shape[-self.rank :] if self.rank > 0 else ()
 
 
-# ---------------------------------------------------------------------------
-# GridSpec
-# ---------------------------------------------------------------------------
-
-
 class GridSpec(eqx.Module):
     """Specification for a computational grid in 3D spatial coordinates.
 
@@ -87,14 +78,12 @@ class GridSpec(eqx.Module):
         Non-uniform 1D coordinate arrays per axis, packed as a tuple of
         tuples so the field stays hashable / static. Only set by
         non-uniform generators (:func:`warpax.grids.wall_clustered`);
-        default is ``None`` for uniform linspace grids. Additive field
-        landed in ; existing callers using
-        ``GridSpec(bounds=..., shape=...)`` are unaffected.
+        default is ``None`` for uniform linspace grids.
     volume_weights : tuple, optional
-        Flattened per-cell 3D volume weights (mitigation) packed
-        as a tuple so the field stays hashable / static. Only set by
-        non-uniform generators; default is ``None``. Reshape to
-        ``shape`` at use site via :attr:`volume_weights_array`.
+        Flattened per-cell 3D volume weights packed as a tuple so the
+        field stays hashable / static. Only set by non-uniform
+        generators; default is ``None``. Reshape to ``shape`` at use
+        site via :attr:`volume_weights_array`.
     """
 
     bounds: list = eqx.field(static=True)

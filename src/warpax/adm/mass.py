@@ -8,6 +8,21 @@ evaluated on coordinate spheres at large radii using angular quadrature
 and JAX autodiff for spatial derivatives.
 
 Also provides Richardson extrapolation for convergence verification.
+
+.. warning::
+
+   The ADM surface integral converges to a finite ``M_ADM`` only for
+   metrics whose stress-energy has sufficiently rapid asymptotic
+   falloff (formally ``T_{ab}`` of compact support, or
+   ``rho ~ O(1/r^4)``). For thick-shell warp constructions where the
+   density profile decays only as ``1/r^2`` or slower, the surface
+   integral grows logarithmically (or worse) with ``r_surface``; the
+   Richardson extrapolation in :func:`adm_mass_richardson` will then
+   report a divergent ``M_extrapolated`` and a ``convergence_order``
+   below 1. Treat such reports as evidence the model is **not**
+   asymptotically flat in the ADM sense rather than as a numerical
+   issue. See the Fuchs canonical regression test in
+   ``tests/test_physics_validation/test_physics_regression.py``.
 """
 from __future__ import annotations
 
@@ -53,6 +68,19 @@ def adm_mass(
 
     Uses Gauss-Legendre quadrature in theta and uniform quadrature in phi.
 
+    .. note::
+
+       The value returned is the integral on a coordinate sphere of
+       radius ``r_surface``. It converges to the ADM mass only when the
+       metric satisfies the ADM falloff conditions
+       (``g_ij - delta_ij ~ O(1/r)``, ``dg ~ O(1/r^2)``). Use
+       :func:`adm_mass_richardson` or :func:`asymptotic_flatness_report`
+       to verify that ``M_ADM`` has converged with increasing
+       ``r_surface`` before quoting the value. Thick-shell warp metrics
+       with extended-support density typically have a divergent
+       coordinate-sphere integral - this is a physical statement about
+       the spacetime, not a numerical artifact.
+
     Parameters
     ----------
     metric : MetricSpecification
@@ -62,7 +90,8 @@ def adm_mass(
 
     Returns
     -------
-    M_ADM : ADM mass scalar
+    M_ADM : ADM mass scalar (only physically meaningful when convergent
+        with ``r_surface``; see note above)
     """
     r = jnp.float64(r_surface)
 
@@ -110,23 +139,15 @@ def adm_mass(
         # dA = r^2 sin(theta) (the sin(theta) is handled by the Legendre weight change of variable)
         return f * r**2
 
-    # Double quadrature
-    total = jnp.float64(0.0)
-    # Vectorize over phi for each theta node
-    for i_theta in range(n_theta):
-        theta_val = theta_nodes[i_theta]
-        w_theta = weights_theta[i_theta]
-
-        # For Gauss-Legendre on [-1,1] mapped to [0,pi]:
-        # int__0^pi f(theta) sin(theta) dtheta = int__{-1}^{1} f(arccos(u)) du
-        # The sin(theta) factor is absorbed into the change of variable.
-
-        def phi_integrand(phi_val):
-            return integrand_at_angle(theta_val, phi_val)
-
-        phi_values = jax.vmap(phi_integrand)(phi_nodes)
-        phi_sum = jnp.sum(phi_values) * dphi
-        total = total + w_theta * phi_sum
+    # Full 2D quadrature: vmap over (theta, phi).
+    # Gauss-Legendre on [-1,1] mapped to theta in [0, pi] via u = cos(theta)
+    # absorbs the sin(theta) Jacobian into the Legendre weight, so the outer
+    # reduction is just a weighted sum.
+    integrand_grid = jax.vmap(
+        lambda th: jax.vmap(lambda ph: integrand_at_angle(th, ph))(phi_nodes)
+    )(theta_nodes)  # (n_theta, n_phi)
+    phi_sums = jnp.sum(integrand_grid, axis=1) * dphi
+    total = jnp.dot(weights_theta, phi_sums)
 
     M_ADM = total / (16.0 * jnp.pi)
     return M_ADM
@@ -161,37 +182,54 @@ def adm_mass_richardson(
         M = adm_mass(metric, r_surface=r, n_theta=n_theta, n_phi=n_phi)
         M_values.append(float(M))
 
-    # Richardson extrapolation: M(r) ~ M_inf + C/r^n
-    # Use last two points for simple estimate
+    # Richardson extrapolation: M(r) ~ M_inf + C/r^n.
+    # Assumes leading-order O(1/r) falloff (n=1) for the linear
+    # extrapolation; the realised convergence order is reported back so
+    # callers can sanity-check the assumption.
+    expected_order = 1.0
+    valid: bool = False
     if len(radii) >= 2:
         r1, r2 = radii[-2], radii[-1]
         M1, M2 = M_values[-2], M_values[-1]
-        # Assuming O(1/r) correction: M(r) = M_inf + C/r
-        # M1 = M_inf + C/r1, M2 = M_inf + C/r2
-        # M_inf = (M2 r2 - M1 r1) / (r2 - r1)
-        M_extrap = (M2 * r2 - M1 * r1) / (r2 - r1)
+        M_extrap_linear = (M2 * r2 - M1 * r1) / (r2 - r1)
 
-        # Convergence order from first 3 points
         if len(radii) >= 3:
             M0 = M_values[-3]
-            # n = log((M0-M1)/(M1-M2)) / log(r1/r0) approximately
             dM01 = abs(M0 - M1)
             dM12 = abs(M1 - M2)
             if dM12 > 1e-15 and dM01 > 1e-15:
                 conv_order = float(jnp.log(dM01 / dM12) / jnp.log(r2 / r1))
             else:
-                conv_order = float("inf")  # Already converged
+                conv_order = float("inf")
         else:
             conv_order = float("nan")
+
+        # Honest extrapolation: only return a finite value when the
+        # observed convergence order matches the model assumption
+        # (within 0.25 of n=1) or ``inf`` (already converged).
+        if conv_order != conv_order:  # NaN: only two points, can't check
+            M_extrap = M_extrap_linear
+            valid = True
+        elif conv_order == float("inf"):
+            M_extrap = M_extrap_linear
+            valid = True
+        elif abs(conv_order - expected_order) < 0.25:
+            M_extrap = M_extrap_linear
+            valid = True
+        else:
+            M_extrap = float("nan")
+            valid = False
     else:
         M_extrap = M_values[-1]
         conv_order = float("nan")
+        valid = False
 
     return {
         "M_values": M_values,
         "radii": radii,
         "M_extrapolated": M_extrap,
         "convergence_order": conv_order,
+        "valid": valid,
     }
 
 

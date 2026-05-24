@@ -1,36 +1,13 @@
-"""Optimization-based energy condition verification (pure JAX + Optimistix).
+"""Optimization-based EC verification (JAX + Optimistix).
 
-Uses unconstrained 3-vector parameterization for timelike observers and
-stereographic projection for null directions, fully JIT/vmap-compatible.
-
-For each energy condition, we minimize the corresponding functional over the
-observer parameter space to find the worst-case (violation-maximizing) observer:
-
-- WEC: min_{w in R^3} T_{ab} u^a u^b (timelike u, 3D)
-- NEC: min_{w in R^2} T_{ab} k^a k^b (null k, 2D via stereographic)
-- SEC: min_{w in R^3} (T_{ab} - 1/2 T g_{ab}) u^a u^b (timelike u, 3D)
-- DEC: max_{w in R^3} g_{ab} j^a j^b (flux causality, 3D)
-
-The boost 3-vector w encodes both rapidity (|w|) and direction (w/|w|).
-When w = 0, the observer is exactly Eulerian. Rapidity is capped smoothly
-via zeta = zeta_max * tanh(|w| / zeta_max).
-
-Multi-start uses a mixture of deterministic starts (Eulerian + axis-aligned)
-and random starts, replacing the sigmoid-biased initialization.
-
-``strategy='hard_bound'`` adds a projected-gradient BFGS solver
-(:class:`ProjectedBFGSSolver`) that projects every iterate onto the closed
-rapidity ball ``|w|_2 <= zeta_max``.  Default ``strategy='tanh'`` preserves
-the original behavior.
-
-``warm_start='spatial_neighbor'`` enables grid-aware multistart seeding.
-Default ``warm_start='cold'`` preserves the original behavior.
-``neighbor_fraction`` defaults to 1/16; the pool prevents basin-clone
-overlap.
-
-``starts='fibonacci+bfgs_top_k'`` adds a Fibonacci lattice + BFGS-top-k
-blended starter pool.  Default ``starts='axis+gaussian'`` preserves the
-original behavior.
+Minimises WEC/NEC/SEC/DEC functionals over observer boost vectors
+``w in R^3`` (null NEC via stereographic ``R^2``). Multistart BFGS;
+optional projected gradient for ``|w| <= zeta_max``; JIT/vmap-compatible.
+DEC is the joint minimum of the WEC margin, flux causality
+``-g(j, j)`` with ``j^a = -T^a_b u^b``, and future-directedness
+``-j_a n^a``. See ``optimize_wec`` / ``optimize_dec`` for ``strategy``
+(``'tanh'`` smooth cap or ``'hard_bound'`` projected gradient) and
+``warm_start`` / ``starts`` options.
 """
 
 from __future__ import annotations
@@ -41,11 +18,6 @@ import jax
 import jax.numpy as jnp
 import optimistix as optx
 from jaxtyping import Array, Float
-
-
-# ---------------------------------------------------------------------------
-# Additive-kwarg validation helpers
-# ---------------------------------------------------------------------------
 
 
 _VALID_WARM_STARTS: frozenset[str] = frozenset({"cold", "spatial_neighbor"})
@@ -98,11 +70,6 @@ class OptimizationResult(NamedTuple):
     n_steps: Float[Array, ""]  # Number of optimizer steps taken
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers: objectives (3-vector parameterization)
-# ---------------------------------------------------------------------------
-
-
 def _wec_objective(w, args):
     """WEC objective: T_{ab} u^a u^b from boost 3-vector w."""
     T_ab, tetrad, zeta_max = args
@@ -125,52 +92,27 @@ def _sec_objective(w, args):
 
 
 def _dec_objective(w, args):
-    """DEC objective: min(wec_margin, flux_causality_margin, future_directedness_margin).
+    """DEC objective: ``min(WEC, flux_causality, future_directedness)``.
 
-    WEC margin: T_{ab} u^a u^b (positive when WEC is satisfied).
-    Flux causality: -g_{ab} j^a j^b (positive when flux is causal).
-    Future-directedness: -j^a n_a (positive when flux is future-directed,
-        where n = tetrad[0] is the future-pointing unit normal).
-
-    We minimize the worst (smallest) of the three margins to find the
-    observer that most violates any aspect of DEC (including WEC violations,
-    since DEC implies WEC).
+    Each sub-margin is positive iff the corresponding DEC sub-condition
+    holds; minimum exposes the worst sub-condition for the boost ``w``.
     """
     T_ab, T_mixed, g_ab, tetrad, zeta_max = args
     u = timelike_from_boost_vector(w, tetrad, zeta_max)
     j = -jnp.einsum("ac,c->a", T_mixed, u)
-
-    # WEC margin: T_{ab} u^a u^b >= 0 required
     wec_margin = jnp.einsum("a,ab,b->", u, T_ab, u)
-
-    # Causality margin: positive when flux is timelike/null (causal)
     flux_causality = -jnp.einsum("a,ab,b->", j, g_ab, j)
-
-    # Future-directedness margin: j . n < 0 means future-directed
-    # (our convention: n = tetrad[0] is future-pointing, signature -+++)
-    # n_a = g_{ab} n^b (lower the index)
     n_up = tetrad[0]
     n_down = jnp.einsum("ab,b->a", g_ab, n_up)
     future_margin = -jnp.einsum("a,a->", j, n_down)
-
     return jnp.minimum(wec_margin, jnp.minimum(flux_causality, future_margin))
 
 
-# ---------------------------------------------------------------------------
-# per-subcondition DEC objectives + seed salts
-# Each sub returns its margin with sign convention `positive = sub satisfied,
-# negative = violated`.
-# ---------------------------------------------------------------------------
-
-# Canonical salts: ``hash('label') & 0x7FFFFFFF`` gives a positive 32-bit
-# integer accepted by :func:`jax.random.fold_in`. Python 3.12 ``hash`` is
-# process-randomised, so values VARY across processes - but reproducibility
-# WITHIN a single process is guaranteed (tests compute expected keys at run
-# time, not hardcoded bit patterns).
+# Fixed fold_in salts (literal constants, not py3.12 randomised ``hash``).
 _DEC_SUB_SALTS = {
-    'wec':    hash('dec:wec_margin')          & 0x7FFFFFFF,
-    'flux':   hash('dec:flux_causality')      & 0x7FFFFFFF,
-    'future': hash('dec:future_directedness') & 0x7FFFFFFF,
+    'wec':    0x57_45_43_01,
+    'flux':   0x46_4C_58_02,
+    'future': 0x46_55_54_03,
 }
 
 
@@ -199,11 +141,6 @@ def _dec_future_subobjective(w, args):
     return -jnp.einsum("a,a->", j, n_down)
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers: initialization
-# ---------------------------------------------------------------------------
-
-
 def _make_initial_conditions_3d(n_starts, zeta_max, key):
     """Mixture initial conditions for 3-vector observer optimization.
 
@@ -218,7 +155,6 @@ def _make_initial_conditions_3d(n_starts, zeta_max, key):
     remaining = n_starts - 1
 
     if remaining > 0:
-        # Axis-aligned at scale zeta_max
         axes = jnp.array([
             [1, 0, 0], [-1, 0, 0],
             [0, 1, 0], [0, -1, 0],
@@ -229,7 +165,6 @@ def _make_initial_conditions_3d(n_starts, zeta_max, key):
         remaining -= n_axes
 
     if remaining > 0:
-        # Random with scale ~ zeta_max to cover the full rapidity range
         parts.append(jax.random.normal(key, shape=(remaining, 3)) * zeta_max)
 
     return jnp.concatenate(parts, axis=0)
@@ -244,12 +179,10 @@ def _make_initial_conditions_2d(n_starts, key):
     """
     parts = []
 
-    # Origin (north pole)
     parts.append(jnp.zeros((1, 2)))
     remaining = n_starts - 1
 
     if remaining > 0:
-        # Spread across S^2 via stereographic coordinates
         axes = jnp.array([
             [1, 0], [-1, 0],    # ±e_1 on equator
             [0, 1], [0, -1],    # ±e_2 on equator
@@ -265,40 +198,201 @@ def _make_initial_conditions_2d(n_starts, key):
     return jnp.concatenate(parts, axis=0)
 
 
-# ---------------------------------------------------------------------------
-# hard-bound projected-gradient BFGS solver
-# ---------------------------------------------------------------------------
+def _fibonacci_sphere_angles(n: int) -> tuple[Float[Array, "N"], Float[Array, "N"]]:
+    """Approximately uniform (theta, phi) pairs on S^2 via Fibonacci lattice."""
+    n_arr = jnp.float64(n)
+    indices = jnp.arange(n, dtype=jnp.float64)
+    golden_ratio = (1.0 + jnp.sqrt(5.0)) / 2.0
+    theta = jnp.arccos(1.0 - 2.0 * (indices + 0.5) / n_arr)
+    phi = (2.0 * jnp.pi * indices / golden_ratio) % (2.0 * jnp.pi)
+    return theta, phi
+
+
+def _fibonacci_boost_vectors(
+    n: int,
+    zeta_max: float,
+    key,
+) -> Float[Array, "n 3"]:
+    """Map Fibonacci directions on S^2 to boost 3-vectors at ~0.76 zeta_max."""
+    if n <= 0:
+        return jnp.zeros((0, 3), dtype=jnp.float64)
+    theta, phi = _fibonacci_sphere_angles(n)
+    target_zeta = zeta_max * jnp.tanh(1.0)
+    w_mag = zeta_max * jnp.arctanh(jnp.minimum(target_zeta / zeta_max, 0.999))
+    dirs = jnp.stack(
+        [
+            jnp.sin(theta) * jnp.cos(phi),
+            jnp.sin(theta) * jnp.sin(phi),
+            jnp.cos(theta),
+        ],
+        axis=-1,
+    )
+    # Small jitter breaks exact symmetries without changing coverage much.
+    jitter = jax.random.normal(key, shape=(n, 3)) * (0.01 * zeta_max)
+    return w_mag * dirs + jitter
+
+
+def _params_to_boost_vector(
+    params: Float[Array, "3"],
+    zeta_max: float,
+) -> Float[Array, "3"]:
+    """Convert (zeta, theta, phi) to unconstrained boost vector w."""
+    zeta, theta, phi = params[0], params[1], params[2]
+    zeta_clamped = jnp.minimum(jnp.maximum(zeta, 0.0), zeta_max * 0.999)
+    w_mag = zeta_max * jnp.arctanh(jnp.minimum(zeta_clamped / zeta_max, 0.999))
+    return w_mag * jnp.array([
+        jnp.sin(theta) * jnp.cos(phi),
+        jnp.sin(theta) * jnp.sin(phi),
+        jnp.cos(theta),
+    ])
+
+
+def _observer_to_boost_vector(
+    u: Float[Array, "4"],
+    tetrad: Float[Array, "4 4"],
+    g_ab: Float[Array, "4 4"],
+    zeta_max: float,
+) -> Float[Array, "3"]:
+    """Invert a timelike 4-vector into boost 3-vector w (approximate inverse)."""
+    c = jnp.einsum("a,ab,ib->i", u, g_ab, tetrad)
+    zeta = jnp.arccosh(jnp.clip(jnp.abs(c[0]), 1.0, None))
+    sinh_z = jnp.maximum(jnp.sinh(jnp.minimum(zeta, 50.0)), 1e-12)
+    s_hat = c[1:4] / sinh_z
+    w_mag = zeta_max * jnp.arctanh(jnp.minimum(zeta / zeta_max, 1.0 - 1e-15))
+    return w_mag * s_hat
+
+
+def _inject_neighbor_start(
+    w0_batch: Float[Array, "n 3"],
+    neighbor_observer: Float[Array, "4"] | None,
+    tetrad: Float[Array, "4 4"],
+    g_ab: Float[Array, "4 4"],
+    zeta_max: float,
+    neighbor_fraction: float,
+    warm_start: str,
+) -> Float[Array, "n 3"]:
+    """Replace a fraction of multistart seeds with a neighbor warm-start."""
+    if warm_start != "spatial_neighbor" or neighbor_observer is None:
+        return w0_batch
+    n_starts = w0_batch.shape[0]
+    n_swap = max(1, int(round(neighbor_fraction * n_starts)))
+    w_neighbor = _observer_to_boost_vector(
+        neighbor_observer, tetrad, g_ab, zeta_max,
+    )
+    swap_slice = jnp.s_[-n_swap:]
+    return w0_batch.at[swap_slice].set(
+        jnp.broadcast_to(w_neighbor, (n_swap, 3))
+    )
+
+
+def _fibonacci_top_k_compose(
+    n_starts: int,
+    dim: int,
+    key,
+    objective_fn,
+    args,
+    rtol: float,
+    atol: float,
+    max_steps: int,
+    make_cold,
+    make_fib,
+    pad_scale: float,
+) -> Float[Array, "n d"]:
+    """Compose multistart pool: origin + top-k of cold BFGS + Fibonacci seeds.
+
+    ``make_cold(n, key) -> (n, dim)`` builds the axis+gaussian cold pool.
+    ``make_fib(n, key) -> (n, dim)`` builds the Fibonacci-sphere seeds.
+    Pads with Gaussian noise scaled by ``pad_scale`` if the concatenation
+    falls short of ``n_starts``.
+    """
+    k_top = max(1, min(4, n_starts // 4))
+    n_fib = max(1, n_starts - k_top - 1)
+    key_cold, key_fib = jax.random.split(key)
+    w0_cold = make_cold(n_starts, key_cold)
+    solver = optx.BFGS(rtol=rtol, atol=atol)
+
+    def _obj_at(w0):
+        sol = optx.minimise(
+            objective_fn, solver, w0, args=args,
+            max_steps=max_steps, throw=False,
+        )
+        return objective_fn(sol.value, args), sol.value
+
+    obj_vals, raw_opts = jax.vmap(_obj_at)(w0_cold)
+    top_idx = jnp.argsort(obj_vals)[:k_top]
+    w0_top = raw_opts[top_idx]
+    w0_fib = make_fib(n_fib, key_fib)
+    w0_batch = jnp.concatenate([jnp.zeros((1, dim)), w0_top, w0_fib], axis=0)
+    if w0_batch.shape[0] > n_starts:
+        return w0_batch[:n_starts]
+    if w0_batch.shape[0] < n_starts:
+        pad_key = jax.random.fold_in(key, 99)
+        pad = jax.random.normal(
+            pad_key, shape=(n_starts - w0_batch.shape[0], dim),
+        ) * pad_scale
+        return jnp.concatenate([w0_batch, pad], axis=0)
+    return w0_batch
+
+
+def _build_initial_conditions_3d(
+    n_starts: int,
+    zeta_max: float,
+    key,
+    starts: str,
+    objective_fn,
+    args,
+    rtol: float,
+    atol: float,
+    max_steps: int,
+) -> Float[Array, "n 3"]:
+    """Build 3D multistart pool for ``starts`` mode."""
+    if starts == "axis+gaussian":
+        return _make_initial_conditions_3d(n_starts, zeta_max, key)
+    return _fibonacci_top_k_compose(
+        n_starts, 3, key, objective_fn, args, rtol, atol, max_steps,
+        make_cold=lambda n, k: _make_initial_conditions_3d(n, zeta_max, k),
+        make_fib=lambda n, k: _fibonacci_boost_vectors(n, zeta_max, k),
+        pad_scale=zeta_max,
+    )
+
+
+def _build_initial_conditions_2d(
+    n_starts: int,
+    key,
+    starts: str,
+    objective_fn,
+    args,
+    rtol: float,
+    atol: float,
+    max_steps: int,
+) -> Float[Array, "n 2"]:
+    """Build 2D stereographic multistart pool for ``starts`` mode."""
+    if starts == "axis+gaussian":
+        return _make_initial_conditions_2d(n_starts, key)
+
+    def _make_fib_stereo(n, _k):
+        theta, phi = _fibonacci_sphere_angles(n)
+        return jnp.stack([
+            3.0 * jnp.tan(theta / 2.0) * jnp.cos(phi),
+            3.0 * jnp.tan(theta / 2.0) * jnp.sin(phi),
+        ], axis=-1)
+
+    return _fibonacci_top_k_compose(
+        n_starts, 2, key, objective_fn, args, rtol, atol, max_steps,
+        make_cold=lambda n, k: _make_initial_conditions_2d(n, k),
+        make_fib=_make_fib_stereo,
+        pad_scale=2.0,
+    )
 
 
 class ProjectedBFGSSolver(optx.BFGS):
-    """BFGS with hard projection onto the closed rapidity ball ``|w|_2 <= zeta_max``.
+    """BFGS with hard projection onto the rapidity ball ``|w|_2 <= zeta_max``.
 
-    Subclasses Optimistix's concrete :class:`optimistix.BFGS` and overrides
-    :meth:`step` to project the candidate iterate radially after the parent
-    BFGS step computes it. Subclassing :class:`BFGS` directly (rather than
-    :class:`AbstractQuasiNewton`) inherits concrete field defaults (``norm``,
-    ``use_inverse``, ``descent``, ``search``, ``verbose``) and the concrete
-    ``update_hessian``/``init_hessian`` methods - the only new behavior is
-    the post-step radial projection.
-
-    At bound-inactive points the projection is the identity; at bound-active
-    KKT points the iterate lands on the sphere ``|w|_2 = zeta_max`` at the
-    radially-nearest feasible point. The 1D-quadratic KKT contract is pinned
-    by ``test_projected_bfgs_hits_kkt_at_bound_active``.
-
-    Notes
-    -----
-    - ``super.step(...)`` returns the unprojected BFGS iterate; the radial
-      clip is the only post-processing.
-    - All upstream Optimistix calls use ``throw=False``.
-    - The class-level BFGS MRO is
-      ``BFGS -> AbstractBFGS -> AbstractQuasiNewton``, so the ``step``
-       override composes cleanly with the BFGS solver form.
-
-    References
-    ----------
-    - Custom solvers in Optimistix:
-      https://docs.kidger.site/optimistix/examples/custom_solver/
+    Bound-inactive iterates pass through unchanged; bound-active iterates
+    are clipped to the radially-nearest feasible point. KKT contract is
+    pinned by ``test_projected_bfgs_hits_kkt_at_bound_active``. See
+    https://docs.kidger.site/optimistix/examples/custom_solver/ for the
+    Optimistix custom-solver pattern.
     """
 
     zeta_max: float
@@ -309,10 +403,7 @@ class ProjectedBFGSSolver(optx.BFGS):
 
     def step(self, fn, y, args, options, state, tags):
         y_new, state_new, aux = super().step(fn, y, args, options, state, tags)
-        # radial projection onto |y|_2 <= zeta_max.
-        # Using jnp.minimum on the scale factor makes the projection the
-        # identity when |y| <= zeta_max (bound-inactive) and clips to the
-        # sphere when |y| > zeta_max (bound-active).
+        # Radial projection onto |y|_2 <= zeta_max (identity when bound-inactive).
         norm_y = jnp.linalg.norm(y_new)
         scale_factor = jnp.minimum(
             jnp.float64(1.0),
@@ -322,19 +413,30 @@ class ProjectedBFGSSolver(optx.BFGS):
         return y_projected, state_new, aux
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers: multi-start solvers
-# ---------------------------------------------------------------------------
-
-
 def _solve_multistart_3d(objective_fn, args, n_starts, zeta_max, rtol, atol,
-                         max_steps, key):
+                         max_steps, key, *,
+                         starts="axis+gaussian",
+                         warm_start="cold",
+                         neighbor_fraction=1.0 / 16.0,
+                         neighbor_observer=None,
+                         g_ab=None,
+                         tetrad=None):
     """Multi-start BFGS for 3D boost-vector optimization.
 
     Returns (best_obj, best_raw, best_physical, best_converged, best_n_steps).
     """
     solver = optx.BFGS(rtol=rtol, atol=atol)
     zeta_max_arr = jnp.float64(zeta_max)
+
+    w0_batch = _build_initial_conditions_3d(
+        n_starts, zeta_max, key, starts,
+        objective_fn, args, rtol, atol, max_steps,
+    )
+    if tetrad is not None and g_ab is not None:
+        w0_batch = _inject_neighbor_start(
+            w0_batch, neighbor_observer, tetrad, g_ab, zeta_max,
+            neighbor_fraction, warm_start,
+        )
 
     def solve_one(w0):
         sol = optx.minimise(
@@ -346,8 +448,6 @@ def _solve_multistart_3d(objective_fn, args, n_starts, zeta_max, rtol, atol,
         n_steps = sol.stats["num_steps"].astype(jnp.float64)
         physical = boost_vector_to_params(sol.value, zeta_max_arr)
         return sol.value, obj_val, converged, n_steps, physical
-
-    w0_batch = _make_initial_conditions_3d(n_starts, zeta_max, key)
 
     raw_opt, obj_vals, convergeds, n_steps_all, physicals = jax.vmap(solve_one)(
         w0_batch
@@ -365,12 +465,17 @@ def _solve_multistart_3d(objective_fn, args, n_starts, zeta_max, rtol, atol,
 
 
 def _solve_multistart_2d(objective_fn, args, n_starts, rtol, atol,
-                         max_steps, key):
+                         max_steps, key, *,
+                         starts="axis+gaussian"):
     """Multi-start BFGS for 2D stereographic null direction optimization.
 
     Returns (best_obj, best_physical, best_converged, best_n_steps).
     """
     solver = optx.BFGS(rtol=rtol, atol=atol)
+
+    w0_batch = _build_initial_conditions_2d(
+        n_starts, key, starts, objective_fn, args, rtol, atol, max_steps,
+    )
 
     def solve_one(w0):
         sol = optx.minimise(
@@ -382,8 +487,6 @@ def _solve_multistart_2d(objective_fn, args, n_starts, rtol, atol,
         n_steps = sol.stats["num_steps"].astype(jnp.float64)
         physical = stereo_to_params(sol.value)
         return sol.value, obj_val, converged, n_steps, physical
-
-    w0_batch = _make_initial_conditions_2d(n_starts, key)
 
     raw_opt, obj_vals, convergeds, n_steps_all, physicals = jax.vmap(solve_one)(
         w0_batch
@@ -399,18 +502,26 @@ def _solve_multistart_2d(objective_fn, args, n_starts, rtol, atol,
 
 
 def _solve_multistart_3d_projected(objective_fn, args, n_starts, zeta_max,
-                                   rtol, atol, max_steps, key):
-    """projected-gradient variant of :func:`_solve_multistart_3d`.
-
-    Mirrors the original multistart pool composition (same
-    :func:`_make_initial_conditions_3d`, same key, same vmap structure) - ONLY
-    the solver is swapped for :class:`ProjectedBFGSSolver`. Bound-inactive
-    points agree with the tanh path to within ``5e-6 * scale``.
-
-    Returns (best_obj, best_raw, best_physical, best_converged, best_n_steps).
-    """
+                                   rtol, atol, max_steps, key, *,
+                                   starts="axis+gaussian",
+                                   warm_start="cold",
+                                   neighbor_fraction=1.0 / 16.0,
+                                   neighbor_observer=None,
+                                   g_ab=None,
+                                   tetrad=None):
+    """Projected BFGS variant of :func:`_solve_multistart_3d`."""
     solver = ProjectedBFGSSolver(rtol=rtol, atol=atol, zeta_max=zeta_max)
     zeta_max_arr = jnp.float64(zeta_max)
+
+    w0_batch = _build_initial_conditions_3d(
+        n_starts, zeta_max, key, starts,
+        objective_fn, args, rtol, atol, max_steps,
+    )
+    if tetrad is not None and g_ab is not None:
+        w0_batch = _inject_neighbor_start(
+            w0_batch, neighbor_observer, tetrad, g_ab, zeta_max,
+            neighbor_fraction, warm_start,
+        )
 
     def solve_one(w0):
         sol = optx.minimise(
@@ -422,8 +533,6 @@ def _solve_multistart_3d_projected(objective_fn, args, n_starts, zeta_max,
         n_steps = sol.stats["num_steps"].astype(jnp.float64)
         physical = boost_vector_to_params(sol.value, zeta_max_arr)
         return sol.value, obj_val, converged, n_steps, physical
-
-    w0_batch = _make_initial_conditions_3d(n_starts, zeta_max, key)
 
     raw_opt, obj_vals, convergeds, n_steps_all, physicals = jax.vmap(solve_one)(
         w0_batch
@@ -440,20 +549,36 @@ def _solve_multistart_3d_projected(objective_fn, args, n_starts, zeta_max,
 
 
 def _dispatch_multistart_3d(strategy, objective_fn, args, n_starts, zeta_max,
-                            rtol, atol, max_steps, key):
+                            rtol, atol, max_steps, key, *,
+                            starts="axis+gaussian",
+                            warm_start="cold",
+                            neighbor_fraction=1.0 / 16.0,
+                            neighbor_observer=None,
+                            g_ab=None,
+                            tetrad=None):
     """strategy dispatcher for 3D multistart BFGS.
 
     Routes ``strategy='tanh'`` to :func:`_solve_multistart_3d` and
     ``strategy='hard_bound'`` to :func:`_solve_multistart_3d_projected`.
     Any other value raises a ``ValueError`` with the allowed set.
     """
+    common = dict(
+        starts=starts,
+        warm_start=warm_start,
+        neighbor_fraction=neighbor_fraction,
+        neighbor_observer=neighbor_observer,
+        g_ab=g_ab,
+        tetrad=tetrad,
+    )
     if strategy == "tanh":
         return _solve_multistart_3d(
-            objective_fn, args, n_starts, zeta_max, rtol, atol, max_steps, key
+            objective_fn, args, n_starts, zeta_max, rtol, atol, max_steps, key,
+            **common,
         )
     elif strategy == "hard_bound":
         return _solve_multistart_3d_projected(
-            objective_fn, args, n_starts, zeta_max, rtol, atol, max_steps, key
+            objective_fn, args, n_starts, zeta_max, rtol, atol, max_steps, key,
+            **common,
         )
     else:
         raise ValueError(
@@ -462,31 +587,16 @@ def _dispatch_multistart_3d(strategy, objective_fn, args, n_starts, zeta_max,
         )
 
 
-# ---------------------------------------------------------------------------
-# per-subcondition DEC driver
-# ---------------------------------------------------------------------------
-
-
 def _dec_per_subcondition_min(T_ab, T_mixed, g_ab, tetrad, n_starts, zeta_max,
                               rtol, atol, max_steps, key, strategy):
-    """per-subcondition DEC: 3 independent BFGS multistarts, outer min.
+    """Three independent DEC sub-optimizations; outer ``min`` of mins.
 
-    Each sub gets a seed-isolated PRNG key via ``jax.random.fold_in(key, salt)``.
-    Combines via outer min-of-mins: the overall DEC margin is the MOST violated
-    sub. Returns the worst sub's margin + observer + convergence info,
-    matching the :class:`OptimizationResult` shape from the default path.
-
-    Parameters mirror :func:`_solve_multistart_3d`. ``strategy`` is passed
-    through to select BFGS (``'tanh'``) vs ProjectedBFGS
-    (``'hard_bound'``) for each sub-multistart (so they compose:
-    ``mode='per_subcondition_min', strategy='hard_bound'`` runs three
-    ProjectedBFGS multistarts with seed isolation).
-
-    Returns (best_obj, best_raw, best_physical, best_converged, best_n_steps).
+    Each sub-optimization uses a seed-isolated PRNG key via
+    ``jax.random.fold_in(key, salt)`` and the strategy-dispatched
+    multistart solver (BFGS / ProjectedBFGS).
     """
     args = (T_ab, T_mixed, g_ab, tetrad, jnp.float64(zeta_max))
 
-    # Pick the inner solver according to the strategy (composes).
     if strategy == "tanh":
         multistart = _solve_multistart_3d
     elif strategy == "hard_bound":
@@ -520,7 +630,6 @@ def _dec_per_subcondition_min(T_ab, T_mixed, g_ab, tetrad, n_starts, zeta_max,
         sub_convergeds.append(converged)
         sub_n_steps_all.append(n_steps)
 
-    # Outer min-of-mins: pick the most violated sub.
     margins = jnp.stack(sub_obj_vals)
     worst_idx = jnp.argmin(margins)
     worst_margin = margins[worst_idx]
@@ -531,11 +640,6 @@ def _dec_per_subcondition_min(T_ab, T_mixed, g_ab, tetrad, n_starts, zeta_max,
 
     return (worst_margin, worst_raw, worst_physical,
             worst_converged, worst_n_steps)
-
-
-# ---------------------------------------------------------------------------
-# Public API: per-condition optimizers
-# ---------------------------------------------------------------------------
 
 
 def optimize_wec(
@@ -552,6 +656,7 @@ def optimize_wec(
     neighbor_fraction: float = 1.0 / 16.0,
     starts: str = "axis+gaussian",
     neighbor_observer: Float[Array, "4"] | None = None,
+    tetrad: Float[Array, "4 4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case WEC observer via Optimistix BFGS.
 
@@ -576,14 +681,8 @@ def optimize_wec(
     key : PRNGKey or None
         Random key for initial conditions. If None, uses PRNGKey(42).
     strategy : {'tanh', 'hard_bound'}
-        Solver dispatch. ``'tanh'`` (default): unconstrained
-        R^3 boost vector ``w`` mapped to physical rapidity via
-        ``zeta = zeta_max * tanh(|w| / zeta_max)``; smooth cap with a small
-        bias toward the ball interior at bound-active points. ``'hard_bound'``:
-        projected-gradient BFGS with ``|w|_2 <= zeta_max``
-        enforced by radial clip every step; KKT-correct at bound-active
-        optima. Bound-inactive points agree between the two strategies to
-        ``5e-6 * scale``.
+        ``'tanh'`` smooth rapidity cap vs ``'hard_bound'``
+        projected gradient on the closed ball ``|w|_2 <= zeta_max``.
 
     Returns
     -------
@@ -597,18 +696,24 @@ def optimize_wec(
     if key is None:
         key = jax.random.PRNGKey(42)
 
-    tetrad = compute_orthonormal_tetrad(g_ab)
+    if tetrad is None:
+        tetrad = compute_orthonormal_tetrad(g_ab)
     zeta_max_arr = jnp.float64(zeta_max)
     args = (T_ab, tetrad, zeta_max_arr)
 
     best_obj, best_raw, best_physical, best_converged, best_n_steps = (
         _dispatch_multistart_3d(
             strategy, _wec_objective, args, n_starts, zeta_max,
-            rtol, atol, max_steps, key
+            rtol, atol, max_steps, key,
+            starts=starts,
+            warm_start=warm_start,
+            neighbor_fraction=neighbor_fraction,
+            neighbor_observer=neighbor_observer,
+            g_ab=g_ab,
+            tetrad=tetrad,
         )
     )
 
-    # Reconstruct worst observer 4-vector from best boost vector
     worst_u = timelike_from_boost_vector(best_raw, tetrad, zeta_max_arr)
 
     return OptimizationResult(
@@ -633,6 +738,7 @@ def optimize_nec(
     neighbor_fraction: float = 1.0 / 16.0,
     starts: str = "axis+gaussian",
     neighbor_observer: Float[Array, "4"] | None = None,
+    tetrad: Float[Array, "4 4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case NEC null direction via Optimistix BFGS.
 
@@ -655,10 +761,8 @@ def optimize_nec(
     key : PRNGKey or None
         Random key for initial conditions.
     strategy : {'tanh', 'hard_bound'}
-        Solver dispatch. For NEC the stereographic 2D parameterization has
-        no analogous bound-active issue - the null direction is unbounded on
-        ``S^2``. Both ``'tanh'`` and ``'hard_bound'`` route through the
-        :func:`_solve_multistart_2d` path. Validated for strategy-name typos.
+        Validated for typos; both route through 2D stereographic
+        multistart (no bound-active distinction on ``S^2``).
 
     Returns
     -------
@@ -672,7 +776,6 @@ def optimize_nec(
             f"Must be one of {{'tanh', 'hard_bound'}}."
         )
 
-    # Validate additive kwargs (fail-fast; defaults preserve original behavior)
     _validate_warm_start(warm_start)
     _validate_neighbor_fraction(neighbor_fraction)
     _validate_starts(starts)
@@ -680,16 +783,17 @@ def optimize_nec(
     if key is None:
         key = jax.random.PRNGKey(42)
 
-    tetrad = compute_orthonormal_tetrad(g_ab)
+    if tetrad is None:
+        tetrad = compute_orthonormal_tetrad(g_ab)
     args = (T_ab, tetrad)
 
     best_obj, best_physical, best_converged, best_n_steps = (
         _solve_multistart_2d(
-            _nec_objective, args, n_starts, rtol, atol, max_steps, key
+            _nec_objective, args, n_starts, rtol, atol, max_steps, key,
+            starts=starts,
         )
     )
 
-    # Reconstruct worst null vector from physical (theta, phi) params
     from .observer import null_from_angles
     worst_k = null_from_angles(best_physical[1], best_physical[2], tetrad)
 
@@ -716,6 +820,7 @@ def optimize_sec(
     neighbor_fraction: float = 1.0 / 16.0,
     starts: str = "axis+gaussian",
     neighbor_observer: Float[Array, "4"] | None = None,
+    tetrad: Float[Array, "4 4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case SEC observer via Optimistix BFGS.
 
@@ -731,14 +836,13 @@ def optimize_sec(
     n_starts, zeta_max, rtol, atol, max_steps, key, strategy
         Same as optimize_wec (strategy is the dispatch).
     warm_start, neighbor_fraction, starts, neighbor_observer
-        Additive kwargs - same semantics as optimize_wec.
+        Same semantics as ``optimize_wec``.
 
     Returns
     -------
     OptimizationResult
         Contains margin, worst observer 4-vector, params, convergence info.
     """
-    # Validate additive kwargs (fail-fast; defaults preserve original behavior)
     _validate_warm_start(warm_start)
     _validate_neighbor_fraction(neighbor_fraction)
     _validate_starts(starts)
@@ -746,7 +850,8 @@ def optimize_sec(
     if key is None:
         key = jax.random.PRNGKey(42)
 
-    tetrad = compute_orthonormal_tetrad(g_ab)
+    if tetrad is None:
+        tetrad = compute_orthonormal_tetrad(g_ab)
     g_inv = jnp.linalg.inv(g_ab)
     T_trace = jnp.einsum("ab,ab->", g_inv, T_ab)
     sec_tensor = T_ab - 0.5 * T_trace * g_ab
@@ -757,7 +862,13 @@ def optimize_sec(
     best_obj, best_raw, best_physical, best_converged, best_n_steps = (
         _dispatch_multistart_3d(
             strategy, _sec_objective, args, n_starts, zeta_max,
-            rtol, atol, max_steps, key
+            rtol, atol, max_steps, key,
+            starts=starts,
+            warm_start=warm_start,
+            neighbor_fraction=neighbor_fraction,
+            neighbor_observer=neighbor_observer,
+            g_ab=g_ab,
+            tetrad=tetrad,
         )
     )
 
@@ -787,14 +898,17 @@ def optimize_dec(
     neighbor_fraction: float = 1.0 / 16.0,
     starts: str = "axis+gaussian",
     neighbor_observer: Float[Array, "4"] | None = None,
+    tetrad: Float[Array, "4 4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case DEC observer via Optimistix BFGS.
 
-    DEC requires T^a_b u^b to be causal (timelike or null) for all timelike u.
-    We maximize g_{ab} j^a j^b where j^a = -T^a_c u^c. DEC violated when
-    the maximum is positive (spacelike flux).
-
-    The returned margin = -max(g_{ab} j^a j^b), so margin >= 0 means satisfied.
+    DEC requires three conditions on every future-directed timelike
+    observer ``u``: (i) WEC margin ``T_{ab} u^a u^b >= 0``, (ii) flux
+    causality ``-g_{ab} j^a j^b >= 0``, and (iii) future-directedness
+    ``-j^a n_a >= 0`` with ``j^a = -T^a_b u^b``. ``_dec_objective``
+    returns the minimum of these three; the optimizer minimizes that
+    composite over ``u`` to obtain the **DEC margin** (positive iff DEC
+    holds at the point). See Hawking & Ellis §4.3.
 
     Parameters
     ----------
@@ -805,26 +919,17 @@ def optimize_dec(
     n_starts, zeta_max, rtol, atol, max_steps, key, strategy
         Same as optimize_wec (strategy is the dispatch).
     mode : {'three_term_min', 'per_subcondition_min'}
-        DEC composite mode.
-
-        ``'three_term_min'`` (default):
-            Single BFGS multistart on the three-way-min composition inside
-            :func:`_dec_objective`. Smooth except at sub-crossover surfaces
-            (kinks in the landscape where the active sub switches).
-        ``'per_subcondition_min'`` :
-            Three independent BFGS multistarts, one per sub-inequality (WEC
-            margin, flux causality, future-directedness), with
-            ``jax.random.fold_in(key, salt)`` seed isolation per sub. Combined
-            via outer min-of-mins. Eliminates kink-bias at sub-crossover
-            surfaces; matches the ``three_term_min`` result within
-            ``1e-6 * scale`` at well-behaved (DEC-satisfying) points.
+        Single composite objective vs three seed-isolated
+        sub-optimizations combined by outer ``min``.
 
     Returns
     -------
     OptimizationResult
-        Contains margin (negative of max flux norm), worst observer, etc.
+        ``margin`` is the minimum across the three DEC sub-conditions
+        evaluated at the worst-case observer; positive iff DEC holds
+        at the point. ``worst_observer`` is the timelike four-velocity
+        that realises the minimum.
     """
-    # Validate additive kwargs (fail-fast; defaults preserve original behavior)
     _validate_warm_start(warm_start)
     _validate_neighbor_fraction(neighbor_fraction)
     _validate_starts(starts)
@@ -832,13 +937,10 @@ def optimize_dec(
     if key is None:
         key = jax.random.PRNGKey(42)
 
-    tetrad = compute_orthonormal_tetrad(g_ab)
+    if tetrad is None:
+        tetrad = compute_orthonormal_tetrad(g_ab)
     g_inv = jnp.linalg.inv(g_ab)
-    # NOTE (W-1): The original _dec_objective closes over T_mixed computed via
-    # ``jnp.einsum("ac,cb->ab", g_inv, T_ab)``. Do NOT substitute
-    # ``jnp.linalg.solve(g_ab, T_ab)`` - float-point residuals differ at the
-    # last few ULPs.
-    T_mixed = jnp.einsum("ac,cb->ab", g_inv, T_ab)  # T^a_b
+    T_mixed = jnp.einsum("ac,cb->ab", g_inv, T_ab)
     zeta_max_arr = jnp.float64(zeta_max)
 
     if mode == "three_term_min":
@@ -846,7 +948,13 @@ def optimize_dec(
         best_obj, best_raw, best_physical, best_converged, best_n_steps = (
             _dispatch_multistart_3d(
                 strategy, _dec_objective, args, n_starts, zeta_max,
-                rtol, atol, max_steps, key
+                rtol, atol, max_steps, key,
+                starts=starts,
+                warm_start=warm_start,
+                neighbor_fraction=neighbor_fraction,
+                neighbor_observer=neighbor_observer,
+                g_ab=g_ab,
+                tetrad=tetrad,
             )
         )
     elif mode == "per_subcondition_min":
@@ -873,11 +981,6 @@ def optimize_dec(
     )
 
 
-# ---------------------------------------------------------------------------
-# Combined optimizer
-# ---------------------------------------------------------------------------
-
-
 def optimize_point(
     T_ab: Float[Array, "4 4"],
     g_ab: Float[Array, "4 4"],
@@ -889,6 +992,10 @@ def optimize_point(
     max_steps: int = 256,
     key=None,
     strategy: str = "tanh",
+    warm_start: str = "cold",
+    neighbor_fraction: float = 1.0 / 16.0,
+    starts: str = "axis+gaussian",
+    neighbor_observer: Float[Array, "4"] | None = None,
 ) -> dict[str, OptimizationResult]:
     """Run optimization for multiple energy conditions at a single point.
 
@@ -901,8 +1008,7 @@ def optimize_point(
     n_starts, zeta_max, rtol, atol, max_steps : optimization parameters.
     key : PRNGKey or None.
     strategy : {'tanh', 'hard_bound'}
-        Solver dispatch forwarded to each per-condition optimizer. Default
-        ``'tanh'`` preserves the original behavior.
+        Solver dispatch forwarded to each per-condition optimizer.
 
     Returns
     -------
@@ -911,21 +1017,40 @@ def optimize_point(
     if key is None:
         key = jax.random.PRNGKey(42)
 
+    # Hoist the orthonormal tetrad once and share across the four optimizers.
+    tetrad = compute_orthonormal_tetrad(g_ab)
+
     _optimizers = {
         "nec": lambda k: optimize_nec(
-            T_ab, g_ab, n_starts, rtol, atol, max_steps, k, strategy=strategy
+            T_ab, g_ab, n_starts, rtol, atol, max_steps, k, strategy=strategy,
+            starts=starts, tetrad=tetrad,
         ),
         "wec": lambda k: optimize_wec(
             T_ab, g_ab, n_starts, zeta_max, rtol, atol, max_steps, k,
             strategy=strategy,
+            warm_start=warm_start,
+            neighbor_fraction=neighbor_fraction,
+            starts=starts,
+            neighbor_observer=neighbor_observer,
+            tetrad=tetrad,
         ),
         "sec": lambda k: optimize_sec(
             T_ab, g_ab, n_starts, zeta_max, rtol, atol, max_steps, k,
             strategy=strategy,
+            warm_start=warm_start,
+            neighbor_fraction=neighbor_fraction,
+            starts=starts,
+            neighbor_observer=neighbor_observer,
+            tetrad=tetrad,
         ),
         "dec": lambda k: optimize_dec(
             T_ab, g_ab, n_starts, zeta_max, rtol, atol, max_steps, k,
             strategy=strategy,
+            warm_start=warm_start,
+            neighbor_fraction=neighbor_fraction,
+            starts=starts,
+            neighbor_observer=neighbor_observer,
+            tetrad=tetrad,
         ),
     }
 
@@ -935,11 +1060,6 @@ def optimize_point(
         results[cond] = _optimizers[cond](subkey)
 
     return results
-
-
-# ---------------------------------------------------------------------------
-# Adaptive rapidity (Python control flow not JIT-compilable)
-# ---------------------------------------------------------------------------
 
 
 def optimize_wec_adaptive(

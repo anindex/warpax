@@ -22,17 +22,14 @@ Shape function:
 At bubble center: n(0) = 0 and n'(0) = 0, so shift = 0 (flat Minkowski interior).
 At far field: shift = -v_s * x_hat (uniform flow past bubble).
 
-The zero-expansion condition div(beta) = 0 is satisfied exactly by construction.
-This means K (trace of extrinsic curvature) vanishes identically.
-
 Energy density (Eulerian observers):
     rho = -(v_s^2 / kappa) * [3*(dn/dr)^2*cos^2(theta)
            + (dn/dr + r/2*d2n/dr2)^2*sin^2(theta)]
-    where kappa = 16*pi. Strictly negative -> WEC/NEC violation everywhere.
+    where kappa = 8*pi. Strictly negative -> WEC/NEC violation everywhere.
 
-Note: The Natario metric uses the co-moving bubble frame where the interior
-is Minkowski and the exterior has a uniform flow. This differs from the
-Alcubierre convention where the far field is Minkowski.
+Uses the co-moving bubble frame (interior Minkowski, exterior uniform
+flow); differs from the Alcubierre convention where the far field is
+Minkowski.
 """
 
 from __future__ import annotations
@@ -44,11 +41,6 @@ from jaxtyping import Array, Float, jaxtyped
 
 from ..geometry.metric import ADMMetric, SymbolicMetric
 from ._common import alcubierre_shape
-
-
-# ---------------------------------------------------------------------------
-# Shape function helpers (pure JAX)
-# ---------------------------------------------------------------------------
 
 
 def _natario_n(
@@ -100,11 +92,6 @@ def _natario_d2n_dr2(
     return -0.5 * d2f_dr2
 
 
-# ---------------------------------------------------------------------------
-# NatarioMetric (ADM decomposition)
-# ---------------------------------------------------------------------------
-
-
 class NatarioMetric(ADMMetric):
     """Natario zero-expansion warp drive metric via ADM 3+1 decomposition.
 
@@ -136,8 +123,8 @@ class NatarioMetric(ADMMetric):
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         t, x, y, z = coords
         dx = x - self.v_s * t
-        r_s_raw = jnp.sqrt(dx**2 + y**2 + z**2)
-        r_s = jnp.sqrt(r_s_raw**2 + 1e-24)
+        r_sq = dx**2 + y**2 + z**2
+        r_s = jnp.sqrt(r_sq + 1e-60)
 
         n_val = _natario_n(r_s, self.R, self.sigma)
         dn_val = _natario_dn_dr(r_s, self.R, self.sigma)
@@ -154,10 +141,11 @@ class NatarioMetric(ADMMetric):
         beta_y = self.v_s * dn_val * dx * y / r_s
         beta_z = self.v_s * dn_val * dx * z / r_s
 
-        # Origin safety: n(0) = 0, dn(0) = 0, so shift -> 0 at center
-        beta_x = jnp.where(r_s_raw < 1e-12, 0.0, beta_x)
-        beta_y = jnp.where(r_s_raw < 1e-12, 0.0, beta_y)
-        beta_z = jnp.where(r_s_raw < 1e-12, 0.0, beta_z)
+        # n(0) = dn(0) = 0 -> shift -> 0 at center
+        on_axis = r_sq < 1e-24
+        beta_x = jnp.where(on_axis, 0.0, beta_x)
+        beta_y = jnp.where(on_axis, 0.0, beta_y)
+        beta_z = jnp.where(on_axis, 0.0, beta_z)
 
         return jnp.array([beta_x, beta_y, beta_z])
 
@@ -170,7 +158,7 @@ class NatarioMetric(ADMMetric):
         """Alcubierre-convention shape function f(r_s) underlying the Natario n(r)."""
         t, x, y, z = coords
         dx = x - self.v_s * t
-        r_s = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-24)
+        r_s = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-60)
         return alcubierre_shape(r_s, self.R, self.sigma)
 
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
@@ -191,26 +179,21 @@ class NatarioMetric(ADMMetric):
         dx_sym = x - v_s * t
         r_s_expr = sp.sqrt(dx_sym**2 + y**2 + z**2)
 
-        # Shape function n(r) = 1/2 * (1 - f_Alc(r))
         f_alc_r = (
             sp.tanh(sigma_val * (r + R_val))
             - sp.tanh(sigma_val * (r - R_val))
         ) / (2 * sp.tanh(sigma_val * R_val))
         n_r = sp.Rational(1, 2) * (1 - f_alc_r)
-
-        # dn/dr via differentiation w.r.t. the symbol r
         dn_dr_r = sp.diff(n_r, r)
 
-        # Substitute r -> r_s_expr
         n_val = n_r.subs(r, r_s_expr)
         dn_dr_val = dn_dr_r.subs(r, r_s_expr)
 
-        # Direct Cartesian shift (x-component only for symbolic tractability)
+        # Symbolic shift uses x-component only; beta^y, beta^z are
+        # proportional to dn/dr * (cross terms) and omitted for tractability.
         sin2_theta = (y**2 + z**2) / r_s_expr**2
         beta_x_sym = -v_s * (2 * n_val + r_s_expr * dn_dr_val * sin2_theta)
 
-        # Full 4x4 metric using only beta^x for symbolic tractability
-        # (beta^y, beta^z are proportional to dn/dr * (cross terms))
         g = sp.Matrix([
             [-(1 - beta_x_sym**2), beta_x_sym, 0, 0],
             [beta_x_sym, 1, 0, 0],
@@ -223,11 +206,6 @@ class NatarioMetric(ADMMetric):
         return "Natario"
 
 
-# ---------------------------------------------------------------------------
-# Analytical Eulerian energy density
-# ---------------------------------------------------------------------------
-
-
 def natario_eulerian_energy_density(
     x: Float[Array, "..."],
     y: Float[Array, "..."],
@@ -235,54 +213,55 @@ def natario_eulerian_energy_density(
     v_s: float = 0.1,
     R: float = 100.0,
     sigma: float = 0.03,
+    t: float = 0.0,
 ) -> Float[Array, "..."]:
     """Analytical Eulerian energy density for Natario metric.
 
     rho = -(v_s^2 / kappa) * [3*(dn/dr)^2*cos^2(theta)
            + (dn/dr + r/2*d2n/dr2)^2*sin^2(theta)]
 
-    where kappa = 16*pi (in geometric units).
+    where kappa = 8*pi (in geometric units; Natario 2002 Eq. for T_{mu nu} u^mu u^nu).
+
+    Uses co-moving radius ``dx = x - v_s t`` consistent with the metric shift.
 
     This is strictly negative (WEC violation everywhere where dn/dr != 0).
 
     Parameters
     ----------
     x, y, z : array-like
-        Spatial coordinates (bubble center at origin, time slice t=0).
+        Spatial coordinates (bubble center at origin in lab frame at t=0).
     v_s : float
         Bubble velocity.
     R : float
         Bubble radius.
     sigma : float
         Wall thickness parameter.
+    t : float
+        Time coordinate for moving bubble center.
 
     Returns
     -------
     rho : array-like
         Eulerian energy density (strictly <= 0).
     """
-    r_s = jnp.sqrt(x**2 + y**2 + z**2)
-    r_s_safe = jnp.sqrt(r_s**2 + 1e-24)
+    dx = x - v_s * t
+    r_sq = dx**2 + y**2 + z**2
+    r_s = jnp.sqrt(r_sq + 1e-60)
 
-    cos_theta_sq = x**2 / r_s_safe**2
-    sin_theta_sq = (y**2 + z**2) / r_s_safe**2
+    cos_theta_sq = dx**2 / (r_sq + 1e-60)
+    sin_theta_sq = (y**2 + z**2) / (r_sq + 1e-60)
 
-    dn = _natario_dn_dr(r_s_safe, R, sigma)
-    d2n = _natario_d2n_dr2(r_s_safe, R, sigma)
+    dn = _natario_dn_dr(r_s, R, sigma)
+    d2n = _natario_d2n_dr2(r_s, R, sigma)
 
-    kappa = 16.0 * jnp.pi
+    kappa = 8.0 * jnp.pi
     term_radial = 3.0 * dn**2 * cos_theta_sq
-    term_angular = (dn + r_s_safe / 2.0 * d2n) ** 2 * sin_theta_sq
+    term_angular = (dn + r_s / 2.0 * d2n) ** 2 * sin_theta_sq
 
     rho = -(v_s**2 / kappa) * (term_radial + term_angular)
 
-    # Handle origin: rho = 0 where dn/dr = 0
-    return jnp.where(r_s < 1e-12, 0.0, rho)
+    return jnp.where(r_sq < 1e-24, 0.0, rho)
 
-
-# ---------------------------------------------------------------------------
-# Ground truth for validation
-# ---------------------------------------------------------------------------
 
 GROUND_TRUTH = {
     "stress_energy_zero": False,

@@ -1,29 +1,11 @@
-"""SplitScreen: Eulerian vs observer-robust NEC margin comparison.
+"""SplitScreen: side-by-side Eulerian vs observer-robust NEC margin panels.
 
-A 2D ``Scene`` showing the Eulerian
-NEC margin (left panel) and the observer-robust minimum NEC margin
-(right panel) side by side with identical color scaling, enabling direct
-visual comparison of how observer choice affects violation severity.
-
-Layout
-------
-- **Top center**: title + metric equation (static)
-- **Left panel**: Eulerian NEC margin with contours
-- **Right panel**: Observer-robust NEC margin with contours
-- **Centre**: vertical divider
-- **Lower-left**: contour annotation legend
-- **Lower-right**: live v_s parameter display + shared color legend
-- **Panel sub-labels**: Eulerian / min_ζ≤5 descriptions
-
-Usage::
-
-    manim render -ql --format mp4 \\
-        src/warpax/visualization/manim/_split_screen.py SplitScreen
+Usage: manim render -ql --format mp4 src/warpax/visualization/manim/_split_screen.py SplitScreen
 """
 from __future__ import annotations
 
 import numpy as np
-import matplotlib.cm as _mcm
+import matplotlib as _mpl
 from matplotlib.colors import LinearSegmentedColormap
 
 from manim import (
@@ -53,25 +35,14 @@ from warpax.visualization.manim._image_utils import (
 )
 from warpax.visualization.manim._scene_utils import COLORS_3B1B
 
-# ---------------------------------------------------------------------------
-# Dark-midpoint diverging colormap
-# ---------------------------------------------------------------------------
+
 _DARK_DIVERGE_SS = LinearSegmentedColormap.from_list(
-    "dark_diverge_ss", ["#3B4CC0", "#1A1A2E", "#"], N=256,
+    "dark_diverge_ss", ["#3B4CC0", "#1A1A2E", "#B40426"], N=256,
 )
 try:
-    _mcm.register_cmap(name="dark_diverge_ss", cmap=_DARK_DIVERGE_SS)
-except (ValueError, AttributeError):
-    try:
-        import matplotlib as _mpl
-        _mpl.colormaps.register(_DARK_DIVERGE_SS, name="dark_diverge_ss")
-    except Exception:
-        pass
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+    _mpl.colormaps.register(_DARK_DIVERGE_SS, name="dark_diverge_ss")
+except ValueError:
+    pass  # already registered
 
 
 def _contour_to_vmobject(
@@ -162,11 +133,6 @@ def _build_robust_frames(
     )
 
 
-# ---------------------------------------------------------------------------
-# Scene
-# ---------------------------------------------------------------------------
-
-
 class SplitScreen(Scene):
     """Eulerian vs observer-robust NEC margin split-screen comparison.
 
@@ -188,9 +154,6 @@ class SplitScreen(Scene):
         self.camera.background_color = COLORS_3B1B["background"]
         cmap_name = "dark_diverge_ss"
 
-        # ==============================================================
-        # Step 1: Pre-compute all frames
-        # ==============================================================
         v_values = list(np.linspace(self.v_start, self.v_end, self.n_frames))
 
         eulerian_frames = _build_eulerian_frames(
@@ -208,9 +171,6 @@ class SplitScreen(Scene):
 
         n_total = min(len(eulerian_frames), len(robust_frames))
 
-        # ==============================================================
-        # Step 2: Shared global color limits
-        # ==============================================================
         eul_clim = compute_symlog_clim(eulerian_frames, "nec_margin")
         rob_clim = compute_symlog_clim(robust_frames, "nec_margin_sweep")
 
@@ -219,9 +179,6 @@ class SplitScreen(Scene):
         linthresh = min(eul_clim[2], rob_clim[2])
         shared_clim = (vmin, vmax, linthresh)
 
-        # ==============================================================
-        # Step 3: Pre-render ALL frames as RGBA with baked contours
-        # ==============================================================
         def _render_panel_rgba(
             frame: object,
             field_name: str,
@@ -244,7 +201,7 @@ class SplitScreen(Scene):
             # Upsample 8× for smooth contour lines (matches _image_utils)
             up = _ndzoom(data_2d, 8, order=3)
             norm = mcolors.SymLogNorm(linthresh=lt, vmin=vmin, vmax=vmax)
-            cmap = _mcm.get_cmap(cmap_name)
+            cmap = _mpl.colormaps[cmap_name]
             rgba = cmap(norm(up))  # float [0,1]
 
             # Render contours into the array using matplotlib figure
@@ -322,9 +279,6 @@ class SplitScreen(Scene):
             for f in robust_frames
         ]
 
-        # ==============================================================
-        # Step 4: Static header - title + equation
-        # ==============================================================
         title_text = Text(
             "Eulerian vs Observer-Robust NEC Margin",
             font_size=24, color=WHITE, weight="LIGHT",
@@ -336,9 +290,6 @@ class SplitScreen(Scene):
         header.to_edge(UP, buff=0.12)
         self.add(header)
 
-        # ==============================================================
-        # Step 5: Panel layout
-        # ==============================================================
         gap = 0.3
         panel_shift_down = DOWN * 0.35  # shift panels down to avoid header overlap
         left_center = LEFT * (self.panel_width / 2 + gap / 2) + panel_shift_down
@@ -380,9 +331,6 @@ class SplitScreen(Scene):
         )
         self.add(divider)
 
-        # ==============================================================
-        # Step 6: ValueTracker + always_redraw panels (contours baked)
-        # ==============================================================
         frame_idx = ValueTracker(0)
 
         def _make_left():
@@ -404,9 +352,6 @@ class SplitScreen(Scene):
         left_panel = always_redraw(_make_left)
         right_panel = always_redraw(_make_right)
 
-        # ==============================================================
-        # Step 7: Live v_s parameter display - lower-right
-        # ==============================================================
         vs_mathtex = [
             MathTex(f"{v:.2f}", font_size=28, color=YELLOW)
             for v in v_values[:n_total]
@@ -424,10 +369,7 @@ class SplitScreen(Scene):
 
         vs_display = always_redraw(_make_vs)
 
-        # ==============================================================
-        # Step 8: Color legend - lower-center
-        # ==============================================================
-        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#"]
+        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#B40426"]
         bg_strips = VGroup(*[
             Rectangle(
                 width=0.22, height=0.07,
@@ -440,7 +382,7 @@ class SplitScreen(Scene):
             font_size=12, color=WHITE, weight="LIGHT",
         )
         bg_lo = MathTex(r"-", font_size=14, color="#3B4CC0")
-        bg_hi = MathTex(r"+", font_size=14, color="#")
+        bg_hi = MathTex(r"+", font_size=14, color="#B40426")
         bg_bar = VGroup(bg_lo, bg_strips, bg_hi).arrange(RIGHT, buff=0.04)
         color_legend = VGroup(bg_title, bg_bar).arrange(DOWN, buff=0.04)
         color_legend.to_edge(RIGHT, buff=0.15).shift(DOWN * 2.0)
@@ -450,9 +392,6 @@ class SplitScreen(Scene):
         )
         color_legend = VGroup(cl_bg, color_legend)
 
-        # ==============================================================
-        # Step 9: Contour annotation - lower-left
-        # ==============================================================
         dash_sample = DashedVMobject(
             VMobject(color=WHITE, stroke_width=1.5).set_points_as_corners(
                 [np.array([-0.25, 0, 0]), np.array([0.25, 0, 0])]
@@ -481,9 +420,6 @@ class SplitScreen(Scene):
         )
         annot = VGroup(annot_bg, annot)
 
-        # ==============================================================
-        # Step 10: Assemble and animate
-        # ==============================================================
         self.add(left_panel, right_panel)
         self.add(vs_display, color_legend, annot)
 

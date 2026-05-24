@@ -17,7 +17,7 @@ from .ec_constraints import ECFeasibilityResult, ec_feasibility_check
 from .loss import LossComponents, LossWeights, evaluate_loss
 
 
-class OptimizationResult(NamedTuple):
+class ShellOptimizationResult(NamedTuple):
     """Result of optimize_shell."""
 
     theta_opt: Float[Array, "D"]
@@ -27,6 +27,10 @@ class OptimizationResult(NamedTuple):
     ec_feasibility: ECFeasibilityResult | None
     n_evals: int
     converged: bool
+
+
+# Backward-compatible alias (distinct from energy_conditions.OptimizationResult).
+OptimizationResult = ShellOptimizationResult
 
 
 def optimize_shell(
@@ -47,7 +51,7 @@ def optimize_shell(
     skip_ec_in_loop: bool = False,
     fast: bool = False,
     callback=None,
-) -> OptimizationResult:
+) -> ShellOptimizationResult:
     """Optimize shell source profiles to minimize multi-objective loss.
 
     Parameters
@@ -130,7 +134,7 @@ def optimize_shell(
         r_cert = jnp.linspace(R_1 - 1.0, R_2 + 1.0, n_probes)
         ec_result = ec_feasibility_check(metric, r_cert, n_starts=16)
 
-    return OptimizationResult(
+    return ShellOptimizationResult(
         theta_opt=theta_opt,
         coeffs=coeffs,
         loss_final=float(result.fun),

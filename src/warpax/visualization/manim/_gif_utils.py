@@ -1,16 +1,4 @@
-"""FFmpeg palette-based GIF conversion utilities.
-
-Provides a two-pass FFmpeg workflow for converting Manim MP4 output to
-high-quality optimized GIFs:
-
-1. **palettegen** generates an optimal 256-color palette from the video
-2. **paletteuse** encodes the GIF using that palette with Bayer dithering
-
-This approach produces significantly better GIF quality than naive encoding
-(especially for smooth gradients in EC heatmaps) while keeping file sizes
-reasonable.
-
-"""
+"""FFmpeg two-pass palettegen/paletteuse helper for MP4 → optimized GIF conversion."""
 from __future__ import annotations
 
 import logging
@@ -30,43 +18,18 @@ def mp4_to_gif(
     dither: str = "bayer",
     bayer_scale: int = 5,
 ) -> Path:
-    """Convert an MP4 file to an optimized GIF using FFmpeg palette workflow.
+    """Convert an MP4 to an optimized GIF using a two-pass FFmpeg palette workflow.
 
-    Uses a two-pass approach:
-
-    - **Pass 1:** Generate an optimal 256-color palette with
-      ``palettegen=stats_mode=diff``.
-    - **Pass 2:** Encode the GIF using the palette with the specified
-      dither algorithm.
-
-    Parameters
-    ----------
-    input_path : str or Path
-        Path to the input MP4 file.
-    output_path : str or Path or None
-        Path for the output GIF. If ``None``, replaces the ``.mp4``
-        extension with ``.gif``.
-    fps : int
-        Target frame rate for the GIF (default 20).
-    width : int
-        Target width in pixels (height auto-scaled, default 1280).
-    dither : str
-        FFmpeg dither algorithm (default ``"bayer"``).
-    bayer_scale : int
-        Bayer dither scale, 1--5 (default 5). Higher values produce
-        smoother gradients.
-
-    Returns
-    -------
-    Path
-        Path to the generated GIF file.
+    Pass 1 generates a 256-color palette via ``palettegen=stats_mode=diff``;
+    pass 2 encodes the GIF with ``paletteuse`` and the requested dither.
+    ``output_path`` defaults to ``input_path.with_suffix('.gif')``.
 
     Raises
     ------
     RuntimeError
-        If FFmpeg is not found on PATH or if either pass fails.
+        If FFmpeg is not on ``PATH`` or either pass fails.
     FileNotFoundError
-        If *input_path* does not exist.
+        If ``input_path`` does not exist.
     """
     input_path = Path(input_path)
     if not input_path.exists():
@@ -163,40 +126,16 @@ def render_and_convert(
     gif_fps: int = 20,
     gif_width: int = 1280,
 ) -> tuple[Path, Path]:
-    """Render a Manim scene to MP4 and convert to optimized GIF.
+    """Render a Manim scene to MP4 and convert to an optimized GIF.
 
-    Convenience function that runs ``manim render`` on the specified
-    scene module and class, then calls :func:`mp4_to_gif` on the
-    output.
-
-    Parameters
-    ----------
-    scene_module_path : str or Path
-        Path to the Python file containing the scene class.
-    scene_class_name : str
-        Name of the Manim ``Scene`` subclass to render.
-    quality : str
-        Render quality: ``"l"`` (480p), ``"m"`` (720p), ``"h"``
-        (1080p), ``"k"`` (4K). Default ``"h"``.
-    output_dir : str or Path or None
-        Directory for output files. If ``None``, uses Manim's default
-        ``media/`` directory.
-    gif_fps : int
-        GIF frame rate (default 20).
-    gif_width : int
-        GIF width in pixels (default 1280).
-
-    Returns
-    -------
-    tuple[Path, Path]
-        ``(mp4_path, gif_path)`` paths to the rendered MP4 and the
-        converted GIF.
+    ``quality``: ``"l"`` (480p), ``"m"`` (720p), ``"h"`` (1080p, default),
+    ``"k"`` (4K). Returns ``(mp4_path, gif_path)``.
 
     Raises
     ------
     RuntimeError
-        If ``manim`` is not found on PATH, rendering fails, or the
-        output MP4 cannot be located.
+        If ``manim`` is not on ``PATH``, rendering fails, or the rendered
+        MP4 cannot be located.
     """
     scene_module_path = Path(scene_module_path)
 

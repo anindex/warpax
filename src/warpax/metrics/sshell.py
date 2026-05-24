@@ -87,14 +87,14 @@ class SShellMetric(ADMMetric):
         """Lapse alpha = e^{Phi(r)} from constraint solver."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-24)
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
         return jnp.maximum(jnp.exp(self._Phi(r)), 1e-12)
 
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         """Shift beta^x = -v_s * S_warp(r)."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel**2 + y**2 + z**2)
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
         S_warp = _warp_transition_c2(r, self.R_1, self.R_2)
         return jnp.array([-S_warp * self.v_s, 0.0, 0.0])
 
@@ -102,7 +102,7 @@ class SShellMetric(ADMMetric):
         """Spatial metric: delta_{ij} + (e^{2Lambda} - 1) n_i n_j."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-24)
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
 
         gamma_rr = jnp.exp(2.0 * self._Lambda(r))
         x_vec = jnp.array([x_rel, y, z])
@@ -114,7 +114,7 @@ class SShellMetric(ADMMetric):
         """Warp transition function S_warp(r)."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel**2 + y**2 + z**2)
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
         return _warp_transition_c2(r, self.R_1, self.R_2)
 
     def symbolic(self):

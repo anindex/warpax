@@ -11,8 +11,9 @@ ADM components:
 Shape function (top-hat smoothed by tanh):
     f(r_s) = [tanh(sigma (r_s + R)) - tanh(sigma (r_s - R))] / [2 tanh(sigma R)]
 
-where r_s = sqrt((x - x_s)^2 + y^2 + z^2) is distance from bubble center,
-R is bubble radius, sigma controls wall thickness, x_s = v_s t is bubble position.
+where r_s = sqrt((x - x_center)^2 + y^2 + z^2) is distance from bubble center,
+R is bubble radius, sigma controls wall thickness, and
+x_center = x_s + v_s t is the co-moving bubble position (x_s is the offset at t=0).
 
 Ground truth for Eulerian observers:
     rho_Euler = -(v_s^2 / (32 pi)) * (df/dr_s)^2 * (y^2 + z^2) / r_s^2
@@ -34,11 +35,6 @@ from ..metrics._common import alcubierre_shape
 _shape_function = alcubierre_shape
 
 
-# ---------------------------------------------------------------------------
-# Shape function helpers (pure JAX)
-# ---------------------------------------------------------------------------
-
-
 def _shape_function_derivative(
     r_s: Float[Array, "..."], R: float, sigma: float
 ) -> Float[Array, "..."]:
@@ -46,11 +42,6 @@ def _shape_function_derivative(
     sech2_plus = 1.0 / jnp.cosh(sigma * (r_s + R)) ** 2
     sech2_minus = 1.0 / jnp.cosh(sigma * (r_s - R)) ** 2
     return sigma * (sech2_plus - sech2_minus) / (2 * jnp.tanh(sigma * R))
-
-
-# ---------------------------------------------------------------------------
-# AlcubierreMetric (ADM decomposition)
-# ---------------------------------------------------------------------------
 
 
 class AlcubierreMetric(ADMMetric):
@@ -67,7 +58,7 @@ class AlcubierreMetric(ADMMetric):
     sigma : float
         Wall thickness parameter (larger = thinner wall).
     x_s : float
-        Bubble center x-coordinate.
+        Bubble center x-coordinate at t=0 (added to v_s * t for co-moving motion).
     """
 
     v_s: float = 0.5
@@ -75,14 +66,25 @@ class AlcubierreMetric(ADMMetric):
     sigma: float = 8.0
     x_s: float = 0.0
 
+    def _bubble_center_x(self, t: Float[Array, ""]) -> Float[Array, ""]:
+        """Co-moving bubble center: x_s + v_s t."""
+        return self.x_s + self.v_s * t
+
+    def _radial_distance(
+        self, coords: Float[Array, "4"]
+    ) -> Float[Array, ""]:
+        """Distance from co-moving bubble center (with autodiff floor)."""
+        t, x, y, z = coords
+        dx = x - self._bubble_center_x(t)
+        return jnp.sqrt(dx**2 + y**2 + z**2 + 1e-60)
+
     @jaxtyped(typechecker=beartype)
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         return jnp.array(1.0)
 
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
-        t, x, y, z = coords
-        r_s = jnp.sqrt((x - self.x_s) ** 2 + y**2 + z**2)
+        r_s = self._radial_distance(coords)
         f = _shape_function(r_s, self.R, self.sigma)
         return jnp.array([-self.v_s * f, 0.0, 0.0])
 
@@ -93,8 +95,7 @@ class AlcubierreMetric(ADMMetric):
     @jaxtyped(typechecker=beartype)
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Shape function f(r_s) for the Alcubierre metric."""
-        t, x, y, z = coords
-        r_s = jnp.sqrt((x - self.x_s) ** 2 + y**2 + z**2)
+        r_s = self._radial_distance(coords)
         return _shape_function(r_s, self.R, self.sigma)
 
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
@@ -106,7 +107,9 @@ class AlcubierreMetric(ADMMetric):
         R_val = sp.Symbol("R", positive=True)
         sigma_val = sp.Symbol("sigma", positive=True)
 
-        r_s = sp.sqrt(x**2 + y**2 + z**2)
+        x_s_val = sp.Symbol("x_s", real=True)
+        dx = x - x_s_val - v_s * t
+        r_s = sp.sqrt(dx**2 + y**2 + z**2)
         f = (
             sp.tanh(sigma_val * (r_s + R_val))
             - sp.tanh(sigma_val * (r_s - R_val))
@@ -124,11 +127,6 @@ class AlcubierreMetric(ADMMetric):
 
     def name(self) -> str:
         return "Alcubierre"
-
-
-# ---------------------------------------------------------------------------
-# Module-level convenience functions
-# ---------------------------------------------------------------------------
 
 
 def alcubierre_symbolic(
@@ -151,7 +149,9 @@ def alcubierre_symbolic(
     if sigma_val is None:
         sigma_val = sp.Symbol("sigma", positive=True)
 
-    r_s = sp.sqrt(x**2 + y**2 + z**2)
+    x_s_val = sp.Symbol("x_s", real=True)
+    dx = x - x_s_val - v_s * t
+    r_s = sp.sqrt(dx**2 + y**2 + z**2)
     f = (
         sp.tanh(sigma_val * (r_s + R_val))
         - sp.tanh(sigma_val * (r_s - R_val))
@@ -174,12 +174,16 @@ def eulerian_energy_density(
     R: float = 1.0,
     sigma: float = 8.0,
     x_s: float = 0.0,
+    t: float = 0.0,
 ) -> Float[Array, "..."]:
     """Analytical Eulerian energy density.
 
     rho = -(v_s^2 / (32 pi)) * (df/dr_s)^2 * (y^2 + z^2) / r_s^2
+
+    Uses co-moving bubble center x_center = x_s + v_s * t.
     """
-    r_s = jnp.sqrt((x - x_s) ** 2 + y**2 + z**2)
+    bubble_x = x_s + v_s * t
+    r_s = jnp.sqrt((x - bubble_x) ** 2 + y**2 + z**2)
     r_s = jnp.maximum(r_s, 1e-12)
 
     df = _shape_function_derivative(r_s, R, sigma)

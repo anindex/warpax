@@ -35,11 +35,6 @@ from ..geometry.metric import MetricSpecification
 from .types import ECGridResult, WallRestrictedStats
 
 
-# ---------------------------------------------------------------------------
-# Mask builders
-# ---------------------------------------------------------------------------
-
-
 def shape_function_mask(
     metric: MetricSpecification,
     coords_batch: Float[Array, "N 4"],
@@ -135,11 +130,6 @@ def determinant_guard_mask(
             stacklevel=2,
         )
     return mask
-
-
-# ---------------------------------------------------------------------------
-# Wall-restricted statistics
-# ---------------------------------------------------------------------------
 
 
 def compute_wall_restricted_stats(

@@ -1,25 +1,6 @@
-"""ObserverSweep: Manim ThreeDScene showing EC violations across observer boosts.
+"""ObserverSweep: Alcubierre rapidity sweep with WEC margin heatmap (dual-layer 3D).
 
-Demonstrates how energy condition violations in the Alcubierre warp bubble
-change as the observer rapidity sweeps from 0 (Eulerian) to 5 (highly
-boosted). A yellow arrow indicates the dominant boost direction. The
-geometry is fixed at v_s=0.5; only the observer changes.
-
-Dual-layer rendering:
-
-- **Upper layer:** translucent wireframe embedding surface showing
-  ``energy_density`` (RdBu_r colorscale) - static curvature reference.
-- **Lower layer:** flat heatmap showing ``wec_margin_sweep`` (RdYlGn
-  colorscale: green = WEC satisfied, red = violated) - evolves with
-  observer rapidity.
-
-Both layers are always visible, enabling simultaneous comparison of
-curvature magnitude and violation structure.
-
-Usage::
-
-    manim render -ql --format mp4 \\
-        src/warpax/visualization/manim/_observer_sweep.py ObserverSweep
+Usage: manim render -ql --format mp4 src/warpax/visualization/manim/_observer_sweep.py ObserverSweep
 """
 from __future__ import annotations
 
@@ -76,9 +57,6 @@ class ObserverSweep(ThreeDScene):
         # --- Dark background ---
         self.camera.background_color = COLORS_3B1B["background"]
 
-        # ==================================================================
-        # Step 1: Pre-compute all FrameData (60 frames)
-        # ==================================================================
         from warpax.geometry import GridSpec
         from warpax.visualization.common._scenes import scene_observer_sweep
 
@@ -95,9 +73,6 @@ class ObserverSweep(ThreeDScene):
         )
         n_total = len(all_frames)
 
-        # ==================================================================
-        # Step 2: Setup 3D scene (static camera)
-        # ==================================================================
         self.set_camera_orientation(
             phi=60 * DEGREES,
             theta=-70 * DEGREES,
@@ -122,9 +97,6 @@ class ObserverSweep(ThreeDScene):
         max_abs = max(abs(ed_clim[0]), abs(ed_clim[1]))
         z_extent = max_abs * exag * 1.3
 
-        # ==================================================================
-        # Step 3: Title + equation overlay - top center
-        # ==================================================================
         title_text = Text(
             "Alcubierre Observer Sweep",
             font_size=22, color=WHITE, weight="LIGHT",
@@ -136,9 +108,6 @@ class ObserverSweep(ThreeDScene):
         self.add_fixed_in_frame_mobjects(header)
         self.add(header)
 
-        # ==================================================================
-        # Step 4: ValueTracker + always_redraw surfaces (dual-layer)
-        # ==================================================================
         frame_idx = ValueTracker(0)
 
         def _make_surface():
@@ -167,9 +136,6 @@ class ObserverSweep(ThreeDScene):
         embedding = always_redraw(_make_surface)
         heatmap = always_redraw(_make_heatmap)
 
-        # ==================================================================
-        # Step 5: Boost direction arrow
-        # ==================================================================
         origin = axes.c2p(0, 0, 0)
         tip = axes.c2p(2.0, 0, 0)
         arrow = Arrow3D(
@@ -178,14 +144,6 @@ class ObserverSweep(ThreeDScene):
             color=YELLOW,
             stroke_width=6,
         )
-
-        # ==================================================================
-        # Step 6: Parameter displays - upper-left (DecimalNumber + become)
-        # ==================================================================
-        # NOTE: In ThreeDScene, DecimalNumber.set_value recreates internal
-        # submobjects that lose their fixed-in-frame registration. We use
-        # ``become`` in the updaters instead, which replaces geometry
-        # in-place and preserves the registration.
 
         # Rapidity counter
         z_label = MathTex(r"\zeta", font_size=32, color=WHITE)
@@ -235,9 +193,6 @@ class ObserverSweep(ThreeDScene):
 
         z_num.add_updater(_update_rapidity)
 
-        # ==================================================================
-        # Step 7: Color legends - upper-right (dual legends)
-        # ==================================================================
         # Energy density legend (RdBu_r) --
         ed_colors = ["#2166AC", "#67A9CF", "#F7F7F7", "#EF8A62", "#B2182B"]
         ed_strips = VGroup(*[
@@ -256,7 +211,7 @@ class ObserverSweep(ThreeDScene):
         ed_bar_row = VGroup(ed_lo, ed_strips, ed_hi).arrange(
             RIGHT, buff=0.06,
         )
-        ed_field = MathTex(r"T_{00}", font_size=22, color=WHITE)
+        ed_field = MathTex(r"\rho_{\rm Eul}", font_size=22, color=WHITE)
         ed_top_row = VGroup(ed_field, ed_title).arrange(
             RIGHT, buff=0.12,
         )
@@ -322,9 +277,6 @@ class ObserverSweep(ThreeDScene):
         dot_mob.add_updater(_update_violation)
         self.add_fixed_in_frame_mobjects(legend_group)
 
-        # ==================================================================
-        # Step 8: Animate (static camera - no orbit)
-        # ==================================================================
         self.add(axes, embedding, heatmap, arrow)
         self.play(
             frame_idx.animate.set_value(n_total - 1),

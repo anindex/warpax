@@ -16,11 +16,6 @@ import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 
-# ---------------------------------------------------------------------------
-# Velocity norm and conservation monitoring
-# ---------------------------------------------------------------------------
-
-
 def velocity_norm(
     metric_fn: object,
     x: Float[Array, "4"],
@@ -78,11 +73,6 @@ def monitor_conservation(
         return velocity_norm(metric_fn, x, v)
 
     return jax.vmap(norm_at_point)(sol.positions, sol.velocities)
-
-
-# ---------------------------------------------------------------------------
-# Blueshift computation
-# ---------------------------------------------------------------------------
 
 
 def compute_blueshift(
@@ -180,11 +170,6 @@ def blueshift_along_trajectory(
         return omega / omega_emit
 
     return jax.vmap(blueshift_at_point)(null_sol.positions, null_sol.velocities)
-
-
-# ---------------------------------------------------------------------------
-# Proper time computation
-# ---------------------------------------------------------------------------
 
 
 def proper_time_elapsed(

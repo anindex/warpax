@@ -13,10 +13,6 @@ import warnings
 import matplotlib.pyplot as plt
 
 
-# ---------------------------------------------------------------------------
-# LaTeX availability detection
-# ---------------------------------------------------------------------------
-
 def _latex_available() -> bool:
     """Check whether ``latex`` and ``dvipng`` are on PATH."""
     return shutil.which("latex") is not None and shutil.which("dvipng") is not None
@@ -32,17 +28,9 @@ if not USE_TEX:
     )
 
 
-# ---------------------------------------------------------------------------
-# CQG column widths
-# ---------------------------------------------------------------------------
-
 SINGLE_COL: float = 3.39   # inches (CQG single column = 8.6 cm)
 DOUBLE_COL: float = 6.69   # inches (CQG double column = 17.0 cm)
 
-
-# ---------------------------------------------------------------------------
-# rcParams for CQG/IOP
-# ---------------------------------------------------------------------------
 
 STYLE_PARAMS: dict[str, object] = {
     # Font / LaTeX
@@ -76,10 +64,6 @@ STYLE_PARAMS: dict[str, object] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Accessibility constants
-# ---------------------------------------------------------------------------
-
 LINE_STYLES: list[dict[str, object]] = [
     {"linestyle": "-",  "marker": "o", "markersize": 5},     # solid + circle
     {"linestyle": "--", "marker": "s", "markersize": 5},     # dashed + square
@@ -105,12 +89,10 @@ METRIC_COLORS: dict[str, str] = {
     "Natario":    COLORS[5],  # sky blue
 }
 
-PHASE_COLORMAP: str = "RdBu_r"
+# Sequential map for strictly-negative worst-EC margin heatmaps (~8 decade
+# dynamic range); diverging maps waste the unused positive half. Crameri et al. 2024.
+PHASE_COLORMAP: str = "viridis"
 
-
-# ---------------------------------------------------------------------------
-# Style application
-# ---------------------------------------------------------------------------
 
 def apply_style() -> None:
     """Apply matplotlib style settings."""

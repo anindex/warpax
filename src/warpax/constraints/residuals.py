@@ -104,12 +104,14 @@ def hamiltonian_constraint(
     """
     gamma_inv = jnp.linalg.inv(gamma)
 
-    if R is None and metric_fn is not None and coords is not None:
+    if R is None:
+        if metric_fn is None or coords is None:
+            raise ValueError(
+                "hamiltonian_constraint: provide either ``R`` (precomputed "
+                "spatial Ricci scalar) or both ``metric_fn`` and ``coords`` "
+                "so it can be computed via autodiff."
+            )
         R = _spatial_ricci_scalar(metric_fn, coords)
-    elif R is None:
-        # Detect flat metric
-        is_flat = jnp.all(jnp.abs(gamma - jnp.eye(3, dtype=gamma.dtype)) <= 1e-12)
-        R = jnp.where(is_flat, 0.0, jnp.nan)
 
     K_trace = jnp.einsum("ij,ij->", gamma_inv, K)
     K_sq = jnp.einsum("ij,kl,ik,jl", gamma_inv, gamma_inv, K, K)
@@ -117,15 +119,20 @@ def hamiltonian_constraint(
     return H
 
 
-def _spatial_div_tensor(
+def _spatial_div_A(
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
     coords: Float[Array, "4"],
-    A_upper_lower: Float[Array, "3 3"],
+    K_field: Callable[[Float[Array, "4"]], Float[Array, "3 3"]],
 ) -> Float[Array, "3"]:
-    """Compute spatial covariant divergence D_j A^j_i via autodiff.
+    """Compute the spatial covariant divergence ``D_j A^j_i`` via autodiff.
 
-    A^j_i is a mixed (1,1) spatial tensor. The divergence is:
-        D_j A^j_i = d__j A^j_i + Gamma^j_{jk} A^k_i - Gamma^k_{ji} A^j_k
+    Here ``A^j_i = K^j_i - delta^j_i K`` is the trace-reversed extrinsic
+    curvature; both ``A`` and ``\\Gamma`` are reconstructed from the
+    caller's spacetime metric ``metric_fn`` and ``K`` field, so the
+    derivative ``\\partial_j A^j_i`` is computed against the same
+    tensor that is later contracted with the connection terms.
+
+    ``D_j A^j_i = \\partial_j A^j_i + \\Gamma^j_{jk} A^k_i - \\Gamma^k_{ji} A^j_k``
     """
     t = coords[0]
     spatial_coords = coords[1:]
@@ -135,7 +142,6 @@ def _spatial_div_tensor(
         g = metric_fn(full_coords)
         return g[1:, 1:]
 
-    # Christoffel symbols
     gamma_val = spatial_metric_fn(spatial_coords)
     gamma_inv_val = jnp.linalg.inv(gamma_val)
     dg = jax.jacfwd(spatial_metric_fn)(spatial_coords)
@@ -144,37 +150,22 @@ def _spatial_div_tensor(
     t3 = jnp.einsum("lk,ijk->lij", gamma_inv_val, dg)
     christoffel = 0.5 * (t1 + t2 - t3)
 
-    # Compute A^j_i as a function of spatial coords for autodiff
-    # For now, we pass A_upper_lower as constant (evaluated at the point)
-    # and compute the partial derivative d__j A^j_i
-
-    # Reconstruct A^j_i from the metric at each point
     def A_at(xyz: Float[Array, "3"]) -> Float[Array, "3 3"]:
         full_coords = jnp.concatenate([jnp.array([t], dtype=coords.dtype), xyz])
-        g_at = metric_fn(full_coords)
-        gamma_at = g_at[1:, 1:]
+        gamma_at = metric_fn(full_coords)[1:, 1:]
         gamma_inv_at = jnp.linalg.inv(gamma_at)
-        # Re-extract K from the full ADM split
-        adm = adm_split(metric_fn, full_coords)
-        K_at = adm.extrinsic_curvature
+        K_at = K_field(full_coords)
         K_trace_at = jnp.einsum("ij,ij->", gamma_inv_at, K_at)
-        # A^j_i = K^j_i - delta^j_i K
-        K_mixed = gamma_inv_at @ K_at  # K^j_i = gamma^{jk} K_{ki}
+        K_mixed = gamma_inv_at @ K_at
         return K_mixed - K_trace_at * jnp.eye(3, dtype=gamma_at.dtype)
 
-    # dA[j, i, k] = d_ A^j_i / d_ x^k
-    dA = jax.jacfwd(A_at)(spatial_coords)  # (3, 3, 3)
-
-    # d__j A^j_i = dA[j, i, j] -> trace over first and third indices
+    A_local = A_at(spatial_coords)
+    dA = jax.jacfwd(A_at)(spatial_coords)
     partial_div = jnp.einsum("jij->i", dA)
 
-    # Connection terms:
-    # + Gamma^j_{jk} A^k_i
-    trace_christoffel = jnp.einsum("jjk->k", christoffel)  # Gamma^j_{jk}
-    conn_pos = jnp.einsum("k,ki->i", trace_christoffel, A_upper_lower)
-
-    # - Gamma^k_{ji} A^j_k
-    conn_neg = jnp.einsum("kji,jk->i", christoffel, A_upper_lower)
+    trace_christoffel = jnp.einsum("jjk->k", christoffel)
+    conn_pos = jnp.einsum("k,ki->i", trace_christoffel, A_local)
+    conn_neg = jnp.einsum("kji,jk->i", christoffel, A_local)
 
     return partial_div + conn_pos - conn_neg
 
@@ -185,39 +176,54 @@ def momentum_constraint(
     momentum_density: Float[Array, "3"],
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]] | None = None,
     coords: Float[Array, "4"] | None = None,
+    K_field: Callable[[Float[Array, "4"]], Float[Array, "3 3"]] | None = None,
 ) -> Float[Array, "3"]:
     """ADM momentum constraint residual.
 
-    M_i = D_j(K^j_i - delta^j_i K) - 8piS_i
+    ``M_i = D_j(K^j_i - delta^j_i K) - 8\\pi S_i``
 
     Parameters
     ----------
-    gamma : spatial metric gamma_{ij}
-    K : extrinsic curvature K_{ij}
-    momentum_density : momentum density S_i = -T_{ab} n^a h^b_i
-    metric_fn : optional, needed for covariant divergence computation
-    coords : optional, needed for covariant divergence computation
+    gamma : Float[Array, "3 3"]
+        Spatial metric ``gamma_{ij}`` at the probe point.
+    K : Float[Array, "3 3"]
+        Extrinsic curvature ``K_{ij}`` at the probe point. Used only
+        for the flat / zero-K fallback branch when neither
+        ``metric_fn`` nor ``K_field`` is supplied.
+    momentum_density : Float[Array, "3"]
+        Momentum density ``S_i = -T_{ab} n^a h^b_i`` at the probe point.
+    metric_fn : Callable, optional
+        Spacetime metric callable. Required to compute the covariant
+        divergence ``D_j A^j_i``. If supplied without ``K_field``, ``K``
+        is recovered from ``adm_split(metric_fn, .)``.
+    coords : Float[Array, "4"], optional
+        Spacetime coordinates of the probe point. Required when
+        ``metric_fn`` is supplied.
+    K_field : Callable, optional
+        Extrinsic-curvature field ``K_field(coords) -> K_{ij}``. When
+        ``K`` does not coincide with the metric-derived ``K`` (e.g.
+        independent ADM initial-data sets), supply ``K_field`` so the
+        partial derivative inside the divergence matches the tensor
+        actually passed in.
 
     Returns
     -------
-    M_i : momentum constraint residual (shape (3,))
+    Float[Array, "3"]
+        Momentum constraint residual ``M_i``.
     """
-    gamma_inv = jnp.linalg.inv(gamma)
-    K_trace = jnp.einsum("ij,ij->", gamma_inv, K)
-    K_mixed = gamma_inv @ K  # K^j_i = gamma^{jk} K_{ki}
-    A_mixed = K_mixed - K_trace * jnp.eye(3, dtype=gamma.dtype)
-
-    if metric_fn is not None and coords is not None:
-        div_A = _spatial_div_tensor(metric_fn, coords, A_mixed)
-    else:
-        # Fall back to zero divergence for flat metric with zero K
-        is_K_zero = jnp.all(jnp.abs(K) <= 1e-12)
-        is_flat = jnp.all(jnp.abs(gamma - jnp.eye(3, dtype=gamma.dtype)) <= 1e-12)
-        div_A = jnp.where(
-            is_K_zero | is_flat,
-            jnp.zeros(3, dtype=gamma.dtype),
-            jnp.full(3, jnp.nan, dtype=gamma.dtype),
+    if metric_fn is None or coords is None:
+        raise ValueError(
+            "momentum_constraint: ``metric_fn`` and ``coords`` are required "
+            "to compute the spatial covariant divergence. Pass both, or "
+            "supply a precomputed ``div_A`` via a wrapper."
         )
+
+    if K_field is None:
+
+        def K_field(c: Float[Array, "4"]) -> Float[Array, "3 3"]:
+            return adm_split(metric_fn, c).extrinsic_curvature
+
+    div_A = _spatial_div_A(metric_fn, coords, K_field)
 
     M_i = div_A - 8.0 * jnp.pi * momentum_density
     return M_i

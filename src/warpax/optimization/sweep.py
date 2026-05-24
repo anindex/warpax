@@ -1,17 +1,19 @@
-"""Parameter space sweep for transport characterisation.
+"""Parameter space sweep for transport characterization.
 
 2D sweep over (compactness, thickness_ratio). At each grid point,
 builds a T-shell/S-shell metric from the target density, evaluates
 transport and diagnostics, then certifies EC admissibility.
 
-Transport is characterised by two observables:
+Transport is characterized by two observables:
   - max|beta^x|: coordinate shift magnitude (gauge-dependent proxy)
   - delta_tau: null round-trip asymmetry (gauge-invariant)
 """
 from __future__ import annotations
 
 import json
+import os
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import NamedTuple
 
 
@@ -249,6 +251,7 @@ def sweep_transport(
     n_ec_starts: int = 4,
     progress: bool = True,
     save_path: str | None = None,
+    parallel: int | None = None,
 ) -> SweepResult:
     """Sweep (compactness, thickness_ratio) design space.
 
@@ -271,32 +274,39 @@ def sweep_transport(
     n_ec_starts : BFGS multi-start for EC certification.
     progress : show tqdm progress bar.
     save_path : save intermediate results to this path.
+    parallel : optional thread-pool worker count for grid-point evaluation.
+        ``None`` (default) keeps the existing serial loop, identical
+        behavior and numerics. Setting an integer >= 2 dispatches grid
+        points via :class:`concurrent.futures.ThreadPoolExecutor`; each
+        thread calls into JIT'd JAX kernels which release the GIL, so
+        Python dispatch overhead overlaps across points. Honors the
+        ``WARPAX_SWEEP_PARALLEL`` env override when not set explicitly.
+        Note: vmap/lax.map over the (compactness, thickness) grid is
+        not currently feasible because ``_evaluate_point`` carries
+        Python control flow (try/except on geodesic failures, branch
+        on ansatz string, ec_feasibility_check returns a Python dict).
+
     """
+    if parallel is None:
+        env_p = os.environ.get("WARPAX_SWEEP_PARALLEL")
+        if env_p is not None:
+            try:
+                parallel = max(1, int(env_p))
+            except ValueError:
+                parallel = None
+
     c_vals = jnp.linspace(*compactness_range, n_compactness)
     t_vals = jnp.linspace(*thickness_range, n_thickness)
 
     total = n_compactness * n_thickness
-    points: list[SweepPoint] = []
 
-    if progress:
-        try:
-            from tqdm import tqdm
-            iterator = tqdm(range(total), desc="Sweep", unit="pt")
-        except ImportError:
-            iterator = range(total)
-    else:
-        iterator = range(total)
-
-    for idx in iterator:
+    def _eval_idx(idx: int) -> SweepPoint:
         i = idx // n_thickness
         j = idx % n_thickness
-
         compactness = float(c_vals[i])
         thickness_ratio = float(t_vals[j])
         R_1 = R_2 * (1.0 - thickness_ratio)
-
         rho_0 = _rho_from_compactness(compactness, R_1, R_2)
-
         try:
             result = _evaluate_point(
                 ansatz=ansatz,
@@ -309,8 +319,7 @@ def sweep_transport(
                 n_probes=n_probes,
                 n_ec_starts=n_ec_starts,
             )
-
-            pt = SweepPoint(
+            return SweepPoint(
                 compactness=compactness,
                 thickness_ratio=thickness_ratio,
                 **result,
@@ -321,7 +330,7 @@ def sweep_transport(
                 f"failed: {exc!r}",
                 stacklevel=1,
             )
-            pt = SweepPoint(
+            return SweepPoint(
                 compactness=compactness,
                 thickness_ratio=thickness_ratio,
                 rho_max=rho_0,
@@ -334,18 +343,45 @@ def sweep_transport(
                 tidal=float("nan"),
             )
 
-        points.append(pt)
+    points: list[SweepPoint | None] = [None] * total
 
+    if progress:
+        try:
+            from tqdm import tqdm
+            pbar = tqdm(total=total, desc="Sweep", unit="pt")
+        except ImportError:
+            pbar = None
+    else:
+        pbar = None
+
+    def _finalize_idx(idx: int, pt: SweepPoint) -> None:
+        points[idx] = pt
+        if pbar is not None:
+            pbar.update(1)
         if save_path is not None and (idx + 1) % max(1, total // 10) == 0:
             partial = SweepResult(
-                points=points,
+                points=[p for p in points if p is not None],
                 compactness_values=c_vals,
                 thickness_values=t_vals,
             )
             partial.save(save_path)
 
+    try:
+        if parallel is not None and parallel >= 2:
+            with ThreadPoolExecutor(max_workers=parallel) as pool:
+                futures = {pool.submit(_eval_idx, idx): idx for idx in range(total)}
+                for fut in as_completed(futures):
+                    idx = futures[fut]
+                    _finalize_idx(idx, fut.result())
+        else:
+            for idx in range(total):
+                _finalize_idx(idx, _eval_idx(idx))
+    finally:
+        if pbar is not None:
+            pbar.close()
+
     result = SweepResult(
-        points=points,
+        points=[p for p in points if p is not None],
         compactness_values=c_vals,
         thickness_values=t_vals,
     )

@@ -12,7 +12,7 @@ arXiv:2405.02709, Section 3) for the constant-velocity subluminal warp shell:
 
 The original paper uses MATLAB ``smooth()`` (a moving-average lowpass
 filter). We substitute a Gaussian kernel convolution, which provides
-equivalent boundary regularisation with superior spectral properties.
+equivalent boundary regularization with superior spectral properties.
 The kernel width is matched as sigma_gauss = span_MA / sqrt(12).
 See Weickert (1998) and Getreuer (2013) for the equivalence.
 
@@ -34,11 +34,6 @@ from ..geometry.metric import ADMMetric
 from ..geometry.transitions import smoothstep
 
 
-# ---------------------------------------------------------------------------
-# Gaussian kernel smoothing
-# ---------------------------------------------------------------------------
-
-
 def _gaussian_smooth(
     values: Float[Array, "N"],
     r_grid: Float[Array, "N"],
@@ -46,7 +41,7 @@ def _gaussian_smooth(
 ) -> Float[Array, "N"]:
     """Gaussian-kernel smoothing on a uniform radial grid.
 
-    Convolves *values* with a normalised Gaussian kernel of width *sigma*.
+    Convolves *values* with a normalized Gaussian kernel of width *sigma*.
     Boundary handling uses the ``reflect`` convention (mirror padding),
     which preserves the integral and avoids boundary artifacts.
 
@@ -54,7 +49,7 @@ def _gaussian_smooth(
     minimises the product of spatial and frequency spreads (Heisenberg
     uncertainty). Compared to the moving average used in [Fuchs2024],
     it eliminates spectral sidelobes while producing equivalent
-    boundary regularisation when the kernel widths are matched as:
+    boundary regularization when the kernel widths are matched as:
 
         sigma_gauss = span_MA / sqrt(12)
 
@@ -153,11 +148,6 @@ def _iterative_smooth(
     return result
 
 
-# ---------------------------------------------------------------------------
-# TOV integration
-# ---------------------------------------------------------------------------
-
-
 def _solve_tov_inward(
     rho_grid: Float[Array, "N"],
     m_grid: Float[Array, "N"],
@@ -166,10 +156,13 @@ def _solve_tov_inward(
 ) -> Float[Array, "N"]:
     """Solve the TOV equation inward from the outer boundary.
 
-    dp_r/dr = -(rho + p_r)(m + 4pi r^3 p_r) / (r(r - 2m))
+    .. math::
+        \\frac{dp_r}{dr} = -\\frac{(\\rho + p_r)(m + 4\\pi r^3 p_r)}{r(r - 2m)}
 
-    BC: p_r = 0 at the outermost grid point. Integrate inward using
-    4th-order Runge-Kutta for improved accuracy.
+    BC: ``p_r = 0`` at the outermost grid point. Integrates inward with
+    classical 4-stage Runge-Kutta on the uniform grid. Mid-step density
+    and mass are obtained by linear interpolation between adjacent grid
+    samples (consistent for trapezoidal-rule input integrals).
 
     Parameters
     ----------
@@ -178,30 +171,44 @@ def _solve_tov_inward(
     r_grid : radial grid (ascending order).
     R_1 : inner shell radius (p_r = 0 for r < R_1).
     """
-    # Reverse grid for inward integration
+    # Reverse grid for inward integration; r_rev[0] is the outer boundary.
     r_rev = jnp.flip(r_grid)
     rho_rev = jnp.flip(rho_grid)
     m_rev = jnp.flip(m_grid)
-    dr = r_rev[1] - r_rev[0]  # Negative (integrating inward)
+    h = r_rev[1] - r_rev[0]  # Negative (integrating inward)
+
+    # Linearly interpolated midpoint samples (i + 1/2).
+    rho_mid = 0.5 * (rho_rev[:-1] + rho_rev[1:])
+    m_mid = 0.5 * (m_rev[:-1] + m_rev[1:])
 
     def tov_rhs(r, p, rho, m):
         r_safe = jnp.maximum(jnp.abs(r), 1e-30)
         denom = r_safe * (r_safe - 2.0 * m)
-        denom_safe = jnp.where(jnp.abs(denom) < 1e-30, 1e-30 * jnp.sign(denom + 1e-60), denom)
+        denom_safe = jnp.where(
+            jnp.abs(denom) < 1e-30,
+            jnp.where(denom >= 0.0, 1e-30, -1e-30),
+            denom,
+        )
         numer = -(rho + p) * (m + 4.0 * jnp.pi * r_safe ** 3 * p)
         return numer / denom_safe
 
     def scan_step(p_current, inputs):
-        r_val, rho_val, m_val = inputs
-        # Forward Euler (negative dr for inward)
-        k1 = tov_rhs(r_val, p_current, rho_val, m_val)
-        p_next = jnp.maximum(p_current + k1 * dr, 0.0)
+        r_a, rho_a, m_a, r_b, rho_b, m_b, rho_m, m_m = inputs
+        r_mid = r_a + 0.5 * h
+        k1 = tov_rhs(r_a,   p_current,                rho_a, m_a)
+        k2 = tov_rhs(r_mid, p_current + 0.5 * h * k1, rho_m, m_m)
+        k3 = tov_rhs(r_mid, p_current + 0.5 * h * k2, rho_m, m_m)
+        k4 = tov_rhs(r_b,   p_current + h * k3,       rho_b, m_b)
+        dp = (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
+        p_next = jnp.maximum(p_current + dp, 0.0)
         return p_next, p_next
 
     _, p_scan = jax.lax.scan(
         scan_step,
         jnp.float64(0.0),
-        (r_rev[:-1], rho_rev[:-1], m_rev[:-1]),
+        (r_rev[:-1], rho_rev[:-1], m_rev[:-1],
+         r_rev[1:],  rho_rev[1:],  m_rev[1:],
+         rho_mid,    m_mid),
     )
 
     p_rev = jnp.concatenate([jnp.array([0.0]), p_scan])
@@ -210,11 +217,6 @@ def _solve_tov_inward(
     # Zero out pressure outside the shell
     p_grid = jnp.where(r_grid < R_1, 0.0, p_grid)
     return p_grid
-
-
-# ---------------------------------------------------------------------------
-# Metric functions a(r) and b(r)
-# ---------------------------------------------------------------------------
 
 
 def _compute_metric_functions(
@@ -243,7 +245,7 @@ def _compute_metric_functions(
     denom = r_safe * (r_safe - 2.0 * m_tilde)
     denom_safe = jnp.where(
         jnp.abs(denom) < 1e-30,
-        jnp.sign(denom + 1e-60) * 1e-30,
+        jnp.where(denom >= 0.0, 1e-30, -1e-30),
         denom,
     )
     da_dr = numer / denom_safe
@@ -263,11 +265,6 @@ def _compute_metric_functions(
     a_grid = a_boundary - (forward_integral[-1] - forward_integral)
 
     return a_grid, b_grid
-
-
-# ---------------------------------------------------------------------------
-# Shift transition (Fuchs Eq. 30-32)
-# ---------------------------------------------------------------------------
 
 
 def _fuchs_shift_transition(
@@ -290,14 +287,11 @@ def _fuchs_shift_transition(
     """
     R_inner = R_1 + R_b
     R_outer = R_2 - R_b
-    R_inner = jnp.minimum(R_inner, R_outer - 0.1)  # Safety
+    # Floor inner radius at 10% of the shell width below R_outer so the
+    # denominator stays well-conditioned when 2*R_b approaches (R_2 - R_1).
+    R_inner = jnp.minimum(R_inner, R_outer - 0.1 * jnp.maximum(R_2 - R_1, 1e-12))
     t = jnp.clip((r - R_inner) / jnp.maximum(R_outer - R_inner, 1e-12), 0.0, 1.0)
     return 1.0 - smoothstep(t, order=2)
-
-
-# ---------------------------------------------------------------------------
-# FuchsMetric
-# ---------------------------------------------------------------------------
 
 
 class FuchsConstructionResult(NamedTuple):
@@ -353,12 +347,15 @@ def build_fuchs_construction(
         original MATLAB ``smooth()`` boxcar, variance-matched via
         span = sigma*sqrt(12)) for exact-pipeline reproduction.
     """
+    from ..numerics import assert_uniform_grid
+
     M_total = r_s_param / 2.0
     shell_vol = R_2 ** 3 - R_1 ** 3
     rho_0 = 3.0 * M_total / (4.0 * jnp.pi * shell_vol)
 
     r_max = r_pad_factor * R_2
     r_grid = jnp.linspace(1e-6, r_max, n_grid)
+    assert_uniform_grid(r_grid, name="fuchs_construction.r_grid")
 
     # Step 1: Constant density
     in_shell = (r_grid >= R_1) & (r_grid <= R_2)
@@ -447,7 +444,7 @@ class FuchsMetric(ADMMetric):
         """Lapse alpha = e^{a(r)}, smoothly interpolated from grid."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-24)
+        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
         a_val = self._interp(r, self._a_grid)
         return jnp.maximum(jnp.exp(a_val), 1e-12)
 
@@ -455,7 +452,7 @@ class FuchsMetric(ADMMetric):
         """Shift beta^x = -S_warp(r) * v_s."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-24)
+        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
         S_warp = _fuchs_shift_transition(r, self.R_1, self.R_2, self.R_b)
         return jnp.array([-S_warp * self.v_s, 0.0, 0.0])
 
@@ -463,7 +460,7 @@ class FuchsMetric(ADMMetric):
         """Spatial metric: delta_{ij} + (e^{2b} - 1) n_i n_j."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-24)
+        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
 
         b_val = self._interp(r, self._b_grid)
         gamma_rr = jnp.exp(2.0 * b_val)
@@ -477,11 +474,18 @@ class FuchsMetric(ADMMetric):
         """Warp transition function S_warp(r)."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-24)
+        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
         return _fuchs_shift_transition(r, self.R_1, self.R_2, self.R_b)
 
     def symbolic(self):
-        """Symbolic placeholder (profiles are numerical)."""
+        """Symbolic placeholder (profiles are numerical).
+
+        Builds the spatial part as the full radial dyad
+        ``gamma_ij = delta_ij + (exp(2 b(r)) - 1) n_i n_j`` so the
+        symbolic and numerical forms agree off-axis.  Only the
+        ``x``-axis entry is x-rel-dependent because we evaluate the
+        outer product symbolically.
+        """
         import sympy as sp
         from ..geometry.metric import SymbolicMetric
 
@@ -490,14 +494,22 @@ class FuchsMetric(ADMMetric):
         b = sp.Function("b")
         beta = sp.Function("S_warp")
         v_s = sp.Symbol("v_s")
-        r = sp.sqrt((x - v_s * t) ** 2 + y ** 2 + z ** 2)
+        x_rel = x - v_s * t
+        r = sp.sqrt(x_rel ** 2 + y ** 2 + z ** 2)
 
-        g = sp.Matrix([
-            [-sp.exp(2 * a(r)) + (v_s * beta(r)) ** 2, -v_s * beta(r), 0, 0],
-            [-v_s * beta(r), sp.exp(2 * b(r)), 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        gamma_rr = sp.exp(2 * b(r))
+        delta = sp.eye(3)
+        n = sp.Matrix([x_rel / r, y / r, z / r])
+        nnT = n * n.T
+        spatial_metric = delta + (gamma_rr - 1) * nnT
+
+        g = sp.Matrix.zeros(4, 4)
+        g[0, 0] = -sp.exp(2 * a(r)) + (v_s * beta(r)) ** 2
+        g[0, 1] = -v_s * beta(r)
+        g[1, 0] = -v_s * beta(r)
+        for i in range(3):
+            for j in range(3):
+                g[i + 1, j + 1] = spatial_metric[i, j]
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:

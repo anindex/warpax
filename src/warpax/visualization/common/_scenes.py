@@ -15,11 +15,6 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 
-# ---------------------------------------------------------------------------
-# Post-render overlay helpers
-# ---------------------------------------------------------------------------
-
-
 def add_text_overlay(
     img: np.ndarray,
     text: str,
@@ -134,11 +129,6 @@ def add_watermark(
     # Alpha-composite overlay onto image
     composited = Image.alpha_composite(pil_img, overlay)
     return np.array(composited)
-
-
-# ---------------------------------------------------------------------------
-# Scene builders (require JAX/Equinox indirectly through build_frame_sequence)
-# ---------------------------------------------------------------------------
 
 
 def scene_bubble_collapse(
@@ -274,7 +264,7 @@ def scene_observer_sweep(
     from warpax.energy_conditions.sweep import sweep_nec_margins, sweep_wec_margins
     from warpax.geometry.grid import evaluate_curvature_grid
 
-    from ._conversion import _symmetric_clim
+    from ._conversion import _symmetric_clim, eulerian_energy_density_grid
     from ._frame_data import FrameData
 
     metric = AlcubierreMetric(v_s=v_s)
@@ -285,11 +275,13 @@ def scene_observer_sweep(
         compute_invariants=True,
     )
 
-    # Flatten for sweep
     N = int(np.prod(grid_spec.shape))
     T_flat = result.stress_energy.reshape(N, 4, 4)
     g_flat = result.metric.reshape(N, 4, 4)
-    energy_density = np.asarray(result.stress_energy[..., 0, 0])
+    energy_density = eulerian_energy_density_grid(
+        result.stress_energy, result.metric_inv
+    )
+    T_00_covariant = np.asarray(result.stress_energy[..., 0, 0])
 
     # Extract grid coordinates as NumPy
     X, Y, Z = grid_spec.meshgrid
@@ -335,18 +327,21 @@ def scene_observer_sweep(
 
         scalar_fields = {
             "energy_density": energy_density,
+            "T_00_covariant": T_00_covariant,
             "wec_margin_sweep": worst_wec,
             "nec_margin_sweep": worst_nec,
         }
 
         colormaps = {
             "energy_density": "RdBu_r",
+            "T_00_covariant": "RdBu_r",
             "wec_margin_sweep": "RdBu_r",
             "nec_margin_sweep": "RdBu_r",
         }
 
         clim = {
             "energy_density": _symmetric_clim(energy_density),
+            "T_00_covariant": _symmetric_clim(T_00_covariant),
             "wec_margin_sweep": _symmetric_clim(worst_wec),
             "nec_margin_sweep": _symmetric_clim(worst_nec),
         }

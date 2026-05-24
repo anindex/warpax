@@ -18,11 +18,6 @@ from jaxtyping import Array, Float
 from ..metrics.warpshell import WarpShellPhysical
 
 
-# ---------------------------------------------------------------------------
-# Shell source physics
-# ---------------------------------------------------------------------------
-
-
 class FuchsShellProfiles(NamedTuple):
     """Radial source profiles for the Fuchs shell.
 
@@ -209,11 +204,6 @@ def fuchs_shell_profiles(
     return _constant_density_shell_profiles(R_1, R_2, r_s_param)
 
 
-# ---------------------------------------------------------------------------
-# Input stress-energy from shell profiles
-# ---------------------------------------------------------------------------
-
-
 def fuchs_input_stress_energy(
     metric: "_FuchsAnalytical",
     coords: Float[Array, "4"],
@@ -241,7 +231,7 @@ def fuchs_input_stress_energy(
 
     t, x, y, z = coords
     x_rel = x - metric.v_s * t
-    r = jnp.sqrt(x_rel**2 + y**2 + z**2)
+    r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
 
     rho = profiles.density(r)
     p_r = profiles.radial_pressure(r)

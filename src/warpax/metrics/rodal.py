@@ -1,41 +1,19 @@
 """Rodal irrotational warp drive metric.
 
-The Rodal metric (arXiv:2512.18008) modifies the Alcubierre metric to produce
-an *irrotational* shift vector derived from a scalar potential. This ensures
-the shift one-form is exact (curl-free), guaranteeing globally Hawking-Ellis
-Type I everywhere.
+Rodal, GRG 58:1, 2026 (arXiv:2512.18008). Irrotational shift derived
+from a scalar potential; stress-energy is globally Hawking-Ellis Type I.
 
-ADM components:
-    alpha = 1 (unit lapse)
-    gamma_ij = delta_ij (flat spatial metric)
-    beta^i: irrotational shift with radial profile f(r) and angular profile g(r)
+ADM: ``alpha = 1``, ``gamma_ij = delta_ij``, ``beta^i`` from radial
+profile ``F(r)`` and angular profile ``G(r)`` (lab frame:
+``F(0) = G(0) = 1``, both -> 0 at infinity):
 
-The paper defines shape functions f_paper(r) (f_paper(0)=0, f_paper(inf)=1)
-and g_paper(r) (g_paper(0)=0, g_paper(inf)=1) in the co-moving bubble frame.
-For consistency with Alcubierre convention (far field = Minkowski), we use
-the lab-frame forms:
-
-    F(r) = f_Alc(r) = 1 - f_paper(r) [F(0)=1, F(inf)=0]
-    G(r) = 1 - g_paper(r) [G(0)=1, G(inf)=0]
-
-The shift in direct Cartesian form (Rodal's vector formula):
     beta = -v_s * [G(r_s) * x_hat + (F(r_s) - G(r_s)) * n_x * n]
 
-where n = (dx, y, z) / r_s is the unit radial vector and x_hat = (1, 0, 0).
-This form is manifestly regular at r_s = 0 since F(0) = G(0) = 1 implies
-(F - G) -> 0, so the n_x * n term vanishes without requiring origin patches.
+with ``n = (dx, y, z) / r_s``. Manifestly regular at ``r_s = 0`` since
+``F - G -> 0``. The 0/0 form of ``g_paper(0)`` is handled by the analytic
+limit ``Delta'(0) = -2*sigma*tanh(sigma*R)``.
 
-At bubble center: beta = (-v_s, 0, 0), passengers carried along.
-At far field: beta = (0, 0, 0), Minkowski spacetime.
-
-The irrotational property (curl-free shift) is preserved by the coordinate
-transformation since a uniform translation field is curl-free.
-
-Note on G(r) evaluation: The angular profile g_paper(r) has a removable
-0/0 form at r = 0. We use the analytic limit Delta'(0) = -2*sigma*tanh(sigma*R)
-to evaluate g_paper(0) = 0 (G(0) = 1) exactly.
-
-Peak NEC/WEC violation reduced by factor ~38 vs Alcubierre.
+Peak NEC/WEC violation is ~38x smaller than Alcubierre.
 """
 
 from __future__ import annotations
@@ -47,11 +25,6 @@ from jaxtyping import Array, Float, jaxtyped
 
 from ..geometry.metric import ADMMetric, SymbolicMetric
 from ._common import alcubierre_shape
-
-
-# ---------------------------------------------------------------------------
-# Shape function helpers (pure JAX)
-# ---------------------------------------------------------------------------
 
 
 def _stable_logcosh(x: Float[Array, "..."]) -> Float[Array, "..."]:
@@ -82,7 +55,7 @@ def _rodal_g_paper(
     g_paper(0) = 0, g_paper(inf) = 1. (Paper co-moving frame convention.)
     """
     # C-inf regularization for autodiff stability (not physical repair).
-    r_safe = jnp.sqrt(r**2 + 1e-24)
+    r_safe = jnp.sqrt(r**2 + 1e-60)
 
     # Numerically stable log-cosh difference (Delta)
     a = sigma * (r_safe - R)
@@ -115,11 +88,6 @@ def _rodal_G(
     return 1.0 - _rodal_g_paper(r, R, sigma)
 
 
-# ---------------------------------------------------------------------------
-# RodalMetric (ADM decomposition)
-# ---------------------------------------------------------------------------
-
-
 class RodalMetric(ADMMetric):
     """Rodal irrotational warp drive metric via ADM 3+1 decomposition.
 
@@ -148,21 +116,24 @@ class RodalMetric(ADMMetric):
         t, x, y, z = coords
         dx = x - self.v_s * t
         r_s_sq = dx**2 + y**2 + z**2
-        r_safe = jnp.sqrt(r_s_sq + 1e-24)
+        # Tight floor for value precision; coarser floor in the divisor
+        # below keeps ``\\partial_i n_j`` finite at the bubble center,
+        # because ``\\partial n_x / \\partial dx = 1 / r_div`` blows up
+        # as ``r_div \\to 0`` even though n_x itself is finite.
+        r_safe = jnp.sqrt(r_s_sq + 1e-60)
+        r_div = jnp.sqrt(r_s_sq + 1e-12)
 
         F_val = alcubierre_shape(r_safe, self.R, self.sigma)
         G_val = _rodal_G(r_safe, self.R, self.sigma)
 
-        # Unit direction vector n = (dx, y, z) / r_safe
-        n_x = dx / r_safe
-        n_y = y / r_safe
-        n_z = z / r_safe
+        n_x = dx / r_div
+        n_y = y / r_div
+        n_z = z / r_div
 
-        # Direct Cartesian shift: beta = -v_s * [G * x_hat + (F-G) * n_x * n]
-        #
-        # Manifestly regular at r=0: since F(0) = G(0) = 1, the term
-        # (F-G) -> 0 at the origin, so the n_x * n contribution vanishes
-        # naturally without requiring jnp.where origin patches.
+        # Direct Cartesian shift: beta = -v_s * [G * x_hat + (F-G) * n_x * n].
+        # F(0) = G(0) = 1 so the (F-G) * n_x * n_j contributions vanish
+        # at the origin; the coarser ``r_div`` floor keeps autodiff
+        # bounded while ``r_safe`` carries the physical radial value.
         diff_FG = F_val - G_val
         beta_x = -self.v_s * (G_val + diff_FG * n_x * n_x)
         beta_y = -self.v_s * (diff_FG * n_x * n_y)
@@ -179,7 +150,7 @@ class RodalMetric(ADMMetric):
         """Shape function f(r_s) for the Rodal metric."""
         t, x, y, z = coords
         dx = x - self.v_s * t
-        r_safe = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-24)
+        r_safe = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-60)
         return alcubierre_shape(r_safe, self.R, self.sigma)
 
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
@@ -219,10 +190,6 @@ class RodalMetric(ADMMetric):
     def name(self) -> str:
         return "Rodal"
 
-
-# ---------------------------------------------------------------------------
-# Ground truth for validation
-# ---------------------------------------------------------------------------
 
 GROUND_TRUTH = {
     "stress_energy_zero": False,

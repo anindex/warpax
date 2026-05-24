@@ -23,11 +23,6 @@ from jaxtyping import Array, Float
 from warpax.geometry import christoffel_symbols
 
 
-# ---------------------------------------------------------------------------
-# Result type
-# ---------------------------------------------------------------------------
-
-
 class GeodesicResult(NamedTuple):
     """Result of geodesic integration.
 
@@ -52,11 +47,6 @@ class GeodesicResult(NamedTuple):
     velocities: Float[Array, "N 4"]
     result: int
     event_mask: Array | None
-
-
-# ---------------------------------------------------------------------------
-# Geodesic vector field (ODE right-hand side)
-# ---------------------------------------------------------------------------
 
 
 def geodesic_vector_field(
@@ -97,11 +87,6 @@ def geodesic_vector_field(
     return jnp.concatenate([v, a])  # (8,)
 
 
-# ---------------------------------------------------------------------------
-# Event detection functions
-# ---------------------------------------------------------------------------
-
-
 def bounding_box_event(
     t: Float[Array, ""],
     y: Float[Array, "8"],
@@ -129,7 +114,7 @@ def bounding_box_event(
         Positive inside domain, negative outside.
     """
     x = y[:4]
-    r = jnp.sqrt(x[1] ** 2 + x[2] ** 2 + x[3] ** 2)
+    r = jnp.sqrt(x[1] ** 2 + x[2] ** 2 + x[3] ** 2 + 1e-60)
     R_max = kwargs.get("R_max", 100.0)
     return R_max - r
 
@@ -162,7 +147,7 @@ def horizon_event(
         Positive outside horizon margin, negative inside.
     """
     x = y[:4]
-    r_iso = jnp.sqrt(x[1] ** 2 + x[2] ** 2 + x[3] ** 2)
+    r_iso = jnp.sqrt(x[1] ** 2 + x[2] ** 2 + x[3] ** 2 + 1e-60)
     margin = kwargs.get("margin", 1.1)
     # Try to get M from the metric args, fall back to kwarg or default
     M = getattr(args, "M", kwargs.get("M", 1.0))
@@ -191,11 +176,6 @@ def make_event(*cond_fns: object) -> diffrax.Event:
     if len(cond_fns) == 1:
         return diffrax.Event(cond_fn=cond_fns[0], root_finder=root_finder)
     return diffrax.Event(cond_fn=list(cond_fns), root_finder=root_finder)
-
-
-# ---------------------------------------------------------------------------
-# Single geodesic integration
-# ---------------------------------------------------------------------------
 
 
 def integrate_geodesic(
@@ -266,6 +246,7 @@ def integrate_geodesic(
         max_steps=max_steps,
         throw=False,
         event=event,
+        adjoint=diffrax.RecursiveCheckpointAdjoint(),
     )
 
     # Unpack positions and velocities from state
@@ -279,11 +260,6 @@ def integrate_geodesic(
         result=sol.result,
         event_mask=sol.event_mask,
     )
-
-
-# ---------------------------------------------------------------------------
-# Batched geodesic families via vmap
-# ---------------------------------------------------------------------------
 
 
 def integrate_geodesic_family(

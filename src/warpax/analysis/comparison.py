@@ -1,14 +1,8 @@
-"""Eulerian vs robust energy condition comparison logic.
+"""Eulerian vs observer-robust EC margin comparison.
 
-Compares Eulerian-frame EC margins against observer-robust (optimized)
-margins at every grid point, identifying where Eulerian analysis fails
-to detect violations that non-Eulerian observers can see.
-
-The key insight from Santiago-Schuster-Visser (2022): energy conditions
-are observer-dependent, so checking only the Eulerian frame is
-insufficient. This module computes the per-point "missed" flag and
-severity ratio that quantifies how much worse the optimized observer
-sees compared to the Eulerian one.
+Per-point ``missed`` flag and severity ratio quantifying violations
+the Eulerian frame misses relative to a boost-optimized observer
+([Santiago-Schuster-Visser 2022](https://arxiv.org/abs/2205.06744)).
 """
 from __future__ import annotations
 
@@ -30,33 +24,10 @@ _CONDITIONS = ("nec", "wec", "sec", "dec")
 class ComparisonResult(NamedTuple):
     """Per-point comparison between Eulerian and robust EC margins.
 
-    All dict values are keyed by condition name: "nec", "wec", "sec", "dec".
-
-    Attributes
-    ----------
-    eulerian_margins : dict[str, Array]
-        Eulerian-frame margins with shape ``(*grid_shape,)``.
-    robust_margins : dict[str, Array]
-        Observer-robust (optimized) margins with shape ``(*grid_shape,)``.
-    missed : dict[str, Array]
-        Boolean mask: True where Eulerian says satisfied but robust says
-        violated. ``(eul >= 0) & (rob < -1e-10)``.
-    severity : dict[str, Array]
-        Severity ratio: ``eul_margin - rob_margin`` at missed points,
-        zero elsewhere.
-    pct_missed : dict[str, float]
-        Percentage of grid points missed by Eulerian analysis.
-    pct_violated_robust : dict[str, float]
-        Percentage of grid points violated under robust analysis.
-    conditional_miss_rate : dict[str, float]
-        Conditional miss rate: missed / violated per condition
-        (f_miss|viol = pct_missed / pct_violated_robust when violated > 0).
-    classification_stats : dict[str, int | float]
-        Classification breakdown: n_type_i..n_type_iv, max_imag_eigenvalue.
-    opt_margins : dict[str, Float[Array, "..."]]
-        Raw optimizer margins (before merge with algebraic).
-    he_types : Array
-        Per-point Hawking-Ellis type (1-4) with shape ``(*grid_shape,)``.
+    Dict-valued fields are keyed by ``"nec"|"wec"|"sec"|"dec"``. ``missed``
+    flags ``(eul >= 0) & (rob < -1e-10)``; ``severity`` is ``eul - rob``
+    at missed points (zero elsewhere); ``conditional_miss_rate`` is
+    ``pct_missed / pct_violated_robust`` (zero when nothing violated).
     """
 
     eulerian_margins: dict[str, Float[Array, "..."]]
@@ -83,10 +54,9 @@ def compare_eulerian_vs_robust(
 ) -> ComparisonResult:
     """Run both Eulerian and robust EC analysis and compare per-point.
 
-    CRITICAL: Eulerian and robust results are computed SEPARATELY.
-    Do NOT use ``compute_eulerian=True`` in ``verify_grid`` that merges
-    results, destroying the comparison (Eulerian and robust must be
-    computed independently).
+    Eulerian and robust paths must be computed independently. Do not pass
+    ``compute_eulerian=True`` to ``verify_grid`` here; that merges the two
+    analyses and invalidates the comparison.
 
     Parameters
     ----------

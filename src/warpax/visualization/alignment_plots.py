@@ -53,6 +53,7 @@ def plot_alignment_histogram(
         figsize=figsize,
         sharey=True,
         squeeze=False,
+        layout="constrained",
     )
     axes = axes.ravel()
 
@@ -96,8 +97,6 @@ def plot_alignment_histogram(
 
         if i == 0:
             ax.set_ylabel("Count", fontsize=8)
-
-    fig.tight_layout()
 
     if save_path is not None:
         fig.savefig(save_path, format="pdf", bbox_inches="tight", dpi=300)

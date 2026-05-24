@@ -4,6 +4,12 @@ Static spherically symmetric shell with matter 4-velocity tilted
 relative to the hypersurface normal. The shift vector is derived from
 the momentum constraint, not prescribed.
 
+Frame: the shell is **static at the coordinate origin** (no
+``v_s * t`` co-moving offset). All radial coordinates use
+``r = sqrt(x^2 + y^2 + z^2)`` directly; this is intentional and
+distinguishes the T-shell construction from Alcubierre/WarpShell where
+the bubble center translates with the lab frame.
+
 Line element:
 
     ds^2 = -alpha^2 dt^2 + 2 beta_i dx^i dt + gamma_{ij} dx^i dx^j
@@ -77,19 +83,19 @@ class TShellMetric(ADMMetric):
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Lapse alpha = e^{Phi(r)}."""
         t, x, y, z = coords
-        r = jnp.sqrt(x**2 + y**2 + z**2 + 1e-24)
+        r = jnp.sqrt(x**2 + y**2 + z**2 + 1e-60)
         return jnp.maximum(jnp.exp(self._Phi(r)), 1e-12)
 
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         """Shift beta^i from momentum constraint."""
         t, x, y, z = coords
-        r = jnp.sqrt(x**2 + y**2 + z**2 + 1e-24)
+        r = jnp.sqrt(x**2 + y**2 + z**2 + 1e-60)
         return jnp.array([self._beta_x(r), 0.0, 0.0])
 
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
         """Spatial metric: delta_{ij} + (e^{2Lambda} - 1) n_i n_j."""
         t, x, y, z = coords
-        r = jnp.sqrt(x**2 + y**2 + z**2 + 1e-24)
+        r = jnp.sqrt(x**2 + y**2 + z**2 + 1e-60)
 
         gamma_rr = jnp.exp(2.0 * self._Lambda(r))
         x_vec = jnp.array([x, y, z])
@@ -100,7 +106,7 @@ class TShellMetric(ADMMetric):
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Shell region indicator based on shift magnitude."""
         t, x, y, z = coords
-        r = jnp.sqrt(x**2 + y**2 + z**2 + 1e-24)
+        r = jnp.sqrt(x**2 + y**2 + z**2 + 1e-60)
         beta_x = self._beta_x(r)
         beta_max = jnp.max(jnp.abs(self._beta_x_grid))
         return jnp.where(

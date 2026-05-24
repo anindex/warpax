@@ -16,6 +16,16 @@ Activation:
     WARPAX_JIT_CACHE=1 -> persistent cache enabled
     WARPAX_JIT_CACHE=0 -> explicitly disabled (equivalent to unset)
     unset -> JAX default behavior (no persistent cache)
+
+Tunables (only honored when ``WARPAX_JIT_CACHE=1``):
+    WARPAX_JIT_CACHE_MIN_ENTRY_SIZE_BYTES (int, default 0)
+        Skip persisting compiled artifacts smaller than this many bytes.
+        Forwarded to ``jax_persistent_cache_min_entry_size_bytes``.
+    WARPAX_JIT_CACHE_MIN_COMPILE_TIME_SECS (float, default 0)
+        Skip persisting kernels whose compile time was shorter than this.
+        Forwarded to ``jax_persistent_cache_min_compile_time_secs``. Useful
+        on systems with slow filesystems where re-compiling cheap kernels
+        is faster than hitting disk.
 """
 
 from __future__ import annotations
@@ -110,5 +120,23 @@ def _initialize_jit_cache() -> None:
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     jax.config.update("jax_compilation_cache_dir", str(cache_dir))
+
+    min_entry = os.environ.get("WARPAX_JIT_CACHE_MIN_ENTRY_SIZE_BYTES")
+    if min_entry is not None:
+        try:
+            jax.config.update(
+                "jax_persistent_cache_min_entry_size_bytes", int(min_entry)
+            )
+        except (ValueError, AttributeError):
+            pass
+
+    min_time = os.environ.get("WARPAX_JIT_CACHE_MIN_COMPILE_TIME_SECS")
+    if min_time is not None:
+        try:
+            jax.config.update(
+                "jax_persistent_cache_min_compile_time_secs", float(min_time)
+            )
+        except (ValueError, AttributeError):
+            pass
 
     _CACHE_INITIALIZED = True

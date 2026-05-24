@@ -26,12 +26,10 @@ Schema (matches our hand-synth generator at
         x0, y0, z0 -> float lower-bound of grid on each axis
         dx, dy, dz -> float grid spacing on each axis
 
-Orientation convention (pin): arrays are C-order with shape
-``(nz, ny, nx)``; this loader transposes to ``(nx, ny, nz)`` for the
-warpax ``(t, x, y, z)`` ordering. Nt=1 (single timelevel).
-
-Scope: single-iteration, single-timelevel ONLY. Multi-iteration +
-component groups (AMR) deferred to / .
+Orientation: arrays are C-order ``(nz, ny, nx)``; this loader transposes
+to ``(nx, ny, nz)`` for the warpax ``(t, x, y, z)`` ordering, Nt=1.
+Scope: single iteration / single timelevel; AMR-component groups are
+out of scope.
 """
 from __future__ import annotations
 
@@ -149,7 +147,7 @@ def load_cactus_slice(
     path: str | Path,
     iteration: int = 0,
     timelevel: int = 0,
-    interp_method: str = "cubic",
+    interp_method: str = "linear",
 ) -> InterpolatedADMMetric:
     """Load a Cactus / ET HDF5 slice into an :class:`InterpolatedADMMetric`.
 
@@ -161,8 +159,9 @@ def load_cactus_slice(
         Iteration index (matches the ``ITERATION={i}`` group prefix).
     timelevel : int, default 0
         Timelevel index (matches the ``TIMELEVEL={t}`` group prefix).
-    interp_method : {"linear", "cubic"}, default "cubic"
+    interp_method : {"linear", "cubic"}, default ``"linear"``
         Interpolation scheme passed to :class:`InterpolatedADMMetric`.
+        ``"cubic"`` currently falls back to linear with a warning.
 
     Returns
     -------

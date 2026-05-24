@@ -27,11 +27,6 @@ from .observer import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Observer family generators
-# ---------------------------------------------------------------------------
-
-
 def make_rapidity_observers(
     n_rapidity: int = 12,
     n_directions: int = 3,
@@ -63,14 +58,10 @@ def make_rapidity_observers(
         [0.0, 0.0],                  # +z
     ])[:n_directions]
 
-    # Outer product: all combinations of rapidity x direction
-    # Result shape: (n_rapidity, n_directions, 3) -> flatten to (K, 3)
-    params = []
-    for i in range(n_rapidity):
-        for j in range(min(n_directions, directions.shape[0])):
-            params.append(jnp.array([zetas[i], directions[j, 0], directions[j, 1]]))
-
-    return jnp.stack(params)  # (K, 3)
+    n_dirs = min(n_directions, directions.shape[0])
+    zetas_col = jnp.broadcast_to(zetas[:, None, None], (n_rapidity, n_dirs, 1))
+    dirs_col = jnp.broadcast_to(directions[None, :n_dirs, :], (n_rapidity, n_dirs, 2))
+    return jnp.concatenate([zetas_col, dirs_col], axis=-1).reshape(-1, 3)
 
 
 def make_angular_observers(
@@ -98,17 +89,9 @@ def make_angular_observers(
     thetas = jnp.linspace(0.0, jnp.pi, n_theta)
     phis = jnp.linspace(0.0, 2 * jnp.pi, n_phi, endpoint=False)
 
-    params = []
-    for i in range(n_theta):
-        for j in range(n_phi):
-            params.append(jnp.array([zeta_fixed, thetas[i], phis[j]]))
-
-    return jnp.stack(params)  # (K, 3)
-
-
-# ---------------------------------------------------------------------------
-# Vectorized margin computation (double vmap)
-# ---------------------------------------------------------------------------
+    THETA, PHI = jnp.meshgrid(thetas, phis, indexing="ij")
+    zeta_col = jnp.full(THETA.shape, zeta_fixed)
+    return jnp.stack([zeta_col.ravel(), THETA.ravel(), PHI.ravel()], axis=-1)
 
 
 def _point_sweep_wec(
@@ -250,11 +233,6 @@ def sweep_all_margins(
     )
 
     return {"wec": wec, "nec": nec, "sec": sec}
-
-
-# ---------------------------------------------------------------------------
-# Cross-validation against BFGS
-# ---------------------------------------------------------------------------
 
 
 def cross_validate_sweep(

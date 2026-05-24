@@ -1,6 +1,6 @@
 """Warp drive metric classification against the Bobrick-Martire taxonomy.
 
-Bobrick & Martire 2021 (Class Quantum Grav 38 105009, arXiv:2102.08443)
+Bobrick & Martire 2021 (Class Quantum Grav 38 105009, arXiv:2102.06824)
 propose a three-class taxonomy of physically-interesting spacetimes:
 
 - Class I : Killing-field structure; trivial or constant shape function

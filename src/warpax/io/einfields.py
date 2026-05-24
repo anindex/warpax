@@ -5,10 +5,9 @@ Restores a trained `Flax NNX <https://flax.readthedocs.io/>`__ network via
 and returns an :class:`InterpolatedADMMetric` suitable for the standard
 curvature + energy-condition pipeline.
 
-Per (CONTEXT.md): skip-if-missing + hand-synth fallback. The loader
-lazy-imports Flax + Orbax; if either is unavailable the function raises
-:class:`ImportError` with a descriptive install hint (mitigation).
-Tests guard the integration with :func:`pytest.importorskip`.
+If Flax or Orbax is missing, the loader raises :class:`ImportError` with
+an install hint. Tests use :func:`pytest.importorskip` when the optional
+``einfields`` extra is not installed.
 
 Scope: this module supplies the loader contract and is an honest skip
 when the EinFields stack is missing. The fixture generator
@@ -80,7 +79,7 @@ def load_einfield(
     ),
     sample_shape: tuple[int, ...] = (2, 8, 8, 8),
     name: str | None = None,
-    interp_method: str = "cubic",
+    interp_method: str = "linear",
 ) -> InterpolatedADMMetric:
     """Load an EinFields Flax/Orbax checkpoint as an :class:`InterpolatedADMMetric`.
 
@@ -97,8 +96,9 @@ def load_einfield(
         Grid resolution per axis.
     name : str or None, default ``None``
         Human-readable label; falls back to ``"einfield_<stem>"``.
-    interp_method : {"linear", "cubic"}, default ``"cubic"``
+    interp_method : {"linear", "cubic"}, default ``"linear"``
         Interpolation scheme (see :class:`InterpolatedADMMetric`).
+        ``"cubic"`` currently falls back to linear with a warning.
 
     Returns
     -------

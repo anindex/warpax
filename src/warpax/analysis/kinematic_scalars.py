@@ -1,38 +1,18 @@
-"""Kinematic scalars for the Eulerian congruence.
+"""Kinematic scalars (theta, sigma^2, omega^2) for the Eulerian congruence.
 
-Computes the expansion scalar theta, shear scalar sigma^2, and
-vorticity scalar omega^2 at each point, characterising the kinematics
-of the Eulerian (hypersurface-orthogonal) observer congruence
-u^a = n^a.
+For ``u^a = n^a``:
 
-For Eulerian observers:
-- theta = -K (expansion = negative trace of extrinsic curvature)
-- sigma^2 = K_{ij} K^{ij} - (1/3) K^2 (shear scalar)
-- omega^2 = 0 (vorticity vanishes identically by Frobenius theorem)
+- ``theta = -K`` (trace of the extrinsic curvature),
+- ``sigma^2 = K_{ij} K^{ij} - (1/3) K^2``,
+- ``omega^2 = 0`` (vanishes by Frobenius for hypersurface-orthogonal n^a).
 
-K_{ij} is computed directly from the 4D Christoffel symbols:
-K_{ij} = -alpha * Gamma^0_{ij}.
+``K_{ij} = -alpha * Gamma^0_{ij}``.
 
-Scope note on the Raychaudhuri interpretation
----------------------------------------------
-The vanishing vorticity ``omega^2 = 0`` is a consequence of the
-Eulerian congruence being hypersurface-orthogonal (Frobenius's
-theorem), independent of whether that congruence is also geodesic.
-For the unit-lapse warp metrics (Alcubierre, Lentz, Natario, Van den
-Broeck, Rodal) the lapse is constant, so ``n^a`` has zero 4-
-acceleration and ``theta`` / ``sigma^2`` plug directly into the usual
-Raychaudhuri focusing equation.
-
-For WarpShell (``alpha != 1`` in the shell) the Eulerian observer is
-*accelerated*; the full Raychaudhuri equation picks up an acceleration
-divergence term ``(3+1)D: -D_a a^a`` that the kinematic scalars here
-do not compute. The ``theta`` / ``sigma^2`` values remain correct as
-measures of the congruence's expansion and shear, but their
-interpretation via Raychaudhuri focusing is qualitative rather than
-quantitative in the WarpShell shell region. Users integrating these
-scalars along a timelike worldline should consult, e.g., Wald
-*General Relativity* eq. (9.2.11) for the accelerated-congruence
-variant of the focusing theorem.
+For unit-lapse metrics (Alcubierre, Lentz, Natario, Van den Broeck,
+Rodal) ``n^a`` is geodesic and ``theta``/``sigma^2`` feed directly into
+Raychaudhuri. For WarpShell (``alpha != 1`` in the shell) the congruence
+is accelerated; the focusing interpretation needs the ``-D_a a^a`` term
+not computed here (Wald, *General Relativity*, eq. 9.2.11).
 """
 from __future__ import annotations
 
@@ -82,8 +62,8 @@ def compute_kinematic_scalars(
     # Christoffel symbols Gamma^lam_{mu nu}
     gamma = christoffel_symbols(metric_fn, coords)
 
-    # ADM lapse: alpha = 1 / sqrt(-g^{00})
-    alpha = 1.0 / jnp.sqrt(-g_inv[0, 0])
+    # ADM lapse: alpha = 1 / sqrt(-g^{00}); floor against CTC / numerical noise.
+    alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], 1e-30))
 
     # Extrinsic curvature: K_{ij} = -alpha * Gamma^0_{ij} for spatial i,j
     # gamma[0, 1:, 1:] = Gamma^0_{ij} for i,j = 1,2,3

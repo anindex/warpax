@@ -129,7 +129,7 @@ def solve_tshell_potentials(
     denominator = r_grid * (r_grid - 2.0 * m_grid)
     denom_safe = jnp.where(
         jnp.abs(denominator) < 1e-30,
-        jnp.sign(denominator + 1e-60) * 1e-30,
+        jnp.where(denominator >= 0.0, 1e-30, -1e-30),
         denominator,
     )
     dPhi_dr = numerator / denom_safe

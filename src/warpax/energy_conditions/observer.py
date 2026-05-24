@@ -1,20 +1,11 @@
-"""Observer parameterization for energy condition verification (pure JAX).
+"""Observer parameterizations for energy condition verification.
 
-Two parameterizations are provided:
-
-1. **3-vector (preferred):** An unconstrained boost vector ``w in R^3``
-   where ``zeta = |w|`` and the spatial direction is ``w / |w|``.
-   When ``w = 0``, this returns the Eulerian observer exactly. A smooth
-   rapidity cap ``zeta_max * tanh(|w| / zeta_max)`` is available.
-
-2. **Rapidity-angle (legacy):** ``(zeta, theta, phi)`` with explicit
-   angular parameterization on S^2. Retained for backward compatibility.
-
-For null vectors, stereographic projection from ``R^2`` to ``S^2``
-avoids the polar singularities of ``(theta, phi)``.
-
-All functions are JIT-compilable and vmappable. No Python if/else on
-traced values uses jnp.where for all conditional logic.
+Boost 3-vector ``w in R^3`` with ``zeta = |w|`` and direction
+``w / |w|`` (``w = 0`` is the Eulerian observer; optional smooth cap
+``zeta_max * tanh(|w| / zeta_max)``); also a ``(zeta, theta, phi)``
+rapidity-angle form. Null directions use stereographic projection
+from ``R^2`` to ``S^2`` to avoid polar singularities. JIT- and
+vmap-safe via ``jnp.where``.
 """
 
 from __future__ import annotations
@@ -27,12 +18,9 @@ from jaxtyping import Array, Float
 def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
     """Construct an orthonormal tetrad {e_0, e_1, e_2, e_3} from the metric at a point.
 
-    Uses ADM-motivated construction:
+    Uses an ADM-motivated construction:
         e_0 = n^a (unit normal to spatial slices)
-        e_1, e_2, e_3 from Gram-Schmidt on spatial metric
-
-    The Gram-Schmidt loop is unrolled (only 3 spatial basis vectors).
-    Degenerate basis vector fallback uses jnp.where (no Python if/else).
+        e_1, e_2, e_3 from Gram-Schmidt on the spatial metric.
 
     Parameters
     ----------
@@ -46,34 +34,26 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
         and a labels the coordinate index.
         tetrad[I, a] = e_I^a (I-th tetrad vector, a-th component).
     """
-    # Invert the metric
     g_inv = jnp.linalg.inv(g_ab)
 
-    # ADM decomposition: normal vector to t=const slices
-    # n^a = (1/alpha, -beta^i/alpha), where alpha = (-g^{00})^{-1/2}
-    alpha = 1.0 / jnp.sqrt(-g_inv[0, 0])
-    beta_up = jnp.array([-g_inv[0, i] / g_inv[0, 0] for i in range(1, 4)])
+    # n^a = (1/alpha, -beta^i/alpha); floor -g^{00} against CTC noise.
+    alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], 1e-30))
+    beta_up = -g_inv[0, 1:4] / g_inv[0, 0]
 
-    # e_0^a = n^a = (1/alpha, -beta^i/alpha)
     e0 = jnp.zeros(4)
     e0 = e0.at[0].set(1.0 / alpha)
     e0 = e0.at[1:].set(-beta_up / alpha)
 
-    # Candidate spatial basis: coordinate vectors delta^a_{i+1}
-    spatial_basis = jnp.eye(4)[1:]  # (3, 4)
+    spatial_basis = jnp.eye(4)[1:]
 
-    # Unrolled Gram-Schmidt for 3 spatial basis vectors
     tetrad = jnp.zeros((4, 4))
     tetrad = tetrad.at[0].set(e0)
 
-    # --- Spatial vector 1 (i=0) ---
     v0 = spatial_basis[0]
-    # Remove component along e_0 (timelike, sign = -1)
     inner_00 = jnp.dot(g_ab @ tetrad[0], v0)
     v0 = v0 - (inner_00 / (-1.0)) * tetrad[0]
 
     norm_sq_0 = jnp.dot(g_ab @ v0, v0)
-    # Fallback: try other basis vectors if degenerate
     v0_alt1 = spatial_basis[1]
     inner_00_alt1 = jnp.dot(g_ab @ tetrad[0], v0_alt1)
     v0_alt1 = v0_alt1 - (inner_00_alt1 / (-1.0)) * tetrad[0]
@@ -84,28 +64,24 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     v0_alt2 = v0_alt2 - (inner_00_alt2 / (-1.0)) * tetrad[0]
     norm_sq_0_alt2 = jnp.dot(g_ab @ v0_alt2, v0_alt2)
 
-    # Select best candidate via jnp.where
     use_alt1_0 = norm_sq_0 < 1e-14
     use_alt2_0 = use_alt1_0 & (norm_sq_0_alt1 < 1e-14)
     v0 = jnp.where(use_alt2_0, v0_alt2, jnp.where(use_alt1_0, v0_alt1, v0))
     norm_sq_0 = jnp.where(use_alt2_0, norm_sq_0_alt2,
                            jnp.where(use_alt1_0, norm_sq_0_alt1, norm_sq_0))
 
-    norm_0 = jnp.maximum(jnp.sqrt(jnp.abs(norm_sq_0)), 1e-30)
+    # Floor radicand inside sqrt: autodiff-safe at norm_sq -> 0.
+    norm_0 = jnp.sqrt(jnp.abs(norm_sq_0) + 1e-60)
     e1 = v0 / norm_0
     tetrad = tetrad.at[1].set(e1)
 
-    # --- Spatial vector 2 (i=1) ---
     v1 = spatial_basis[1]
-    # Remove component along e_0 (timelike)
     inner_10 = jnp.dot(g_ab @ tetrad[0], v1)
     v1 = v1 - (inner_10 / (-1.0)) * tetrad[0]
-    # Remove component along e_1 (spacelike, sign = +1)
     inner_11 = jnp.dot(g_ab @ tetrad[1], v1)
     v1 = v1 - (inner_11 / 1.0) * tetrad[1]
 
     norm_sq_1 = jnp.dot(g_ab @ v1, v1)
-    # Fallback: try other basis vectors
     v1_alt0 = spatial_basis[0]
     inner_10_alt0 = jnp.dot(g_ab @ tetrad[0], v1_alt0)
     v1_alt0 = v1_alt0 - (inner_10_alt0 / (-1.0)) * tetrad[0]
@@ -126,24 +102,19 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     norm_sq_1 = jnp.where(use_alt2_1, norm_sq_1_alt2,
                            jnp.where(use_alt0_1, norm_sq_1_alt0, norm_sq_1))
 
-    norm_1 = jnp.maximum(jnp.sqrt(jnp.abs(norm_sq_1)), 1e-30)
+    norm_1 = jnp.sqrt(jnp.abs(norm_sq_1) + 1e-60)
     e2 = v1 / norm_1
     tetrad = tetrad.at[2].set(e2)
 
-    # --- Spatial vector 3 (i=2) ---
     v2 = spatial_basis[2]
-    # Remove component along e_0 (timelike)
     inner_20 = jnp.dot(g_ab @ tetrad[0], v2)
     v2 = v2 - (inner_20 / (-1.0)) * tetrad[0]
-    # Remove component along e_1 (spacelike)
     inner_21 = jnp.dot(g_ab @ tetrad[1], v2)
     v2 = v2 - (inner_21 / 1.0) * tetrad[1]
-    # Remove component along e_2 (spacelike)
     inner_22 = jnp.dot(g_ab @ tetrad[2], v2)
     v2 = v2 - (inner_22 / 1.0) * tetrad[2]
 
     norm_sq_2 = jnp.dot(g_ab @ v2, v2)
-    # Fallback: try other basis vectors
     v2_alt0 = spatial_basis[0]
     inner_20_alt0 = jnp.dot(g_ab @ tetrad[0], v2_alt0)
     v2_alt0 = v2_alt0 - (inner_20_alt0 / (-1.0)) * tetrad[0]
@@ -168,7 +139,7 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     norm_sq_2 = jnp.where(use_alt1_2, norm_sq_2_alt1,
                            jnp.where(use_alt0_2, norm_sq_2_alt0, norm_sq_2))
 
-    norm_2 = jnp.maximum(jnp.sqrt(jnp.abs(norm_sq_2)), 1e-30)
+    norm_2 = jnp.sqrt(jnp.abs(norm_sq_2) + 1e-60)
     e3 = v2 / norm_2
     tetrad = tetrad.at[3].set(e3)
 
@@ -275,16 +246,13 @@ def timelike_from_boost_vector(
     eps = 1e-12
     norm = jnp.sqrt(jnp.dot(w, w) + eps**2)
 
-    # Smooth rapidity cap
     if zeta_max is not None:
         zeta = zeta_max * jnp.tanh(norm / zeta_max)
     else:
         zeta = norm
 
-    # Smooth unit direction (w=0 gives arbitrary direction, but sinh(0)=0 zeroes it)
+    # w=0 picks an arbitrary direction; sinh(0)=0 cancels the contribution.
     s_hat = w / norm
-
-    # Spatial direction in tetrad frame
     s = s_hat[0] * tetrad[1] + s_hat[1] * tetrad[2] + s_hat[2] * tetrad[3]
 
     return jnp.cosh(zeta) * tetrad[0] + jnp.sinh(zeta) * s
