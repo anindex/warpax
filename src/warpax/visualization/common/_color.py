@@ -17,9 +17,6 @@ from ._conversion import _magnitude_clim, _symmetric_clim
 if TYPE_CHECKING:
     from ._frame_data import FrameData
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 
 MARGIN_FIELDS: frozenset[str] = frozenset(
     {"nec_margin", "wec_margin", "sec_margin", "dec_margin"}
@@ -30,11 +27,6 @@ _DIVERGING_FIELDS: frozenset[str] = MARGIN_FIELDS | frozenset(
     {"rho", "energy_density", "ricci_scalar"}
 )
 """All fields that use symmetric (diverging) color limits."""
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 
 def is_diverging(field: str) -> bool:

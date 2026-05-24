@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Callable, NamedTuple
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jax import lax
@@ -23,11 +24,6 @@ from jaxtyping import Array, Float
 from .geometry import CurvatureResult, compute_curvature_chain
 from .invariants import kretschner_scalar, ricci_squared, weyl_squared
 from .types import GridSpec
-
-
-# ---------------------------------------------------------------------------
-# Result type
-# ---------------------------------------------------------------------------
 
 
 class GridCurvatureResult(NamedTuple):
@@ -48,11 +44,6 @@ class GridCurvatureResult(NamedTuple):
     kretschner: Float[Array, "..."]
     ricci_squared: Float[Array, "..."]
     weyl_squared: Float[Array, "..."]
-
-
-# ---------------------------------------------------------------------------
-# Coordinate batch construction
-# ---------------------------------------------------------------------------
 
 
 def build_coord_batch(
@@ -78,11 +69,6 @@ def build_coord_batch(
     T = jnp.full_like(X, t)
     coords_4d = jnp.stack([T, X, Y, Z], axis=-1)  # (Nx, Ny, Nz, 4)
     return coords_4d.reshape(-1, 4)  # (N, 4)
-
-
-# ---------------------------------------------------------------------------
-# Grid evaluation
-# ---------------------------------------------------------------------------
 
 
 def _make_point_fn(metric_fn, compute_invariants: bool) -> Callable:
@@ -112,6 +98,7 @@ def _make_point_fn(metric_fn, compute_invariants: bool) -> Callable:
     return point_fn
 
 
+@eqx.filter_jit
 def evaluate_curvature_grid(
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
     grid_spec: GridSpec,

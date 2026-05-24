@@ -11,13 +11,9 @@ radial infall in isotropic coordinates.
 """
 from __future__ import annotations
 
+import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
-
-
-# ---------------------------------------------------------------------------
-# General IC builders (work with any MetricSpecification)
-# ---------------------------------------------------------------------------
 
 
 def timelike_ic(
@@ -67,15 +63,16 @@ def timelike_ic(
     # Discriminant
     disc = b**2 - 4.0 * a * c
 
-    # Future-directed root: for g_00 < 0 (as in -+++ signature),
-    # a < 0 so we need the root (-b + sqrt(disc)) / (2a)
-    # which gives the larger (more positive) v^0
+    # Future-directed root: for g_00 < 0 (-+++), a < 0, so the larger
+    # v^0 is (-b + sqrt(disc)) / (2a). Floor the radicand so the
+    # forward gradient stays finite even when disc < 0; downstream
+    # callers should check ``jnp.isfinite`` on v0_t to detect the
+    # superluminal case rather than relying on NaN propagation.
     sqrt_disc = jnp.sqrt(jnp.maximum(disc, 0.0))
     v0_t = (-b + sqrt_disc) / (2.0 * a)
 
-    # If discriminant was negative, v0_t will be NaN-like from sqrt(0)/...
-    # Signal superluminal with NaN
-    v0_t = jnp.where(disc >= 0.0, v0_t, jnp.nan)
+    nan_sentinel = jax.lax.stop_gradient(jnp.full_like(v0_t, jnp.nan))
+    v0_t = jnp.where(disc >= 0.0, v0_t, nan_sentinel)
 
     v0 = jnp.concatenate([jnp.array([v0_t]), v_spatial])
     return x0, v0
@@ -125,19 +122,14 @@ def null_ic(
     # Discriminant
     disc = b**2 - 4.0 * a * c
 
-    # Future-directed root
     sqrt_disc = jnp.sqrt(jnp.maximum(disc, 0.0))
     k0_t = (-b + sqrt_disc) / (2.0 * a)
 
-    k0_t = jnp.where(disc >= 0.0, k0_t, jnp.nan)
+    nan_sentinel = jax.lax.stop_gradient(jnp.full_like(k0_t, jnp.nan))
+    k0_t = jnp.where(disc >= 0.0, k0_t, nan_sentinel)
 
     k0 = jnp.concatenate([jnp.array([k0_t]), n_spatial])
     return x0, k0
-
-
-# ---------------------------------------------------------------------------
-# Schwarzschild-specific IC builders (isotropic coordinates)
-# ---------------------------------------------------------------------------
 
 
 def _schw_r_to_iso(r_schw: float | Float[Array, ""], M: float = 1.0) -> Float[Array, ""]:
@@ -145,9 +137,12 @@ def _schw_r_to_iso(r_schw: float | Float[Array, ""], M: float = 1.0) -> Float[Ar
 
     r_iso = (r_schw - M + sqrt(r_schw^2 - 2 M r_schw)) / 2
 
-    Valid for r_schw > 2M (outside the horizon).
+    Valid for r_schw > 2M (outside the horizon). The floor inside ``sqrt``
+    is autodiff-safe: at ``r_schw = 2M`` the value collapses to ``M/2``
+    and the gradient remains finite.
     """
-    return (r_schw - M + jnp.sqrt(r_schw**2 - 2.0 * M * r_schw)) / 2.0
+    disc = jnp.maximum(r_schw**2 - 2.0 * M * r_schw, 1e-60)
+    return (r_schw - M + jnp.sqrt(disc)) / 2.0
 
 
 def circular_orbit_ic(
@@ -210,9 +205,13 @@ def circular_orbit_ic(
     # We set u^t and u^y directly (no need for timelike_ic, which
     # expects spatial 3-velocity and solves for u^t).
 
-    factor = jnp.sqrt(1.0 - 3.0 * M / r_schw)
+    # Circular geodesics require r_schw > 3M; below this the factor
+    # ``1 - 3M/r`` goes negative and ``u^t`` becomes complex. Floor the
+    # radicand so the caller gets a finite NaN-free result and can
+    # check the domain separately if needed.
+    factor = jnp.sqrt(jnp.maximum(1.0 - 3.0 * M / r_schw, 1e-30))
     u_t = 1.0 / factor
-    dphi_dtau = jnp.sqrt(M / r_schw) / (r_schw * factor)
+    dphi_dtau = jnp.sqrt(jnp.maximum(M / r_schw, 0.0)) / (r_schw * factor)
     u_y = r_iso * dphi_dtau
 
     v0 = jnp.array([u_t, 0.0, u_y, 0.0])

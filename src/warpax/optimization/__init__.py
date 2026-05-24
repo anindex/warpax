@@ -30,6 +30,7 @@ from .loss import (
 )
 from .optimizer import (
     OptimizationResult,
+    ShellOptimizationResult,
     optimize_shell,
 )
 from .sweep import (
@@ -43,6 +44,7 @@ __all__ = [
     "LossComponents",
     "LossWeights",
     "OptimizationResult",
+    "ShellOptimizationResult",
     "ShellCoeffs",
     "SweepPoint",
     "SweepResult",

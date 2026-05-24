@@ -45,8 +45,7 @@ def tov_residual(
     """
     r_arr = jnp.asarray(r, dtype=jnp.float64)
 
-    # Compute dp_r/dr via JAX autodiff (machine precision)
-    dp_r = jax.grad(lambda rr: jnp.float64(p_r(rr)))(r_arr)
+    dp_r = jax.grad(p_r)(r_arr)
 
     rho_val = rho(r_arr)
     p_r_val = p_r(r_arr)
@@ -81,12 +80,22 @@ def tov_residual_from_metric(
     """
     r_arr = jnp.asarray(r, dtype=jnp.float64)
 
-    # Extract Phi'(r) from g_tt via autodiff
-    # g_tt(r) = g_{00}(t=0, r, 0, 0), so Phi(r) = 0.5 * ln(-g_tt(r))
+    # Probe ``g_tt`` at the requested radius to fail loud on signature
+    # flips: the (-+++) convention requires ``g_tt < 0`` everywhere
+    # outside the horizon; if a caller passes a metric in (+---) or a
+    # CTC region the residual identity below silently produces garbage.
+    probe = metric_fn(jnp.array([0.0, r_arr, 0.0, 0.0], dtype=jnp.float64))
+    if not bool(probe[0, 0] < 0.0):
+        raise ValueError(
+            f"tov_residual_from_metric: g_tt({float(r_arr)}) = {float(probe[0, 0])} "
+            "is not negative; the routine assumes the (-+++) signature. "
+            "Pass a metric in this convention or move the probe outside "
+            "any horizon / CTC region."
+        )
+
     def Phi_of_r(rr: Float[Array, ""]) -> Float[Array, ""]:
         coords = jnp.array([0.0, rr, 0.0, 0.0], dtype=jnp.float64)
         g = metric_fn(coords)
-        # g_tt should be negative for standard signatures
         return 0.5 * jnp.log(jnp.maximum(-g[0, 0], 1e-30))
 
     Phi_prime = jax.grad(Phi_of_r)(r_arr)

@@ -1,4 +1,4 @@
-"""Wall-clustered radial grid generator .
+"""Wall-clustered radial grid generator.
 
 Cosh stretching: per-axis uniform parameter ``u \\in [0, 1]`` is mapped to a
 stretched coordinate via
@@ -9,19 +9,11 @@ stretched coordinate via
                  {\\tanh(a)}\\bigr),
 
 where ``a`` controls clustering strength and ``u_wall \\in [0, 1]`` is the
-uniform-parameter location of the wall radius along that axis.
+uniform-parameter location of the wall radius along that axis. Default
+``a = 1.2``; override via the ``a`` kwarg.
 
-empirical default - empirical default ``a = 1.2`` (no separate ``b`` is
-used in the single-tanh form). Value selected by inspecting the induced
-spacing on Alcubierre(v_s=0.5, R=2.0, sigma=8.0): yields ~50% density
-concentration inside a ±0.5-unit band around the wall radius at shape=(16,
-16, 16), without starving the far-field resolution (min spacing 1.2x
-outside wall, max 0.6x inside wall). Users can override via the ``a``
-kwarg for other metrics.
-
-mitigation: returned :class:`GridSpec` carries `coord_arrays` +
-`volume_weights` as hashable tuples (static eqx fields); no dynamic JAX
-arrays enter the pytree leaf set, so JIT cache keys stay stable.
+The returned :class:`GridSpec` carries ``coord_arrays`` + ``volume_weights``
+as hashable tuples (static eqx fields), so JIT cache keys stay stable.
 """
 from __future__ import annotations
 
@@ -110,7 +102,7 @@ def wall_clustered(
         Wall radius in physical units. If ``None``, inferred via a
         ``metric.shape_function_value`` scan.
     a : float, default 1.2
-        Cosh clustering strength (empirical choice; see module docstring).
+        Cosh clustering strength (see module docstring).
 
     Returns
     -------

@@ -143,7 +143,9 @@ def default_theta(
     density_theta = jnp.ones(n_density) * 0.5
     velocity_theta = jnp.ones(n_velocity) * 0.5
 
-    # inverse softplus so that softplus(raw) = rho_scale
-    rho_scale_raw = jnp.log(jnp.exp(rho_scale) - 1.0)
+    # Stable inverse softplus: log(expm1(x)) for any positive x; ``expm1``
+    # avoids catastrophic cancellation when ``rho_scale`` is small and
+    # clipping guards the overflow tail at large arguments.
+    rho_scale_raw = jnp.log(jnp.expm1(jnp.clip(rho_scale, 1e-300, 700.0)))
 
     return pack_theta(density_theta, velocity_theta, v_0, float(rho_scale_raw))

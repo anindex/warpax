@@ -15,11 +15,6 @@ from typing import Callable
 import numpy as np
 
 
-# ---------------------------------------------------------------------------
-# Velocity profiles (pure Python/NumPy NOT JAX)
-# ---------------------------------------------------------------------------
-
-
 def linear_ramp(
     t: float,
     v_start: float = 0.1,
@@ -129,11 +124,6 @@ def constant_velocity(t: float, v_s: float = 0.5) -> float:
     return float(v_s)
 
 
-# ---------------------------------------------------------------------------
-# Velocity sweep convenience
-# ---------------------------------------------------------------------------
-
-
 def make_velocity_sweep(
     v_start: float = 0.1,
     v_end: float = 0.99,
@@ -168,11 +158,6 @@ def make_velocity_sweep(
     else:
         raise ValueError(f"Unknown spacing: {spacing!r}. Use 'uniform' or 'log'.")
     return [float(v) for v in vals]
-
-
-# ---------------------------------------------------------------------------
-# Frame sequence builder
-# ---------------------------------------------------------------------------
 
 
 def build_frame_sequence(
@@ -276,11 +261,6 @@ def build_frame_sequence(
     return frames
 
 
-# ---------------------------------------------------------------------------
-# EC-enriched frame sequence builder
-# ---------------------------------------------------------------------------
-
-
 def build_ec_frame_sequence(
     metric,
     grid_spec,
@@ -332,7 +312,10 @@ def build_ec_frame_sequence(
         sweep_wec_margins,
     )
     from warpax.geometry.grid import evaluate_curvature_grid
-    from warpax.visualization.common._conversion import _symmetric_clim
+    from warpax.visualization.common._conversion import (
+        _symmetric_clim,
+        eulerian_energy_density_grid,
+    )
     from warpax.visualization.common._frame_data import FrameData
 
     # Validate inputs
@@ -393,37 +376,42 @@ def build_ec_frame_sequence(
         wec_margins = sweep_wec_margins(T_flat, g_flat, observer_params)  # (N, K)
         nec_margins = sweep_nec_margins(T_flat, g_flat, nec_params)  # (N, K)
 
-        # Worst-case across observers
         worst_wec = np.asarray(jnp.min(wec_margins, axis=-1).reshape(grid_spec.shape))
         worst_nec = np.asarray(jnp.min(nec_margins, axis=-1).reshape(grid_spec.shape))
-        energy_density = np.asarray(result.stress_energy[..., 0, 0])
+        energy_density = eulerian_energy_density_grid(
+            result.stress_energy, result.metric_inv
+        )
+        T_00_covariant = np.asarray(result.stress_energy[..., 0, 0])
 
-        # Curvature invariants
         scalar_fields = {
             "ricci_scalar": np.asarray(result.ricci_scalar),
             "kretschner": np.asarray(result.kretschner),
             "ricci_squared": np.asarray(result.ricci_squared),
             "weyl_squared": np.asarray(result.weyl_squared),
             "energy_density": energy_density,
+            "T_00_covariant": T_00_covariant,
             "wec_margin_sweep": worst_wec,
             "nec_margin_sweep": worst_nec,
         }
 
-        # Colormaps
         colormaps = {
             "ricci_scalar": "RdBu_r",
             "kretschner": "inferno",
             "ricci_squared": "inferno",
             "weyl_squared": "inferno",
             "energy_density": "RdBu_r",
+            "T_00_covariant": "RdBu_r",
             "wec_margin_sweep": "RdBu_r",
             "nec_margin_sweep": "RdBu_r",
         }
 
-        # Color limits
+        diverging = {
+            "ricci_scalar", "energy_density", "T_00_covariant",
+            "wec_margin_sweep", "nec_margin_sweep",
+        }
         clim = {}
         for name, arr in scalar_fields.items():
-            if name in {"ricci_scalar", "energy_density", "wec_margin_sweep", "nec_margin_sweep"}:
+            if name in diverging:
                 clim[name] = _symmetric_clim(arr)
             else:
                 vmin = float(np.nanmin(arr))

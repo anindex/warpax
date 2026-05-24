@@ -86,26 +86,46 @@ def _integrate_tov_pressure(
     """
     import interpax
 
+    from ..numerics import assert_uniform_grid
+
     r_grid = jnp.linspace(R_2, R_1, n_grid)
-    dr = r_grid[1] - r_grid[0]
+    assert_uniform_grid(r_grid, name="_integrate_tov_pressure.r_grid")
+    h = r_grid[1] - r_grid[0]  # negative; integration runs inward
 
     rho_vals = jax.vmap(rho_fn)(r_grid)
     m_vals = jax.vmap(m_fn)(r_grid)
+    rho_mid = 0.5 * (rho_vals[:-1] + rho_vals[1:])
+    m_mid = 0.5 * (m_vals[:-1] + m_vals[1:])
 
     def tov_rhs(r_val, p_val, rho_val, m_val):
         r_safe = jnp.maximum(r_val, 1e-30)
         denom = r_safe * (r_safe - 2.0 * m_val)
-        denom_safe = jnp.where(jnp.abs(denom) < 1e-30, 1e-30, denom)
+        denom_safe = jnp.where(
+            jnp.abs(denom) < 1e-30,
+            jnp.where(denom >= 0.0, 1e-30, -1e-30),
+            denom,
+        )
         numer = -(rho_val + p_val) * (m_val + 4.0 * jnp.pi * r_safe**3 * p_val)
         return numer / denom_safe
 
     def scan_step(p_current, inputs):
-        r_val, rho_val, m_val = inputs
-        dp = tov_rhs(r_val, p_current, rho_val, m_val) * dr
+        r_a, rho_a, m_a, r_b, rho_b, m_b, rho_m, m_m = inputs
+        r_mid = r_a + 0.5 * h
+        k1 = tov_rhs(r_a,   p_current,                rho_a, m_a)
+        k2 = tov_rhs(r_mid, p_current + 0.5 * h * k1, rho_m, m_m)
+        k3 = tov_rhs(r_mid, p_current + 0.5 * h * k2, rho_m, m_m)
+        k4 = tov_rhs(r_b,   p_current + h * k3,       rho_b, m_b)
+        dp = (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
         p_next = jnp.maximum(p_current + dp, 0.0)
         return p_next, p_next
 
-    _, p_scan = jax.lax.scan(scan_step, jnp.float64(0.0), (r_grid[:-1], rho_vals[:-1], m_vals[:-1]))
+    _, p_scan = jax.lax.scan(
+        scan_step,
+        jnp.float64(0.0),
+        (r_grid[:-1], rho_vals[:-1], m_vals[:-1],
+         r_grid[1:],  rho_vals[1:],  m_vals[1:],
+         rho_mid,     m_mid),
+    )
     p_all = jnp.concatenate([jnp.array([0.0]), p_scan])
 
     r_ascending = jnp.flip(r_grid)
@@ -131,8 +151,11 @@ def _compute_cumulative_mass(
     """
     import interpax
 
+    from ..numerics import assert_uniform_grid
+
     r_max = R_2 * 1.1
     r_grid = jnp.linspace(0.0, r_max, n_grid)
+    assert_uniform_grid(r_grid, name="_compute_cumulative_mass.r_grid")
     dr = r_grid[1] - r_grid[0]
 
     rho_vals = jax.vmap(rho_fn)(r_grid)

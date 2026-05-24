@@ -1,23 +1,14 @@
-"""Two-tier energy condition verification orchestrator (pure JAX).
+"""Grid EC verification: Hawking-Ellis + eigenvalue + BFGS pipeline.
 
-Ties together Hawking-Ellis classification, eigenvalue checks, and
-Optimistix BFGS optimization into a complete grid-level pipeline.
+Strategy: classify, then Type-I algebraic margins (exact for WEC / NEC /
+SEC) plus parallel optimizer diagnostics (``*_opt_margins``); non-Type-I
+falls back to optimizer margins; ``dec_margins = min(WEC, DEC)``.
+Eulerian-frame margins are exposed separately via
+``compute_eulerian_ec`` for single-frame comparisons.
 
-Strategy
---------
-1. Classify T^a_b via Hawking-Ellis at every grid point (vmapped).
-2. For Type I points: fast eigenvalue algebraic checks.
-3. For ALL points (including Type I): optimization over observer space
-   to find worst-case margins. For Type I, the final margin is the
-   worse (smaller) of eigenvalue and optimization results.
-4. Eulerian-frame EC results are computed SEPARATELY (not baked into
-   optimization) via ``compute_eulerian_ec``, enabling a clean
-   single-frame vs observer-robust comparison.
-
-The per-point function ``verify_point`` uses Python control flow
-(``if he_type == 1``) and is therefore NOT directly vmappable.
-The grid version ``verify_grid`` handles vectorization by splitting
-eigenvalue and optimization paths and merging results with ``jnp.where``.
+``verify_point`` uses host-side control flow on Type; ``verify_grid``
+handles vectorization by splitting eigenvalue / optimizer branches and
+merging with ``jnp.where``.
 """
 from __future__ import annotations
 
@@ -27,7 +18,11 @@ import jax.numpy as jnp
 from jax import lax
 from jaxtyping import Array, Float
 
-from .classification import classify_hawking_ellis
+from .classification import (
+    classify_hawking_ellis,
+    classify_with_solver,
+    _standard_solver_unreliable_mask,
+)
 from .eigenvalue_checks import check_all
 from .optimization import (
     optimize_point,
@@ -36,9 +31,208 @@ from .observer import compute_orthonormal_tetrad
 from .types import ECGridResult, ECPointResult, ECSummary
 
 
-# ---------------------------------------------------------------------------
-# Public API: per-point verification
-# ---------------------------------------------------------------------------
+def _classify_grid_batch(
+    flat_T_mixed,
+    flat_g,
+    flat_T,
+    *,
+    solver: str,
+):
+    """Classify a flattened grid with optional auto generalized fallback."""
+    import numpy as np
+
+    if solver == "generalized":
+        def _classify_gen(T_mixed_i, g_i, T_ab_i):
+            return classify_hawking_ellis(
+                T_mixed_i, g_i, solver="generalized", T_ab=T_ab_i,
+            )
+        return jax.vmap(_classify_gen)(flat_T_mixed, flat_g, flat_T)
+
+    if solver == "standard":
+        return jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
+
+    # auto: standard everywhere, generalized only on unreliable points
+    cls_results = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
+    unreliable = np.asarray(
+        _standard_solver_unreliable_mask(
+            cls_results.he_type,
+            cls_results.eigenvalues,
+            cls_results.eigenvalues_imag,
+        ),
+        dtype=bool,
+    )
+    if not unreliable.any():
+        return cls_results
+
+    he_types = np.array(cls_results.he_type, copy=True)
+    eigenvalues = np.array(cls_results.eigenvalues, copy=True)
+    eigenvectors = np.array(cls_results.eigenvectors, copy=True)
+    rho = np.array(cls_results.rho, copy=True)
+    pressures = np.array(cls_results.pressures, copy=True)
+    eigenvalues_imag = np.array(cls_results.eigenvalues_imag, copy=True)
+    is_vacuum = np.array(cls_results.is_vacuum, copy=True)
+
+    for i in np.where(unreliable)[0]:
+        cls_i = classify_with_solver(
+            flat_T_mixed[i], flat_g[i], flat_T[i], solver="generalized",
+        )
+        he_types[i] = float(cls_i.he_type)
+        eigenvalues[i] = np.asarray(cls_i.eigenvalues)
+        eigenvectors[i] = np.asarray(cls_i.eigenvectors)
+        rho[i] = float(cls_i.rho)
+        pressures[i] = np.asarray(cls_i.pressures)
+        eigenvalues_imag[i] = np.asarray(cls_i.eigenvalues_imag)
+        is_vacuum[i] = float(cls_i.is_vacuum)
+
+    return type(cls_results)(
+        he_type=jnp.asarray(he_types),
+        eigenvalues=jnp.asarray(eigenvalues),
+        eigenvectors=jnp.asarray(eigenvectors),
+        rho=jnp.asarray(rho),
+        pressures=jnp.asarray(pressures),
+        eigenvalues_imag=jnp.asarray(eigenvalues_imag),
+        is_vacuum=jnp.asarray(is_vacuum),
+    )
+
+
+def _run_grid_optimization(
+    flat_T,
+    flat_g,
+    subkeys,
+    *,
+    n_starts,
+    zeta_max,
+    strategy,
+    batch_size,
+    skip_type_i_optimization,
+    he_types,
+    warm_start,
+    neighbor_fraction,
+    starts,
+):
+    """Run per-point optimization, optionally skipping Type-I points."""
+    import numpy as np
+
+    n_points = flat_T.shape[0]
+    nan = jnp.nan
+
+    def _empty_opt_tuple():
+        return (
+            jnp.full(n_points, nan),
+            jnp.full(n_points, nan),
+            jnp.full(n_points, nan),
+            jnp.full(n_points, nan),
+            jnp.zeros((n_points, 4)),
+            jnp.zeros((n_points, 3)),
+            jnp.zeros(n_points),
+            jnp.zeros(n_points),
+            jnp.zeros(n_points),
+            jnp.zeros(n_points),
+            jnp.zeros(n_points),
+            jnp.zeros(n_points),
+            jnp.zeros(n_points),
+            jnp.zeros(n_points),
+        )
+
+    def optimize_single(args):
+        T_i, g_i, subkey, neighbor_obs = args
+        opt = optimize_point(
+            T_i, g_i,
+            conditions=("nec", "wec", "sec", "dec"),
+            n_starts=n_starts,
+            zeta_max=zeta_max,
+            key=subkey,
+            strategy=strategy,
+            warm_start=warm_start,
+            neighbor_fraction=neighbor_fraction,
+            starts=starts,
+            neighbor_observer=neighbor_obs,
+        )
+        return (
+            opt["nec"].margin,
+            opt["wec"].margin,
+            opt["sec"].margin,
+            opt["dec"].margin,
+            opt["wec"].worst_observer,
+            opt["wec"].worst_params,
+            opt["nec"].converged,
+            opt["wec"].converged,
+            opt["sec"].converged,
+            opt["dec"].converged,
+            opt["nec"].n_steps,
+            opt["wec"].n_steps,
+            opt["sec"].n_steps,
+            opt["dec"].n_steps,
+        )
+
+    is_type_i = np.asarray(he_types == 1.0)
+    if skip_type_i_optimization and is_type_i.all():
+        return _empty_opt_tuple()
+
+    if warm_start == "spatial_neighbor":
+        results = []
+        prev_worst = None
+        for i in range(n_points):
+            if skip_type_i_optimization and is_type_i[i]:
+                results.append((
+                    nan, nan, nan, nan,
+                    jnp.zeros(4), jnp.zeros(3),
+                    0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 0.0,
+                ))
+                continue
+            neighbor = prev_worst if i > 0 else None
+            results.append(
+                optimize_single((flat_T[i], flat_g[i], subkeys[i], neighbor))
+            )
+            prev_worst = results[-1][4]
+        stacked = tuple(jnp.stack([r[k] for r in results], axis=0) for k in range(14))
+        return stacked
+
+    if skip_type_i_optimization and (~is_type_i).any():
+        out = _empty_opt_tuple()
+        idx = np.where(~is_type_i)[0]
+        sub_T = flat_T[idx]
+        sub_g = flat_g[idx]
+        sub_keys = subkeys[idx]
+        sub_results = jax.vmap(
+            lambda args: optimize_single((args[0], args[1], args[2], None))
+        )((sub_T, sub_g, sub_keys))
+
+        def _scatter(full, partial, indices):
+            for j, i in enumerate(indices):
+                full = full.at[i].set(partial[j])
+            return full
+
+        nec_opt, wec_opt, sec_opt, dec_opt, worst_obs, worst_par = out[:6]
+        nec_opt = _scatter(nec_opt, sub_results[0], idx)
+        wec_opt = _scatter(wec_opt, sub_results[1], idx)
+        sec_opt = _scatter(sec_opt, sub_results[2], idx)
+        dec_opt = _scatter(dec_opt, sub_results[3], idx)
+        worst_obs = _scatter(worst_obs, sub_results[4], idx)
+        worst_par = _scatter(worst_par, sub_results[5], idx)
+        nec_conv = _scatter(out[6], sub_results[6], idx)
+        wec_conv = _scatter(out[7], sub_results[7], idx)
+        sec_conv = _scatter(out[8], sub_results[8], idx)
+        dec_conv = _scatter(out[9], sub_results[9], idx)
+        nec_nsteps = _scatter(out[10], sub_results[10], idx)
+        wec_nsteps = _scatter(out[11], sub_results[11], idx)
+        sec_nsteps = _scatter(out[12], sub_results[12], idx)
+        dec_nsteps = _scatter(out[13], sub_results[13], idx)
+        return (
+            nec_opt, wec_opt, sec_opt, dec_opt, worst_obs, worst_par,
+            nec_conv, wec_conv, sec_conv, dec_conv,
+            nec_nsteps, wec_nsteps, sec_nsteps, dec_nsteps,
+        )
+
+    args = (flat_T, flat_g, subkeys, jnp.full((n_points, 4), jnp.nan))
+    if batch_size is not None:
+        return lax.map(
+            lambda a: optimize_single(a),
+            args,
+            batch_size=batch_size,
+        )
+    return jax.vmap(optimize_single)(args)
 
 
 def verify_point(
@@ -49,14 +243,15 @@ def verify_point(
     zeta_max: float = 5.0,
     key=None,
     *,
-    solver: str = 'standard',
+    solver: str = 'auto',
 ) -> ECPointResult:
     """Verify all energy conditions at a single spacetime point.
 
     Two-tier strategy:
-    - Type I: eigenvalue margins (fast) + optimization (validation).
-      Final margin = min(eigenvalue, optimization) for each condition.
-    - Non-Type-I: optimization only.
+    - Type I: eigenvalue margins (exact for WEC/NEC/SEC) plus parallel
+      optimizer diagnostics in ``*_opt_margins``. ``dec_margins`` uses
+      ``min(wec_margin, dec_eigenvalue_margin)``.
+    - Non-Type-I: optimizer margins only.
 
     Parameters
     ----------
@@ -72,11 +267,10 @@ def verify_point(
         Maximum rapidity.
     key : PRNGKey or None
         Random key for optimization initial conditions.
-    solver : {'standard', 'generalized'}, keyword-only
-        Eigenvalue backend forwarded to :func:`classify_hawking_ellis`
-        . ``'generalized'`` carries host-callback overhead; see
-        :func:`classify_hawking_ellis` and :mod:`._gen_eig_callback` for
-        full semantics.
+    solver : {'standard', 'generalized', 'auto'}, keyword-only
+        Eigenvalue backend forwarded to :func:`classify_with_solver`.
+        ``'auto'`` (default) uses standard eig with generalized fallback
+        on ill-conditioned pencils.
 
     Returns
     -------
@@ -85,26 +279,23 @@ def verify_point(
 
     Note
     ----
-    This function uses Python control flow on JAX values and cannot
-    be wrapped in ``jax.jit``. For batched evaluation, use :func:`verify_grid`.
+    Uses Python control flow on JAX values - not ``jit``-able. For
+    batched evaluation, use :func:`verify_grid`.
     """
     if key is None:
         key = jax.random.PRNGKey(42)
     if g_inv is None:
         g_inv = jnp.linalg.inv(g_ab)
 
-    # Classify
-    T_mixed = g_inv @ T_ab
-    cls = classify_hawking_ellis(
-        T_mixed, g_ab,
+    T_mixed = jnp.einsum("ac,cb->ab", g_inv, T_ab)
+    cls = classify_with_solver(
+        T_mixed, g_ab, T_ab,
         solver=solver,
-        T_ab=T_ab if solver == 'generalized' else None,
     )
     he_type = cls.he_type
     rho = cls.rho
     pressures = cls.pressures
 
-    # Optimisation for ALL types
     opt_results = optimize_point(
         T_ab, g_ab,
         conditions=("nec", "wec", "sec", "dec"),
@@ -118,37 +309,27 @@ def verify_point(
     sec_opt = opt_results["sec"].margin
     dec_opt = opt_results["dec"].margin
 
-    # Track worst observer from WEC (most physically meaningful for violations)
+    # WEC worst observer is the timelike one we expose downstream.
     worst_observer = opt_results["wec"].worst_observer
     worst_params = opt_results["wec"].worst_params
 
-    # For Type I: algebraic eigenvalue margins are exact (authoritative for
-    # violation detection). Optimizer provides worst-observer parameters
-    # and zeta_max-capped severity diagnostics.
-    # int concretizes a JAX tracer -- prevents jax.jit (see docstring).
     he_type_int = int(he_type)
     if he_type_int == 1:
+        # Type-I: algebraic NEC/WEC/SEC are exact; DEC algebraic proxy is
+        # rho - max|p_i| and is necessary-only for flux causality.
         nec_eig, wec_eig, sec_eig, dec_eig = check_all(rho, pressures)
         nec_margin = nec_eig
         wec_margin = wec_eig
         sec_margin = sec_eig
-        dec_margin = dec_eig
+        dec_margin = jnp.minimum(dec_eig, dec_opt)
     else:
         nec_margin = nec_opt
         wec_margin = wec_opt
         sec_margin = sec_opt
         dec_margin = dec_opt
 
-    # DEC requires both causal flux AND non-negative energy density (WEC).
-    # The DEC optimizer now includes the WEC term, but the WEC margin here
-    # may come from the algebraic slack (Type I) rather than the DEC
-    # optimizer's observer, so this post-hoc merge is still needed.
+    # Re-merge WEC into DEC: DEC implies WEC and the WEC slack may dominate.
     dec_margin = jnp.minimum(wec_margin, dec_margin)
-
-    # Select worst observer from WEC optimizer (timelike condition with
-    # the most physically meaningful observer interpretation).
-    worst_observer = opt_results["wec"].worst_observer
-    worst_params = opt_results["wec"].worst_params
 
     return ECPointResult(
         he_type=he_type,
@@ -161,12 +342,11 @@ def verify_point(
         dec_margin=dec_margin,
         worst_observer=worst_observer,
         worst_params=worst_params,
+        nec_opt_margin=nec_opt,
+        wec_opt_margin=wec_opt,
+        sec_opt_margin=sec_opt,
+        dec_opt_margin=dec_opt,
     )
-
-
-# ---------------------------------------------------------------------------
-# Public API: grid verification
-# ---------------------------------------------------------------------------
 
 
 def _compute_summary(margins: Float[Array, "N"], atol: float = 1e-10) -> ECSummary:
@@ -174,7 +354,6 @@ def _compute_summary(margins: Float[Array, "N"], atol: float = 1e-10) -> ECSumma
     n = margins.shape[0]
     violated = margins < -atol
     frac = jnp.sum(violated.astype(jnp.float64)) / n
-    # max violation magnitude among violated points (0 if none)
     violation_magnitudes = jnp.where(violated, jnp.abs(margins), 0.0)
     max_viol = jnp.max(violation_magnitudes)
     min_margin = jnp.min(margins)
@@ -195,8 +374,12 @@ def verify_grid(
     key=None,
     compute_eulerian: bool = False,
     *,
-    solver: str = 'standard',
+    solver: str = 'auto',
     strategy: str = "tanh",
+    skip_type_i_optimization: bool = True,
+    warm_start: str = "cold",
+    neighbor_fraction: float = 1.0 / 16.0,
+    starts: str = "axis+gaussian",
 ) -> ECGridResult:
     """Verify energy conditions across an entire grid.
 
@@ -223,12 +406,17 @@ def verify_grid(
     compute_eulerian : bool
         If True, also compute Eulerian-frame EC at each point and take
         the worse margin. Default False.
-    solver : {'standard', 'generalized'}, keyword-only
-        Eigenvalue backend forwarded to :func:`classify_hawking_ellis`
-        . ``'generalized'`` carries grid-level host-callback
-        overhead (~5-10x slower; vmap is sequential). See
-        :func:`classify_hawking_ellis` and :mod:`._gen_eig_callback`
-        for full semantics.
+    solver : {'standard', 'generalized', 'auto'}, keyword-only
+        Eigenvalue backend forwarded to :func:`classify_with_solver`.
+        ``'auto'`` (default) uses standard eig with generalized fallback
+        on ill-conditioned pencils.
+    skip_type_i_optimization : bool
+        If True (default), skip BFGS on Type-I points where algebraic
+        eigenvalue margins are exact. Optimizer diagnostics remain NaN
+        on skipped points.
+    warm_start, neighbor_fraction, starts
+        Forwarded to :func:`optimize_point`. ``warm_start='spatial_neighbor'``
+        seeds each point with the previous WEC observer (C-order flatten).
 
     Returns
     -------
@@ -238,12 +426,9 @@ def verify_grid(
 
     Note
     ----
-    This function uses ``int``/``float`` on JAX arrays for diagnostic
-    warnings and classification statistics (non-Type-I count, type census,
-    max imaginary eigenvalue). These concretize traced values and prevent
-    the function from being wrapped in ``jax.jit``. The inner optimization
-    and eigenvalue paths are individually JIT-compiled via ``jax.vmap``
-    and ``lax.map``.
+    Not ``jit``-able: type-census and imag-eigenvalue summary stats use
+    ``int``/``float`` on traced values. Inner eigenvalue and optimization
+    paths are still vmapped / JIT-compiled.
     """
     if key is None:
         key = jax.random.PRNGKey(42)
@@ -260,77 +445,38 @@ def verify_grid(
     else:
         flat_g_inv = jax.vmap(jnp.linalg.inv)(flat_g)
 
-    # Step 1: Classify all points (vmapped)
     flat_T_mixed = jax.vmap(jnp.matmul)(flat_g_inv, flat_T)
-    if solver == 'standard':
-        cls_results = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
-    else:  # solver == 'generalized' - also needs T_ab at every point
-        def _classify_gen(T_mixed_i, g_i, T_ab_i):
-            return classify_hawking_ellis(
-                T_mixed_i, g_i, solver='generalized', T_ab=T_ab_i,
-            )
-        cls_results = jax.vmap(_classify_gen)(flat_T_mixed, flat_g, flat_T)
+    cls_results = _classify_grid_batch(
+        flat_T_mixed, flat_g, flat_T, solver=solver,
+    )
 
-    he_types = cls_results.he_type      # (N,)
-    eigenvalues = cls_results.eigenvalues  # (N, 4)
-    rho_all = cls_results.rho            # (N,)
-    pressures_all = cls_results.pressures  # (N, 3)
+    he_types = cls_results.he_type
+    eigenvalues = cls_results.eigenvalues
+    rho_all = cls_results.rho
+    pressures_all = cls_results.pressures
 
-    # Step 2: Eigenvalue margins for ALL points (Type I values are real,
-    # non-Type-I have NaN rho/pressures results will be NaN for those)
     nec_eig, wec_eig, sec_eig, dec_eig = jax.vmap(check_all)(rho_all, pressures_all)
 
-    # Step 3: Optimisation for ALL points
-    def optimize_single(args):
-        T_i, g_i, subkey = args
-        opt = optimize_point(
-            T_i, g_i,
-            conditions=("nec", "wec", "sec", "dec"),
-            n_starts=n_starts,
-            zeta_max=zeta_max,
-            key=subkey,
-            strategy=strategy,
-        )
-        return (
-            opt["nec"].margin,
-            opt["wec"].margin,
-            opt["sec"].margin,
-            opt["dec"].margin,
-            opt["wec"].worst_observer,
-            opt["wec"].worst_params,
-            opt["nec"].converged,
-            opt["wec"].converged,
-            opt["sec"].converged,
-            opt["dec"].converged,
-            opt["nec"].n_steps,
-            opt["wec"].n_steps,
-            opt["sec"].n_steps,
-            opt["dec"].n_steps,
-        )
-
     subkeys = jax.random.split(key, n_points)
-
-    if batch_size is not None:
-        # lax.map with batch_size for memory-safe sequential-ish processing
-        opt_results = lax.map(
-            lambda args: optimize_single(args),
-            (flat_T, flat_g, subkeys),
-            batch_size=batch_size,
-        )
-    else:
-        opt_results = jax.vmap(optimize_single)((flat_T, flat_g, subkeys))
+    opt_results = _run_grid_optimization(
+        flat_T, flat_g, subkeys,
+        n_starts=n_starts,
+        zeta_max=zeta_max,
+        strategy=strategy,
+        batch_size=batch_size,
+        skip_type_i_optimization=skip_type_i_optimization,
+        he_types=he_types,
+        warm_start=warm_start,
+        neighbor_fraction=neighbor_fraction,
+        starts=starts,
+    )
 
     (nec_opt, wec_opt, sec_opt, dec_opt, worst_obs, worst_par,
      nec_conv, wec_conv, sec_conv, dec_conv,
      nec_nsteps, wec_nsteps, sec_nsteps, dec_nsteps) = opt_results
 
-    # Step 4: Merge eigenvalue and optimization results
-    # For Type I: algebraic margins are exact (authoritative for detection).
-    # For non-Type-I: use optimization only.
     is_type_i = (he_types == 1.0)
 
-    # Diagnostic: warn if non-Type-I points exist (DEC future-directedness caveat).
-    # int concretizes a JAX tracer -- prevents jax.jit (see docstring).
     n_non_type_i = int(jnp.sum(~is_type_i))
     if n_non_type_i > 0:
         import warnings
@@ -341,21 +487,19 @@ def verify_grid(
         )
 
     def merge_margins(eig_m, opt_m):
-        # Type I: use algebraic (exact); non-Type-I: use optimizer
         return jnp.where(is_type_i, eig_m, opt_m)
 
     nec_margins = merge_margins(nec_eig, nec_opt)
     wec_margins = merge_margins(wec_eig, wec_opt)
     sec_margins = merge_margins(sec_eig, sec_opt)
-    dec_margins = merge_margins(dec_eig, dec_opt)
-
-    # DEC requires both causal flux AND non-negative energy density (WEC).
-    # The DEC optimizer now includes the WEC term, but the WEC margin here
-    # may come from the algebraic slack (Type I) rather than the DEC
-    # optimizer's observer, so this post-hoc merge is still needed.
+    # Type-I DEC: min(algebraic proxy, optimizer) when the optimizer ran.
+    dec_opt_finite = jnp.isfinite(dec_opt)
+    dec_margins_type_i = jnp.where(
+        dec_opt_finite, jnp.minimum(dec_eig, dec_opt), dec_eig
+    )
+    dec_margins = jnp.where(is_type_i, dec_margins_type_i, dec_opt)
     dec_margins = jnp.minimum(wec_margins, dec_margins)
 
-    # Step 5: Optionally compute Eulerian EC and take worse margin
     if compute_eulerian:
         eulerian_results = jax.vmap(_eulerian_ec_point)(flat_T, flat_g, flat_g_inv)
         nec_margins = jnp.minimum(nec_margins, eulerian_results["nec"])
@@ -363,24 +507,19 @@ def verify_grid(
         sec_margins = jnp.minimum(sec_margins, eulerian_results["sec"])
         dec_margins = jnp.minimum(dec_margins, eulerian_results["dec"])
 
-    # Step 6: Summary statistics
     nec_summary = _compute_summary(nec_margins)
     wec_summary = _compute_summary(wec_margins)
     sec_summary = _compute_summary(sec_margins)
     dec_summary = _compute_summary(dec_margins)
 
-    # Step 6b: Classification statistics.
-    # int/float concretize JAX tracers -- prevents jax.jit (see docstring).
     n_type_i = int(jnp.sum(he_types == 1.0))
     n_type_ii = int(jnp.sum(he_types == 2.0))
     n_type_iii = int(jnp.sum(he_types == 3.0))
     n_type_iv = int(jnp.sum(he_types == 4.0))
-    # Near-vacuum points (max|Re lambda| < tol), a subset of n_type_i;
-    # counted separately so callers can remove the vacuum contribution.
+    # Near-vacuum is a subset of n_type_i; subtract for vacuum contribution.
     n_vacuum = int(jnp.sum(cls_results.is_vacuum))
     max_imag = float(jnp.max(jnp.abs(cls_results.eigenvalues_imag)))
 
-    # Step 7: Reshape to grid
     def reshape(arr):
         return arr.reshape(*grid_shape, *arr.shape[1:])
 
@@ -420,59 +559,42 @@ def verify_grid(
     )
 
 
-# ---------------------------------------------------------------------------
-# Public API: Eulerian-frame EC (separate from optimization)
-# ---------------------------------------------------------------------------
-
-
 def _eulerian_ec_point(
     T_ab: Float[Array, "4 4"],
     g_ab: Float[Array, "4 4"],
     g_inv: Float[Array, "4 4"],
 ) -> dict[str, Float[Array, ""]]:
     """Internal: Eulerian EC margins at a single point (vmappable)."""
-    # ADM normal: n^a = (1/alpha, -beta^i/alpha)
-    # where alpha = 1/sqrt(-g^{00}) and beta^i = g^{0i} * alpha^2
-    # => n^0 = 1/alpha, n^i = -g^{0i} * alpha
-    alpha = 1.0 / jnp.sqrt(-g_inv[0, 0])
+    # Floor -g^{00} against CTC noise so near-causal pencils don't emit NaN.
+    alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], 1e-30))
     n_up = jnp.zeros(4)
     n_up = n_up.at[0].set(1.0 / alpha)
     n_up = n_up.at[1].set(-g_inv[0, 1] * alpha)
     n_up = n_up.at[2].set(-g_inv[0, 2] * alpha)
     n_up = n_up.at[3].set(-g_inv[0, 3] * alpha)
 
-    # WEC: T_{ab} n^a n^b (energy density seen by Eulerian observer)
     wec_margin = jnp.einsum("a,ab,b->", n_up, T_ab, n_up)
 
-    # NEC: T_{ab} k^a k^b for null vectors aligned with Eulerian frame
-    # Use orthonormal tetrad from the metric
     tetrad = compute_orthonormal_tetrad(g_ab)
-    # Evaluate T_{ab} k^a k^b for null vectors in 6 principal directions
-    # k = e_0 +/- e_i for i=1,2,3
-    nec_vals = []
-    for i in range(1, 4):
-        k_plus = tetrad[0] + tetrad[i]
-        k_minus = tetrad[0] - tetrad[i]
-        nec_vals.append(jnp.einsum("a,ab,b->", k_plus, T_ab, k_plus))
-        nec_vals.append(jnp.einsum("a,ab,b->", k_minus, T_ab, k_minus))
-    nec_margin = jnp.min(jnp.array(nec_vals))
+    spatial = tetrad[1:4]
+    k_all = jnp.concatenate(
+        [tetrad[0][None, :] + spatial, tetrad[0][None, :] - spatial], axis=0
+    )
+    nec_vals = jnp.einsum("ia,ab,ib->i", k_all, T_ab, k_all)
+    nec_margin = jnp.min(nec_vals)
 
-    # SEC: (T_{ab} - 0.5 T g_{ab}) n^a n^b
     T_trace = jnp.einsum("ab,ab->", g_inv, T_ab)
     sec_tensor = T_ab - 0.5 * T_trace * g_ab
     sec_margin = jnp.einsum("a,ab,b->", n_up, sec_tensor, n_up)
 
-    # DEC: flux j^a = -T^a_b n^b must be causal AND future-directed
     T_mixed = g_inv @ T_ab
     j = -jnp.einsum("ac,c->a", T_mixed, n_up)
     j_norm_sq = jnp.einsum("a,ab,b->", j, g_ab, j)
-    dec_flux_margin = -j_norm_sq  # positive when flux is timelike/null (causal)
+    dec_flux_margin = -j_norm_sq
 
-    # Future-directedness: j . n < 0 means future-directed (n is future-pointing)
     n_down = jnp.einsum("ab,b->a", g_ab, n_up)
     dec_future_margin = -jnp.einsum("a,a->", j, n_down)
 
-    # DEC requires causal flux AND future-directed AND non-negative energy (WEC).
     dec_margin = jnp.minimum(wec_margin, jnp.minimum(dec_flux_margin, dec_future_margin))
 
     return {"nec": nec_margin, "wec": wec_margin, "sec": sec_margin, "dec": dec_margin}
@@ -510,11 +632,6 @@ def compute_eulerian_ec(
     return _eulerian_ec_point(T_ab, g_ab, g_inv)
 
 
-# ---------------------------------------------------------------------------
-# Public API: ANEC
-# ---------------------------------------------------------------------------
-
-
 def anec_integrand(
     T_ab: Float[Array, "4 4"],
     k: Float[Array, "4"],
@@ -541,17 +658,3 @@ def anec_integrand(
     """
     return jnp.einsum("a,ab,b->", k, T_ab, k)
 
-
-def anec_integral(T_field, geodesic):
-    """Deprecated. Use ``warpax.averaged.anec`` instead."""
-    import warnings
-
-    warnings.warn(
-        "warpax.energy_conditions.verifier.anec_integral is deprecated; "
-        "use warpax.averaged.anec instead ().",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    from ..averaged.anec import anec
-
-    return anec(T_field, geodesic)

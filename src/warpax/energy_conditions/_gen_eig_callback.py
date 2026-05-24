@@ -15,10 +15,6 @@ callback is composable under :func:`jax.jit` and :func:`jax.vmap` provided
 scipy is imported lazily by the caller (``classification.py`` only imports
 this module when ``solver='generalized'``), so the default
 ``solver='standard'`` path retains zero scipy dependency.
-
-References
-----------
-- Paper commitment to solving the generalized pencil (T - lambda*g)v = 0.
 """
 from __future__ import annotations
 

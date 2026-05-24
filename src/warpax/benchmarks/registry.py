@@ -16,11 +16,6 @@ from .minkowski import MinkowskiMetric, GROUND_TRUTH as MINKOWSKI_GT
 from .schwarzschild import SchwarzschildMetric, GROUND_TRUTH as SCHWARZSCHILD_GT
 
 
-# ---------------------------------------------------------------------------
-# GroundTruth dataclass
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class GroundTruth:
     """Ground truth data for a benchmark spacetime.
@@ -42,11 +37,6 @@ class GroundTruth:
 
     def get(self, key: str, default: Any = None) -> Any:
         return self.properties.get(key, default)
-
-
-# ---------------------------------------------------------------------------
-# MetricRegistry
-# ---------------------------------------------------------------------------
 
 
 class MetricRegistry:
@@ -105,11 +95,6 @@ class MetricRegistry:
 
     def __contains__(self, name: str) -> bool:
         return name in self._entries
-
-
-# ---------------------------------------------------------------------------
-# Default registry with all benchmarks
-# ---------------------------------------------------------------------------
 
 
 def create_default_registry() -> MetricRegistry:

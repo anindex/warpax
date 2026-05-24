@@ -31,10 +31,6 @@ from jaxtyping import Array, Float
 from .geometry import CurvatureResult
 
 
-# ---------------------------------------------------------------------------
-# Even/odd permutation indices for the 4D Levi-Civita tensor
-# ---------------------------------------------------------------------------
-
 # All 24 permutations of (0,1,2,3) with their signs.
 # Even permutations (+1):
 _EVEN_PERMS = (
@@ -196,29 +192,18 @@ def chern_pontryagin(
 
     Returns
     -------
-    Float[Array, ""]
+        Float[Array, ""]
         Chern-Pontryagin scalar.
     """
-    # Step 1: Lower first index R_{abcd} = g_{ae} R^e_{bcd}
+    # Pontryagin: *R R contraction via Hodge-dual of fully-raised Riemann
     R_down = jnp.einsum("ae,ebcd->abcd", metric, riemann)
-
-    # Step 2: Raise first two indices R^{ab}_{cd} = g^{ae} g^{bf} R_{efcd}
     R_up_cd = jnp.einsum("ae,bf,efcd->abcd", metric_inv, metric_inv, R_down)
-
-    # Step 3: Levi-Civita tensor
     epsilon = _levi_civita_4d(metric)
-
-    # Step 4: Hodge dual *R_{abcd} = (1/2) epsilon_{abef} R^{ef}_{cd}
     R_dual = 0.5 * jnp.einsum("abef,efcd->abcd", epsilon, R_up_cd)
-
-    # Step 5: Fully raise R_down for contraction
-    # R^{abcd} = g^{ae} g^{bf} g^{cg} g^{dh} R_{efgh}
     R_up_all = jnp.einsum(
         "ae,bf,cg,dh,efgh->abcd",
         metric_inv, metric_inv, metric_inv, metric_inv, R_down,
     )
-
-    # Step 6: Contract *R_{abcd} R^{abcd}
     return jnp.einsum("abcd,abcd->", R_dual, R_up_all)
 
 

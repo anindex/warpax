@@ -61,11 +61,6 @@ class AWECResult(NamedTuple):
     termination_reason: str
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
 def _tangent_renormalized_timelike(
     g_ab: Float[Array, "4 4"],
     u: Float[Array, "4"],
@@ -126,11 +121,6 @@ def _extract_trajectory(
     return lam, positions, velocities, _SUCCESS_CODE
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
 @jaxtyped(typechecker=beartype)
 def awec(
     metric: MetricSpecification,
@@ -185,8 +175,10 @@ def awec(
         lambda c, u: _awec_integrand_at_point(metric, c, u, tangent_norm)
     )(positions, velocities)
 
-    dlam = lam[1] - lam[0]
-    line_integral = jnp.sum(integrand) * dlam
+    # Trapezoidal integration over the affine parameter; matches the
+    # docstring "AWEC = integral_R T_ab u^a u^b dlam" and is robust to
+    # non-uniform lam spacing returned by the sampler.
+    line_integral = jnp.trapezoid(integrand, lam)
 
     geodesic_complete = result_code == _SUCCESS_CODE
     termination_reason = _TERMINATION_REASONS.get(result_code, "unknown")

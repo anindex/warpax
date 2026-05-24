@@ -31,11 +31,6 @@ from ..geometry.metric import ADMMetric, SymbolicMetric
 from ._common import alcubierre_shape
 
 
-# ---------------------------------------------------------------------------
-# Shape function helpers (pure JAX)
-# ---------------------------------------------------------------------------
-
-
 def _van_den_broeck_B(
     r_s: Float[Array, "..."],
     R_tilde: float,
@@ -54,11 +49,6 @@ def _van_den_broeck_B(
     """
     f_B = alcubierre_shape(r_s, R_tilde, sigma_B)
     return 1.0 + alpha_vdb * f_B
-
-
-# ---------------------------------------------------------------------------
-# VanDenBroeckMetric (ADM decomposition)
-# ---------------------------------------------------------------------------
 
 
 class VanDenBroeckMetric(ADMMetric):
@@ -96,14 +86,14 @@ class VanDenBroeckMetric(ADMMetric):
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         t, x, y, z = coords
-        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2)
+        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2 + 1e-60)
         f = alcubierre_shape(r_s, self.R, self.sigma)
         return jnp.array([-self.v_s * f, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
         t, x, y, z = coords
-        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2)
+        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2 + 1e-60)
         B = _van_den_broeck_B(r_s, self.R_tilde, self.alpha_vdb, self.sigma_B)
         return B**2 * jnp.eye(3)
 
@@ -111,7 +101,7 @@ class VanDenBroeckMetric(ADMMetric):
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Alcubierre shape function f(r_s) for the VDB metric."""
         t, x, y, z = coords
-        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2)
+        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2 + 1e-60)
         return alcubierre_shape(r_s, self.R, self.sigma)
 
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
@@ -126,15 +116,13 @@ class VanDenBroeckMetric(ADMMetric):
         alpha_vdb = sp.Symbol("alpha_vdb", positive=True)
         sigma_B = sp.Symbol("sigma_B", positive=True)
 
-        r_s = sp.sqrt(x**2 + y**2 + z**2)
+        r_s = sp.sqrt((x - v_s * t) ** 2 + y**2 + z**2)
 
-        # Shift shape function (outer bubble)
         f = (
             sp.tanh(sigma_val * (r_s + R_val))
             - sp.tanh(sigma_val * (r_s - R_val))
         ) / (2 * sp.tanh(sigma_val * R_val))
 
-        # Conformal factor shape function (inner bubble)
         f_B = (
             sp.tanh(sigma_B * (r_s + R_tilde))
             - sp.tanh(sigma_B * (r_s - R_tilde))
@@ -143,10 +131,7 @@ class VanDenBroeckMetric(ADMMetric):
 
         beta_x = -v_s * f
 
-        # Full 4x4 metric:
-        # g_00 = -(alpha^2 - gamma_ij beta^i beta^j) = -(1 - B^2 beta_x^2)
-        # g_0x = gamma_xj beta^j = B^2 * beta_x
-        # g_ij = B^2 * delta_ij
+        # g_00 = -(1 - B^2 beta_x^2); g_0x = B^2 beta_x; g_ij = B^2 delta_ij
         g = sp.Matrix([
             [-(1 - B**2 * beta_x**2), B**2 * beta_x, 0, 0],
             [B**2 * beta_x, B**2, 0, 0],
@@ -158,10 +143,6 @@ class VanDenBroeckMetric(ADMMetric):
     def name(self) -> str:
         return "Van Den Broeck"
 
-
-# ---------------------------------------------------------------------------
-# Ground truth for validation
-# ---------------------------------------------------------------------------
 
 GROUND_TRUTH = {
     "stress_energy_zero": False,

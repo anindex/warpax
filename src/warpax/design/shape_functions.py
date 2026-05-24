@@ -1,34 +1,15 @@
-"""- ShapeFunction: differentiable shape-function basis library.
+"""Differentiable shape-function basis library.
 
-A shape function ``f : R -> R`` (typically ``f(r)`` for a radial coordinate)
-is the scalar profile that modulates the warp-bubble metric. The hand-picked
-shape families used in the literature (Alcubierre tanh, Rodal Gaussian
-wall, Natario dual-lobe, Van den Broeck compound, Lentz walls) are
-complemented here by a *differentiable parameter family* so that the
-optimizer can search the shape space via ``jax.grad`` over the full
-curvature chain.
+A shape function ``f : R -> R`` (typically ``f(r)``) is the scalar
+profile that modulates the warp-bubble metric. Three JAX-traceable
+basis families are exposed as ``ShapeFunction`` classmethods:
 
-This module provides three basis families, each exposed as a
-``classmethod`` constructor on :class:`ShapeFunction`:
-
-- :meth:`ShapeFunction.spline` - cubic B-spline via ``interpax.interp1d``.
-  Default 24 knots; matches the Alcubierre reproduction target. Requires the ``[design]`` extra
-  (``pip install "warpax[design]"``).
-- :meth:`ShapeFunction.bernstein` - pure-JAX Bernstein polynomial basis
-  on ``r / r_max`` (rescaled to ``[0, 1]``); no extra dependencies.
-- :meth:`ShapeFunction.gmm` - Gaussian-mixture-model
-  ``sum_k amps_k * exp(-((r - means_k) / widths_k)^2)``.
-
-Every evaluation path is JAX-traceable (no Python branching on traced
-values), so ``jax.grad`` / ``jax.jit`` / ``jax.vmap`` all work
-out-of-the-box. Per-basis differentiability contract:
-``|jax.jacfwd(sf)(r) - finite_difference(sf)(r)|_max < 1e-7`` on
-100 random probe points.
-
-References
-----------
-- §6 (Constrained BFGS Strategy) - authoritative spec;
-  rationale + Bernstein/GMM fallback motivation.
+- :meth:`ShapeFunction.spline` -- cubic B-spline via
+  ``interpax.interp1d``; requires the ``[design]`` extra.
+- :meth:`ShapeFunction.bernstein` -- Bernstein polynomial basis on
+  ``r / r_max``; pure JAX.
+- :meth:`ShapeFunction.gmm` -- Gaussian mixture
+  ``sum_k a_k * exp(-((r - mu_k) / sigma_k)^2)``.
 """
 from __future__ import annotations
 
@@ -72,10 +53,6 @@ class ShapeFunction(eqx.Module):
     basis: str = eqx.field(static=True)
     params: dict[str, Any]
     order: int = eqx.field(static=True, default=3)
-
-    # ------------------------------------------------------------------
-    # Classmethod constructors (basis-specific)
-    # ------------------------------------------------------------------
 
     @classmethod
     def spline(
@@ -217,10 +194,6 @@ class ShapeFunction(eqx.Module):
             params={"means": means, "widths": widths, "amps": amps},
         )
 
-    # ------------------------------------------------------------------
-    # Evaluation
-    # ------------------------------------------------------------------
-
     def __call__(self, r: Float[Array, ""]) -> Float[Array, ""]:
         """Evaluate the shape function at radial coordinate ``r``.
 
@@ -252,11 +225,6 @@ class ShapeFunction(eqx.Module):
                 f"ShapeFunction: unknown basis {self.basis!r}; "
                 f"expected one of {'spline', 'bernstein', 'gmm'}."
             )
-
-
-# ---------------------------------------------------------------------------
-# Internal evaluation helpers
-# ---------------------------------------------------------------------------
 
 
 def _eval_spline(r, params):

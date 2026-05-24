@@ -45,10 +45,6 @@ class RenderTheme:
     window_size: tuple[int, int]
 
 
-# ---------------------------------------------------------------------------
-# Built-in presets
-# ---------------------------------------------------------------------------
-
 PAPER_THEME = RenderTheme(
     background="white",
     font_color="black",

@@ -1,35 +1,11 @@
-"""ECHeatmapContour: 2D Manim Scene showing EC margin heatmap with contour overlays.
+"""ECHeatmapContour: 2D observer-robust NEC margin heatmap with contour overlays.
 
-Renders a full-screen equatorial-plane heatmap of observer-robust NEC margins
-for the Alcubierre metric, with overlays:
-
-1. **NEC ≈ 0 contour** (near-zero isoline) as a white dashed path - shows
-   the boundary where NEC transitions from negligible to significant
-   violation.
-2. **Bubble wall contour** (shape function f = 0.5) as a cyan outline -
-   shows the physical extent of the warp bubble.
-3. **Moving center dot** - white dot tracking the bubble center.
-
-RGBA arrays are precomputed with global fixed color limits (SymLogNorm)
-to prevent per-frame flicker.
-
-Layout
-------
-- **Top center**: title + metric equation (static)
-- **Upper-left**: live v_s parameter display
-- **Upper-right**: 5-stop color legend bar
-- **Lower-left**: contour annotation legend
-- **Lower-right**: NEC violation indicator dot
-
-Usage::
-
-    manim render -ql --format mp4 \\
-        src/warpax/visualization/manim/_heatmap_contour.py ECHeatmapContour
+Usage: manim render -ql --format mp4 src/warpax/visualization/manim/_heatmap_contour.py ECHeatmapContour
 """
 from __future__ import annotations
 
 import numpy as np
-import matplotlib.cm as _mcm
+import matplotlib as _mpl
 from matplotlib.colors import LinearSegmentedColormap
 
 from manim import (
@@ -66,25 +42,15 @@ from warpax.visualization.manim._image_utils import (
 )
 from warpax.visualization.manim._scene_utils import COLORS_3B1B
 
-# ---------------------------------------------------------------------------
-# Dark-midpoint diverging colormap: blue -> dark navy -> red
-# ---------------------------------------------------------------------------
+
 _DARK_DIVERGE = LinearSegmentedColormap.from_list(
-    "dark_diverge_hc", ["#3B4CC0", "#1A1A2E", "#"], N=256,
+    "dark_diverge_hc", ["#3B4CC0", "#1A1A2E", "#B40426"], N=256,
 )
 try:
-    _mcm.register_cmap(name="dark_diverge_hc", cmap=_DARK_DIVERGE)
-except (ValueError, AttributeError):
-    try:
-        import matplotlib as _mpl
-        _mpl.colormaps.register(_DARK_DIVERGE, name="dark_diverge_hc")
-    except Exception:
-        pass
+    _mpl.colormaps.register(_DARK_DIVERGE, name="dark_diverge_hc")
+except ValueError:
+    pass  # already registered
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _contour_to_vmobject(
     paths: list[np.ndarray],
@@ -107,11 +73,6 @@ def _contour_to_vmobject(
     return group
 
 
-# ---------------------------------------------------------------------------
-# Scene
-# ---------------------------------------------------------------------------
-
-
 class ECHeatmapContour(Scene):
     """2D heatmap of observer-robust NEC margins with bubble contour overlay.
 
@@ -120,9 +81,6 @@ class ECHeatmapContour(Scene):
     """
 
     def construct(self) -> None:
-        # ==================================================================
-        # Configuration
-        # ==================================================================
         n_physics_frames = 30
         v_start = 0.1
         v_end = 0.99
@@ -136,9 +94,6 @@ class ECHeatmapContour(Scene):
 
         self.camera.background_color = COLORS_3B1B["background"]
 
-        # ==================================================================
-        # Step 1: Precompute all FrameData via velocity sweep
-        # ==================================================================
         from warpax.benchmarks import AlcubierreMetric
         from warpax.geometry import GridSpec
         from warpax.visualization.common._physics import (
@@ -162,9 +117,6 @@ class ECHeatmapContour(Scene):
         )
         n_frames = len(frames)
 
-        # ==================================================================
-        # Step 2: Pre-render all RGBA arrays with global fixed clim
-        # ==================================================================
         print("Computing global color limits...")
         vmin, vmax, linthresh = compute_symlog_clim(frames, field_name)
         global_clim = (vmin, vmax, linthresh)
@@ -175,9 +127,6 @@ class ECHeatmapContour(Scene):
             for f in frames
         ]
 
-        # ==================================================================
-        # Step 3: Pre-extract contours for each frame
-        # ==================================================================
         print("Extracting contours...")
         zero_contour_paths: list[list[np.ndarray]] = []
         bubble_contour_paths: list[list[np.ndarray]] = []
@@ -205,9 +154,6 @@ class ECHeatmapContour(Scene):
             )
             bubble_contour_paths.append(bc)
 
-        # ==================================================================
-        # Step 4: Static header - title + equation
-        # ==================================================================
         title_text = Text(
             "Observer-Robust NEC Margin",
             font_size=28, color=WHITE, weight="LIGHT",
@@ -219,9 +165,6 @@ class ECHeatmapContour(Scene):
         header.to_edge(UP, buff=0.15)
         self.add(header)
 
-        # ==================================================================
-        # Step 5: Build scene layout - heatmap + contours
-        # ==================================================================
         frame_idx = ValueTracker(0)
         heatmap_center = DOWN * 0.3
 
@@ -257,9 +200,6 @@ class ECHeatmapContour(Scene):
 
         center_dot = Dot(point=heatmap_center, radius=0.08, color=WHITE)
 
-        # ==================================================================
-        # Step 6: Parameter display - upper-left
-        # ==================================================================
         vs_mathtex = [
             MathTex(f"{f.v_s:.2f}", font_size=30, color=YELLOW)
             for f in frames
@@ -278,10 +218,7 @@ class ECHeatmapContour(Scene):
 
         param_display = always_redraw(_make_param)
 
-        # ==================================================================
-        # Step 7: Color legend - upper-right
-        # ==================================================================
-        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#"]
+        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#B40426"]
         bg_strips = VGroup(*[
             Rectangle(
                 width=0.24, height=0.08,
@@ -293,7 +230,7 @@ class ECHeatmapContour(Scene):
             "NEC margin", font_size=14, color=WHITE, weight="LIGHT",
         )
         bg_lo = MathTex(r"-", font_size=16, color="#3B4CC0")
-        bg_hi = MathTex(r"+", font_size=16, color="#")
+        bg_hi = MathTex(r"+", font_size=16, color="#B40426")
         bg_bar_row = VGroup(bg_lo, bg_strips, bg_hi).arrange(RIGHT, buff=0.05)
         color_legend = VGroup(bg_title, bg_bar_row).arrange(
             DOWN, buff=0.06, aligned_edge=LEFT,
@@ -305,9 +242,6 @@ class ECHeatmapContour(Scene):
         )
         color_legend_group = VGroup(color_legend_bg, color_legend)
 
-        # ==================================================================
-        # Step 8: Contour annotation - lower-left
-        # ==================================================================
         dash_sample = DashedVMobject(
             VMobject(color=WHITE, stroke_width=2.0).set_points_as_corners(
                 [np.array([-0.3, 0, 0]), np.array([0.3, 0, 0])]
@@ -345,9 +279,6 @@ class ECHeatmapContour(Scene):
         )
         annotation_group = VGroup(annotation_bg, annotation)
 
-        # ==================================================================
-        # Step 9: Violation indicator - lower-right
-        # ==================================================================
         def _make_violation():
             idx = int(frame_idx.get_value())
             idx = max(0, min(idx, n_frames - 1))
@@ -362,9 +293,6 @@ class ECHeatmapContour(Scene):
 
         violation = always_redraw(_make_violation)
 
-        # ==================================================================
-        # Step 10: Assemble and animate
-        # ==================================================================
         self.add(heatmap, zero_contour, bubble_contour, center_dot)
         self.add(param_display, color_legend_group, annotation_group, violation)
 

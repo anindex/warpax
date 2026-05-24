@@ -1,28 +1,6 @@
-"""BubbleCollapse: Manim ThreeDScene showing sigma sweep + velocity turn-off.
+"""BubbleCollapse: Alcubierre sigma sweep then velocity turn-off (dual-layer 3D).
 
-Demonstrates the Alcubierre warp bubble response to both wall thickness
-(sigma) variation and velocity collapse. The scene has two sequential
-phases:
-
-1. **Sigma sweep (frames 0-44):** sigma increases from 1.0 to 16.0 at
-   fixed v_s=0.5, showing how the wall sharpens.
-2. **Velocity collapse (frames 45-89):** v_s ramps down from 0.5 to 0.01
-   at fixed sigma=16.0, showing curvature diminishing.
-
-Dual-layer rendering:
-
-- **Upper layer:** translucent wireframe embedding surface showing
-  ``energy_density`` (RdBu_r colorscale) throughout.
-- **Lower layer:** flat heatmap showing ``nec_margin_sweep`` (RdYlGn
-  colorscale: green = NEC satisfied, red = violated) throughout.
-
-Both layers are always visible. All frames are computed with ``build_ec_frame_sequence``
-so that ``nec_margin_sweep`` is available from frame 0.
-
-Usage::
-
-    manim render -ql --format mp4 \\
-        src/warpax/visualization/manim/_bubble_collapse.py BubbleCollapse
+Usage: manim render -ql --format mp4 src/warpax/visualization/manim/_bubble_collapse.py BubbleCollapse
 """
 from __future__ import annotations
 
@@ -75,9 +53,6 @@ class BubbleCollapse(ThreeDScene):
     """
 
     def construct(self) -> None:
-        # ==================================================================
-        # Step 1: Pre-compute all FrameData (with EC fields)
-        # ==================================================================
         from warpax.geometry import GridSpec
 
         # Tighter domain to focus on bubble wall structure
@@ -96,9 +71,6 @@ class BubbleCollapse(ThreeDScene):
         # Sigma values array for parameter display updater
         sigma_values = np.linspace(1.0, 16.0, n_sigma)
 
-        # ==================================================================
-        # Step 2: Setup 3D scene - tighter framing
-        # ==================================================================
         self.set_camera_orientation(
             phi=70 * DEGREES,
             theta=-45 * DEGREES,
@@ -121,9 +93,6 @@ class BubbleCollapse(ThreeDScene):
         max_abs = max(abs(ed_clim[0]), abs(ed_clim[1]))
         z_extent = max_abs * exag * 1.3
 
-        # ==================================================================
-        # Step 3: Title + equation overlay - top center
-        # ==================================================================
         title_text = Text(
             "Alcubierre Bubble Collapse",
             font_size=22, color=WHITE, weight="LIGHT",
@@ -135,9 +104,6 @@ class BubbleCollapse(ThreeDScene):
         self.add_fixed_in_frame_mobjects(header)
         self.add(header)
 
-        # ==================================================================
-        # Step 4: ValueTracker + always_redraw surfaces
-        # ==================================================================
         frame_idx = ValueTracker(0)
 
         def _make_surface():
@@ -166,15 +132,7 @@ class BubbleCollapse(ThreeDScene):
         embedding = always_redraw(_make_surface)
         heatmap = always_redraw(_make_heatmap)
 
-        # ==================================================================
-        # Step 5: Parameter displays - left side, manually aligned
-        # ==================================================================
         # Build aligned rows: label = value
-        # NOTE: In ThreeDScene, DecimalNumber.set_value recreates internal
-        # submobjects that lose their fixed-in-frame registration. We use
-        # ``become`` in the updaters instead, which replaces geometry
-        # in-place and preserves the registration. Each leaf mobject is
-        # also registered individually to avoid VGroup propagation issues.
         v_label = MathTex(r"v_s", font_size=32, color=WHITE)
         v_eq = MathTex(r"=", font_size=32, color=WHITE)
         v_num = DecimalNumber(
@@ -228,9 +186,6 @@ class BubbleCollapse(ThreeDScene):
         s_num.add_updater(_update_sigma)
         v_num.add_updater(_update_v)
 
-        # ==================================================================
-        # Step 6: Color legends - upper-right
-        # ==================================================================
         # Energy density legend (RdBu_r) --
         ed_colors = ["#2166AC", "#67A9CF", "#F7F7F7", "#EF8A62", "#B2182B"]
         ed_strips = VGroup(*[
@@ -249,7 +204,7 @@ class BubbleCollapse(ThreeDScene):
         ed_bar_row = VGroup(ed_lo, ed_strips, ed_hi).arrange(
             RIGHT, buff=0.06,
         )
-        ed_field = MathTex(r"T_{00}", font_size=22, color=WHITE)
+        ed_field = MathTex(r"\rho_{\rm Eul}", font_size=22, color=WHITE)
         ed_top_row = VGroup(ed_field, ed_title).arrange(
             RIGHT, buff=0.12,
         )
@@ -315,9 +270,6 @@ class BubbleCollapse(ThreeDScene):
         dot_mob.add_updater(_update_violation)
         self.add_fixed_in_frame_mobjects(legend_group)
 
-        # ==================================================================
-        # Step 7: Animate
-        # ==================================================================
         self.add(axes, embedding, heatmap)
         self.begin_ambient_camera_rotation(rate=0.008, about="theta")
         self.play(
@@ -330,10 +282,6 @@ class BubbleCollapse(ThreeDScene):
         # Fade out header before outro
         self.play(FadeOut(header), run_time=0.5)
         self.wait(2)  # Outro freeze frame
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _build_sigma_frames(grid_spec, n_frames: int = 45):

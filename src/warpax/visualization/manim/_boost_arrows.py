@@ -1,27 +1,6 @@
-"""BoostArrows: worst-case boost direction arrow field overlay.
+"""BoostArrows: worst-case boost direction arrow field overlay on NEC margin.
 
-A 2D ``Scene`` that overlays
-directional arrows on an observer-robust NEC margin heatmap, showing
-at each grid point which boost direction and magnitude produces the
-worst-case energy condition violation.
-
-The arrow direction is the spatial direction of the worst-case observer
-boost projected onto the equatorial (x-y) plane. Arrow **length**
-encodes boost magnitude ``|sinh(ζ*)|`` and arrow **color** encodes
-the local NEC margin value (red = violated, green = satisfied),
-matching the RdYlGn colorscale used in the BubbleCollapse heatmap
-layer.
-
-Arrows are subsampled (every 3-4 grid points) to avoid visual clutter.
-
-Data pipeline: uses the observer sweep from
-``build_ec_frame_sequence`` with explicit per-observer margin tracking
-to identify which observer gives the worst margin at each point.
-
-Usage::
-
-    manim render -qm --format mp4 \\
-        src/warpax/visualization/manim/_boost_arrows.py BoostArrows
+Usage: manim render -ql --format mp4 src/warpax/visualization/manim/_boost_arrows.py BoostArrows
 """
 from __future__ import annotations
 
@@ -62,24 +41,14 @@ from warpax.visualization.manim._scene_utils import COLORS_3B1B
 # Dark-midpoint diverging colormap: blue -> dark gray -> red.
 _DARK_DIVERGE = LinearSegmentedColormap.from_list(
     "dark_diverge",
-    ["#3B4CC0", "#1A1A2E", "#"],
+    ["#3B4CC0", "#1A1A2E", "#B40426"],
     N=256,
 )
-import matplotlib.cm as _mcm
+import matplotlib as _mpl
 try:
-    _mcm.register_cmap(name="dark_diverge", cmap=_DARK_DIVERGE)
-except (ValueError, AttributeError):
-    # matplotlib >= 3.7 uses colormaps registry
-    try:
-        import matplotlib as _mpl
-        _mpl.colormaps.register(_DARK_DIVERGE, name="dark_diverge")
-    except Exception:
-        pass
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+    _mpl.colormaps.register(_DARK_DIVERGE, name="dark_diverge")
+except ValueError:
+    pass  # already registered
 
 
 def _contour_to_vmobject(
@@ -152,7 +121,10 @@ def _compute_boost_direction_field(
     from warpax.energy_conditions.sweep import sweep_nec_margins
     from warpax.geometry import GridSpec
     from warpax.geometry.grid import evaluate_curvature_grid
-    from warpax.visualization.common._conversion import _symmetric_clim
+    from warpax.visualization.common._conversion import (
+        _symmetric_clim,
+        eulerian_energy_density_grid,
+    )
     from warpax.visualization.common._frame_data import FrameData
 
     if bounds is None:
@@ -238,9 +210,11 @@ def _compute_boost_direction_field(
     dir_eq = direction_2d[:, :, mid_z, :]  # (Nx, Ny, 2)
     mag_eq = magnitude_2d_full[:, :, mid_z]  # (Nx, Ny)
 
-    # Also compute worst_margin reshaped for the FrameData
     worst_margin_grid = worst_margin.reshape(grid_shape)
-    energy_density = np.asarray(result.stress_energy[..., 0, 0])
+    energy_density = eulerian_energy_density_grid(
+        result.stress_energy, result.metric_inv
+    )
+    T_00_covariant = np.asarray(result.stress_energy[..., 0, 0])
 
     # Extract coordinates
     X, Y, Z = grid_spec.meshgrid
@@ -251,14 +225,17 @@ def _compute_boost_direction_field(
     scalar_fields = {
         "nec_margin_sweep": worst_margin_grid,
         "energy_density": energy_density,
+        "T_00_covariant": T_00_covariant,
     }
     colormaps = {
         "nec_margin_sweep": "RdBu_r",
         "energy_density": "RdBu_r",
+        "T_00_covariant": "RdBu_r",
     }
     clim = {
         "nec_margin_sweep": _symmetric_clim(worst_margin_grid),
         "energy_density": _symmetric_clim(energy_density),
+        "T_00_covariant": _symmetric_clim(T_00_covariant),
     }
 
     frame = FrameData(
@@ -400,11 +377,6 @@ def _make_arrow_field(
     return arrows
 
 
-# ---------------------------------------------------------------------------
-# Scene
-# ---------------------------------------------------------------------------
-
-
 class BoostArrows(Scene):
     """Worst-case boost direction arrow field overlay on NEC margin heatmap.
 
@@ -438,9 +410,6 @@ class BoostArrows(Scene):
         # Background
         self.camera.background_color = COLORS_3B1B["background"]
 
-        # ==============================================================
-        # Step 1: Compute boost direction field
-        # ==============================================================
         frame, dir_eq, mag_eq = _compute_boost_direction_field(
             metric_name=self.metric_name,
             v_s=self.v_s,
@@ -448,9 +417,6 @@ class BoostArrows(Scene):
             bounds=self.bounds,
         )
 
-        # ==============================================================
-        # Step 2: Background heatmap (NEC margin, dark-midpoint diverging)
-        # ==============================================================
         clim = compute_symlog_clim([frame], "nec_margin_sweep")
         rgba = frame_to_rgba(frame, "nec_margin_sweep", clim, cmap_name="dark_diverge")
         heatmap_img = ImageMobject(rgba)
@@ -459,9 +425,6 @@ class BoostArrows(Scene):
 
         self.add(heatmap_img)
 
-        # ==============================================================
-        # Step 3: Contour overlays
-        # ==============================================================
         mid_z = frame.grid_shape[2] // 2
         data_2d = frame.scalar_fields["nec_margin_sweep"][:, :, mid_z]
         nec_margin_eq = data_2d  # keep for arrow coloring
@@ -495,9 +458,6 @@ class BoostArrows(Scene):
         )
         self.add(bubble_contour)
 
-        # ==============================================================
-        # Step 4: Arrow field overlay (colored by NEC margin)
-        # ==============================================================
         arrow_field = _make_arrow_field(
             dir_eq, mag_eq,
             nec_margin_2d=nec_margin_eq,
@@ -511,9 +471,6 @@ class BoostArrows(Scene):
             max_arrow_length=0.6,
         )
 
-        # ==============================================================
-        # Step 5: Title + equation - top center
-        # ==============================================================
         title_text = Text(
             "Worst-Case Boost Direction",
             font_size=28, color=WHITE, weight="LIGHT",
@@ -525,9 +482,6 @@ class BoostArrows(Scene):
         header.to_edge(UP, buff=0.15)
         self.add(header)
 
-        # ==============================================================
-        # Step 6: Parameters - upper-left
-        # ==============================================================
         v_label = MathTex(r"v_s", font_size=30, color=WHITE)
         v_eq = MathTex(r"=", font_size=30, color=WHITE)
         v_val = MathTex(f"{self.v_s}", font_size=30, color=YELLOW)
@@ -548,12 +502,8 @@ class BoostArrows(Scene):
         )
         self.add(VGroup(param_bg, param_block))
 
-        # ==============================================================
-        # Step 7: Colour legends - upper-right
-        # ==============================================================
-
         # NEC margin heatmap legend (dark-midpoint diverging) --
-        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#"]
+        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#B40426"]
         bg_strips = VGroup(*[
             Rectangle(
                 width=0.28, height=0.10,
@@ -566,7 +516,7 @@ class BoostArrows(Scene):
             font_size=16, color=WHITE, weight="LIGHT",
         )
         bg_lo = MathTex(r"-", font_size=18, color="#3B4CC0")
-        bg_hi = MathTex(r"+", font_size=18, color="#")
+        bg_hi = MathTex(r"+", font_size=18, color="#B40426")
         bg_bar_row = VGroup(bg_lo, bg_strips, bg_hi).arrange(RIGHT, buff=0.06)
         bg_legend = VGroup(bg_title, bg_bar_row).arrange(
             DOWN, buff=0.08, aligned_edge=LEFT,
@@ -608,9 +558,6 @@ class BoostArrows(Scene):
         )
         self.add(VGroup(legend_bg, legend_group))
 
-        # ==============================================================
-        # Step 8: Contour annotation - lower-left
-        # ==============================================================
         # Dashed white line sample + label
         dash_sample = DashedVMobject(
             VMobject(color=WHITE, stroke_width=2.0).set_points_as_corners(
@@ -657,9 +604,6 @@ class BoostArrows(Scene):
         )
         self.add(VGroup(contour_bg, contour_legend))
 
-        # ==============================================================
-        # Step 9: Violation indicator - below params
-        # ==============================================================
         nec_min = float(np.min(nec_margin_eq))
         dot_color = (COLORS_3B1B["violation_red"] if nec_min < 0
                      else COLORS_3B1B["safe_green"])
@@ -672,8 +616,5 @@ class BoostArrows(Scene):
         status_row.next_to(param_block, DOWN, buff=0.2, aligned_edge=LEFT)
         self.add(status_row)
 
-        # ==============================================================
-        # Step 10: Fade in arrows + hold
-        # ==============================================================
         self.play(FadeIn(arrow_field), run_time=1.5)
         self.wait(5.0)

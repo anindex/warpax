@@ -1,24 +1,15 @@
-"""Jacobi geodesic deviation co-integration and tidal tensor computation.
+"""Jacobi geodesic deviation: co-integrated tidal tensor.
 
-Co-integrates the Jacobi deviation equation alongside the geodesic ODE as a
-single 16-component Diffrax system. The state vector is:
-
-    y = [x^mu (4), v^mu (4), xi^mu (4), w^mu (4)]
-
-where:
-    - x^mu: spacetime coordinates (position)
-    - v^mu: 4-velocity
-    - xi^mu: deviation vector (connecting nearby geodesics)
-    - w^mu = D xi^mu / D tau: covariant derivative of deviation along geodesic
-
-The deviation equations use the tidal tensor K^mu_rho = R^mu_{nu rho sigma} v^nu v^sigma
-and Christoffel transport terms, giving:
+Co-integrates the Jacobi equation alongside the geodesic ODE as a
+16-component Diffrax system ``y = [x^mu, v^mu, xi^mu, w^mu]`` with
+``w^mu = D xi^mu / D tau``. The deviation equations are
 
     d(xi)/dtau = w - Gamma^mu_{ab} v^a xi^b
-    d(w)/dtau = -K^mu_rho xi^rho - Gamma^mu_{ab} v^a w^b
+    d(w)/dtau  = -K^mu_rho xi^rho - Gamma^mu_{ab} v^a w^b
 
-The Riemann tensor R^lam_{mu nu rho} is computed at each integration step via
-exact nested JAX autodiff (riemann_tensor from geometry.py).
+driven by the tidal tensor
+``K^mu_rho = R^mu_{nu rho sigma} v^nu v^sigma`` and Christoffel
+transport terms.
 """
 from __future__ import annotations
 
@@ -29,11 +20,6 @@ import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 from warpax.geometry import christoffel_symbols, riemann_tensor
-
-
-# ---------------------------------------------------------------------------
-# Result type
-# ---------------------------------------------------------------------------
 
 
 class DeviationResult(NamedTuple):
@@ -67,11 +53,6 @@ class DeviationResult(NamedTuple):
     deviation_velocities: Float[Array, "N 4"]
     result: int
     event_mask: Array | None
-
-
-# ---------------------------------------------------------------------------
-# Coupled geodesic + deviation vector field (ODE right-hand side)
-# ---------------------------------------------------------------------------
 
 
 def geodesic_deviation_vector_field(
@@ -127,11 +108,6 @@ def geodesic_deviation_vector_field(
     dw = -jnp.einsum("mr,r->m", K, xi) - jnp.einsum("lab,a,b->l", gamma, v, w)
 
     return jnp.concatenate([v, a, dxi, dw])
-
-
-# ---------------------------------------------------------------------------
-# Integration with deviation
-# ---------------------------------------------------------------------------
 
 
 def integrate_geodesic_with_deviation(
@@ -215,6 +191,7 @@ def integrate_geodesic_with_deviation(
         max_steps=max_steps,
         throw=False,
         event=event,
+        adjoint=diffrax.RecursiveCheckpointAdjoint(),
     )
 
     # Unpack the 16-component state into 4 fields
@@ -232,11 +209,6 @@ def integrate_geodesic_with_deviation(
         result=sol.result,
         event_mask=sol.event_mask,
     )
-
-
-# ---------------------------------------------------------------------------
-# Tidal tensor and eigenvalues (pointwise)
-# ---------------------------------------------------------------------------
 
 
 def tidal_tensor(

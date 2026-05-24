@@ -16,7 +16,7 @@ a physical extremum over the observer manifold.
 
 The threshold for labeling a violation is ``margin < -atol``
 (configurable, default 1e-10), following the convention that
-violations are labelled only when the margin falls below ``-atol``.
+violations are labeled only when the margin falls below ``-atol``.
 
 All functions are pointwise on ``(rho, pressures)`` and intended to be
 lifted to grids via ``jax.vmap``.
@@ -25,11 +25,6 @@ from __future__ import annotations
 
 import jax.numpy as jnp
 from jaxtyping import Array, Float
-
-
-# ---------------------------------------------------------------------------
-# Individual condition checks
-# ---------------------------------------------------------------------------
 
 
 def check_wec(
@@ -59,16 +54,37 @@ def check_nec(
     return jnp.min(rho + pressures)
 
 
+def check_dec_typeI_eigenvalue_bound(
+    rho: Float[Array, ""],
+    pressures: Float[Array, "3"],
+) -> Float[Array, ""]:
+    """Type-I DEC eigenvalue bound (necessary condition only).
+
+    For a Type-I stress-energy tensor diagonalised in an orthonormal
+    frame as ``diag(rho, p_1, p_2, p_3)``, the eigenvalue form of the
+    Dominant Energy Condition requires ``rho >= |p_i|`` for all ``i``.
+    Returns ``min(rho - |p1|, rho - |p2|, rho - |p3|)``.
+
+    This check is **necessary but not sufficient** for full DEC: it
+    verifies the eigenvalue bound but not flux causality
+    (``T^a_b u^b`` future-directed timelike or null). Anisotropic
+    Type-I matter with ``rho > |p_i|`` per axis can still violate the
+    full causality / future-directedness pillar (e.g. principal-axis
+    pressures opposite-signed at large magnitude). Use
+    :func:`warpax.energy_conditions.optimization.optimize_dec` for the
+    complete margin over all future-directed timelike observers.
+    Hawking & Ellis §4.3; Visser (1995) §12.4.
+    """
+    return jnp.min(rho - jnp.abs(pressures))
+
+
 def check_dec(
     rho: Float[Array, ""],
     pressures: Float[Array, "3"],
 ) -> Float[Array, ""]:
-    """Dominant Energy Condition margin.
-
-    DEC: rho >= |p_i| for all i.
-    Returns ``min(rho - |p1|, rho - |p2|, rho - |p3|)``.
-    """
-    return jnp.min(rho - jnp.abs(pressures))
+    """Alias for :func:`check_dec_typeI_eigenvalue_bound`. See that
+    function for the necessary-only caveat."""
+    return check_dec_typeI_eigenvalue_bound(rho, pressures)
 
 
 def check_sec(
@@ -85,11 +101,6 @@ def check_sec(
         [rho + pressures, jnp.expand_dims(trace, -1)]
     )
     return jnp.min(candidates)
-
-
-# ---------------------------------------------------------------------------
-# Combined check
-# ---------------------------------------------------------------------------
 
 
 def check_all(

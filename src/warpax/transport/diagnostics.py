@@ -1,10 +1,14 @@
-"""Invariant transport diagnostics for warp shell spacetimes.
+"""Transport diagnostics for warp shell spacetimes.
 
-Three gauge-invariant observables for admissibility assessment:
+Three observables for admissibility assessment:
 
-1. Dtau_gamma -- null round-trip time asymmetry
-2. A_geo      -- geodesic deviation diagnostic
-3. B          -- blueshift hazard functional
+1. delta_t_coord -- null round-trip *coordinate-time* asymmetry. This is
+   gauge-dependent (it lives in the chosen time slicing). It is
+   invariant under constant time shifts t -> t + const but not under
+   general re-slicings t -> t + phi(x).
+2. A_geo         -- geodesic deviation diagnostic (gauge-invariant).
+3. B             -- blueshift hazard functional (gauge-invariant for
+   a chosen observer worldline).
 
 All use the existing warpax.geodesics infrastructure (Diffrax integration,
 Jacobi deviation, blueshift observables).
@@ -22,7 +26,7 @@ from ..geodesics.integrator import integrate_geodesic
 from ..geodesics.deviation import tidal_eigenvalues
 
 
-def null_round_trip_asymmetry(
+def null_coord_time_asymmetry(
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
     emitter: Float[Array, "4"],
     receiver: Float[Array, "4"],
@@ -33,15 +37,23 @@ def null_round_trip_asymmetry(
     rtol: float = 1e-8,
     atol: float = 1e-8,
 ) -> Float[Array, ""]:
-    """Compute null round-trip time asymmetry between emitter and receiver.
+    """Null round-trip *coordinate-time* asymmetry between emitter and receiver.
 
-    Deltatau_gamma = tau_forward - tau_backward
+    .. math::
+        \\Delta t_{coord} = t_{forward} - t_{backward}
 
-    where tau_forward is the coordinate time for a null geodesic from emitter
-    to receiver, and tau_backward is the return trip.
+    where ``t_forward`` is the coordinate time elapsed for a null geodesic
+    from emitter to receiver, and ``t_backward`` is the return trip.
 
-    For static, symmetric spacetimes, Deltatau_gamma = 0.
-    For warp bubbles with genuine transport, Dtau_gamma != 0.
+    For static, symmetric spacetimes, :math:`\\Delta t_{coord} = 0`.
+    For warp bubbles with genuine transport, :math:`\\Delta t_{coord} \\neq 0`.
+
+    .. warning::
+
+       Gauge-dependent: invariant under :math:`t \\to t + c` but not under
+       general re-slicings :math:`t \\to t + \\phi(\\mathbf{x})`. For a
+       coordinate-free observable, compare proper-time intervals on a
+       fixed worldline (round-trip Shapiro delay).
 
     Parameters
     ----------
@@ -55,7 +67,8 @@ def null_round_trip_asymmetry(
 
     Returns
     -------
-    Deltatau_gamma : round-trip asymmetry (0 for symmetric spacetimes)
+    delta_t_coord : round-trip coordinate-time asymmetry (0 for symmetric
+        spacetimes in the same slicing).
     """
     # Spatial direction from emitter to receiver
     dx = receiver[1:] - emitter[1:]
@@ -78,7 +91,7 @@ def null_round_trip_asymmetry(
     spatial_dist_fwd = jnp.linalg.norm(sol_fwd.positions[:, 1:] - receiver[1:], axis=1)
     idx_fwd = jnp.argmin(spatial_dist_fwd)
     t_arrive_fwd = sol_fwd.positions[idx_fwd, 0]
-    tau_fwd = t_arrive_fwd - emitter[0]
+    dt_coord_fwd = t_arrive_fwd - emitter[0]
 
     # Backward leg: receiver -> emitter
     arrival_pos = sol_fwd.positions[idx_fwd]  # Start from where forward leg arrived
@@ -100,11 +113,14 @@ def null_round_trip_asymmetry(
     spatial_dist_bwd = jnp.linalg.norm(sol_bwd.positions[:, 1:] - emitter[1:], axis=1)
     idx_bwd = jnp.argmin(spatial_dist_bwd)
     t_arrive_bwd = sol_bwd.positions[idx_bwd, 0]
-    tau_bwd = t_arrive_bwd - arrival_pos[0]
+    dt_coord_bwd = t_arrive_bwd - arrival_pos[0]
 
-    # Asymmetry
-    delta_tau = jnp.where(is_zero_dist, 0.0, tau_fwd - tau_bwd)
-    return delta_tau
+    delta_dt_coord = jnp.where(is_zero_dist, 0.0, dt_coord_fwd - dt_coord_bwd)
+    return delta_dt_coord
+
+
+# alias: null_round_trip_asymmetry
+null_round_trip_asymmetry = null_coord_time_asymmetry
 
 
 def geodesic_deviation_diagnostic(

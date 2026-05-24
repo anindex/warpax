@@ -1,25 +1,8 @@
-"""optimizer - ``design_metric`` with sigmoid reparameterization.
+"""design_metric: sigmoid-reparameterized shape-function BFGS optimizer.
 
-Reuses the ``hard_bound`` strategy name 
-via sigmoid-reparameterized shape-function parameters: unconstrained
-raw params ``theta`` map to physical values via ``tanh(theta)``, so the
-Optimistix BFGS solver sees an unconstrained loss surface while the
-physical shape-function values stay in ``[-1, 1]`` .
-
-Per the design specification. The concrete bound here is
-  the sigmoid reparameterization (shape-function param space is
-  N-dim, not the 3-vector observer space that
-  ``_solve_multistart_3d`` targets, so we do NOT reuse that specific
-  helper - instead we reuse its *pattern*: Optimistix BFGS +
-  multistart + best-of-N selection).
-- Multistart ``n_starts=16`` default; per-start seed via
-  ``jax.random.fold_in(key, start_idx)`` .
-- Each iterate constructs a ``ShapeFunctionMetric(strict=False)`` so
-  the optimizer can observe ``verify_physical`` verdicts rather than
-  crash on unphysical configurations.
-- Returns ``(ShapeFunctionMetric, OptimizationReport)``.
-
-Reference:
+Maps unconstrained ``theta`` to physical shape params via ``tanh``;
+multistart Optimistix BFGS; returns ``(ShapeFunctionMetric,
+OptimizationReport)``.
 """
 from __future__ import annotations
 
@@ -34,11 +17,6 @@ from .constraints import CONSTRAINT_REGISTRY
 from .metrics import PhysicalityVerdict, ShapeFunctionMetric
 from .objectives import OBJECTIVE_REGISTRY
 from .shape_functions import ShapeFunction
-
-
-# ---------------------------------------------------------------------------
-# Result type
-# ---------------------------------------------------------------------------
 
 
 class OptimizationReport(NamedTuple):
@@ -71,11 +49,6 @@ class OptimizationReport(NamedTuple):
     n_starts: int
 
 
-# ---------------------------------------------------------------------------
-# Sigmoid reparameterization 
-# ---------------------------------------------------------------------------
-
-
 def _sigmoid_reparam(theta_raw, lo=-1.0, hi=1.0):
     """Map unconstrained ``theta_raw`` to ``[lo, hi]`` via ``tanh``.
 
@@ -95,11 +68,6 @@ def _sigmoid_inverse(value, lo=-1.0, hi=1.0):
     # Clamp for numerical stability at the sigmoid tails.
     normalized = jnp.clip(2.0 * (value - lo) / (hi - lo) - 1.0, -0.999, 0.999)
     return jnp.arctanh(normalized)
-
-
-# ---------------------------------------------------------------------------
-# design_metric
-# ---------------------------------------------------------------------------
 
 
 def design_metric(
@@ -130,21 +98,19 @@ def design_metric(
         ``obj + sum_k max(0, -margin_k)^2``. ``None`` (default) =>
         unconstrained.
     strategy
-        Strategy-dispatch label. ``'hard_bound'`` (default) applies
-        sigmoid reparameterization to bound physical values to
-        ``[-1, 1]``. Other values currently fall through to the same
-        path (reserved for future).
+        Strategy label. ``'hard_bound'`` (default) sigmoid-reparameterises
+        physical values into ``[-1, 1]``. Other labels currently fall
+        through to the same path.
     n_starts
-        Multistart count . Default ``16``.
+        Multistart count. Default ``16``.
     rtol, atol, max_steps
         Optimistix BFGS convergence kwargs.
     v_s
-        Bubble velocity for the :class:`ShapeFunctionMetric` instances
-        constructed during optimization. Default ``0.5`` (matches
-        ``paper_params.py.V_S_PRIMARY``).
+        Bubble velocity used when constructing each candidate
+        :class:`ShapeFunctionMetric`. Default ``0.5``.
     key
         ``jax.random.PRNGKey`` for multistart randomness. Default
-        ``PRNGKey(42)`` (matches ``paper_params.py.PRNG_SEED_MULTISTART``).
+        ``PRNGKey(42)``.
 
     Returns
     -------
@@ -153,9 +119,8 @@ def design_metric(
 
     Notes
     -----
-    Only the spline ``values`` parameter is optimized; ``knots`` are
-    held fixed (static interpolation grid). Non-spline bases are
-    returned unchanged with a warning-free no-op report (future FUT).
+    Only the spline ``values`` parameter is optimized; ``knots`` stay
+    fixed. Non-spline bases are returned unchanged with a no-op report.
     """
     if key is None:
         key = jax.random.PRNGKey(42)
@@ -169,11 +134,8 @@ def design_metric(
     obj_fn = OBJECTIVE_REGISTRY[objective]
     v_s_arr = jnp.asarray(v_s)
 
-    # max_steps=0 short-circuit: return the input shape unchanged.
-    # This is the reproduction path : the optimizer
-    # verifies that the basis preserves the input profile
-    # when no BFGS step is taken (at the extreme
-    # trivially a local minimum under zero step budget).
+    # max_steps=0 short-circuit: return the input shape unchanged so the
+    # basis-preservation reproduction path stays a trivial fixed point.
     if max_steps <= 0:
         sfm0 = ShapeFunctionMetric(shape, v_s=v_s_arr, strict=False)
         # Evaluate the objective on the input metric so the report
@@ -182,7 +144,7 @@ def design_metric(
             margin0 = OBJECTIVE_REGISTRY[objective](
                 sfm0, grid_shape=(6, 6, 6), bounds=((-1.5, 1.5),) * 3,
             )
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 - objective may raise JAX tracer / runtime errors
             margin0 = jnp.asarray(jnp.nan)
         return sfm0, OptimizationReport(
             converged=True,
@@ -193,7 +155,6 @@ def design_metric(
             n_starts=n_starts,
         )
 
-    # Non-spline bases: return unchanged (future FUT to extend)
     if shape.basis != "spline":
         sfm = ShapeFunctionMetric(shape, v_s=v_s_arr, strict=False)
         report = OptimizationReport(
@@ -243,15 +204,11 @@ def design_metric(
 
     solver = optx.BFGS(rtol=rtol, atol=atol)
 
-    # Multistart: theta_init + small-radius Gaussian perturbations
+    # Multistart: start 0 uses theta_init exactly so reproduction preserves
+    # the Alcubierre seed; subsequent starts add small Gaussian perturbations.
     keys = jax.random.split(key, n_starts)
-    # For the first start, use exact theta_init (no perturbation) so that
-    # reproduction preserves the Alcubierre starting point exactly.
-    # Subsequent starts perturb for local-optimum exploration .
 
-    # Always evaluate the starting shape as the initial best baseline.
-    # This implements : the optimizer respects the seed's local minimum
-    # by never accepting a worse iterate than the starting point.
+    # Baseline = seed evaluation: never accept an iterate worse than the seed.
     best_obj = _loss(theta_init, None)
     best_theta = theta_init
     best_converged = False
@@ -274,10 +231,7 @@ def design_metric(
             sol_value = sol.value
             converged = bool(sol.result == optx.RESULTS.successful)
             n_steps_i = int(sol.stats["num_steps"])
-        except Exception:  # noqa: BLE001
-            # Optimistix sometimes crashes on noisy objectives; fall back
-            # to the starting point (which gives the best-known margin
-            # for the default Alcubierre reproduction case).
+        except Exception:  # noqa: BLE001 - Optimistix/JAX raise diverse errors on noisy objectives
             sol_value = theta_start
             converged = False
             n_steps_i = 0

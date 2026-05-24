@@ -1,32 +1,18 @@
-"""- ShapeFunctionMetric: wrap a ShapeFunction into an ADMMetric.
+"""ShapeFunctionMetric: wrap a ShapeFunction into an ADMMetric.
 
-The :class:`ShapeFunctionMetric` is an :class:`warpax.geometry.metric.ADMMetric`
-subclass whose shift vector magnitude is driven by a differentiable
-:class:`warpax.design.ShapeFunction`. The ADM components mirror the
-Alcubierre convention::
+ADM components mirror the Alcubierre convention::
 
-    alpha(coords) = 1 (unit lapse)
-    beta^i(coords) = -v_s * f(r_s) * delta^i_x (shift along x)
-    gamma_{ij}(coords) = delta_{ij} (flat spatial metric)
+    alpha(coords) = 1
+    beta^i(coords) = -v_s * f(r_s) * delta^i_x
+    gamma_{ij}(coords) = delta_{ij}
 
-where ``r_s = sqrt((x - v_s t)^2 + y^2 + z^2)`` is the bubble-centerd
-radial coordinate and ``f`` is the wrapped shape function.
+with ``r_s = sqrt((x - v_s t)^2 + y^2 + z^2)``.
 
-A construction-time ``verify_physical`` gate
-enforces three must-pass checks on a 16**3 probe grid:
-
-1. **Lapse floor:** ``alpha(coords) >= lapse_floor`` (default ``1e-6``).
-2. **CTC-free:** ``g_tt(coords) < 0`` at every probe (no closed timelike
-   curves).
-3. **Bubble-finite:** ``|f(10 R)| < 1`` (shape function decays /
-   stays bounded outside the bubble).
-
-``strict=True`` (default) raises :class:`UnphysicalMetricError` on
-failure; ``strict=False`` warns via :class:`UnphysicalMetricWarning`
-and returns the metric anyway (inspection mode for the optimizer).
-
-Reference: see module-level docstring.
-§5 (Physics Constraints).
+``verify_physical`` gates construction with three checks on a 16**3
+probe grid: lapse floor (``alpha >= lapse_floor``), CTC-free
+(``g_tt < 0``), and ``|f(10 R)| < 1``. ``strict=True`` raises
+``UnphysicalMetricError`` on failure; ``strict=False`` warns via
+``UnphysicalMetricWarning``.
 """
 from __future__ import annotations
 
@@ -43,22 +29,12 @@ from ..geometry.metric import ADMMetric, SymbolicMetric
 from .shape_functions import ShapeFunction
 
 
-# ---------------------------------------------------------------------------
-# Error / warning types
-# ---------------------------------------------------------------------------
-
-
 class UnphysicalMetricError(ValueError):
     """raised by ``__check_init__`` when verify_physical fails with strict=True."""
 
 
 class UnphysicalMetricWarning(UserWarning):
     """warning variant of UnphysicalMetricError for strict=False (inspection mode)."""
-
-
-# ---------------------------------------------------------------------------
-# Result type
-# ---------------------------------------------------------------------------
 
 
 class PhysicalityVerdict(NamedTuple):
@@ -79,11 +55,6 @@ class PhysicalityVerdict(NamedTuple):
     ctc_free: bool
     bubble_finite: bool
     overall: bool
-
-
-# ---------------------------------------------------------------------------
-# ShapeFunctionMetric
-# ---------------------------------------------------------------------------
 
 
 class ShapeFunctionMetric(ADMMetric):
@@ -127,10 +98,6 @@ class ShapeFunctionMetric(ADMMetric):
     strict: bool = eqx.field(static=True, default=True)
     lapse_floor: float = eqx.field(static=True, default=1e-6)
 
-    # ------------------------------------------------------------------
-    # Equinox post-init: apply the verify_physical gate
-    # ------------------------------------------------------------------
-
     def __check_init__(self):
         """Post-init gate: enforce verify_physical at construction."""
         verdict = self.verify_physical()
@@ -146,10 +113,6 @@ class ShapeFunctionMetric(ADMMetric):
                     stacklevel=2,
                 )
 
-    # ------------------------------------------------------------------
-    # ADMMetric abstract-method overrides
-    # ------------------------------------------------------------------
-
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Unit lapse (Alcubierre convention)."""
         return jnp.asarray(1.0)
@@ -157,7 +120,7 @@ class ShapeFunctionMetric(ADMMetric):
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         """Shift ``beta^i = -v_s * f(r_s) * delta^i_x``."""
         t, x, y, z = coords
-        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2 + 1e-30)
+        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2 + 1e-60)
         f_val = self.shape_fn(r_s)
         return jnp.asarray([-self.v_s * f_val, 0.0, 0.0])
 
@@ -168,7 +131,7 @@ class ShapeFunctionMetric(ADMMetric):
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Shape function value at ``coords`` (ADMMetric contract)."""
         t, x, y, z = coords
-        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2 + 1e-30)
+        r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2 + 1e-60)
         return self.shape_fn(r_s)
 
     def name(self) -> str:
@@ -181,7 +144,7 @@ class ShapeFunctionMetric(ADMMetric):
         parametrized), so the symbolic view leaves the shape entries
         as generic ``sp.Function`` placeholders. Downstream symbolic
         cross-validation (SymPy lambdify path) is not meaningful for
-        DSGN metrics; use the JAX path instead.
+        shape-function metrics; use the JAX path instead.
         """
         t, x, y, z = sp.symbols("t x y z")
         f_sym = sp.Function("f")
@@ -195,10 +158,6 @@ class ShapeFunctionMetric(ADMMetric):
             [0, 0, 0, 1],
         ])
         return SymbolicMetric([t, x, y, z], g)
-
-    # ------------------------------------------------------------------
-    # verify_physical gate
-    # ------------------------------------------------------------------
 
     def verify_physical(
         self, probe_grid: Float[Array, "N 4"] | None = None

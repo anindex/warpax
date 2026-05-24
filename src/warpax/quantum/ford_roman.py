@@ -2,12 +2,11 @@
 
 Citations:
 
-- Fewster, C. J. (2012). "Quantum Inequalities: recent developments"
-  eq. (2.1) - pinned at
-
+- Fewster, C. J. (2012). "Quantum Inequalities: recent developments,"
+  eq. (2.1).
 - Pretto, A. et al. (2024). "Quantum Inequalities and Sampling
-  Prescriptions." *Phys. Rev. D* 110, 024023 - Lorentzian sampling
-  justification.
+  Prescriptions." *Phys. Rev. D* 110, 024023 (Lorentzian sampling
+  justification).
 
 Definitions (massless scalar field, 4D):
 
@@ -31,9 +30,9 @@ from jaxtyping import Array, Float, jaxtyped
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
 
-# Ford-Roman constant for the massless scalar field, 4D (Fewster 2012
-# eq. 2.1). Pinned for see
-#
+
+# Ford-Roman constant for the massless scalar field, 4D
+# (Fewster 2012 eq. 2.1).
 FORD_ROMAN_CONSTANT_C: float = 3.0 / (32.0 * jnp.pi ** 2)
 
 
@@ -56,11 +55,6 @@ class QIResult(NamedTuple):
     margin: Float[Array, ""]
     bound: Float[Array, ""]
     C: Float[Array, ""]
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
 
 
 def _lorentzian_kernel(
@@ -90,14 +84,8 @@ def _rho_at_tau(
     scale = jnp.sqrt(jnp.abs(u_sq) + 1e-30)
     u = u_raw / scale
 
-    # rho = T_{ab} u^a u^b
     rho = jnp.einsum("ab,a,b->", T_ab, u, u)
     return rho
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 
 @jaxtyped(typechecker=beartype)
@@ -119,9 +107,8 @@ def ford_roman(
     tau0 : float
         Characteristic sampling width (inverse sampling frequency).
     sampling : str
-        Temporal sampling kernel; only ``'lorentzian'`` is supported in
-        this release (per Pretto 2024). See research anchor
-
+        Temporal sampling kernel; only ``'lorentzian'`` is supported
+        (per Pretto 2024).
     n_samples : int
         Number of proper-time samples for the QI line integral.
         Default ``256`` - span ``[-10 tau0, +10 tau0]`` captures ~99% of
@@ -137,17 +124,6 @@ def ford_roman(
     ------
     ValueError
         If ``sampling`` is not ``'lorentzian'``.
-
-    Notes
-    -----
-    The QI bound for a massless scalar field (Fewster 2012 eq. 2.1):
-
-    .. math::
-
-        \\int \\rho_T(\\tau) f(\\tau)^2 \\, d\\tau \\ge - \\frac{C}{\\tau_0^4}
-
-    where ``C = 3 / (32 pi^2)`` and ``f(tau) = (tau0 / pi) / (tau^2 +
-    tau0^2)`` is the Lorentzian sampling kernel.
     """
     if sampling != "lorentzian":
         raise ValueError(
@@ -160,7 +136,9 @@ def ford_roman(
 
     rho_vals = jax.vmap(lambda t: _rho_at_tau(metric, worldline, t))(tau)
     integrand = rho_vals * f_vals ** 2
-    integral = jnp.sum(integrand) * dtau
+    # Trapezoidal rule has O(h^2) error vs. rectangular's O(h) and matches
+    # the convergence rate of the underlying integrand sampling.
+    integral = jnp.trapezoid(integrand, dx=dtau)
 
     C = jnp.asarray(FORD_ROMAN_CONSTANT_C)
     bound = -C / tau0 ** 4

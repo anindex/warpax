@@ -1,15 +1,8 @@
-"""Shared Manim scene utilities for warp drive animations.
+"""Shared Manim scene utilities: title card, params, colormaps, 3b1b palette, FrameData helpers.
 
-Provides reusable helpers used by all four showcase scenes:
-- Title card animation
-- Live parameter display (Variable wrapping)
-- Global color limit pre-computation (prevents flickering)
-- 3blue1brown color palette
-- Metric defining equation formatter
-- Violation status indicator (red/green dot)
-- Scalar field blending for field transitions
-- Auto-exaggeration and axes construction for FrameData sequences
-
+In ThreeDScene, ``DecimalNumber.set_value`` recreates internal submobjects that
+lose fixed-in-frame registration. Scene updaters use ``become`` instead so
+geometry is replaced in-place and registration is preserved.
 """
 from __future__ import annotations
 
@@ -39,9 +32,6 @@ if TYPE_CHECKING:
 
     from warpax.visualization.common._frame_data import FrameData
 
-# ---------------------------------------------------------------------------
-# 1. 3blue1brown color constants
-# ---------------------------------------------------------------------------
 
 COLORS_3B1B: dict[str, str] = {
     "background": "#1C1C1C",
@@ -53,11 +43,6 @@ COLORS_3B1B: dict[str, str] = {
     "violation_red": "#FF4444",
     "safe_green": "#44FF44",
 }
-
-
-# ---------------------------------------------------------------------------
-# 2. Title card
-# ---------------------------------------------------------------------------
 
 
 def play_title_card(
@@ -94,11 +79,6 @@ def play_title_card(
     scene.wait(1.5)
     scene.play(FadeOut(group), run_time=0.5)
     scene.remove_fixed_in_frame_mobjects(group)
-
-
-# ---------------------------------------------------------------------------
-# 3. Live parameter display
-# ---------------------------------------------------------------------------
 
 
 def make_parameter_display(
@@ -140,11 +120,6 @@ def make_parameter_display(
     var.to_corner(corner)
 
     return var
-
-
-# ---------------------------------------------------------------------------
-# 4. Global color limits
-# ---------------------------------------------------------------------------
 
 
 def compute_global_clim(
@@ -211,11 +186,6 @@ def compute_global_clim(
     return (vmin, vmax)
 
 
-# ---------------------------------------------------------------------------
-# 5. Axes for frame sequences
-# ---------------------------------------------------------------------------
-
-
 def make_axes_for_frames(
     frames: list[FrameData],
     field_name: str,
@@ -256,11 +226,6 @@ def make_axes_for_frames(
     )
 
 
-# ---------------------------------------------------------------------------
-# 6. Auto-exaggeration
-# ---------------------------------------------------------------------------
-
-
 def compute_auto_exaggeration(
     frames: list[FrameData],
     field_name: str,
@@ -298,10 +263,6 @@ def compute_auto_exaggeration(
     return 0.3 * extent / max(max_warp, 1e-15)
 
 
-# ---------------------------------------------------------------------------
-# 7. Metric defining equation formatter
-# ---------------------------------------------------------------------------
-
 _METRIC_EQUATIONS: dict[str, str] = {
     "Alcubierre": r"ds^2 = -dt^2 + (dx - v_s f \, dt)^2 + dy^2 + dz^2",
     "Lentz": r"ds^2 = -dt^2 + (dx - v_s \hat{X} \, dt)^2 + dy^2 + dz^2",
@@ -324,11 +285,6 @@ def format_metric_equation(metric_name: str) -> MathTex:
     """
     tex_str = _METRIC_EQUATIONS.get(metric_name, r"\text{" + metric_name + r"}")
     return MathTex(tex_str, font_size=36, color=WHITE)
-
-
-# ---------------------------------------------------------------------------
-# 8. Violation status indicator
-# ---------------------------------------------------------------------------
 
 
 def make_violation_indicator(
@@ -363,8 +319,10 @@ def make_violation_indicator(
         label_tex = r"\text{NEC}"
     elif "wec" in field_name:
         label_tex = r"\text{WEC}"
-    elif "energy" in field_name:
+    elif field_name == "T_00_covariant":
         label_tex = r"T_{00}"
+    elif "energy" in field_name:
+        label_tex = r"\rho_{\rm Eul}"
     else:
         label_tex = r"\text{EC}"
 
@@ -372,11 +330,6 @@ def make_violation_indicator(
     group = VGroup(dot, label).arrange(RIGHT, buff=0.15)
 
     return group
-
-
-# ---------------------------------------------------------------------------
-# 9. Scalar field blending
-# ---------------------------------------------------------------------------
 
 
 def blend_fields(

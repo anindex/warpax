@@ -160,7 +160,7 @@ def _derive_name(mat_data: dict[str, Any], path: Path) -> str:
 
 
 def load_warpfactory(
-    path: str | Path, interp_method: str = "cubic"
+    path: str | Path, interp_method: str = "linear"
 ) -> InterpolatedADMMetric:
     """Load a WarpFactory ``.mat`` export into an :class:`InterpolatedADMMetric`.
 
@@ -169,9 +169,10 @@ def load_warpfactory(
     path : str or pathlib.Path
         Path to the ``.mat`` file (any MATLAB version). Schema-version is
         autodetected from the file header.
-    interp_method : {"linear", "cubic"}, default "cubic"
+    interp_method : {"linear", "cubic"}, default ``"linear"``
         Interpolation scheme passed through to
-        :class:`InterpolatedADMMetric`.
+        :class:`InterpolatedADMMetric`. ``"cubic"`` currently falls back
+        to linear; see :class:`InterpolatedADMMetric`.
 
     Returns
     -------

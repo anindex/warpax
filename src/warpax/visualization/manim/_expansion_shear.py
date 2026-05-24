@@ -1,34 +1,11 @@
-"""ExpansionShear: 2D Manim Scene showing expansion θ heatmap with shear overlay.
+"""ExpansionShear: 2D expansion θ heatmap with shear σ² and bubble-wall overlays.
 
-Renders a full-screen equatorial-plane heatmap of the expansion scalar θ
-(computed from the Eulerian congruence kinematics) with two overlays:
-
-1. **Shear contour** (σ² at 50 % of max) as yellow dashed paths -
-   shows where shear is concentrated (primarily at the bubble wall).
-2. **Bubble wall contour** (f = 0.5) as cyan outline - shows the physical
-   extent of the warp bubble.
-
-The bipolar expansion structure is visible in the colormap: θ > 0 (warm)
-ahead of the bubble where space expands, θ < 0 (cool) behind where
-space contracts.
-
-Layout
-------
-- **Top center**: title + metric equation (static)
-- **Upper-left**: live v_s parameter display
-- **Upper-right**: dual color legend (θ heatmap + σ² contour)
-- **Lower-left**: contour annotation legend
-- **Lower-right**: ω² = 0 (Frobenius) note
-
-Usage::
-
-    manim render -ql --format mp4 \\
-        src/warpax/visualization/manim/_expansion_shear.py ExpansionShear
+Usage: manim render -ql --format mp4 src/warpax/visualization/manim/_expansion_shear.py ExpansionShear
 """
 from __future__ import annotations
 
 import numpy as np
-import matplotlib.cm as _mcm
+import matplotlib as _mpl
 from matplotlib.colors import LinearSegmentedColormap
 
 from manim import (
@@ -62,20 +39,14 @@ from warpax.visualization.manim._image_utils import (
 )
 from warpax.visualization.manim._scene_utils import COLORS_3B1B
 
-# ---------------------------------------------------------------------------
-# Dark-midpoint diverging colormap for θ: blue (contraction) -> dark -> red (expansion)
-# ---------------------------------------------------------------------------
+
 _DARK_DIVERGE_THETA = LinearSegmentedColormap.from_list(
-    "dark_diverge_theta", ["#3B4CC0", "#1A1A2E", "#"], N=256,
+    "dark_diverge_theta", ["#3B4CC0", "#1A1A2E", "#B40426"], N=256,
 )
 try:
-    _mcm.register_cmap(name="dark_diverge_theta", cmap=_DARK_DIVERGE_THETA)
-except (ValueError, AttributeError):
-    try:
-        import matplotlib as _mpl
-        _mpl.colormaps.register(_DARK_DIVERGE_THETA, name="dark_diverge_theta")
-    except Exception:
-        pass
+    _mpl.colormaps.register(_DARK_DIVERGE_THETA, name="dark_diverge_theta")
+except ValueError:
+    pass  # already registered
 
 
 class ExpansionShear(Scene):
@@ -86,9 +57,6 @@ class ExpansionShear(Scene):
     """
 
     def construct(self) -> None:
-        # ==================================================================
-        # Configuration
-        # ==================================================================
         n_frames = 20
         v_start = 0.1
         v_end = 0.99
@@ -104,9 +72,6 @@ class ExpansionShear(Scene):
 
         self.camera.background_color = COLORS_3B1B["background"]
 
-        # ==================================================================
-        # Step 1: Compute kinematic scalars at each velocity
-        # ==================================================================
         import equinox as eqx
 
         from warpax.analysis.kinematic_scalars import compute_kinematic_scalars_grid
@@ -156,9 +121,6 @@ class ExpansionShear(Scene):
             )
             frames.append(frame)
 
-        # ==================================================================
-        # Step 2: Global fixed clim for theta
-        # ==================================================================
         global_max_theta = 0.0
         for frame in frames:
             mid_z = frame.grid_shape[2] // 2
@@ -171,18 +133,12 @@ class ExpansionShear(Scene):
         linthresh = max(global_max_theta * 0.01, 1e-10)
         global_clim_theta = (-global_max_theta, global_max_theta, linthresh)
 
-        # ==================================================================
-        # Step 3: Pre-render all RGBA arrays
-        # ==================================================================
         print("Pre-rendering RGBA frames...")
         rgba_frames = [
             frame_to_rgba(f, "theta", global_clim_theta, cmap_name=cmap_name)
             for f in frames
         ]
 
-        # ==================================================================
-        # Step 4: Pre-extract shear + bubble contours
-        # ==================================================================
         print("Extracting contours...")
         shear_contour_paths: list[list[np.ndarray]] = []
         bubble_contour_paths: list[list[np.ndarray]] = []
@@ -210,9 +166,6 @@ class ExpansionShear(Scene):
             bc = extract_bubble_contour(frame, level=0.5, scene_width=img_width)
             bubble_contour_paths.append(bc)
 
-        # ==================================================================
-        # Step 5: Static header - title + equation
-        # ==================================================================
         title_text = Text(
             "Expansion θ and Shear σ²",
             font_size=28, color=WHITE, weight="LIGHT",
@@ -224,9 +177,6 @@ class ExpansionShear(Scene):
         header.to_edge(UP, buff=0.15)
         self.add(header)
 
-        # ==================================================================
-        # Step 6: Build scene layout
-        # ==================================================================
         frame_idx = ValueTracker(0)
         heatmap_center = DOWN * 0.3
 
@@ -271,9 +221,6 @@ class ExpansionShear(Scene):
 
         bubble_contour = always_redraw(_make_bubble_contour)
 
-        # ==================================================================
-        # Step 7: Parameter display - upper-left
-        # ==================================================================
         vs_mathtex = [
             MathTex(f"{f.v_s:.2f}", font_size=30, color=YELLOW)
             for f in frames
@@ -292,11 +239,8 @@ class ExpansionShear(Scene):
 
         param_display = always_redraw(_make_param)
 
-        # ==================================================================
-        # Step 8: Dual color legends - upper-right
-        # ==================================================================
         # θ heatmap legend --
-        theta_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#"]
+        theta_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#B40426"]
         theta_strips = VGroup(*[
             Rectangle(
                 width=0.24, height=0.08,
@@ -308,7 +252,7 @@ class ExpansionShear(Scene):
             "θ (expansion)", font_size=14, color=WHITE, weight="LIGHT",
         )
         theta_lo = MathTex(r"-", font_size=16, color="#3B4CC0")
-        theta_hi = MathTex(r"+", font_size=16, color="#")
+        theta_hi = MathTex(r"+", font_size=16, color="#B40426")
         theta_bar = VGroup(theta_lo, theta_strips, theta_hi).arrange(RIGHT, buff=0.05)
         theta_legend = VGroup(theta_title, theta_bar).arrange(
             DOWN, buff=0.06, aligned_edge=LEFT,
@@ -337,9 +281,6 @@ class ExpansionShear(Scene):
         )
         legend_with_bg = VGroup(legend_bg, legend_group)
 
-        # ==================================================================
-        # Step 9: Contour annotation - lower-left
-        # ==================================================================
         solid_sample = VMobject(color="#58C4DD", stroke_width=2.5)
         solid_sample.set_points_as_corners(
             [np.array([-0.3, 0, 0]), np.array([0.3, 0, 0])]
@@ -369,9 +310,6 @@ class ExpansionShear(Scene):
         )
         vorticity_group = VGroup(vorticity_bg, vorticity_note)
 
-        # ==================================================================
-        # Step 10: Assemble and animate
-        # ==================================================================
         self.add(heatmap, shear_contour, bubble_contour)
         self.add(param_display, legend_with_bg, solid_row_group, vorticity_group)
 

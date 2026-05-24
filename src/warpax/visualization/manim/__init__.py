@@ -1,11 +1,4 @@
-"""Manim visualization backend for warp drive geometries.
-
-Requires: pip install warpax[manim]
-
-Exports bridge functions (framedata_to_surface, framedata_to_heatmap),
-shared scene utilities, image/GIF conversion helpers, and seven
-showcase animation scenes (3 x 3D, 4 x 2D heatmap).
-"""
+"""Manim visualization backend for warp drive geometries (pip install warpax[manim])."""
 from __future__ import annotations
 
 try:

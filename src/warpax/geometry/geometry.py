@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Callable, NamedTuple
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
@@ -174,6 +175,7 @@ def stress_energy_tensor(einstein: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
     return 0.5 * (T + T.T)
 
 
+@eqx.filter_jit
 def compute_curvature_chain(
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
     coords: Float[Array, "4"],
@@ -183,8 +185,11 @@ def compute_curvature_chain(
     Evaluates: metric -> inverse metric -> Christoffel -> Riemann -> Ricci
     -> Ricci scalar -> Einstein -> stress-energy.
 
-    All derivatives are computed via jax.jacfwd (exact autodiff).
-    JIT-compatible.
+    All derivatives are computed via jax.jacfwd (exact autodiff). The
+    function is wrapped with :func:`equinox.filter_jit` so repeated
+    invocations on the same metric class hit the compile cache; ``eqx.field
+    (static=True)`` parameters on :class:`MetricSpecification` instances
+    therefore key the cache automatically.
 
     Args:
         metric_fn: Callable mapping coords (4,) -> metric tensor (4,4).

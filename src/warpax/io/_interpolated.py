@@ -40,11 +40,14 @@ class InterpolatedADMMetric(ADMMetric):
         4D bounds + shape (static; JIT cache key per ).
     name : str, default "interpolated"
         Human-readable name (typically derived from source filename by loader).
-    interp_method : {"linear", "cubic"}, default "cubic"
-        Interpolation scheme. Default "cubic" for Christoffel autodiff
-        smoothness. Internally both map to ``order=1`` in
-        ``jax.scipy.ndimage.map_coordinates`` (cubic is preserved as a
-        forward-compatible option for when JAX adds native cubic support).
+    interp_method : {"linear", "cubic"}, default ``"linear"``
+        Interpolation scheme. JAX's ``map_coordinates`` only supports
+        ``order=1`` (linear); ``"cubic"`` is accepted as a forward-
+        compatible label and currently emits a once-per-process warning
+        before falling back to linear. Christoffel symbols computed
+        through this metric are therefore C\u2070 across cells. Pre-smooth
+        the input grid (e.g. Gaussian smoothing on the source) before
+        differentiating curvature if higher smoothness is required.
 
     Notes
     -----
@@ -71,7 +74,7 @@ class InterpolatedADMMetric(ADMMetric):
         gamma_grid: Float[Array, "Nt Nx Ny Nz 3 3"],
         grid_spec: GridSpec,
         name: str = "interpolated",
-        interp_method: str = "cubic",
+        interp_method: str = "linear",
     ) -> None:
         self.alpha_grid = alpha_grid
         self.beta_grid = beta_grid

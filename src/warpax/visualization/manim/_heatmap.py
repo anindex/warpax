@@ -16,10 +16,6 @@ if TYPE_CHECKING:
     from warpax.visualization.common._frame_data import FrameData
 
 
-# ---------------------------------------------------------------------------
-# Colorscale builders
-# ---------------------------------------------------------------------------
-
 def _build_colorscale(
     vmin: float,
     vmax: float,

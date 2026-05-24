@@ -41,12 +41,11 @@ def _diverging_norm(data: NDArray) -> TwoSlopeNorm | SymLogNorm:
     if vmax_full < 1e-30:
         return TwoSlopeNorm(vmin=-1.0, vcenter=0, vmax=1.0)
 
-    # Use 99.5th percentile to suppress extreme outliers
     vmax = float(np.nanpercentile(absdata, 99.5))
     if vmax < 1e-30:
-        vmax = vmax_full  # fall back to true max if percentile is ~0
+        vmax = vmax_full
 
-    # Detect high dynamic range: switch to SymLogNorm
+    # SymLogNorm fallback for dynamic range > 10^4 (e.g. WarpShell ~10^35).
     nonzero = absdata[absdata > 1e-30]
     if nonzero.size > 0:
         vmin_nz = float(np.nanpercentile(nonzero, 5))
@@ -90,14 +89,13 @@ def _feature_extent(
     xlo, xhi = float(x_feat.min()), float(x_feat.max())
     ylo, yhi = float(y_feat.min()), float(y_feat.max())
 
-    # Only zoom if feature occupies <60% of the domain area
     domain_w = x_ax[-1] - x_ax[0]
     domain_h = y_ax[-1] - y_ax[0]
     feat_area = max(xhi - xlo, 1e-30) * max(yhi - ylo, 1e-30)
     if feat_area / (domain_w * domain_h) > 0.6:
         return None
 
-    # Detect bimodal features: large gap in x -> zoom to one cluster
+    # Bimodal features (large x-gap, e.g. Lentz dual walls): zoom one cluster.
     x_unique = np.sort(np.unique(x_feat))
     if len(x_unique) > 2:
         gaps = np.diff(x_unique)
@@ -114,13 +112,11 @@ def _feature_extent(
             xlo, xhi = float(x_feat.min()), float(x_feat.max())
             ylo, yhi = float(y_feat.min()), float(y_feat.max())
 
-    # Pad with fraction of feature extent (at least one grid cell)
     dx = max((xhi - xlo) * pad_frac, x_ax[1] - x_ax[0])
     dy = max((yhi - ylo) * pad_frac, y_ax[1] - y_ax[0])
     xlim = (max(xlo - dx, x_ax[0]), min(xhi + dx, x_ax[-1]))
     ylim = (max(ylo - dy, y_ax[0]), min(yhi + dy, y_ax[-1]))
 
-    # Enforce minimum zoom extent so compact features have context
     min_w = domain_w * min_extent_frac
     min_h = domain_h * min_extent_frac
     w, h = xlim[1] - xlim[0], ylim[1] - ylim[0]
@@ -279,7 +275,6 @@ def plot_comparison_panel(
         for ax in axes:
             ax.set_facecolor("#d9d9d9")
 
-    # Panel 1: Eulerian margin
     im_eul = ax_eul.pcolormesh(
         x_ax, y_ax, eul_2d.T, cmap="RdBu", norm=eul_norm, shading="gouraud",
     )
@@ -287,7 +282,6 @@ def plot_comparison_panel(
     ax_eul.set_ylabel(axis_labels[remaining[1]], fontsize=9)
     ax_eul.set_xlabel(axis_labels[remaining[0]], fontsize=9)
 
-    # Panel 2: Robust margin
     im_rob = ax_rob.pcolormesh(
         x_ax, y_ax, rob_2d.T, cmap="RdBu", norm=rob_norm, shading="gouraud",
     )
@@ -295,7 +289,6 @@ def plot_comparison_panel(
     ax_rob.set_xlabel(axis_labels[remaining[0]], fontsize=9)
     plt.setp(ax_rob.get_yticklabels(), visible=False)
 
-    # Panel 3: Missed violations (dark red overlay on Eulerian margin)
     ax_miss.pcolormesh(
         x_ax, y_ax, eul_2d.T, cmap="RdBu", norm=eul_norm, shading="gouraud",
         alpha=0.5,

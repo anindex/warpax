@@ -1,19 +1,9 @@
-"""Shared image utilities for Manim 2D scenes.
-
-Provides functions to convert FrameData equatorial slices into RGBA uint8
-arrays using matplotlib colormaps with SymLogNorm normalization, and to
-extract contour paths for overlaying on heatmap scenes.
-
-These utilities are the foundation for all 2D ``ImageMobject``-based Manim
-scenes, replacing the slower ``Surface`` + ``set_fill_by_value`` pipeline
-for equatorial-plane visualizations.
-
-"""
+"""Image utilities for Manim 2D scenes: FrameData slice → RGBA + contour extraction."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import matplotlib.cm as mcm
+import matplotlib as _mpl
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
@@ -135,7 +125,7 @@ def frame_to_rgba(
         vmax=vmax,
     )
 
-    cmap = mcm.get_cmap(cmap_name)
+    cmap = _mpl.colormaps[cmap_name]
     rgba_float = cmap(norm(data_2d))  # (Nx, Ny, 4) float in [0, 1]
     return (rgba_float * 255).astype(np.uint8)
 

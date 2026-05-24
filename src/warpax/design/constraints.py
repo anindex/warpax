@@ -1,12 +1,8 @@
-"""DSGN constraint functions - bubble-size / velocity / boundedness.
+"""Shape-function constraints - bubble-size / velocity / boundedness.
 
 Each constraint returns a :class:`ConstraintResult` NamedTuple with a
-signed ``margin`` (positive ``=>`` satisfied). The optimizer
-in composes these via string-dispatch through
-:data:`CONSTRAINT_REGISTRY`.
-
-Reference: see module-level docstring.
-§5 (Physics Constraints).
+signed ``margin`` (positive ``=>`` satisfied). The optimizer composes
+these via string-dispatch through :data:`CONSTRAINT_REGISTRY`.
 """
 from __future__ import annotations
 
@@ -17,11 +13,6 @@ import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 from .shape_functions import ShapeFunction
-
-
-# ---------------------------------------------------------------------------
-# Result type
-# ---------------------------------------------------------------------------
 
 
 class ConstraintResult(NamedTuple):
@@ -42,11 +33,6 @@ class ConstraintResult(NamedTuple):
     satisfied: bool
     margin: Float[Array, ""]
     name: str
-
-
-# ---------------------------------------------------------------------------
-# Constraint functions
-# ---------------------------------------------------------------------------
 
 
 def bubble_size_constraint(
@@ -143,11 +129,6 @@ def boundedness_constraint(
         margin=margin,
         name="boundedness",
     )
-
-
-# ---------------------------------------------------------------------------
-# Registry + composition helpers
-# ---------------------------------------------------------------------------
 
 
 CONSTRAINT_REGISTRY: dict[str, Callable] = {

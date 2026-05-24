@@ -2,9 +2,6 @@
 
 Modules
 -------
-- **margin_plots**: Energy condition margin heatmaps (diverging colormap).
-- **direction_fields**: Worst-observer boost direction quiver plots.
-- **report**: Combined multi-panel report generation.
 - **comparison_plots**: Eulerian vs robust EC comparison figures.
 - **convergence_plots**: Richardson convergence log-log plots and tables.
 - **kinematic_plots**: Expansion/shear/vorticity scalar field maps.

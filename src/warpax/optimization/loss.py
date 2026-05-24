@@ -117,28 +117,18 @@ def evaluate_loss(
     if skip_ec:
         ec_loss = jnp.float64(0.0)
     else:
-        from ..energy_conditions.optimization import optimize_nec, optimize_wec, optimize_dec
-        from ..geometry.geometry import compute_curvature_chain
+        from .ec_constraints import _ec_margins_at_point, _probe_T_g
 
+        T_batch, g_batch = _probe_T_g(metric, r_probes)
+        conditions = ("nec", "wec", "dec")
         ec_penalties = []
         for i in range(n_probes):
-            r_val = r_probes[i]
-            coords = jnp.array([0.0, r_val, 0.0, 0.0])
-            cc = compute_curvature_chain(metric, coords)
-            T = jnp.where(jnp.isnan(cc.stress_energy), 0.0, cc.stress_energy)
-            g = cc.metric
-
-            nec_res = optimize_nec(T, g, n_starts=n_ec_starts)
-            wec_res = optimize_wec(T, g, n_starts=n_ec_starts)
-            dec_res = optimize_dec(T, g, n_starts=n_ec_starts)
-
-            penalty = (
-                jax.nn.softplus(-nec_res.margin)**2
-                + jax.nn.softplus(-wec_res.margin)**2
-                + jax.nn.softplus(-dec_res.margin)**2
+            margins = _ec_margins_at_point(T_batch[i], g_batch[i], conditions, n_ec_starts)
+            ec_penalties.append(
+                jax.nn.softplus(-margins["nec"]) ** 2
+                + jax.nn.softplus(-margins["wec"]) ** 2
+                + jax.nn.softplus(-margins["dec"]) ** 2
             )
-            ec_penalties.append(penalty)
-
         ec_loss = jnp.mean(jnp.stack(ec_penalties))
 
     from ..transport.diagnostics import geodesic_deviation_diagnostic

@@ -2,27 +2,15 @@
 
 The float64 classifier at :mod:`warpax.energy_conditions.classification`
 uses a two-tier imaginary-part tolerance (``tol * scale`` absolute OR
-``imag_rtol * unclamped_scale`` relative). This reactive tolerance may
+``imag_rtol * unclamped_scale`` relative). The relative tier may
 misclassify a genuine Type-IV spectrum whose ``|Im λ|`` sits below the
-relative threshold (e.g. ``|λ| ~ 1``, ``|Im λ| ~ 2e-5`` flips to Type I
-at ``imag_rtol = 3e-3``).
+threshold (e.g. ``|λ| ~ 1``, ``|Im λ| ~ 2e-5`` flips to Type I at
+``imag_rtol = 3e-3``).
 
-This module offers a post-hoc 50-digit recomputation path. It is **not**
-wired into the JAX grid pipeline (mpmath is pure-Python and thousands of
-times slower than ``jnp.linalg.eig``). Intended use: cross-check a small
-subset of Type-IV grid points reported by the paper to confirm they are
-genuinely Type IV at 50-digit precision, and flag any that flip.
-
-Functions
----------
-- :func:`eigenvalues_mpmath` - 4-eigenvalue tuple at arbitrary precision.
-- :func:`classify_hawking_ellis_mpmath` - single-point 50-digit verdict
-  mirroring the float64 branch logic (same tolerances, more accurate
-  imaginary parts).
-- :func:`verify_classification_at_points` - batched cross-check returning a
-  flip-rate report against an existing float64 ``he_types`` array.
-
-Rationale: see classify_hawking_ellis docstring for context.
+This module is a post-hoc 50-digit cross-check, NOT wired into the JAX
+grid pipeline (mpmath is pure-Python and thousands of times slower than
+``jnp.linalg.eig``). Intended for verifying a small subset of Type-IV
+grid points at 50-digit precision and flagging any that flip.
 """
 from __future__ import annotations
 
@@ -30,11 +18,6 @@ from typing import Any
 
 import mpmath
 import numpy as np
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 
 def eigenvalues_mpmath(
@@ -181,11 +164,9 @@ def classify_hawking_ellis_mpmath(
         else:
             he_type = 2
 
-        # Bauer-Fike eigenvector-matrix sensitivity diagnostic.
-        # Threshold: cond_V > 10**(precision/2) per Demmel 1997 Thm 4.4.
-        # Mpmath-only path - float64 classifier does NOT carry this
-        # diagnostic (Bauer-Fike analysis is meaningful only at >= 50-digit
-        # precision). 
+        # Bauer-Fike eigenvector-matrix sensitivity diagnostic
+        # (threshold cond_V > 10**(precision/2), Demmel 1997 Thm 4.4).
+        # mpmath-only: meaningful only at >= 50-digit precision.
         cond_V, uncertain = _cond_V_mpmath(evecs, precision)
 
     return {
@@ -287,14 +268,9 @@ def verify_classification_at_points(
         "precision": precision,
         "tol": tol,
         "imag_rtol": imag_rtol,
-        "cond_V_per_point": cond_V_per_point,  # 
-        "uncertain_mask": uncertain_mask,      # 
+        "cond_V_per_point": cond_V_per_point,
+        "uncertain_mask": uncertain_mask,
     }
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
 
 
 def _cond_V_mpmath(
@@ -314,7 +290,7 @@ def _cond_V_mpmath(
     -----
     ``uncertain=True`` means precision loss exceeds half the working dps;
     it does NOT mean the Hawking-Ellis verdict is wrong. cond(V) qualifies
-    V-conditioning, not |lambda|. See
+    V-conditioning, not |lambda|.
 
     Parameters
     ----------
@@ -333,7 +309,6 @@ def _cond_V_mpmath(
     References
     ----------
     - Demmel J. 1997, Applied Numerical Linear Algebra, Theorem 4.4.
-    -
     """
     try:
         _U, S, _Vt = mpmath.svd(evecs)
@@ -359,14 +334,10 @@ def _causal_counts(
 
     Mirrors the float64 classifier's causal-character accounting. For
     the real-spectrum branch only; complex spectra short-circuit to
-    Type IV before this helper is consulted.
-
-    relative-sign threshold normalized against max |v^T g v|.
-    Mirrors the float64 path's relative-threshold fix; restores
-    scale-aware sign discrimination at metrics where
-    |g_{ij}|/|g_{00}| >> 1 (e.g., WarpShell at v_s=0.5). Behaviour at
-    Minkowski / unit-scale (max|quad| <= 1.0) is bit-preserved because
-    the scale floors at 1.0. See:
+    Type IV before this helper is consulted. Uses a relative-sign
+    threshold (normalized by ``max |v^T g v|``) so scale-aware sign
+    discrimination holds at metrics with ``|g_{ij}|/|g_{00}| >> 1``;
+    the scale floors at 1.0 to preserve Minkowski-scale behavior.
 
     Parameters
     ----------
@@ -381,7 +352,6 @@ def _causal_counts(
     -------
     (n_timelike, n_null)
     """
-    # First pass: compute all 4 quadratic forms ``v^T g v`` per eigenvector.
     quads: list[float] = []
     for k in range(4):
         v = [float(mpmath.re(evecs[a, k])) for a in range(4)]
@@ -391,7 +361,6 @@ def _causal_counts(
                 quad += g_ab[a, b] * v[a] * v[b]
         quads.append(quad)
 
-    # Second pass: relative-sign test .
     max_abs_quad = max(abs(q) for q in quads) if quads else 1.0
     scale = max(max_abs_quad, 1.0)
     n_timelike = sum(1 for q in quads if q / scale < -tol)
