@@ -37,6 +37,7 @@ JAX-based implementation.
 
 from __future__ import annotations
 
+import equinox as eqx
 import jax.numpy as jnp
 import sympy as sp
 from beartype import beartype
@@ -95,11 +96,19 @@ class LentzMetric(ADMMetric):
         Central flat-interior region radius.
     sigma : float
         Smoothing parameter for transitions (larger = sharper wall).
+    distance : str
+        Distance metric for the bubble shape: ``"L1"`` (default, the
+        WarpFactory Manhattan/diamond construction, whose ``|x_rel|`` and
+        on-axis ``rho_perp`` kinks make the metric only C^1 and seed the
+        large boundary curvature spikes) or ``"L2"`` (Euclidean/spherical,
+        C^infty away from the floor) for a smooth-distance control showing
+        that those spikes are an implementation artifact of the L1 shape.
     """
 
     v_s: float = 0.1
     R: float = 100.0
     sigma: float = 8.0
+    distance: str = eqx.field(static=True, default="L1")
 
     @jaxtyped(typechecker=beartype)
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
@@ -116,8 +125,13 @@ class LentzMetric(ADMMetric):
         # negligible but produces well-defined Christoffels on-axis).
         rho_perp = jnp.sqrt(y**2 + z**2 + 1e-60)
 
-        # L1 (Manhattan) distance for diamond/rhombus geometry
-        d = jnp.abs(x_rel) + rho_perp
+        if self.distance == "L2":
+            # Euclidean (spherical) distance: C^infty away from the floor,
+            # used as a smooth-distance control. Removes the L1 kinks.
+            d = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
+        else:
+            # L1 (Manhattan) distance for the diamond/rhombus geometry
+            d = jnp.abs(x_rel) + rho_perp
 
         # Diamond shape function: 1 inside, 0 outside
         f = _diamond_shape(d, self.R, self.sigma)

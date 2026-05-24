@@ -5,7 +5,6 @@
 [![CI](https://github.com/anindex/warpax/actions/workflows/ci.yml/badge.svg)](https://github.com/anindex/warpax/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-888_passed-brightgreen)](#running-tests)
 
 [**Observer-robust energy condition verification for warp drive spacetimes.**](https://arxiv.org/abs/2602.18023)
 
@@ -64,7 +63,7 @@ violations only visible to non-Eulerian observers.
 
 See [`examples/07_custom_warp_metric.py`](examples/07_custom_warp_metric.py) for the full worked example.
 
-### Source-consistency audit
+### Source-consistency verification
 
 warpax v0.3+ provides a five-criterion admissibility standard for warp shells:
 
@@ -166,8 +165,7 @@ consistency*), see the dedicated how-to guide:
 
 ## Documentation
 
-warpax ships comprehensive documentation in [`docs/`](docs/), organized following the
-[Diataxis](https://diataxis.fr/) framework:
+warpax ships full documentation in [`docs/`](docs/), organized following the [Diataxis](https://diataxis.fr/) framework:
 
 ### Tutorials
 

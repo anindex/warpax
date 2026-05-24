@@ -247,7 +247,7 @@ def asymptotic_flatness_report(
     expected_order: int = 1,
     tol: float = 0.1,
 ) -> dict[str, object]:
-    """Comprehensive asymptotic flatness diagnostic.
+    """Full asymptotic flatness diagnostic.
 
     Evaluates metric deviations from Minkowski at multiple radii,
     fits power-law falloff exponents for each component (including

@@ -87,19 +87,69 @@ def _gaussian_smooth(
     return result[:n]
 
 
+def _moving_average_smooth(
+    values: Float[Array, "N"],
+    r_grid: Float[Array, "N"],
+    sigma: float,
+) -> Float[Array, "N"]:
+    """Boxcar moving-average smoothing, matching the original MATLAB ``smooth()``.
+
+    The original Fuchs construction uses MATLAB's ``smooth()`` (an unweighted
+    moving average over a span of grid points). We expose it here for an
+    exact-kernel reproduction of the published pipeline, complementing the
+    Gaussian path. The span is matched to the Gaussian width through the
+    variance relation ``sigma_gauss = span / sqrt(12)``, i.e.
+
+        span = sigma * sqrt(12),
+
+    so the two kernels have the same second moment. Boundary handling uses the
+    same reflect (mirror) padding as :func:`_gaussian_smooth`.
+
+    Parameters
+    ----------
+    values : profile to smooth.
+    r_grid : uniform radial grid.
+    sigma : Gaussian-equivalent width; the boxcar span is ``sigma*sqrt(12)``.
+    """
+    n = values.shape[0]
+    dr = r_grid[1] - r_grid[0]
+    span = sigma * jnp.sqrt(12.0)
+    half = int(jnp.ceil(0.5 * span / dr))
+    half = max(half, 1)
+    half = min(half, n // 2)
+
+    window = 2 * half + 1
+    kernel = jnp.ones(window, dtype=jnp.float64) / window
+
+    padded = jnp.concatenate([
+        jnp.flip(values[1:half + 1]),
+        values,
+        jnp.flip(values[-half - 1:-1]),
+    ])
+    result = jnp.convolve(padded, kernel, mode="valid")
+    return result[:n]
+
+
 def _iterative_smooth(
     values: Float[Array, "N"],
     r_grid: Float[Array, "N"],
     sigma: float,
     n_iter: int = 4,
+    kernel_type: str = "gaussian",
 ) -> Float[Array, "N"]:
-    """Apply Gaussian smoothing iteratively.
+    """Apply smoothing iteratively (``n_iter`` passes; Fuchs Section 3.2).
 
-    The Fuchs construction applies smoothing 4 times (Section 3.2).
+    ``kernel_type`` selects the smoother: ``"gaussian"`` (default, the
+    spectrally clean substitute) or ``"moving_average"`` (the original
+    MATLAB ``smooth()`` boxcar, for exact-pipeline reproduction).
     """
+    smooth_fn = (
+        _moving_average_smooth if kernel_type == "moving_average"
+        else _gaussian_smooth
+    )
     result = values
     for _ in range(n_iter):
-        result = _gaussian_smooth(result, r_grid, sigma)
+        result = smooth_fn(result, r_grid, sigma)
     return result
 
 
@@ -284,8 +334,9 @@ def build_fuchs_construction(
     sigma_ratio: float = 1.72,
     n_smooth: int = 4,
     r_pad_factor: float = 1.5,
+    kernel_type: str = "gaussian",
 ) -> FuchsConstructionResult:
-    """Build the Fuchs shell via iterative Gaussian smoothing.
+    """Build the Fuchs shell via iterative smoothing.
 
     Parameters
     ----------
@@ -298,6 +349,9 @@ def build_fuchs_construction(
     sigma_ratio : ratio s_rho / s_P ~ 1.72 from Fuchs Section 3.2.
     n_smooth : number of smoothing iterations (4 in the paper).
     r_pad_factor : extend grid to r_pad_factor * R_2.
+    kernel_type : ``"gaussian"`` (default) or ``"moving_average"`` (the
+        original MATLAB ``smooth()`` boxcar, variance-matched via
+        span = sigma*sqrt(12)) for exact-pipeline reproduction.
     """
     M_total = r_s_param / 2.0
     shell_vol = R_2 ** 3 - R_1 ** 3
@@ -325,8 +379,10 @@ def build_fuchs_construction(
     sigma_rho = sigma_rho_factor * (R_2 - R_1)
     sigma_P = sigma_rho / sigma_ratio
 
-    rho_smoothed = _iterative_smooth(rho_initial, r_grid, sigma_rho, n_smooth)
-    P_smoothed = _iterative_smooth(P_initial, r_grid, sigma_P, n_smooth)
+    rho_smoothed = _iterative_smooth(
+        rho_initial, r_grid, sigma_rho, n_smooth, kernel_type=kernel_type)
+    P_smoothed = _iterative_smooth(
+        P_initial, r_grid, sigma_P, n_smooth, kernel_type=kernel_type)
 
     # Ensure non-negative after smoothing
     rho_smoothed = jnp.maximum(rho_smoothed, 0.0)
@@ -455,6 +511,7 @@ def fuchs_default(
     R_b: float = 1.0,
     r_s_param: float = 5.0,
     n_grid: int = 2048,
+    kernel_type: str = "gaussian",
 ) -> FuchsMetric:
     """Factory for the Fuchs metric with paper-matched parameters.
 
@@ -469,6 +526,7 @@ def fuchs_default(
     """
     construction = build_fuchs_construction(
         R_1=R_1, R_2=R_2, r_s_param=r_s_param, n_grid=n_grid,
+        kernel_type=kernel_type,
     )
 
     return FuchsMetric(
