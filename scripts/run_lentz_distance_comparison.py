@@ -23,7 +23,7 @@ import json
 from warpax.metrics import LentzMetric
 
 
-OUTPUT = Path("warpax/output/lentz_distance_comparison.json")
+OUTPUT = Path(__file__).resolve().parents[1] / "results" / "lentz_distance_comparison.json"
 
 R_RANGE = (0.5, 200.0)
 N_SWEEP = 50

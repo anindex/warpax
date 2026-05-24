@@ -38,7 +38,7 @@ from warpax.metrics.tshell_profiles import (
 from warpax.optimization.sweep import _rho_from_compactness
 
 
-OUTPUT = Path(__file__).resolve().parents[1] / "output" / "error_budget.json"
+OUTPUT = Path(__file__).resolve().parents[1] / "results" / "error_budget.json"
 
 # Boundary + shell probe radii, concentrated near the inner edge R_1 where
 # the geometric DEC violation binds, plus a couple of bulk-shell probes.

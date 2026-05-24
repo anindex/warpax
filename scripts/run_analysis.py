@@ -12,10 +12,10 @@ Full sweep (default):
     python scripts/run_analysis.py
 
 Quick validation (Alcubierre only at v_s=0.5):
-    python scripts/run_analysis.py --phase 1
+    python scripts/run_analysis.py --mode quick
 
 Core results (all metrics at v_s=0.5 + Schwarzschild):
-    python scripts/run_analysis.py --phase 2
+    python scripts/run_analysis.py --mode core
 
 Specific metrics/velocities:
     python scripts/run_analysis.py --metrics alcubierre lentz --velocities 0.1 0.5
@@ -49,9 +49,7 @@ from warpax.metrics import (
     WarpShellMetric,
 )
 
-# ---------------------------------------------------------------------------
 # Metric configuration
-# ---------------------------------------------------------------------------
 
 # Metric class + default parameter overrides (excluding v_s which varies)
 METRICS: dict[str, tuple[type, dict]] = {
@@ -100,9 +98,7 @@ GRID_MAP: dict[str, GridSpec] = {
 }
 
 
-# ---------------------------------------------------------------------------
 # Core analysis helper
-# ---------------------------------------------------------------------------
 
 
 def analyze_single(
@@ -266,9 +262,7 @@ def analyze_single(
         )
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def main():
@@ -317,15 +311,14 @@ def main():
         ),
     )
     parser.add_argument(
-        "--phase",
-        type=int,
-        choices=[1, 2, 3],
-        default=3,
+        "--mode",
+        type=str,
+        choices=["quick", "core", "full"],
+        default="full",
         help=(
-            "Execution phase for incremental runs: "
-            "1=quick (Alcubierre v_s=0.5), "
-            "2=core (all metrics v_s=0.5 + Schwarzschild), "
-            "3=full sweep (default)."
+            "Run mode: quick (Alcubierre v_s=0.5), "
+            "core (all metrics v_s=0.5 + Schwarzschild), or "
+            "full (default; all metrics and velocities)."
         ),
     )
     parser.add_argument(
@@ -336,21 +329,16 @@ def main():
     )
     args = parser.parse_args()
 
-    # Determine which metrics and velocities to run based on --phase
     if args.metrics is not None:
         run_metrics = args.metrics
-    elif args.phase == 1:
+    elif args.mode == "quick":
         run_metrics = ["alcubierre"]
-    elif args.phase == 2:
-        run_metrics = WARP_METRICS + ["schwarzschild"]
     else:
         run_metrics = WARP_METRICS + ["schwarzschild"]
 
     if args.velocities is not None:
         run_velocities = args.velocities
-    elif args.phase == 1:
-        run_velocities = [0.5]
-    elif args.phase == 2:
+    elif args.mode in ("quick", "core"):
         run_velocities = [0.5]
     else:
         run_velocities = V_S_VALUES

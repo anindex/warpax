@@ -49,7 +49,7 @@ from warpax.transport.diagnostics import (
 )
 
 
-OUTPUT = Path(__file__).resolve().parents[1] / "output" / "criterion_e_verification.json"
+OUTPUT = Path(__file__).resolve().parents[1] / "results" / "criterion_e_verification.json"
 
 
 def _safe(fn, *, default=None, reason=""):

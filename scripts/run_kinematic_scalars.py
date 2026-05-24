@@ -35,9 +35,7 @@ from warpax.metrics import (
     WarpShellMetric,
 )
 
-# ---------------------------------------------------------------------------
 # Metric configuration (same as run_analysis.py)
-# ---------------------------------------------------------------------------
 
 METRICS: dict[str, tuple[type, dict]] = {
     "alcubierre": (AlcubierreMetric, {"R": 1.0, "sigma": 8.0}),
@@ -63,9 +61,7 @@ GRID_MAP: dict[str, GridSpec] = {
 DEFAULT_V_S = 0.5
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def main():

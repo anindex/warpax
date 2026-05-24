@@ -61,9 +61,7 @@ from warpax.metrics import (
 from warpax.visualization._style import COLORS, DOUBLE_COL, apply_style
 
 
-# ---------------------------------------------------------------------------
 # Constants (identical to run_analysis.py so rows line up with Table 8)
-# ---------------------------------------------------------------------------
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 FIGURES_DIR = os.path.join(os.path.dirname(__file__), "..", "figures")
@@ -113,9 +111,7 @@ BATCH_SIZE_OPT = 64
 BATCH_SIZE_CURV = 256
 
 
-# ---------------------------------------------------------------------------
 # Core analysis function
-# ---------------------------------------------------------------------------
 
 
 def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
@@ -253,9 +249,7 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
 # Output: JSON
-# ---------------------------------------------------------------------------
 
 
 def save_json(results: dict, start_time: str) -> None:
@@ -277,9 +271,7 @@ def save_json(results: dict, start_time: str) -> None:
     print(f"\nJSON saved to {outpath}")
 
 
-# ---------------------------------------------------------------------------
 # Output: human-readable markdown
-# ---------------------------------------------------------------------------
 
 
 def _fmt_miss(value):
@@ -385,9 +377,7 @@ def save_report(results: dict, start_time: str) -> None:
     print(f"Report saved to {outpath}")
 
 
-# ---------------------------------------------------------------------------
 # Output: Type I/II/III/IV breakdown figure
-# ---------------------------------------------------------------------------
 
 
 def plot_type_breakdown(results: dict) -> None:
@@ -479,9 +469,7 @@ def plot_type_breakdown(results: dict) -> None:
     print(f"Figure saved to {outpath}")
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def _instantiate(name: str):

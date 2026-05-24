@@ -48,20 +48,19 @@ class ClassifierGrid32:
         result.he_type.block_until_ready()
 
 
-class ClassifierGrid32Generalised:
+class ClassifierGrid32Generalized:
     """asv benchmark - ``classify_hawking_ellis`` on Alcubierre 32^3 grid,
-    ``solver='generalised'`` path.
+    ``solver='generalized'`` path.
 
     Notes
     -----
     Host-callback overhead: ~5-10x slower than
     :class:`ClassifierGrid32` due to
-    ``jax.pure_callback(..., vmap_method='sequential')`` serialising the
-    ``scipy.linalg.eig`` calls per grid point. This is documented in
-
+    ``jax.pure_callback(..., vmap_method='sequential')`` serializing the
+    ``scipy.linalg.eig`` calls per grid point. This is the documented
     overhead of the LAPACK QZ binding (native Lorentzian pencil handling,
     no Cholesky-whiten). The standard path is the default; this sibling
-    class benchmarks the opt-in generalised path so the host-callback
+    class benchmarks the opt-in generalized path so the host-callback
     overhead can be tracked across releases.
     """
 
@@ -79,21 +78,21 @@ class ClassifierGrid32Generalised:
         g = chain.metric
         g_inv = chain.metric_inv
         # Compute mixed-index T^a_{\;b} = g^{ac} T_{cb}; keep both T_ab and T_mixed
-        # in scope - generalised branch needs T_ab for the pencil solver.
+        # in scope - generalized branch needs T_ab for the pencil solver.
         T_mixed = jnp.einsum("...ac,...cb->...ab", g_inv, T)
         flat_shape = (-1, 4, 4)
         self.T_flat = T.reshape(flat_shape)
         self.T_mixed_flat = T_mixed.reshape(flat_shape)
         self.g_flat = g.reshape(flat_shape)
 
-        # vmap the generalised path; pure_callback is sequential per vmap_method.
+        # vmap the generalized path; pure_callback is sequential per vmap_method.
         def _classify_gen(T_mixed_i, g_i, T_ab_i):
             return classify_hawking_ellis(
-                T_mixed_i, g_i, solver='generalised', T_ab=T_ab_i,
+                T_mixed_i, g_i, solver='generalized', T_ab=T_ab_i,
             )
         self.fn = jax.jit(jax.vmap(_classify_gen, in_axes=(0, 0, 0)))
         _ = self.fn(self.T_mixed_flat, self.g_flat, self.T_flat)  # JIT warmup
 
-    def time_classify_grid_generalised(self) -> None:
+    def time_classify_grid_generalized(self) -> None:
         result = self.fn(self.T_mixed_flat, self.g_flat, self.T_flat)
         result.he_type.block_until_ready()

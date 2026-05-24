@@ -31,7 +31,7 @@ def main() -> None:
         "he_type_census": report["he_type_census"],
         "report": report,
     }
-    out_path = Path(__file__).resolve().parents[1] / "output" / "rodal_verification.json"
+    out_path = Path(__file__).resolve().parents[1] / "results" / "rodal_verification.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(out, f, indent=2, default=str)

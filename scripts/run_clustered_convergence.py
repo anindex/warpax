@@ -6,10 +6,10 @@ resolutions, recording wall-restricted Type-IV fractions and DEC violation
 fractions. The study shows that:
 
 (i)   under wall-clustered refinement the wall-restricted Type-IV fraction
-      stabilises, giving a resolution-stable statistic;
+      stabilizes, giving a resolution-stable statistic;
 (ii)  on uniform grids the full-domain Type-I fraction drifts toward 100%
       with resolution while the wall-restricted fraction converges,
-      confirming the full-domain number is a sampling artefact;
+      confirming the full-domain number is a sampling artifact;
 (iii) matched-parameter Rodal remains resolution-unstable even on the
       clustered grid, which is recorded as a negative result.
 

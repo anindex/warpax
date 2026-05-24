@@ -43,9 +43,7 @@ from warpax.benchmarks import AlcubierreMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
 
-# ---------------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------------
 
 V_S = 0.5
 R = 1.0
@@ -58,9 +56,7 @@ BATCH_SIZE = 64
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 OUTPUT_PATH = os.path.join(RESULTS_DIR, "zeta_sensitivity.npz")
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def main():

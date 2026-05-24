@@ -1,45 +1,41 @@
 #!/usr/bin/env bash
-# reproduce_all.sh - Regenerate ALL results and figures
+# reproduce_all.sh - Regenerate all warpax results and figures
 #
-# Single-command reproducibility script for warpax.
-# Deletes all cached results and figures, re-runs every analysis script
-# in dependency order, and regenerates all figure PDFs.
+# Deletes cached results and figures, re-runs every analysis script in
+# dependency order, and regenerates all figure PDFs.
 #
 # Usage:
-# ./reproduce_all.sh Full regeneration + paper build
-# ./reproduce_all.sh --keep-cache Skip cache deletion (re-run only missing)
-# ./reproduce_all.sh --phase N Run only phase N (1, 2, or 3)
+#   ./reproduce_all.sh                    Full regeneration
+#   ./reproduce_all.sh --keep-cache       Re-run only missing results
+#   ./reproduce_all.sh --stage NAME       Run only one stage
 #
-# Phases:
-# 1 - Core computation (analysis, convergence, kinematic scalars, geodesics)
-# 2 - Ablation studies (C1/C2, N-starts, zeta, Rodal DEC, WarpShell, etc.)
-# 3 - Figure generation
-#
+# Stages: core (analysis, convergence, scalars, geodesics),
+#         ablation (ablation + supplementary studies),
+#         figures (figure generation).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="${SCRIPT_DIR}/results"
 FIGURES_DIR="${SCRIPT_DIR}/figures"
 
-# Parse flags
 KEEP_CACHE=false
-PHASE_ONLY=""
+STAGE_ONLY=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --keep-cache) KEEP_CACHE=true ;;
-        --phase)
+        --stage)
             shift
             if [ $# -eq 0 ]; then
-                echo "Error: --phase requires an argument (1, 2, 3, or 4)" >&2
+                echo "Error: --stage requires an argument (core, ablation, figures)" >&2
                 exit 1
             fi
-            PHASE_ONLY="$1"
+            STAGE_ONLY="$1"
             ;;
-        1|2|3|4) PHASE_ONLY="$1" ;;
+        core|ablation|figures) STAGE_ONLY="$1" ;;
         -h|--help)
-            echo "Usage: $0 [--keep-cache] [--phase N]"
-            echo " --keep-cache Skip cache deletion (only recompute missing results)"
-            echo " --phase N Run only phase N (1=core, 2=ablations, 3=figures, 4=paper)"
+            echo "Usage: $0 [--keep-cache] [--stage core|ablation|figures]"
+            echo "  --keep-cache   Skip cache deletion (only recompute missing results)"
+            echo "  --stage NAME   Run only one stage (core, ablation, or figures)"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -49,59 +45,38 @@ done
 
 PYTHON="${PYTHON:-python}"
 
-# Ensure warpax is importable when running from a checkout without
-# `pip install -e .`. Prepending src/ to PYTHONPATH is harmless if
-# warpax is already installed (the installed package wins).
 export PYTHONPATH="${SCRIPT_DIR:-$PWD}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 # Pin JAX backend to CPU by default for deterministic reproduction.
-#
-# On Blackwell sm_120 with jax[cuda12]==0.10.0 installed, reproduce_all.sh
-# crashes on two independent blockers:
-# - Mode 1: cuBLAS LT matmul autotuner (matches JAX #33910)
-# - Mode 3: gpusolverDnCreate cuSolver DN handle creation
-#
-# The committed CPU-provenanced cache is the canonical reproduction target.
-# Override via:
-# JAX_PLATFORMS=gpu bash reproduce_all.sh   # explicit opt-in; non-deterministic
+# Blackwell sm_120 with jax[cuda12]==0.10.0 crashes in two paths
+# (cuBLAS LT autotuner; cuSolver DN handle creation), so the committed cache
+# is CPU-provenanced. Override with JAX_PLATFORMS=gpu (non-deterministic).
 export JAX_PLATFORMS="${JAX_PLATFORMS:-cpu}"
 echo "[reproduce_all.sh] JAX backend pinned: JAX_PLATFORMS=${JAX_PLATFORMS}" >&2
 if [ "${JAX_PLATFORMS}" != "cpu" ]; then
-    echo "[reproduce_all.sh] WARNING: GPU/non-CPU backend selected. This is NOT" >&2
-    echo "[reproduce_all.sh] the canonical CPU reproduction backend." >&2
-    echo "[reproduce_all.sh] GPU may be non-deterministic; use JAX_PLATFORMS=cpu" >&2
+    echo "[reproduce_all.sh] WARNING: non-CPU backend selected." >&2
+    echo "[reproduce_all.sh] GPU runs are non-deterministic; CPU is canonical." >&2
 fi
 
-# All Python scripts (run_analysis.py etc.) use CWD-relative "results/" as their
-# output directory default. Ensure the CWD is the warpax package root regardless
-# of where reproduce_all.sh was invoked from, so artifacts land in
-# warpax/results/ (not the caller's CWD).
 cd "${SCRIPT_DIR}"
 
-# Track elapsed time
 SECONDS=0
 
-# ------------------------------------------------------------------
-# Step 0: Clear cached results (unless --keep-cache)
-# ------------------------------------------------------------------
-if [ "$KEEP_CACHE" = false ] && [ -z "$PHASE_ONLY" -o "$PHASE_ONLY" = "1" ]; then
+if [ "$KEEP_CACHE" = false ] && [ -z "$STAGE_ONLY" -o "$STAGE_ONLY" = "core" ]; then
     echo "============================================================"
     echo " Step 0: Clearing cached results and figures"
     echo "============================================================"
     find "${RESULTS_DIR}" -name '*.npz' -delete 2>/dev/null || true
-    find "${RESULTS_DIR}" -name '*.json' ! -name 'paper_constants.json' -delete 2>/dev/null || true
+    find "${RESULTS_DIR}" -name '*.json' -delete 2>/dev/null || true
     find "${RESULTS_DIR}" -name '*.tex' -delete 2>/dev/null || true
     find "${FIGURES_DIR}" -name '*.pdf' -delete 2>/dev/null || true
-    echo " Cleared results/ (except paper_constants.json) and figures/*.pdf"
+    echo " Cleared results/ and figures/*.pdf"
     echo ""
 fi
 
-# ------------------------------------------------------------------
-# Phase 1: Core computation (independent scripts)
-# ------------------------------------------------------------------
-run_phase_1() {
+run_core() {
     echo "============================================================"
-    echo " Phase 1: Core computation"
+    echo " Stage: Core computation"
     echo "============================================================"
 
     echo ""
@@ -128,16 +103,13 @@ run_phase_1() {
         --n-starts 8
 
     echo ""
-    echo " Phase 1 complete."
+    echo " Core stage complete."
     echo ""
 }
 
-# ------------------------------------------------------------------
-# Phase 2: Ablation and supplementary studies
-# ------------------------------------------------------------------
-run_phase_2() {
+run_ablation() {
     echo "============================================================"
-    echo " Phase 2: Ablation & supplementary studies"
+    echo " Stage: Ablation & supplementary studies"
     echo "============================================================"
 
     echo ""
@@ -197,16 +169,13 @@ run_phase_2() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_wall_restricted_analysis.py"
 
     echo ""
-    echo " Phase 2 complete."
+    echo " Ablation stage complete."
     echo ""
 }
 
-# ------------------------------------------------------------------
-# Phase 3: Figure generation
-# ------------------------------------------------------------------
-run_phase_3() {
+run_figures() {
     echo "============================================================"
-    echo " Phase 3: Figure generation"
+    echo " Stage: Figure generation"
     echo "============================================================"
 
     echo ""
@@ -216,33 +185,25 @@ run_phase_3() {
         --results-dir "${RESULTS_DIR}/"
 
     echo ""
-    echo "[2/2] generate_vdb_comparison_figures.py VdB NEC/WEC/SEC/DEC comparison panels"
+    echo "[2/2] generate_vdb_comparison_figures.py VdB NEC/WEC/SEC/DEC panels"
     $PYTHON "${SCRIPT_DIR}/scripts/generate_vdb_comparison_figures.py"
 
     echo ""
-    echo " Phase 3 complete."
+    echo " Figures stage complete."
     echo ""
 }
 
-
-
-# ------------------------------------------------------------------
-# Execute requested phases
-# ------------------------------------------------------------------
-case "${PHASE_ONLY}" in
-    1) run_phase_1 ;;
-    2) run_phase_2 ;;
-    3) run_phase_3 ;;
+case "${STAGE_ONLY}" in
+    core) run_core ;;
+    ablation) run_ablation ;;
+    figures) run_figures ;;
     "")
-        run_phase_1
-        run_phase_2
-        run_phase_3
+        run_core
+        run_ablation
+        run_figures
         ;;
 esac
 
-# ------------------------------------------------------------------
-# Summary
-# ------------------------------------------------------------------
 ELAPSED=$SECONDS
 MINS=$((ELAPSED / 60))
 SECS=$((ELAPSED % 60))

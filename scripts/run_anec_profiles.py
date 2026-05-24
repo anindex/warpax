@@ -28,7 +28,7 @@ import numpy as np
 from warpax.averaged.anec import anec, _anec_integrand_at_point
 
 
-OUTPUT_DIR = Path("warpax/output/anec")
+OUTPUT_DIR = Path(__file__).resolve().parents[1] / "results" / "anec"
 
 
 def _axial_null_geodesic_factory(y_offset=1e-3, x_start=-30.0, c=1.0):

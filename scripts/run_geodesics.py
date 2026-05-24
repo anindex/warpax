@@ -50,9 +50,7 @@ from warpax.geodesics import (
     timelike_ic,
 )
 
-# ---------------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------------
 
 RESULTS_DIR = "results/"
 
@@ -74,9 +72,7 @@ def _ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 
-# ---------------------------------------------------------------------------
 # Tidal force analysis (timelike geodesic with deviation)
-# ---------------------------------------------------------------------------
 
 
 def compute_tidal_analysis(
@@ -181,9 +177,7 @@ def compute_tidal_analysis(
     return cache_path
 
 
-# ---------------------------------------------------------------------------
 # Blueshift analysis (null geodesic)
-# ---------------------------------------------------------------------------
 
 
 def compute_blueshift_analysis(
@@ -289,9 +283,7 @@ def compute_blueshift_analysis(
     return cache_path
 
 
-# ---------------------------------------------------------------------------
 # Post-computation analysis
-# ---------------------------------------------------------------------------
 
 
 def analyze_tidal_scaling(results_dir: str, velocities: list[float]) -> dict:
@@ -401,9 +393,7 @@ def save_scaling_json(
     return out_path
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def main():

@@ -56,10 +56,8 @@ def _interp1d(r, r_grid, vals):
     return interpax.interp1d(rc, r_grid, vals, method="cubic")
 
 
-# ---------------------------------------------------------------------------
 # Static isotropic fluid T_input (S-shell, Fuchs): T_ab = (rho+p) u_a u_b + p g_ab
 # u^a = (1/alpha, 0,0,0) static observer.
-# ---------------------------------------------------------------------------
 def _T_input_static(metric, coords, rho_val, p_val):
     g = metric(coords)
     alpha = metric.lapse(coords)
@@ -68,11 +66,9 @@ def _T_input_static(metric, coords, rho_val, p_val):
     return (rho_val + p_val) * jnp.outer(u_down, u_down) + p_val * g
 
 
-# ---------------------------------------------------------------------------
 # Tilted fluid T_input (T-shell): u^a = Gamma (n^a + v^a), v^a x-directed.
 # n^a = (1/alpha, -beta^i/alpha); v^a = (0, v^x, 0, 0) spatial (orthogonal to n).
 # T_ab = (rho+p) u_a u_b + p g_ab (isotropic comoving pressure p = p_r).
-# ---------------------------------------------------------------------------
 def _T_input_tilted(metric, coords, rho_val, p_val, vx_val):
     g = metric(coords)
     alpha = metric.lapse(coords)
@@ -226,7 +222,7 @@ def main():
     print("Verifying Fuchs (canonical)...")
     out["fuchs"] = verify_fuchs()
 
-    out_path = Path(__file__).resolve().parents[1] / "output" / "constraint_residual_verification.json"
+    out_path = Path(__file__).resolve().parents[1] / "results" / "constraint_residual_verification.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(out, f, indent=2)

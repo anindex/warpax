@@ -40,9 +40,7 @@ from warpax.metrics import (
 from warpax.transport import geodesic_deviation_diagnostic
 
 
-# ---------------------------------------------------------------------------
 # Per-point evaluation
-# ---------------------------------------------------------------------------
 
 def _evaluate_point(metric, coords, *, n_starts=16):
     """Evaluate all diagnostics at a single spacetime point."""
@@ -79,9 +77,7 @@ def _evaluate_point(metric, coords, *, n_starts=16):
     return result
 
 
-# ---------------------------------------------------------------------------
 # Proposal evaluation
-# ---------------------------------------------------------------------------
 
 def evaluate_fuchs():
     """5-criterion evaluation of the Fuchs shell."""
@@ -331,9 +327,7 @@ def evaluate_lentz():
     )
 
 
-# ---------------------------------------------------------------------------
 # Summary table
-# ---------------------------------------------------------------------------
 
 
 def _print_summary_table(reports):
@@ -380,9 +374,7 @@ def _print_summary_table(reports):
     print()
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def run_all_evaluations():

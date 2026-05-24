@@ -16,7 +16,7 @@ from warpax.metrics.natario import NatarioMetric
 from warpax.metrics.van_den_broeck import VanDenBroeckMetric
 
 
-OUTPUT = Path("warpax/output/landscape.json")
+OUTPUT = Path(__file__).resolve().parents[1] / "results" / "landscape.json"
 
 
 def _verify(name, metric, **kw):

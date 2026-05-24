@@ -1,4 +1,4 @@
-"""asv benchmarks - energy-condition optimiser multistart (#3-6).
+"""asv benchmarks - energy-condition optimizer multistart (#3-6).
 
 Four benchmarks running the Optimistix BFGS multistart over the bounded
 timelike observer manifold for NEC / WEC / SEC / DEC on a single
@@ -34,7 +34,7 @@ def _build_wall_point() -> tuple[jnp.ndarray, jnp.ndarray]:
 
 
 class _OptimizerBenchmark:
-    """Shared harness for the four EC-optimiser benchmarks."""
+    """Shared harness for the four EC-optimizer benchmarks."""
 
     warmup_time = 2.0
     number = 2

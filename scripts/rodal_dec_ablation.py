@@ -46,9 +46,7 @@ from warpax.energy_conditions.verifier import verify_grid
 from warpax.visualization._style import apply_style, COLORS, DOUBLE_COL, LINE_STYLES
 
 
-# ---------------------------------------------------------------------------
 # Baseline parameters
-# ---------------------------------------------------------------------------
 
 BASELINE = {
     "v_s": 0.5,
@@ -63,9 +61,7 @@ BASELINE = {
 }
 
 
-# ---------------------------------------------------------------------------
 # Sweep functions
-# ---------------------------------------------------------------------------
 
 def _run_single(metric, grid, label="", return_full=False):
     """Run curvature + comparison for a single metric/grid pair.
@@ -367,9 +363,7 @@ def run_sigma_sweep():
     }
 
 
-# ---------------------------------------------------------------------------
 # Diagnosis logic
-# ---------------------------------------------------------------------------
 
 def _max_variation(values):
     """Maximum variation (range) in a list of percentages."""
@@ -468,9 +462,7 @@ def classify_diagnosis(sweeps):
     }
 
 
-# ---------------------------------------------------------------------------
 # Output: JSON diagnosis
-# ---------------------------------------------------------------------------
 
 def save_diagnosis(sweeps, diagnosis, start_time):
     """Save structured diagnosis to JSON."""
@@ -536,9 +528,7 @@ def save_diagnosis(sweeps, diagnosis, start_time):
     return output
 
 
-# ---------------------------------------------------------------------------
 # Output: 3-panel ablation figure
-# ---------------------------------------------------------------------------
 
 def plot_ablation(sweeps):
     """Generate 3-panel ablation figure."""
@@ -628,9 +618,7 @@ def plot_ablation(sweeps):
     print(f"Figure saved to {outpath}")
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 def main():
     start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

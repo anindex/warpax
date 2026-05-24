@@ -1,6 +1,6 @@
 # warpax/results/ MANIFEST - SHA256 + size per cache file.
 # Generated 2026-04-20T14:29:58.383425+00:00
-# Regen recipe: JAX_PLATFORMS=cpu bash reproduce_all.sh --phase 2
+# Regen recipe: JAX_PLATFORMS=cpu bash reproduce_all.sh --stage core
 # Per-file recipe: python scripts/run_analysis.py --metric <M> --v_s <V> --deterministic
 
 5a10243494e88d9143745149012fcadbe47ae0044c2be166ea4ee5c7d85399f7       3001338  alcubierre_kinematic_vs0.5.npz

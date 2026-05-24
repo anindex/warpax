@@ -19,7 +19,7 @@ from _radial_sweep import radial_sweep, save_json  # noqa: E402
 from warpax.metrics import fuchs_default  # noqa: E402
 
 
-OUTPUT = Path("warpax/output/fuchs_canonical.json")
+OUTPUT = Path(__file__).resolve().parents[1] / "results" / "fuchs_canonical.json"
 
 
 def main():

@@ -31,9 +31,7 @@ from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.metrics import WarpShellMetric
 
-# ---------------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------------
 
 DEFAULT_SMOOTH_WIDTHS = [0.03, 0.06, 0.12, 0.24]
 GRID_SPEC = GridSpec(bounds=[(-5, 5)] * 3, shape=(25, 25, 25))

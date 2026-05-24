@@ -20,7 +20,7 @@ jax.config.update("jax_enable_x64", True)
 from warpax.optimization.sweep import _evaluate_point, _rho_from_compactness
 
 
-OUTPUT = Path("warpax/output/convergence_tshell.json")
+OUTPUT = Path(__file__).resolve().parents[1] / "results" / "convergence_tshell.json"
 
 POINTS = [
     {"label": "low-C near-feasible",  "compactness": 0.01, "thickness_ratio": 0.336},
