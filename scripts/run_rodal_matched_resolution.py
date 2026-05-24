@@ -5,8 +5,8 @@ Runs Eulerian vs robust EC comparison at resolutions N=30/50/70 on a [-3,3]^3
 domain (same as Alcubierre/Natario/VDB). Feasibility criterion: f_miss
 stability across resolutions within +/-5%.
 
-See also: ``run_rodal_resolution.py`` for the basic Rodal resolution study
-at native parameters and the broader N = {25, 50, 100} sweep.
+See also the broader N = {25, 50, 100} resolution sweep in
+``run_clustered_convergence.py``.
 
 Outputs:
   - results/rodal_matched_resolution.json (per-resolution f_miss data)
@@ -37,9 +37,7 @@ from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
 
 
-# ---------------------------------------------------------------------------
 # Constants
-# ---------------------------------------------------------------------------
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 RESOLUTIONS = [30, 50, 70]  # three-point resolution sweep
@@ -51,9 +49,7 @@ TOLERANCE = 0.05  # +/-5% stability criterion across adjacent resolutions
 CONDITIONS = ["nec", "wec", "sec", "dec"]
 
 
-# ---------------------------------------------------------------------------
 # Resolution study
-# ---------------------------------------------------------------------------
 
 
 def run_resolution_study():
@@ -139,9 +135,7 @@ def run_resolution_study():
     return results
 
 
-# ---------------------------------------------------------------------------
 # Stability analysis
-# ---------------------------------------------------------------------------
 
 
 def check_f_miss_stability(results):
@@ -179,9 +173,7 @@ def check_f_miss_stability(results):
     return stability
 
 
-# ---------------------------------------------------------------------------
 # JSON output
-# ---------------------------------------------------------------------------
 
 
 def save_json(results, stability, start_time):
@@ -217,9 +209,7 @@ def save_json(results, stability, start_time):
     return output
 
 
-# ---------------------------------------------------------------------------
 # Markdown report
-# ---------------------------------------------------------------------------
 
 
 def save_report(results, stability, start_time):
@@ -303,9 +293,7 @@ def save_report(results, stability, start_time):
     print(f"Report saved to {report_path}")
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def main():

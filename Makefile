@@ -2,7 +2,7 @@
 
 # Run the full test suite (CPU-canonical; skip slow marker).
 test:
-	JAX_PLATFORMS=cpu pytest -m "not slow"
+	JAX_PLATFORMS=cpu pytest -m "not slow" -n auto
 
 # Build the MkDocs site with strict mode (any warning fails the build).
 docs:

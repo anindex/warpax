@@ -51,9 +51,7 @@ N_STARTS = 16
 R_1, R_2 = 10.0, 20.0
 
 
-# ---------------------------------------------------------------------------
 # Kernel radial sweep + interior/tail breakdown
-# ---------------------------------------------------------------------------
 
 
 def sweep_kernel(kernel_type: str) -> dict:
@@ -106,9 +104,7 @@ def sweep_kernel(kernel_type: str) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
 # Post-smoothing source-consistency residual
-# ---------------------------------------------------------------------------
 
 
 def _smoothed_T_input_builder(metric, construction):

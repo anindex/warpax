@@ -35,9 +35,7 @@ from warpax.metrics import LentzMetric
 from warpax.geometry import compute_curvature_chain
 
 
-# ---------------------------------------------------------------------------
 # Constants
-# ---------------------------------------------------------------------------
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 TANH_10_90 = 2.0 * math.atanh(0.8)  # 10-90% transition width factor
@@ -53,9 +51,7 @@ N_RADIAL = 500
 RADIAL_RANGE = (50.0, 150.0)  # Focus on wall region around R=100
 
 
-# ---------------------------------------------------------------------------
 # Analytical assessment
-# ---------------------------------------------------------------------------
 
 
 def analytical_assessment():
@@ -102,9 +98,7 @@ def analytical_assessment():
     return result
 
 
-# ---------------------------------------------------------------------------
 # 1D radial cut assessment
-# ---------------------------------------------------------------------------
 
 
 def radial_cut_assessment():
@@ -165,9 +159,7 @@ def radial_cut_assessment():
     return results
 
 
-# ---------------------------------------------------------------------------
 # JSON output
-# ---------------------------------------------------------------------------
 
 
 def save_json(analytical, radial_cut, start_time):
@@ -204,9 +196,7 @@ def save_json(analytical, radial_cut, start_time):
     return output
 
 
-# ---------------------------------------------------------------------------
 # Markdown report
-# ---------------------------------------------------------------------------
 
 
 def save_report(analytical, radial_cut, start_time):
@@ -305,9 +295,7 @@ def save_report(analytical, radial_cut, start_time):
     print(f"Report saved to {report_path}")
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def main():

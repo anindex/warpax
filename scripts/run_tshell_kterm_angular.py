@@ -31,16 +31,14 @@ from warpax.constraints.residuals import (
 )
 from warpax.energy_conditions import verify_point
 
-OUTPUT = Path("warpax/output/tshell_kterm_angular.json")
+OUTPUT = Path(__file__).resolve().parents[1] / "results" / "tshell_kterm_angular.json"
 
 R_1 = 10.0
 R_2 = 20.0
 V_0 = 0.1
 
 
-# ---------------------------------------------------------------------------
 # Eulerian energy density E = T_{ab} n^a n^b
-# ---------------------------------------------------------------------------
 def eulerian_E(metric, coords):
     """Eulerian energy density E = T_{ab} n^a n^b from the autodiff T_{ab}."""
     curv = compute_curvature_chain(metric, coords)
@@ -57,9 +55,7 @@ def eulerian_E(metric, coords):
     return jnp.einsum("a,ab,b->", n_up, T, n_up)
 
 
-# ---------------------------------------------------------------------------
 # Hamiltonian K-term decomposition along radial (x-axis) probes
-# ---------------------------------------------------------------------------
 def kterm_decomposition(metric):
     margin = 0.02 * (R_2 - R_1)
     r_probes = jnp.linspace(R_1 + margin, R_2 - margin, 25)
@@ -128,9 +124,7 @@ def kterm_decomposition(metric):
     }
 
 
-# ---------------------------------------------------------------------------
 # Angular EC sampling
-# ---------------------------------------------------------------------------
 def worst_min_margin_at_point(metric, coords, n_starts=24):
     """Worst (most negative) of min(NEC, WEC, DEC) at a point via full optimization."""
     curv = compute_curvature_chain(metric, coords)

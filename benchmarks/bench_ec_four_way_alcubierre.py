@@ -1,12 +1,13 @@
-"""asv benchmark - Fig 5 four-way EC comparison on Alcubierre.
+"""asv benchmark: 4-way WEC comparison on a matched Alcubierre point.
 
-Parametrized 4-way comparison on Alcubierre matched parameters:
-1. ``tanh`` baseline (``strategy='tanh', warm_start='cold'``)
-2. ``hard_bound`` alone (``strategy='hard_bound'``)
-3. ``hard_bound + warm_start='spatial_neighbor'``
-4. ``hard_bound + starts='fibonacci+bfgs_top_k'``
+Compares:
+1. ``tanh`` baseline (``strategy='tanh', warm_start='cold'``).
+2. ``hard_bound`` alone (``strategy='hard_bound'``).
+3. ``hard_bound`` + ``warm_start='spatial_neighbor'``.
+4. ``hard_bound`` + ``starts='fibonacci+bfgs_top_k'``.
 
-Target grid: Alcubierre v_s=0.5 R=1.0 σ=8.0. CPU-only; 20% asv noise budget.
+Single-point evaluation at Alcubierre ``v_s=0.5, R=1.0, sigma=8.0``;
+CPU-only with the asv 20 % noise budget.
 """
 
 from __future__ import annotations
@@ -16,7 +17,6 @@ import os
 os.environ.setdefault("JAX_PLATFORMS", "cpu")
 
 import jax
-import jax.numpy as jnp
 
 import warpax  # noqa: F401
 from warpax.benchmarks import AlcubierreMetric

@@ -44,9 +44,7 @@ from warpax.metrics import LentzMetric
 from warpax.geometry import compute_curvature_chain
 from warpax.energy_conditions import classify_hawking_ellis, verify_point
 
-# ---------------------------------------------------------------------------
 # Constants
-# ---------------------------------------------------------------------------
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 
@@ -67,9 +65,7 @@ N_RADIAL = 50
 N_CHARACTERIZE = 10
 
 
-# ---------------------------------------------------------------------------
 # Core functions
-# ---------------------------------------------------------------------------
 
 
 def compute_g00_transition(metric, v_s, r_values, t=0.0):

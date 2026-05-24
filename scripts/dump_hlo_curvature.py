@@ -9,10 +9,10 @@ Usage
 -----
 Invoked via the shell wrapper::
 
-    bash warpax/scripts/dump_hlo_curvature.sh
+    bash scripts/dump_hlo_curvature.sh
 
 which pins ``JAX_PLATFORMS=cpu`` and writes the artifact to
-``output/hlo/alcubierre_curvature_chain.hlo``.
+``results/hlo/alcubierre_curvature_chain.hlo``.
 
 The script is read-only with respect to any ``warpax/src/`` source file.
 """

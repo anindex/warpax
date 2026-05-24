@@ -38,9 +38,7 @@ from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.metrics import RodalMetric, WarpShellMetric
 
-# ---------------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------------
 
 METRICS: dict[str, tuple[type, dict, GridSpec]] = {
     "alcubierre": (

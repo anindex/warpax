@@ -54,9 +54,7 @@ from warpax.visualization.geodesic_plots import (
 )
 from warpax.visualization.alignment_plots import plot_alignment_histogram
 
-# ---------------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------------
 
 FIGURES_DIR = "figures/"
 RESULTS_DIR = "results/"
@@ -84,9 +82,7 @@ def _load_npz(path: str) -> np.lib.npyio.NpzFile | None:
     return np.load(path)
 
 
-# ---------------------------------------------------------------------------
 # Figure generation functions
-# ---------------------------------------------------------------------------
 
 
 def generate_comparison_figures(figures_dir: str, results_dir: str) -> int:
@@ -480,9 +476,7 @@ def generate_alignment_figures(figures_dir: str, results_dir: str) -> int:
     return 1
 
 
-# ---------------------------------------------------------------------------
 # Standalone-script figure wrappers
-# ---------------------------------------------------------------------------
 # These figures require computation (not just cached data). The wrapper
 # functions call the standalone scripts via subprocess so that
 # ``reproduce_figures.py`` remains a single entry-point for ALL paper figures.
@@ -584,9 +578,7 @@ def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> 
     return 1
 
 
-# ---------------------------------------------------------------------------
 # Figure set registry
-# ---------------------------------------------------------------------------
 
 FIGURE_SETS = {
     "comparison": generate_comparison_figures,
@@ -604,9 +596,7 @@ FIGURE_SETS = {
 }
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def main():

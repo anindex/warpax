@@ -22,7 +22,7 @@ from warpax.metrics.tshell_profiles import constant_velocity_profiles
 from warpax.transport.diagnostics import null_round_trip_asymmetry
 
 
-OUTPUT = Path("warpax/output/delta_tau.json")
+OUTPUT = Path(__file__).resolve().parents[1] / "results" / "delta_tau.json"
 
 CONFIGS = [
     {"label": "default low-mid", "R_1": 10.0, "R_2": 20.0, "rho_0": 1e-4, "v_0": 0.1},

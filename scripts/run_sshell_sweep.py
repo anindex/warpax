@@ -27,7 +27,7 @@ from warpax.visualization.phase_diagram import (
 
 def main():
     output_dir = (
-        Path(__file__).resolve().parents[1] / "output" / "phase_diagram_sshell"
+        Path(__file__).resolve().parents[1] / "results" / "phase_diagram_sshell"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     sweep_path = str(output_dir / "sweep_results.npz")

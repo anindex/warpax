@@ -46,9 +46,7 @@ from warpax.visualization.common import (
     scene_velocity_ramp,
 )
 
-# ---------------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------------
 
 # Production settings
 PROD_FRAMES = {"collapse": 90, "ramp": 90, "observer": 60}
@@ -70,9 +68,7 @@ GRID_BOUNDS = [(-3, 3), (-3, 3), (-3, 3)]
 STATIC_CAMERA = [(6, 6, 4), (0, 0, 0), (0, 0, 1)]
 
 
-# ---------------------------------------------------------------------------
 # Embedding setup_frame callback factory
-# ---------------------------------------------------------------------------
 
 # NOTE: The PyVista-based 3D embedding rendering was removed.
 # Use Manim scenes (scripts/render_all_scenes.py) for animations.
@@ -80,9 +76,7 @@ STATIC_CAMERA = [(6, 6, 4), (0, 0, 0), (0, 0, 1)]
 # layer still produce FrameData lists usable by any backend.
 
 
-# ---------------------------------------------------------------------------
 # Post-processing helpers
-# ---------------------------------------------------------------------------
 
 
 def _ensure_rgba(img):
@@ -164,9 +158,7 @@ def _write_png(images, directory, basename):
         iio.imwrite(frame_path, img)
 
 
-# ---------------------------------------------------------------------------
 # Scene renderers (matplotlib-based 2D slices)
-# ---------------------------------------------------------------------------
 
 
 def _render_2d_frame(frame_data, field="energy_density", title=""):
@@ -277,9 +269,7 @@ def render_scene_observer(grid_spec, n_frames, output_dir, formats, quick):
     )
 
 
-# ---------------------------------------------------------------------------
 # Export dispatcher
-# ---------------------------------------------------------------------------
 
 
 def _export_images(
@@ -318,9 +308,7 @@ def _export_images(
         print(f"    Wrote: {png_dir}/ ({len(png_imgs)} frames)")
 
 
-# ---------------------------------------------------------------------------
 # CLI
-# ---------------------------------------------------------------------------
 
 
 def parse_args():
@@ -362,9 +350,7 @@ def parse_args():
     return parser.parse_args()
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def main():

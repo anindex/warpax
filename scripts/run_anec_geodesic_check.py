@@ -15,7 +15,7 @@ Diffrax adaptive RK tolerance budget, so the Alcubierre line integral
 reported here is a numerical placeholder rather than a defensible
 geodesic-integrated result and is flagged accordingly in the output.
 
-This script writes ``warpax/output/anec/geodesic_check.json`` and does NOT
+This script writes ``results/anec/geodesic_check.json`` and does NOT
 overwrite the coordinate-ray ``summary.json`` consumed by
 ``source_warp/paper/verify_claims.py``.
 """
@@ -35,7 +35,7 @@ from warpax.averaged.anec import anec
 from warpax.geodesics import integrate_geodesic, null_ic
 
 
-OUTPUT_DIR = Path("warpax/output/anec")
+OUTPUT_DIR = Path(__file__).resolve().parents[1] / "results" / "anec"
 
 
 def _integrate_null_geodesic(

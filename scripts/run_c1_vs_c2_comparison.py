@@ -37,9 +37,7 @@ from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import WarpShellMetric
 from warpax.visualization._style import apply_style, DOUBLE_COL, COLORS
 
-# ---------------------------------------------------------------------------
 # Configuration (matches paper exactly)
-# ---------------------------------------------------------------------------
 
 VELOCITIES = [0.1, 0.5, 0.9, 0.99]
 METRIC_PARAMS = {"R_1": 0.5, "R_2": 1.0}
@@ -55,9 +53,7 @@ TEX_PATH = os.path.join(RESULTS_DIR, "c1_vs_c2_comparison.tex")
 PLOT_PATH = os.path.join(FIGURES_DIR, "c1_vs_c2_margins.pdf")
 
 
-# ---------------------------------------------------------------------------
 # C2 continuity measurement: seam discontinuity via third finite difference
-# ---------------------------------------------------------------------------
 
 
 def measure_seam_continuity(
@@ -113,9 +109,7 @@ def measure_seam_continuity(
     return max_d3
 
 
-# ---------------------------------------------------------------------------
 # Per-velocity comparison
-# ---------------------------------------------------------------------------
 
 
 def run_comparison_at_velocity(
@@ -185,9 +179,7 @@ def run_comparison_at_velocity(
     }
 
 
-# ---------------------------------------------------------------------------
 # LaTeX table generation
-# ---------------------------------------------------------------------------
 
 
 def generate_latex_table(rows: list[dict]) -> str:
@@ -245,9 +237,7 @@ def generate_latex_table(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------
 # Plot generation
-# ---------------------------------------------------------------------------
 
 
 def generate_plot(rows: list[dict]) -> None:
@@ -300,9 +290,7 @@ def generate_plot(rows: list[dict]) -> None:
     print(f"  Saved plot: {PLOT_PATH}")
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 
 
 def main():
