@@ -5,6 +5,24 @@ All notable changes to `warpax` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+---
+
+## [0.4.4]
+
+New verification scripts and Fuchs/Lentz construction extensions.
+
+### Added
+- `scripts/constraint_residual_verification.py`, `scripts/run_criterion_e_verification.py`: source-consistency and Criterion-E verification across all constructions.
+- `scripts/fuchs_kernel_comparison.py`: Gaussian vs moving-average kernel comparison and post-smoothing source-consistency residual.
+- `scripts/run_tshell_kterm_angular.py`: Hamiltonian K-term decomposition and angular EC sampling.
+- `scripts/run_error_budget.py`: sign-robustness check for T-shell DEC.
+- `scripts/run_lentz_distance_comparison.py`: L1 vs L2 distance control.
+- `scripts/verify_rodal.py`: standalone Rodal verification.
+- `LentzMetric.distance` field (`"L1"` / `"L2"`) for smooth-distance control.
+- Moving-average kernel path in `build_fuchs_construction(kernel_type=...)`.
+
+---
+
 ## [0.4.3]
 
 Wall-restricted energy-condition statistics. The full-domain Type-I

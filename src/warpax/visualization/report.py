@@ -25,7 +25,7 @@ def generate_report(
     slice_index: int | None = None,
     save_path: str | None = None,
 ) -> plt.Figure:
-    """Generate a comprehensive analysis report figure.
+    """Generate a combined analysis report figure.
 
     Parameters
     ----------
