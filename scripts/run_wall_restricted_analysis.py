@@ -3,9 +3,8 @@
 For each warp metric, computes Hawking-Ellis Type breakdown and
 conditional energy-condition miss rates restricted to the physically
 meaningful warp-wall region where the shape function ``f(coords)`` lies
-in ``[0.1, 0.9]``. Unconditional (full-grid) statistics are reported
-alongside so reviewers can see how reported Type-IV fractions change
-once the vacuum-dominated exterior is filtered out.
+in ``[0.1, 0.9]``. Full-grid statistics are reported alongside for
+comparison.
 
 Outputs
 ------------------------------------
@@ -101,7 +100,7 @@ GRID_MAP: dict[str, GridSpec] = {
 
 WARP_METRICS = ["alcubierre", "rodal", "vdb", "natario", "lentz", "warpshell"]
 
-# Subluminal reference velocity; matched to the paper's primary run.
+# Subluminal reference velocity.
 V_S = 0.5
 
 # Wall bounds used to define the active warp-wall region.
@@ -305,10 +304,10 @@ def save_report(results: dict, start_time: str) -> None:
     lines.append("## Overview")
     lines.append("")
     lines.append(
-        "The paper's headline Type-IV fractions are computed over the full "
+        "Full-domain Type-IV fractions are computed over the full "
         "grid, which for large-bubble metrics (Rodal, Lentz) is dominated by "
         "vacuum. Restricting to the active warp-wall region where the shape "
-        "function lies in [0.1, 0.9] yields conditional fractions that are "
+        "function lies in [0.1, 0.9] yields fractions that are "
         "directly physically meaningful. This report shows both quantities "
         "side-by-side so the scaling between full-grid (vacuum-dominated) "
         "and wall-restricted (wall-dominated) statistics is transparent."

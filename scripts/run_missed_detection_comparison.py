@@ -5,8 +5,8 @@ For each metric/velocity where BFGS optimization finds missed violations
 (Eulerian >= 0 but robust < 0), test whether dense observer sampling at
 various densities (100, 1000, 10000) would also detect those violations.
 
-This directly answers the reviewer concern: "you're only beating a
-strawman Eulerian baseline, what about realistic sampling?"
+Quantifies how much of the Eulerian gap is recoverable by denser random
+sampling vs full continuous optimization.
 
 Loads cached .npz data and only re-evaluates the missed-violation subset,
 keeping runtime manageable.

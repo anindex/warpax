@@ -1,25 +1,18 @@
-"""Source-aware constraint residual verification (vacuum vs source-aware vs source-consistency).
+"""Source-aware constraint residual verification.
 
-Quantifies the difference between the published VACUUM normalized residual
-(normalized_residuals(metric, coords) with E=0) and the genuine SOURCE-AWARE
-constraint-satisfaction residual that passes the solver's own prescribed
-Eulerian source arrays E(r), S_i(r).
+Compares three constraint-residual measures for S-shell, T-shell, and
+Fuchs at 25 in-shell radial probes (r in [R_1, R_2] = [10, 20]):
 
-For each of {S-shell, T-shell, Fuchs} at ~25 in-shell x-axis probes (r in [10,20]):
-  1. VACUUM eps_H, eps_M       = normalized_residuals(metric, coords)               (no source)
-  2. SOURCE-AWARE eps_H, eps_M = normalized_residuals(metric, coords, E, S_i)        (prescribed source)
-  3. SOURCE-CONSISTENCY        = stress_energy_residual relative residual with T_input = prescribed fluid T
+  1. Vacuum:     normalized_residuals(metric, coords) with E = 0.
+  2. Source-aware: normalized_residuals(metric, coords, E, S_i).
+  3. Source-consistency: stress_energy_residual(T_input vs G/8pi).
 
-Conventions (from residuals.py / tshell_solver.py):
-  - Hamiltonian: H = R + K^2 - K_sq - 16 pi E,  E = Eulerian energy density.
-  - Momentum:    M_i = D_j A^j_i - 8 pi S_i,    S_i = LOWERED-index momentum density.
-    The T-shell solver stores S^x (contravariant) = Gamma^2 (rho+p) v^x.
-    On the x-axis the lowered component is S_x = gamma_xx S^x = e^{2 Lambda} S^x.
-  - Source-consistency T_input: covariant T_{ab} of the prescribed fluid
-    (static isotropic for S-shell/Fuchs; tilted for T-shell), compared to G/8pi.
-
-Run:
-    JAX_PLATFORMS=cpu warpax/.venv/bin/python warpax/scripts/constraint_residual_verification.py
+Conventions:
+  - Hamiltonian: H = R + K^2 - K_sq - 16 pi E.
+  - Momentum: M_i = D_j A^j_i - 8 pi S_i (lowered index).
+    T-shell stores contravariant S^x; lowered via gamma_xx on x-axis.
+  - T_input: covariant T_{ab} of the prescribed fluid
+    (static isotropic for S-shell/Fuchs; tilted for T-shell).
 """
 from __future__ import annotations
 
@@ -105,7 +98,8 @@ def verify_sshell():
         p = float(p_fn(jnp.float64(r)))
 
         v = normalized_residuals(metric, coords)
-        vac_H.append(float(v["epsilon_H"])); vac_M.append(float(v["epsilon_M"]))
+        vac_H.append(float(v["epsilon_H"]))
+        vac_M.append(float(v["epsilon_M"]))
 
         # Static flow-orthogonal: E = rho, S_i = 0
         s = normalized_residuals(
@@ -113,7 +107,8 @@ def verify_sshell():
             energy_density=jnp.float64(rho),
             momentum_density=jnp.zeros(3),
         )
-        src_H.append(float(s["epsilon_H"])); src_M.append(float(s["epsilon_M"]))
+        src_H.append(float(s["epsilon_H"]))
+        src_M.append(float(s["epsilon_M"]))
 
         T_in = _T_input_static(metric, coords, jnp.float64(rho), jnp.float64(p))
         scr = stress_energy_residual(metric, coords, T_input=T_in)
@@ -145,7 +140,8 @@ def verify_tshell():
         vx = float(vx_fn(jnp.float64(r)))
 
         v = normalized_residuals(metric, coords)
-        vac_H.append(float(v["epsilon_H"])); vac_M.append(float(v["epsilon_M"]))
+        vac_H.append(float(v["epsilon_H"]))
+        vac_M.append(float(v["epsilon_M"]))
 
         # Lowered S_x = gamma_xx S^x; on x-axis gamma_xx = e^{2Lambda}
         gamma = metric.spatial_metric(coords)
@@ -156,7 +152,8 @@ def verify_tshell():
             energy_density=jnp.float64(E),
             momentum_density=S_lower,
         )
-        src_H.append(float(s["epsilon_H"])); src_M.append(float(s["epsilon_M"]))
+        src_H.append(float(s["epsilon_H"]))
+        src_M.append(float(s["epsilon_M"]))
 
         T_in = _T_input_tilted(metric, coords, jnp.float64(rho), jnp.float64(p), jnp.float64(vx))
         scr = stress_energy_residual(metric, coords, T_input=T_in)
@@ -185,7 +182,8 @@ def verify_fuchs():
         p = float(_interp1d(jnp.float64(r), r_grid, P_grid))
 
         v = normalized_residuals(metric, coords)
-        vac_H.append(float(v["epsilon_H"])); vac_M.append(float(v["epsilon_M"]))
+        vac_H.append(float(v["epsilon_H"]))
+        vac_M.append(float(v["epsilon_M"]))
 
         # Fuchs: static shell, no matter tilt -> E = rho_smoothed, S_i = 0.
         s = normalized_residuals(
@@ -193,7 +191,8 @@ def verify_fuchs():
             energy_density=jnp.float64(rho),
             momentum_density=jnp.zeros(3),
         )
-        src_H.append(float(s["epsilon_H"])); src_M.append(float(s["epsilon_M"]))
+        src_H.append(float(s["epsilon_H"]))
+        src_M.append(float(s["epsilon_M"]))
 
         T_in = _T_input_static(metric, coords, jnp.float64(rho), jnp.float64(p))
         scr = stress_energy_residual(metric, coords, T_input=T_in)
