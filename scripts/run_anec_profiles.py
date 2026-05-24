@@ -9,9 +9,8 @@ The integration path is a coordinate null ray
 coordinates rather than an integrated metric null geodesic.  For
 asymptotically flat regions the deviation from the true null geodesic is
 small; near the smoothed-tail interior or the Alcubierre bubble wall the
-deviation is a known systematic, discussed in the paper footnote.  A
-supplementary geodesic-integrated cross-check is in
-``run_anec_geodesic_check.py``.
+deviation is a known systematic.  A supplementary geodesic-integrated
+cross-check is in ``run_anec_geodesic_check.py``.
 """
 from __future__ import annotations
 

@@ -1,9 +1,9 @@
 """Dump JIT-compiled HLO text for compute_curvature_chain.
 
-Validates the paper's §2.1 'single-pass curvature chain' claim by emitting
-the XLA HLO for a single pointwise invocation of ``compute_curvature_chain``
-applied to an Alcubierre spacetime. The artifact is deterministic under a
-fixed jaxlib version + CPU backend.
+Emits the XLA HLO for a single pointwise invocation of
+``compute_curvature_chain`` applied to an Alcubierre spacetime,
+verifying the single-pass curvature chain compilation. The artifact
+is deterministic under a fixed jaxlib version + CPU backend.
 
 Usage
 -----

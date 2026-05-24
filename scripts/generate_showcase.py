@@ -1,9 +1,8 @@
 
 """Generate showcase animations for warp drive physics.
 
-Produces four signature animations demonstrating the paper's key physics
-results, exported as GIF (social media), MP4 (talks), and PNG frames
-(paper supplement).
+Produces four signature animations demonstrating key physics
+results.
 
 Usage
 -----

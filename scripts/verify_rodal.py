@@ -1,12 +1,11 @@
-"""Standalone Rodal admissibility verification, persisted for paper claim-checking.
+"""Standalone Rodal admissibility verification.
 
-Regenerates the Rodal (arXiv:2512.18008) irrotational-shift evaluation and writes a
-dedicated artifact (``warpax/output/rodal_verification.json``) so the per-probe
-NEC/WEC/DEC counts quoted in the CQG paper (9/50 NEC, 46/50 DEC under multi-observer
-BFGS certification) are independently reproducible and machine-checkable.
+Evaluates the Rodal (arXiv:2512.18008) irrotational-shift metric and writes
+``output/rodal_verification.json`` with per-probe NEC/WEC/DEC counts under
+multi-observer BFGS certification.
 
-Reuses ``evaluate_rodal()`` from ``verify_proposals.py`` (RodalMetric v_s=0.1, R=100,
-sigma=0.03; 50-point radial sweep; n_starts=16) rather than duplicating the pipeline.
+Reuses ``evaluate_rodal()`` from ``verify_proposals.py`` (RodalMetric v_s=0.1,
+R=100, sigma=0.03; 50-point radial sweep; n_starts=16).
 """
 from __future__ import annotations
 

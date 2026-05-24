@@ -28,7 +28,7 @@ if os.environ.get("WARPAX_BEARTYPE") == "1":
 
     beartype_this_package()
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 __author__ = "An T. Le"
 __email__ = "an@robot-learning.de"
 
