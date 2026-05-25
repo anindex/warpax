@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "warpax"
-version = "0.4.4"
+version = "1.0.0"
 description = "Observer-robust energy condition verification for warp drive spacetimes"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -13,7 +13,7 @@ authors = [
     {name = "An T. Le", email = "an@robot-learning.de"}
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
@@ -88,8 +88,11 @@ packages = ["src/warpax"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-v --tb=short"
-markers = ["slow: marks tests as slow (expensive grid tests)"]
+addopts = "-q --tb=short"
+markers = [
+    "slow: marks tests as slow (expensive grid tests)",
+    "smoke: lightweight import/render smoke tests",
+]
 
 [tool.ruff]
 line-length = 100

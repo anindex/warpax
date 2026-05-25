@@ -12,7 +12,7 @@ geometric identities that hold for any pseudo-Riemannian manifold:
 3. Einstein tensor divergence:
    nabla_a G^{ab} = 0 (contracted Bianchi identity)
 
-4. Schwarzschild Kretschner scalar:
+4. Schwarzschild Kretschmann scalar:
    K = 48 M^2 / r_schw^6
 
 5. Minkowski zeros:

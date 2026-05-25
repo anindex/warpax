@@ -23,7 +23,7 @@ from warpax.geometry import (
     GridSpec,
     compute_curvature_chain,
     evaluate_curvature_grid,
-    kretschner_scalar,
+    kretschmann_scalar,
 )
 from warpax.metrics import (
     LentzMetric,
@@ -51,7 +51,7 @@ class TestSchwarzschildMultiRadius:
 
     Schwarzschild is an exact vacuum solution of the Einstein field equations:
     R_{ab} = 0, G_{ab} = 0, T_{ab} = 0 everywhere outside the singularity.
-    The Kretschner scalar K = 48 M^2 / r_schw^6 is the only nonzero
+    The Kretschmann scalar K = 48 M^2 / r_schw^6 is the only nonzero
     curvature invariant (MTW Ch. 31).
     """
 
@@ -73,19 +73,18 @@ class TestSchwarzschildMultiRadius:
         )
 
     @pytest.mark.parametrize("r_iso", SCHWARZSCHILD_RADII)
-    def test_kretschner(self, r_iso: float) -> None:
-        """Kretschner scalar K = 48 M^2 / r_schw^6 (MTW Ch. 31)."""
+    def test_kretschmann(self, r_iso: float) -> None:
+        """Kretschmann scalar K = 48 M^2 / r_schw^6 (MTW Ch. 31)."""
         coords = jnp.array([0.0, r_iso, 0.0, 0.0])
         result = compute_curvature_chain(self.metric, coords)
-        K = kretschner_scalar(result.riemann, result.metric, result.metric_inv)
+        K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
 
-        # Convert isotropic r_iso to Schwarzschild r
         r_schw = r_iso * (1.0 + self.M / (2.0 * r_iso)) ** 2
         K_expected = 48.0 * self.M**2 / r_schw**6
 
         npt.assert_allclose(
             float(K), K_expected, rtol=1e-8,
-            err_msg=f"Kretschner mismatch at r_iso={r_iso} (r_schw={r_schw:.6f})",
+            err_msg=f"Kretschmann mismatch at r_iso={r_iso} (r_schw={r_schw:.6f})",
         )
 
     @pytest.mark.parametrize("r_iso", SCHWARZSCHILD_RADII)

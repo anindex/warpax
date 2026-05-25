@@ -32,7 +32,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from warpax.metrics import LentzMetric
-from warpax.geometry import compute_curvature_chain
+from warpax.geometry import compute_curvature_chain, kretschmann_scalar
 
 
 # Constants
@@ -125,16 +125,14 @@ def radial_cut_assessment():
         coords = jnp.array([0.0, float(r), 0.01, 0.0])
         curv = compute_curvature_chain(metric, coords)
 
-        # Kretschner scalar: R_{abcd} R^{abcd}
-        kretschner = float(jnp.einsum("abcd,abcd->", curv.riemann, curv.riemann))
-        # Stress-energy Frobenius norm
+        # Coordinate-invariant Kretschmann scalar K = R_{abcd} R^{abcd}.
+        K = float(kretschmann_scalar(curv.riemann, curv.metric, curv.metric_inv))
         T_frobenius = float(jnp.linalg.norm(curv.stress_energy))
-        # Shape function value at this point
         f_val = float(metric.shape_function_value(coords))
 
         results.append({
             "r": float(r),
-            "kretschner": kretschner,
+            "kretschmann": K,
             "T_frobenius": T_frobenius,
             "f": f_val,
         })
@@ -145,15 +143,14 @@ def radial_cut_assessment():
     elapsed = time.time() - t0
     print(f"  Radial cut complete in {elapsed:.1f}s")
 
-    # Report peak values
-    kretschner_vals = [p["kretschner"] for p in results]
+    kretschmann_vals = [p["kretschmann"] for p in results]
     T_vals = [p["T_frobenius"] for p in results]
-    peak_k_idx = np.argmax(np.abs(kretschner_vals))
-    peak_T_idx = np.argmax(T_vals)
+    peak_k_idx = int(np.argmax(np.abs(kretschmann_vals)))
+    peak_T_idx = int(np.argmax(T_vals))
 
-    print(f"  Peak |Kretschner|: {abs(kretschner_vals[peak_k_idx]):.6e} "
+    print(f"  Peak |Kretschmann|: {abs(kretschmann_vals[peak_k_idx]):.6e} "
           f"at r={results[peak_k_idx]['r']:.2f}")
-    print(f"  Peak T_Frobenius:  {T_vals[peak_T_idx]:.6e} "
+    print(f"  Peak T_Frobenius:   {T_vals[peak_T_idx]:.6e} "
           f"at r={results[peak_T_idx]['r']:.2f}")
 
     return results
@@ -209,10 +206,9 @@ def save_report(analytical, radial_cut, start_time):
     resolved = analytical["resolved"]
     ratio = analytical["under_resolution_ratio"]
 
-    # Find peak curvature values for narrative
-    kretschner_vals = [abs(p["kretschner"]) for p in radial_cut]
+    kretschmann_vals = [abs(p["kretschmann"]) for p in radial_cut]
     T_vals = [p["T_frobenius"] for p in radial_cut]
-    peak_k_idx = int(np.argmax(kretschner_vals))
+    peak_k_idx = int(np.argmax(kretschmann_vals))
     peak_T_idx = int(np.argmax(T_vals))
 
     lines = []
@@ -255,7 +251,8 @@ def save_report(analytical, radial_cut, start_time):
     )
     lines.append(
         f"Curvature peaks sharply at the wall (r ~ R={R_LENTZ}). "
-        f"The Kretschner scalar peaks at |K|={kretschner_vals[peak_k_idx]:.6e} "
+        f"The Kretschmann scalar peaks at "
+        f"|K|={kretschmann_vals[peak_k_idx]:.6e} "
         f"(r={radial_cut[peak_k_idx]['r']:.2f}) and the stress-energy "
         f"Frobenius norm peaks at ||T||={T_vals[peak_T_idx]:.6e} "
         f"(r={radial_cut[peak_T_idx]['r']:.2f}). "
@@ -263,17 +260,15 @@ def save_report(analytical, radial_cut, start_time):
         f"standard 3D grids cannot adequately sample the wall structure.\n"
     )
 
-    # Sample data points near the wall
     lines.append("### Selected Radial Cut Data Points\n")
-    lines.append("| r | f(r) | |Kretschner| | ||T|| |")
-    lines.append("|--:|-----:|------------:|------:|")
-    # Show ~10 evenly spaced samples
+    lines.append("| r | f(r) | |Kretschmann| | ||T|| |")
+    lines.append("|--:|-----:|-------------:|------:|")
     step = max(1, len(radial_cut) // 10)
     for i in range(0, len(radial_cut), step):
         p = radial_cut[i]
         lines.append(
             f"| {p['r']:.2f} | {p['f']:.6f} "
-            f"| {abs(p['kretschner']):.6e} | {p['T_frobenius']:.6e} |"
+            f"| {abs(p['kretschmann']):.6e} | {p['T_frobenius']:.6e} |"
         )
     lines.append("")
 

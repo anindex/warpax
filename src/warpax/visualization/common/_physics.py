@@ -385,7 +385,7 @@ def build_ec_frame_sequence(
 
         scalar_fields = {
             "ricci_scalar": np.asarray(result.ricci_scalar),
-            "kretschner": np.asarray(result.kretschner),
+            "kretschmann": np.asarray(result.kretschmann),
             "ricci_squared": np.asarray(result.ricci_squared),
             "weyl_squared": np.asarray(result.weyl_squared),
             "energy_density": energy_density,
@@ -396,7 +396,7 @@ def build_ec_frame_sequence(
 
         colormaps = {
             "ricci_scalar": "RdBu_r",
-            "kretschner": "inferno",
+            "kretschmann": "inferno",
             "ricci_squared": "inferno",
             "weyl_squared": "inferno",
             "energy_density": "RdBu_r",

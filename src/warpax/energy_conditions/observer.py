@@ -15,133 +15,92 @@ import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 
+def _gram_schmidt_step(
+    v: Float[Array, "4"],
+    tetrad_rows: Float[Array, "4 4"],
+    signature: Float[Array, "4"],
+    g_ab: Float[Array, "4 4"],
+) -> Float[Array, "4"]:
+    """Subtract metric-orthogonal projections of ``v`` onto ``tetrad_rows``.
+
+    ``signature[i] = -1`` for the timelike row, ``+1`` for spacelike rows.
+    Rows with sentinel value (signature == 0) are inert no-ops.
+    """
+    gv = g_ab @ v
+    coeffs = (tetrad_rows @ gv) * signature
+    return v - coeffs @ tetrad_rows
+
+
+def _select_first_nondegenerate(
+    candidates: Float[Array, "K 4"],
+    norm_sqs: Float[Array, "K"],
+    *,
+    threshold: float = 1e-14,
+) -> tuple[Float[Array, "4"], Float[Array, ""]]:
+    """Pick the first candidate whose ``|v^T g v|`` is above ``threshold``.
+
+    Branchless fallback that keeps the function vmap-safe at degenerate
+    spatial bases (e.g. when the primary axis already lies in the
+    timelike direction's plane).
+    """
+    ok = norm_sqs > threshold
+    idx = jnp.argmax(ok)
+    return candidates[idx], norm_sqs[idx]
+
+
 def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
-    """Construct an orthonormal tetrad {e_0, e_1, e_2, e_3} from the metric at a point.
+    """Orthonormal tetrad ``{e_0, e_1, e_2, e_3}`` from the metric at a point.
 
-    Uses an ADM-motivated construction:
-        e_0 = n^a (unit normal to spatial slices)
-        e_1, e_2, e_3 from Gram-Schmidt on the spatial metric.
-
-    Parameters
-    ----------
-    g_ab : Float[Array, "4 4"]
-        4x4 metric tensor at a single point.
+    ADM-motivated construction: ``e_0`` is the unit normal to spatial
+    slices, ``e_1, e_2, e_3`` are obtained by Gram-Schmidt on the spatial
+    basis ``{x, y, z}`` using ``g_{ab}`` as the inner product. If any
+    candidate spatial basis vector is degenerate (numerically aligned
+    with already-fixed tetrad rows), the next axis is tried.
 
     Returns
     -------
     Float[Array, "4 4"]
-        Tetrad e^a_I of shape (4, 4), where I labels the tetrad vector
-        and a labels the coordinate index.
-        tetrad[I, a] = e_I^a (I-th tetrad vector, a-th component).
+        Tetrad with ``tetrad[I, a] = e_I^a`` (row ``I`` is the ``I``-th
+        tetrad vector, column ``a`` is the coordinate component).
     """
     g_inv = jnp.linalg.inv(g_ab)
 
-    # n^a = (1/alpha, -beta^i/alpha); floor -g^{00} against CTC noise.
     alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], 1e-30))
     beta_up = -g_inv[0, 1:4] / g_inv[0, 0]
-
-    e0 = jnp.zeros(4)
-    e0 = e0.at[0].set(1.0 / alpha)
-    e0 = e0.at[1:].set(-beta_up / alpha)
+    e0 = jnp.array([1.0 / alpha, -beta_up[0] / alpha,
+                    -beta_up[1] / alpha, -beta_up[2] / alpha])
 
     spatial_basis = jnp.eye(4)[1:]
+    tetrad = jnp.zeros((4, 4)).at[0].set(e0)
 
-    tetrad = jnp.zeros((4, 4))
-    tetrad = tetrad.at[0].set(e0)
+    # Each spatial slot tries its primary axis first, then falls back to
+    # the other spatial axes if the projection collapses.
+    fallback_order = (
+        (0, 1, 2),
+        (1, 0, 2),
+        (2, 0, 1),
+    )
 
-    v0 = spatial_basis[0]
-    inner_00 = jnp.dot(g_ab @ tetrad[0], v0)
-    v0 = v0 - (inner_00 / (-1.0)) * tetrad[0]
+    for slot, axes in enumerate(fallback_order, start=1):
+        # The signature for the current set of already-built rows:
+        # row 0 (timelike) is -1, built spatial rows are +1, the rest +1
+        # but inert because their entries are zero.
+        signature = jnp.array([-1.0] + [1.0] * 3)
 
-    norm_sq_0 = jnp.dot(g_ab @ v0, v0)
-    v0_alt1 = spatial_basis[1]
-    inner_00_alt1 = jnp.dot(g_ab @ tetrad[0], v0_alt1)
-    v0_alt1 = v0_alt1 - (inner_00_alt1 / (-1.0)) * tetrad[0]
-    norm_sq_0_alt1 = jnp.dot(g_ab @ v0_alt1, v0_alt1)
+        candidates = []
+        norm_sqs = []
+        for axis in axes:
+            v = spatial_basis[axis]
+            v = _gram_schmidt_step(v, tetrad, signature, g_ab)
+            candidates.append(v)
+            norm_sqs.append(jnp.dot(g_ab @ v, v))
+        candidates = jnp.stack(candidates)
+        norm_sqs = jnp.stack(norm_sqs)
 
-    v0_alt2 = spatial_basis[2]
-    inner_00_alt2 = jnp.dot(g_ab @ tetrad[0], v0_alt2)
-    v0_alt2 = v0_alt2 - (inner_00_alt2 / (-1.0)) * tetrad[0]
-    norm_sq_0_alt2 = jnp.dot(g_ab @ v0_alt2, v0_alt2)
-
-    use_alt1_0 = norm_sq_0 < 1e-14
-    use_alt2_0 = use_alt1_0 & (norm_sq_0_alt1 < 1e-14)
-    v0 = jnp.where(use_alt2_0, v0_alt2, jnp.where(use_alt1_0, v0_alt1, v0))
-    norm_sq_0 = jnp.where(use_alt2_0, norm_sq_0_alt2,
-                           jnp.where(use_alt1_0, norm_sq_0_alt1, norm_sq_0))
-
-    # Floor radicand inside sqrt: autodiff-safe at norm_sq -> 0.
-    norm_0 = jnp.sqrt(jnp.abs(norm_sq_0) + 1e-60)
-    e1 = v0 / norm_0
-    tetrad = tetrad.at[1].set(e1)
-
-    v1 = spatial_basis[1]
-    inner_10 = jnp.dot(g_ab @ tetrad[0], v1)
-    v1 = v1 - (inner_10 / (-1.0)) * tetrad[0]
-    inner_11 = jnp.dot(g_ab @ tetrad[1], v1)
-    v1 = v1 - (inner_11 / 1.0) * tetrad[1]
-
-    norm_sq_1 = jnp.dot(g_ab @ v1, v1)
-    v1_alt0 = spatial_basis[0]
-    inner_10_alt0 = jnp.dot(g_ab @ tetrad[0], v1_alt0)
-    v1_alt0 = v1_alt0 - (inner_10_alt0 / (-1.0)) * tetrad[0]
-    inner_11_alt0 = jnp.dot(g_ab @ tetrad[1], v1_alt0)
-    v1_alt0 = v1_alt0 - (inner_11_alt0 / 1.0) * tetrad[1]
-    norm_sq_1_alt0 = jnp.dot(g_ab @ v1_alt0, v1_alt0)
-
-    v1_alt2 = spatial_basis[2]
-    inner_10_alt2 = jnp.dot(g_ab @ tetrad[0], v1_alt2)
-    v1_alt2 = v1_alt2 - (inner_10_alt2 / (-1.0)) * tetrad[0]
-    inner_11_alt2 = jnp.dot(g_ab @ tetrad[1], v1_alt2)
-    v1_alt2 = v1_alt2 - (inner_11_alt2 / 1.0) * tetrad[1]
-    norm_sq_1_alt2 = jnp.dot(g_ab @ v1_alt2, v1_alt2)
-
-    use_alt0_1 = norm_sq_1 < 1e-14
-    use_alt2_1 = use_alt0_1 & (norm_sq_1_alt0 < 1e-14)
-    v1 = jnp.where(use_alt2_1, v1_alt2, jnp.where(use_alt0_1, v1_alt0, v1))
-    norm_sq_1 = jnp.where(use_alt2_1, norm_sq_1_alt2,
-                           jnp.where(use_alt0_1, norm_sq_1_alt0, norm_sq_1))
-
-    norm_1 = jnp.sqrt(jnp.abs(norm_sq_1) + 1e-60)
-    e2 = v1 / norm_1
-    tetrad = tetrad.at[2].set(e2)
-
-    v2 = spatial_basis[2]
-    inner_20 = jnp.dot(g_ab @ tetrad[0], v2)
-    v2 = v2 - (inner_20 / (-1.0)) * tetrad[0]
-    inner_21 = jnp.dot(g_ab @ tetrad[1], v2)
-    v2 = v2 - (inner_21 / 1.0) * tetrad[1]
-    inner_22 = jnp.dot(g_ab @ tetrad[2], v2)
-    v2 = v2 - (inner_22 / 1.0) * tetrad[2]
-
-    norm_sq_2 = jnp.dot(g_ab @ v2, v2)
-    v2_alt0 = spatial_basis[0]
-    inner_20_alt0 = jnp.dot(g_ab @ tetrad[0], v2_alt0)
-    v2_alt0 = v2_alt0 - (inner_20_alt0 / (-1.0)) * tetrad[0]
-    inner_21_alt0 = jnp.dot(g_ab @ tetrad[1], v2_alt0)
-    v2_alt0 = v2_alt0 - (inner_21_alt0 / 1.0) * tetrad[1]
-    inner_22_alt0 = jnp.dot(g_ab @ tetrad[2], v2_alt0)
-    v2_alt0 = v2_alt0 - (inner_22_alt0 / 1.0) * tetrad[2]
-    norm_sq_2_alt0 = jnp.dot(g_ab @ v2_alt0, v2_alt0)
-
-    v2_alt1 = spatial_basis[1]
-    inner_20_alt1 = jnp.dot(g_ab @ tetrad[0], v2_alt1)
-    v2_alt1 = v2_alt1 - (inner_20_alt1 / (-1.0)) * tetrad[0]
-    inner_21_alt1 = jnp.dot(g_ab @ tetrad[1], v2_alt1)
-    v2_alt1 = v2_alt1 - (inner_21_alt1 / 1.0) * tetrad[1]
-    inner_22_alt1 = jnp.dot(g_ab @ tetrad[2], v2_alt1)
-    v2_alt1 = v2_alt1 - (inner_22_alt1 / 1.0) * tetrad[2]
-    norm_sq_2_alt1 = jnp.dot(g_ab @ v2_alt1, v2_alt1)
-
-    use_alt0_2 = norm_sq_2 < 1e-14
-    use_alt1_2 = use_alt0_2 & (norm_sq_2_alt0 < 1e-14)
-    v2 = jnp.where(use_alt1_2, v2_alt1, jnp.where(use_alt0_2, v2_alt0, v2))
-    norm_sq_2 = jnp.where(use_alt1_2, norm_sq_2_alt1,
-                           jnp.where(use_alt0_2, norm_sq_2_alt0, norm_sq_2))
-
-    norm_2 = jnp.sqrt(jnp.abs(norm_sq_2) + 1e-60)
-    e3 = v2 / norm_2
-    tetrad = tetrad.at[3].set(e3)
+        v_sel, norm_sq_sel = _select_first_nondegenerate(candidates, norm_sqs)
+        # Floor radicand: autodiff-safe at norm_sq -> 0.
+        norm = jnp.sqrt(jnp.abs(norm_sq_sel) + 1e-60)
+        tetrad = tetrad.at[slot].set(v_sel / norm)
 
     return tetrad
 

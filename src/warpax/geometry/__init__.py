@@ -1,6 +1,4 @@
-"""Differential geometry and tensor calculus on Lorentzian manifolds.
-
-"""
+"""Differential geometry and tensor calculus on Lorentzian manifolds."""
 
 from .geometry import (
     CurvatureResult,
@@ -28,7 +26,7 @@ from .grid import (
 from .invariants import (
     chern_pontryagin,
     compute_invariants,
-    kretschner_scalar,
+    kretschmann_scalar,
     ricci_squared,
     weyl_squared,
 )
@@ -62,7 +60,7 @@ __all__ = [
     "compute_invariants",
     "einstein_tensor",
     "evaluate_curvature_grid",
-    "kretschner_scalar",
+    "kretschmann_scalar",
     "metric_c2_diagnostic",
     "regularity_report",
     "ricci_scalar",

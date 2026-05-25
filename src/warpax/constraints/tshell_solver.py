@@ -102,7 +102,7 @@ def solve_tshell_potentials(
     E_grid = Gamma_sq_grid * (rho_grid + p_r_grid * v_sq_grid)
     S_x_grid = Gamma_sq_grid * (rho_grid + p_r_grid) * v_x_grid
 
-    # --- Hamiltonian constraint: m(r) from Eulerian E(r) ---
+    # Hamiltonian constraint: m(r) from Eulerian E(r)
     integrand_m = 4.0 * jnp.pi * E_grid * r_grid**2
     m_grid = jnp.concatenate([
         jnp.array([0.0]),
@@ -121,7 +121,7 @@ def solve_tshell_potentials(
     compactness_safe = jnp.minimum(compactness, 1.0 - 1e-12)
     Lambda_grid = -0.5 * jnp.log(1.0 - compactness_safe)
 
-    # --- TOV/lapse ODE with tilted-flow effective pressure ---
+    # TOV/lapse ODE with tilted-flow effective pressure
     # p_eff = Gamma^2 (rho + p) v^2 + p
     p_eff_grid = Gamma_sq_grid * (rho_grid + p_r_grid) * v_sq_grid + p_r_grid
 
@@ -142,7 +142,7 @@ def solve_tshell_potentials(
     ])
     Phi_grid = Phi_boundary - (forward_integral[-1] - forward_integral)
 
-    # --- Momentum constraint BVP for beta^x(r) ---
+    # Momentum constraint BVP for beta^x(r)
     alpha_grid = jnp.exp(Phi_grid)
     r_safe = jnp.maximum(r_grid, 1e-30)
     factor_1m2mr = jnp.maximum(1.0 - compactness_safe, 1e-30)

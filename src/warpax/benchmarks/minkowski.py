@@ -3,9 +3,9 @@
 The simplest spacetime: ds^2 = -dt^2 + dx^2 + dy^2 + dz^2
 
 Ground truth:
-- All curvature tensors = 0
-- All energy conditions trivially satisfied (T = 0)
-- Kretschner scalar = 0
+- All curvature tensors = 0.
+- All energy conditions trivially satisfied (``T = 0``).
+- Kretschmann scalar = 0.
 """
 
 from __future__ import annotations
@@ -54,9 +54,8 @@ def minkowski_symbolic() -> SymbolicMetric:
     return MinkowskiMetric().symbolic()
 
 
-# Ground truth for validation
 GROUND_TRUTH = {
-    "kretschner": 0.0,
+    "kretschmann": 0.0,
     "ricci_scalar": 0.0,
     "energy_conditions": {"WEC": True, "NEC": True, "DEC": True, "SEC": True},
     "stress_energy_zero": True,

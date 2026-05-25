@@ -1,8 +1,8 @@
-"""Domain-specific exceptions for source-consistent warp shell analysis."""
+"""Domain-specific exceptions for source-consistent warp-shell analysis."""
 
 
 class WarpAXError(Exception):
-    """Base exception for all warpax errors."""
+    """Base class for all warpax-specific errors."""
 
 
 class ConstraintViolationError(WarpAXError):

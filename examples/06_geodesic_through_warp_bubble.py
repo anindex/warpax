@@ -75,7 +75,7 @@ print(f"Integration completed in {elapsed:.2f} s  (result code = {sol.result})")
 norms = monitor_conservation(metric, sol)
 norms_np = np.asarray(norms)
 max_drift = np.max(np.abs(norms_np + 1.0))  # deviation from -1
-print(f"\n4-velocity norm conservation:")
+print("\n4-velocity norm conservation:")
 print(f"  mean(g_ab v^a v^b) = {norms_np.mean():.10f}")
 print(f"  max |norm + 1|     = {max_drift:.2e}")
 assert max_drift < 1e-4, f"Norm conservation violated: max_drift = {max_drift}"

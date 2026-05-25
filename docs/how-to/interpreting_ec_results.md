@@ -38,6 +38,19 @@ The structured result types are defined in
 At each grid point, warpax classifies the stress-energy tensor `T^a_b` by
 the algebraic structure of its eigenvalues:
 
+### Eigenvalue solver (`solver='auto'`)
+
+By default, `verify_point` and `verify_grid` use `solver='auto'`: a fast
+standard eigen-decomposition of `T^a_b`, with automatic fallback to the
+generalized pencil solve `(T - λ g) v = 0` (requires `warpax[solver]`) when
+eigenvalues are ill-conditioned. WarpShell and other near-degenerate
+metrics can spuriously classify as Type IV under the standard path; auto
+mode reclassifies those points before margin computation.
+
+Use `solver='generalized'` to force the pencil solve everywhere, or
+`solver='standard'` for a pure-JAX path when you know the metric is well
+conditioned.
+
 - **Type I** -- diagonalizable with four real eigenvalues (one timelike,
   three spacelike). The generic case; algebraic EC checks suffice.
 - **Type II** -- defective 2x2 null Jordan block, degenerate eigenvalue.
@@ -48,8 +61,8 @@ the algebraic structure of its eigenvalues:
   Requires full continuous observer optimization; cannot be reduced to an
   algebraic check.
 
-Type IV is what Reviewer #2 cared about: warp walls typically produce
-Type-IV points where only BFGS-level search catches the worst violation.
+Warp walls often produce Type IV points where only the optimizer finds the
+worst violation.
 
 See `warpax.energy_conditions.classification.classify_hawking_ellis` for
 the classifier. The `he_type` field on `ECPointResult` and the
@@ -71,12 +84,11 @@ Two different "how much does Eulerian miss?" metrics:
   Normalized by the violation set; tells you what fraction of real
   violations the Eulerian analysis would have reported as "satisfied".
 
-Reviewer #5 requested `f_miss|viol` alongside `f_miss`. Both are reported
-by warpax: `compare_eulerian_vs_robust` returns `pct_missed` (the
-unconditional rate) and `conditional_miss_rate` (the conditional rate);
-`compute_wall_restricted_stats` returns `nec_miss_rate`, `wec_miss_rate`,
-`sec_miss_rate`, `dec_miss_rate` -- each a wall-conditional miss rate
-(the wall-restricted analogue of `f_miss|viol`).
+Report both rates. `compare_eulerian_vs_robust` returns `pct_missed`
+(the unconditional rate) and `conditional_miss_rate` (the conditional
+rate). `compute_wall_restricted_stats` returns `nec_miss_rate`,
+`wec_miss_rate`, `sec_miss_rate`, and `dec_miss_rate`: wall-conditional
+miss rates, the wall-restricted analogue of `f_miss|viol`.
 
 ## Wall-restricted vs full-grid
 
@@ -117,10 +129,8 @@ essentially all Type IV points live in the warp wall. The full-grid 2.05%
 is a volume-diluted version of the same phenomenon -- dividing
 `2560 / 125000` instead of `408 / 416`.
 
-The SEC miss rate moves by two orders of magnitude when restricted to the
-wall. That is the point Reviewer #5 wanted to see: the full-grid SEC
-miss rate of 0.32% hides a 23.08% miss rate at the physically interesting
-region.
+The SEC miss rate jumps by two orders of magnitude on the wall: the
+full-grid rate of 0.32% hides a 23.08% miss rate in the transition region.
 
 ## `WallRestrictedStats` fields
 

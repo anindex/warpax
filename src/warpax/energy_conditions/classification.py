@@ -1,28 +1,31 @@
 """Branchless Hawking-Ellis classification of stress-energy tensors (JAX).
 
-Classifies T^a_b by its eigenvalue structure into four types:
+Classifies ``T^a_b`` by its eigenvalue structure into four types:
 
-- **Type I:** One timelike eigenvector, three spacelike. Diagonalizable
-  with real eigenvalues {-rho, p1, p2, p3}. Covers perfect fluids, EM, and
-  most physically reasonable matter.
-- **Type II:** One null eigenvector (non-diagonalizable), degenerate eigenvalue.
-- **Type III:** Single eigenvalue with multiplicity 4 AND a null eigenvector.
-- **Type IV:** Complex eigenvalue pair.
+- **Type I:** one timelike eigenvector and three spacelike eigenvectors;
+  diagonalizable with real eigenvalues ``{-rho, p1, p2, p3}``. Covers
+  perfect fluids, electromagnetism, and most physically reasonable matter.
+- **Type II:** one null eigenvector (non-diagonalizable), degenerate eigenvalue.
+- **Type III:** single eigenvalue of multiplicity four with a null eigenvector.
+- **Type IV:** complex eigenvalue pair.
 
-All operations use ``jnp`` no Python ``if/else`` over traced values --
-making the classifier fully JIT-compilable and vmappable.
+All control flow uses ``jnp.where`` rather than Python ``if`` on traced
+values, so the classifier is JIT- and vmap-safe.
 """
 from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float
+from jaxtyping import Array, Bool, Float, Int
 
 from warpax.energy_conditions.types import ClassificationResult
 
 _VALID_SOLVERS = frozenset({"standard", "generalized", "auto"})
+
 # Standard ``jnp.linalg.eig(T^a_b)`` mis-classifies near-degenerate pencils
-# (WarpShell v_s=0.5: spurious Type IV at |λ| ~ 10^42).
+# (e.g. WarpShell at v_s=0.5 returns spurious Type IV with |lambda| ~ 1e42).
+# When eigenvalues blow up or carry large imaginary parts, fall back to the
+# generalized pencil solver.
 _AUTO_MAX_EIGENVALUE = 1e25
 _AUTO_IMAG_RTOL = 0.05
 
@@ -35,7 +38,7 @@ def _standard_solver_unreliable_scalar(
     max_eigenvalue: float = _AUTO_MAX_EIGENVALUE,
     imag_rtol: float = _AUTO_IMAG_RTOL,
 ) -> bool:
-    """Return True when the standard eigen solver result should be discarded."""
+    """True when the standard eigen solver result should be discarded."""
     import numpy as np
 
     ev = np.asarray(eigenvalues)
@@ -45,13 +48,11 @@ def _standard_solver_unreliable_scalar(
     if float(np.max(np.abs(ev))) > max_eigenvalue:
         return True
     scale = max(float(np.max(np.abs(ev))), 1.0)
-    if float(np.max(np.abs(ev_im))) > imag_rtol * scale:
-        return True
-    return False
+    return float(np.max(np.abs(ev_im))) > imag_rtol * scale
 
 
 def _standard_solver_unreliable_mask(
-    he_types: Float[Array, "N"],
+    he_types: Int[Array, "N"],
     eigenvalues: Float[Array, "N 4"],
     eigenvalues_imag: Float[Array, "N 4"],
     *,
@@ -69,13 +70,13 @@ def _standard_solver_unreliable_mask(
 
 
 def _is_unreliable_single(
-    he_type: Float[Array, ""],
+    he_type: Int[Array, ""],
     eigenvalues: Float[Array, "4"],
     eigenvalues_imag: Float[Array, "4"],
     *,
     max_eigenvalue: float = _AUTO_MAX_EIGENVALUE,
     imag_rtol: float = _AUTO_IMAG_RTOL,
-) -> Float[Array, ""]:
+) -> Bool[Array, ""]:
     """Traced predicate: True when the standard result needs the pencil fallback."""
     max_abs = jnp.max(jnp.abs(eigenvalues))
     max_imag = jnp.max(jnp.abs(eigenvalues_imag))
@@ -200,17 +201,15 @@ def classify_hawking_ellis(
             f"solver must be 'standard' or 'generalized'; got {solver!r}"
         )
 
-    # Sanitize NaN inputs: cuSolver's geev crashes on NaN matrices (GPU),
-    # while CPU returns NaN eigenvalues gracefully. Replace NaN entries with
-    # zero before decomposition; the near_vacuum guard below handles these
-    # points correctly (all-zero eigenvalues -> Type I with zero margins).
+    # cuSolver's geev crashes on NaN GPU inputs (CPU is graceful). Zero
+    # out NaN entries; the near-vacuum guard below absorbs the result.
     T_safe = jnp.where(jnp.isnan(T_mixed), 0.0, T_mixed)
 
     if solver == 'standard':
         eigenvalues, eigenvectors = jnp.linalg.eig(T_safe)
-    else:  # solver == 'generalized'
+    else:
         if T_ab is None:
-            T_ab = g_ab @ T_safe  # fallback; less stable than caller-provided T_ab
+            T_ab = g_ab @ T_safe
         T_ab_safe = jnp.where(jnp.isnan(T_ab), 0.0, T_ab)
         g_ab_safe = jnp.where(jnp.isnan(g_ab), 0.0, g_ab)
         try:
@@ -226,44 +225,30 @@ def classify_hawking_ellis(
     evecs_real = eigenvectors.real
     evals_imag = eigenvalues.imag
 
-    # Scale factor: max(|Re λ|, 1) prevents division-by-zero for vacuum
-    # and makes both the imaginary-part and degeneracy checks relative.
+    # max(|Re lambda|, 1) prevents division by zero in vacuum and makes
+    # the imaginary-part and degeneracy checks scale-relative.
     scale = jnp.maximum(jnp.max(jnp.abs(evals_real)), 1.0)
 
-    # Imaginary-part check: two complementary criteria.
-    #
-    # (1) Absolute: |Im λ| < tol * scale. Catches eigenvalues with
-    # tiny imaginary parts at any scale (e.g. |Im| ~ 1e-8, |Re| ~ 1e3).
-    #
-    # (2) Relative: |Im λ| < imag_rtol * max|Re λ| (unclamped). Catches
-    # split degenerate eigenvalue pairs where jnp.linalg.eig returns
-    # {λ ± εi} with |ε|/|λ| << 1 even though |ε| >> tol * scale.
-    # This occurs at large ||T|| (e.g. WarpShell with |λ| ~ 1e11,
-    # |Im| ~ 2e8: ratio 0.2%). The unclamped scale avoids the
-    # floor at 1.0, ensuring small-eigenvalue points with |Im| > |Re|
-    # are NOT reclassified (their algebraic margins are unreliable).
-    #
-    # An eigenvalue spectrum is "effectively real" if EITHER holds.
+    # Two complementary "real spectrum" tests, combined with logical OR:
+    #   (a) absolute: |Im| < tol * scale -- catches uniformly tiny |Im|.
+    #   (b) relative: |Im| < imag_rtol * max|Re| (unclamped) -- catches
+    #       split-degenerate pairs at large ||T||, e.g. WarpShell where
+    #       |Re| ~ 1e11 and |Im| ~ 1e8 (relative 0.1 %). The unclamped
+    #       scale prevents reclassifying small-eigenvalue points where
+    #       |Im| genuinely exceeds |Re|.
     imag_parts = jnp.abs(evals_imag)
-    # imag_rtol is now a parameter (default 3e-3, 0.3% relative tolerance)
     unclamped_scale = jnp.maximum(jnp.max(jnp.abs(evals_real)), jnp.sqrt(tol))
     all_real = jnp.all(imag_parts < tol * scale) | jnp.all(
         imag_parts < imag_rtol * unclamped_scale
     )
 
-    # Near-vacuum: all real eigenvalue magnitudes negligible.
-    # Eigenvectors are pure numerical noise, so causal character is
-    # unreliable. Bypass directly to Type I (margins are ~0).
-    # Kept tight (tol, not sqrt(tol)) because at near-vacuum points
-    # with larger eigenvalues, the algebraic margins from approximate
-    # eigenvalues can differ significantly from the Eulerian result.
+    # Near-vacuum bypass: eigenvectors are numerical noise, causal
+    # character is unreliable. Force Type I (margins ~0). Kept tight
+    # (``tol``, not ``sqrt(tol)``) so larger eigenvalues fall through.
     near_vacuum = jnp.max(jnp.abs(evals_real)) < tol
 
-    # Causal character ``g_{ab} v^a v^b`` for each eigenvector. Use a
-    # RELATIVE sign threshold (normalized by ``max|v^T g v|``): an
-    # absolute ``tol`` over-tightens the timelike test at large
-    # ``|g_{ab}| |v|^2`` (e.g. WarpShell ~ 10^{11}). ``g_quad_scale``
-    # floors at 1.0 so Minkowski-scale behavior is unchanged.
+    # Causal character g_{ab} v^a v^b per eigenvector, with a relative
+    # sign threshold (floored at 1.0 to keep Minkowski behavior).
     causal = jnp.einsum("ab,ak,bk->k", g_ab, evecs_real, evecs_real)
     g_quad_scale = jnp.maximum(jnp.max(jnp.abs(causal)), 1.0)
     relative_g_quad = causal / g_quad_scale
@@ -271,14 +256,10 @@ def classify_hawking_ellis(
     n_timelike = jnp.sum(relative_g_quad < -tol)
     n_null = jnp.sum(jnp.abs(relative_g_quad) <= tol)
 
-    # Degeneracy: relative tolerance ``|lam_i - lam_j| < tol * scale``.
     sorted_evals = jnp.sort(evals_real)
     gaps = jnp.abs(jnp.diff(sorted_evals))
     n_unique = 1 + jnp.sum(gaps > tol * scale)
 
-    # Branchless type assignment via nested ``jnp.where``. Near-vacuum
-    # points bypass all checks (eigenvalues / eigenvectors are pure
-    # numerical noise) so spurious Type IV is suppressed.
     is_type_iv = ~all_real & ~near_vacuum
     is_type_i = (all_real & (n_timelike >= 1) & (n_null == 0)) | near_vacuum
     is_type_iii = all_real & ~near_vacuum & (n_null >= 1) & (n_unique == 1)
@@ -289,16 +270,14 @@ def classify_hawking_ellis(
         jnp.where(is_type_i, 1, jnp.where(is_type_iii, 3, 2)),
     )
 
-    # Type I extraction: ``rho = -eigenvalue(timelike)``, pressures = rest.
-    # When ``causal[i] ~ causal[j]`` (near-degenerate eigenvectors), bias
-    # the selection towards the most-negative eigenvalue with a 1e-15
-    # tiebreaker so Type-I rho is stable under f64 noise.
+    # Type I extraction: ``rho = -eigenvalue(timelike)``, pressures = the
+    # spacelike eigenvalues sorted. The 1e-15 tiebreaker biases towards
+    # the most negative eigenvalue when causal characters are degenerate,
+    # making the Type I ``rho`` stable under f64 noise.
     timelike_idx = jnp.argmin(causal + 1e-15 * evals_real)
 
     indices = jnp.arange(4)
     is_spacelike = indices != timelike_idx
-    # Replace timelike eigenvalue with +inf so it sorts last; take the
-    # first three of the sorted result for the spacelike pressures.
     masked_evals = jnp.where(is_spacelike, evals_real, jnp.inf)
     sorted_masked = jnp.sort(masked_evals)
     pressures_raw = sorted_masked[:3]

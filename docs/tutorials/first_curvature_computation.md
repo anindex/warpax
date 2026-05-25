@@ -9,6 +9,7 @@ ready for the more interesting warp metrics.
 
 - Python 3.12+
 - `warpax` installed editable: `pip install -e ".[dev]"` inside the repo
+- Runnable counterpart: `examples/01_minkowski_sanity.py`
 
 ## The full pipeline, end to end
 
@@ -17,7 +18,7 @@ import jax.numpy as jnp
 from warpax.benchmarks import MinkowskiMetric
 from warpax.geometry import compute_curvature_chain
 
-metric = MinkowskiMetric
+metric = MinkowskiMetric()
 coords = jnp.array([0.0, 0.0, 0.0, 0.0])
 
 result = compute_curvature_chain(metric, coords)

@@ -27,7 +27,7 @@ unlike Alcubierre which is dominated by Type IV at the wall.
 
 Spherical-shell geometry with $C^1$ / $C^2$ smooth transitions.
 Curvature magnitudes are extreme near the shell boundary; the metric is
-useful as a stress-test of the curvature chain at large Kretschner values.
+useful as a stress-test of the curvature chain at large Kretschmann values.
 
 ::: warpax.metrics.WarpShellMetric
 

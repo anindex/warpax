@@ -22,7 +22,7 @@ from jax import lax
 from jaxtyping import Array, Float
 
 from .geometry import CurvatureResult, compute_curvature_chain
-from .invariants import kretschner_scalar, ricci_squared, weyl_squared
+from .invariants import kretschmann_scalar, ricci_squared, weyl_squared
 from .types import GridSpec
 
 
@@ -41,7 +41,7 @@ class GridCurvatureResult(NamedTuple):
     ricci_scalar: Float[Array, "..."]
     einstein: Float[Array, "..."]
     stress_energy: Float[Array, "..."]
-    kretschner: Float[Array, "..."]
+    kretschmann: Float[Array, "..."]
     ricci_squared: Float[Array, "..."]
     weyl_squared: Float[Array, "..."]
 
@@ -76,7 +76,7 @@ def _make_point_fn(metric_fn, compute_invariants: bool) -> Callable:
     if compute_invariants:
         def point_fn(c: Float[Array, "4"]) -> GridCurvatureResult:
             result = compute_curvature_chain(metric_fn, c)
-            K = kretschner_scalar(result.riemann, result.metric, result.metric_inv)
+            K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
             R2 = ricci_squared(result.ricci, result.metric_inv)
             W2 = weyl_squared(K, R2, result.ricci_scalar)
             return GridCurvatureResult(
@@ -88,7 +88,7 @@ def _make_point_fn(metric_fn, compute_invariants: bool) -> Callable:
                 ricci_scalar=result.ricci_scalar,
                 einstein=result.einstein,
                 stress_energy=result.stress_energy,
-                kretschner=K,
+                kretschmann=K,
                 ricci_squared=R2,
                 weyl_squared=W2,
             )

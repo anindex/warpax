@@ -26,7 +26,7 @@ from jaxtyping import Array, Complex, Float
 
 
 def _scipy_gen_eig_host(
-    T_ab: np.ndarray, g_ab: np.ndarray
+    T_ab: np.ndarray | jax.Array, g_ab: np.ndarray | jax.Array
 ) -> tuple[np.ndarray, np.ndarray]:
     """Host-side generalized eigensolver (LAPACK zggev via scipy.linalg.eig).
 
@@ -37,9 +37,9 @@ def _scipy_gen_eig_host(
 
     Parameters
     ----------
-    T_ab : np.ndarray, shape (4, 4)
+    T_ab : array-like, shape (4, 4)
         Covariant stress-energy tensor.
-    g_ab : np.ndarray, shape (4, 4)
+    g_ab : array-like, shape (4, 4)
         Covariant metric (Lorentzian signature, indefinite).
 
     Returns
@@ -52,11 +52,14 @@ def _scipy_gen_eig_host(
 
     Notes
     -----
-    ``check_finite=False``: NaN sanitisation happens upstream in
+    ``check_finite=False``: NaN sanitization happens upstream in
     ``classify_hawking_ellis``, so skipping the LAPACK NaN scan is safe and
     saves ~5% of the call cost.
     """
-    eigvals, eigvecs = _sla.eig(T_ab, g_ab, check_finite=False)
+    # jax.pure_callback may pass jax.Array; LAPACK needs np.ndarray.
+    T_np = np.asarray(T_ab)
+    g_np = np.asarray(g_ab)
+    eigvals, eigvecs = _sla.eig(T_np, g_np, check_finite=False)
     return eigvals.astype(np.complex128), eigvecs.astype(np.complex128)
 
 
@@ -73,9 +76,9 @@ def _gen_eig_pencil(
     Parameters
     ----------
     T_ab : Float[Array, "4 4"]
-        Covariant stress-energy tensor (NaN-sanitised by caller).
+        Covariant stress-energy tensor (NaN-sanitized by caller).
     g_ab : Float[Array, "4 4"]
-        Covariant metric (NaN-sanitised by caller; indefinite signature OK).
+        Covariant metric (NaN-sanitized by caller; indefinite signature OK).
 
     Returns
     -------
