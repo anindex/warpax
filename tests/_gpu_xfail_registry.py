@@ -45,12 +45,9 @@ EXPECTED_GPU_FAILURES: frozenset[str] = frozenset(
         "tests/test_ec_verifier.py::TestDECFutureDirectedness::test_verify_point_dec_catches_past_directed",
         "tests/test_ec_verifier.py::TestDustVerifyPoint::test_all_conditions_satisfied",
         "tests/test_ec_verifier.py::TestDustVerifyPoint::test_he_type_is_one",
-        "tests/test_ec_verifier.py::TestDustVerifyPoint::test_result_is_namedtuple",
         "tests/test_ec_verifier.py::TestDustVerifyPoint::test_rho_and_pressures",
         "tests/test_ec_verifier.py::TestDustVerifyPoint::test_wec_margin_value",
-        "tests/test_ec_verifier.py::TestECGridResultNewFields::test_classification_stats_present",
         "tests/test_ec_verifier.py::TestECGridResultNewFields::test_dust_all_type_i",
-        "tests/test_ec_verifier.py::TestECGridResultNewFields::test_opt_margins_present",
         "tests/test_ec_verifier.py::TestEulerianGridComparison::test_eulerian_grid_runs",
         "tests/test_ec_verifier.py::TestEulerianVsObserverRobust::test_observer_robust_finds_worse_than_eulerian",
         "tests/test_ec_verifier.py::TestEulerianVsObserverRobust::test_observer_robust_wec_violated",
@@ -80,13 +77,8 @@ EXPECTED_GPU_FAILURES: frozenset[str] = frozenset(
         "tests/test_geodesic_observables.py::TestTidalTensorFlatSpace::test_tidal_tensor_flat_space",
         # --- cuSolver eig (Mode 3) - physics validation suite ---
         "tests/test_physics_validation/test_geodesics_ec.py::TestSyntheticECVerification::test_dec_violated_large_momentum_flux",
-        "tests/test_physics_validation/test_geodesics_ec.py::TestSyntheticECVerification::test_dust_all_satisfied",
         "tests/test_physics_validation/test_geodesics_ec.py::TestSyntheticECVerification::test_eigenvalue_check_consistency",
-        "tests/test_physics_validation/test_geodesics_ec.py::TestSyntheticECVerification::test_nec_violated_rho_plus_p_negative",
         "tests/test_physics_validation/test_geodesics_ec.py::TestSyntheticECVerification::test_negative_energy_wec_violated",
-        "tests/test_physics_validation/test_geodesics_ec.py::TestSyntheticECVerification::test_radiation_all_satisfied",
-        "tests/test_physics_validation/test_geodesics_ec.py::TestSyntheticECVerification::test_sec_violated_but_wec_satisfied",
-        "tests/test_physics_validation/test_geodesics_ec.py::TestSyntheticECVerification::test_vacuum_all_trivially_satisfied",
         "tests/test_physics_validation/test_geodesics_ec.py::TestTidalEigenvaluesMultiRadius::test_tidal_eigenvalues_multi_radius[10.0]",
         "tests/test_physics_validation/test_geodesics_ec.py::TestTidalEigenvaluesMultiRadius::test_tidal_eigenvalues_multi_radius[20.0]",
         "tests/test_physics_validation/test_geodesics_ec.py::TestTidalEigenvaluesMultiRadius::test_tidal_eigenvalues_multi_radius[5.0]",
@@ -96,6 +88,5 @@ EXPECTED_GPU_FAILURES: frozenset[str] = frozenset(
         "tests/test_analysis_integration.py::test_analysis_float64",
         "tests/test_ec_optimization.py::TestBFGSBoundaryStall::test_bfgs_boundary_stall_detected",
         "tests/test_optimizer_prng_golden.py::test_golden_starter_pool_at_default_config",
-        "tests/scripts/test_example_07_smoke.py::TestExample07Smoke::test_single_point_runs",
     }
 )

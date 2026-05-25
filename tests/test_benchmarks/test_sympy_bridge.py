@@ -15,9 +15,7 @@ from warpax.benchmarks.schwarzschild import SchwarzschildMetric
 from warpax.benchmarks.alcubierre import AlcubierreMetric
 
 
-# ---------------------------------------------------------------------------
 # Test coordinate points
-# ---------------------------------------------------------------------------
 
 TEST_POINTS = [
     jnp.array([0.0, 1.0, 2.0, 3.0]),       # standard
@@ -27,9 +25,7 @@ TEST_POINTS = [
 ]
 
 
-# =========================================================================
 # Minkowski bridge tests
-# =========================================================================
 
 
 class TestMinkowskiSympyBridge:
@@ -67,9 +63,7 @@ class TestMinkowskiSympyBridge:
         assert g.dtype == jnp.float64
 
 
-# =========================================================================
 # Schwarzschild bridge tests
-# =========================================================================
 
 
 class TestSchwarzschildSympyBridge:
@@ -118,9 +112,7 @@ class TestSchwarzschildSympyBridge:
         assert g.dtype == jnp.float64
 
 
-# =========================================================================
 # Alcubierre bridge tests
-# =========================================================================
 
 
 class TestAlcubierreSympyBridge:
@@ -140,10 +132,12 @@ class TestAlcubierreSympyBridge:
         v_s_sym = sp.Symbol("v_s", positive=True)
         R_sym = sp.Symbol("R", positive=True)
         sigma_sym = sp.Symbol("sigma", positive=True)
+        x_s_sym = sp.Symbol("x_s", real=True)
         g_concrete = sm.g.subs({
             v_s_sym: v_s_val,
             R_sym: R_val,
             sigma_sym: sigma_val,
+            x_s_sym: 0.0,
         })
         from warpax.geometry.metric import SymbolicMetric
         sm_concrete = SymbolicMetric(sm.coords, g_concrete)

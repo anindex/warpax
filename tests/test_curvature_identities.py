@@ -35,18 +35,14 @@ from warpax.geometry import compute_curvature_chain
 jax.config.update("jax_enable_x64", True)
 
 
-# ---------------------------------------------------------------------------
 # Helper: lower all Riemann indices
-# ---------------------------------------------------------------------------
 
 def lower_riemann(riemann_uddd, g):
     """Lower the first index: R_{abcd} = g_{ae} R^e_{bcd}."""
     return jnp.einsum("ae,ebcd->abcd", g, riemann_uddd)
 
 
-# ---------------------------------------------------------------------------
 # Helper: compute covariant divergence of Einstein tensor
-# ---------------------------------------------------------------------------
 
 def einstein_divergence(metric_fn, coords):
     """Compute nabla_a G^{ab} via autodiff.
@@ -80,9 +76,7 @@ def einstein_divergence(metric_fn, coords):
     return term1 + term2 + term3
 
 
-# ---------------------------------------------------------------------------
 # Test points
-# ---------------------------------------------------------------------------
 
 SCHWARZSCHILD_POINTS = [
     jnp.array([0.0, 5.0, 0.0, 0.0]),
@@ -102,9 +96,7 @@ ALL_POINTS = (
 )
 
 
-# ---------------------------------------------------------------------------
 # 1. Riemann antisymmetries
-# ---------------------------------------------------------------------------
 
 class TestRiemannAntisymmetries:
     """R_{abcd} = -R_{bacd}, R_{abcd} = -R_{abdc}, R_{abcd} = R_{cdab}."""
@@ -143,9 +135,7 @@ class TestRiemannAntisymmetries:
         )
 
 
-# ---------------------------------------------------------------------------
 # 2. First Bianchi identity
-# ---------------------------------------------------------------------------
 
 class TestFirstBianchiIdentity:
     """R_{abcd} + R_{acdb} + R_{adbc} = 0."""
@@ -162,9 +152,7 @@ class TestFirstBianchiIdentity:
         )
 
 
-# ---------------------------------------------------------------------------
 # 3. Einstein tensor divergence (contracted Bianchi)
-# ---------------------------------------------------------------------------
 
 class TestEinsteinDivergence:
     """nabla_a G^{ab} = 0 (contracted Bianchi identity)."""
@@ -182,9 +170,7 @@ class TestEinsteinDivergence:
         )
 
 
-# ---------------------------------------------------------------------------
 # Summary: count all identity checks
-# ---------------------------------------------------------------------------
 
 class TestIdentitySummary:
     """Aggregate identity residuals for reporting in paper."""
