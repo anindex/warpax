@@ -1,8 +1,10 @@
 """Eulerian vs observer-robust EC margin comparison.
 
-Per-point ``missed`` flag and severity ratio quantifying violations
+Per-point ``missed`` flag and severity ratio quantifying violations that
 the Eulerian frame misses relative to a boost-optimized observer
-([Santiago-Schuster-Visser 2022](https://arxiv.org/abs/2205.06744)).
+(Santiago, Schuster, Visser, *Generic warp drives violate the null
+energy condition*, Phys. Rev. D 105, 064038 (2022),
+[arXiv:2105.03079](https://arxiv.org/abs/2105.03079)).
 """
 from __future__ import annotations
 

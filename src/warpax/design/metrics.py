@@ -184,18 +184,18 @@ class ShapeFunctionMetric(ADMMetric):
         else:
             coords_stack = probe_grid
 
-        # ---- Lapse floor ----
+        # Lapse floor
         alpha_vals = jax.vmap(self.lapse)(coords_stack)
         lapse_ok = bool(jnp.all(alpha_vals >= self.lapse_floor))
 
-        # ---- CTC-free: g_tt < 0 everywhere ----
+        # CTC-free: g_tt < 0 everywhere
         def _g_tt(c):
             return self(c)[0, 0]
 
         g_tt_vals = jax.vmap(_g_tt)(coords_stack)
         ctc_free = bool(jnp.all(g_tt_vals < 0))
 
-        # ---- Bubble-finite: shape function bounded far from the wall ----
+        # Bubble-finite: shape function bounded far from wall
         # For spline bases, evaluation outside the knot range may return NaN
         # via interpax extrapolation. We probe at ``10 * R`` but also check
         # the sampled probe-grid maximum |f(r)| stays finite and bounded.

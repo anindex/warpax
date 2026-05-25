@@ -92,15 +92,15 @@ def geodesic_deviation_vector_field(
     # Riemann tensor at current position: R^lam_{mu nu rho} (4,4,4,4)
     R = riemann_tensor(metric_fn, x)
 
-    # --- Geodesic equations ---
+    # Geodesic equations
     # a^lam = -Gamma^lam_{mu nu} v^mu v^nu
     a = -jnp.einsum("lab,a,b->l", gamma, v, v)
 
-    # --- Tidal tensor ---
+    # Tidal tensor
     # K^mu_rho = R^mu_{nu rho sigma} v^nu v^sigma
     K = jnp.einsum("mnrs,n,s->mr", R, v, v)  # (4,4)
 
-    # --- Deviation equations ---
+    # Deviation equations
     # dxi^mu/dtau = w^mu - Gamma^mu_{ab} v^a xi^b
     dxi = w - jnp.einsum("lab,a,b->l", gamma, v, xi)
 

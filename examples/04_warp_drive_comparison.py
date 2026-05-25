@@ -1,10 +1,9 @@
 
 """Warp drive metric comparison with Hawking–Ellis classification.
 
-Surveys all five warp drive metrics in warpax at a representative bubble-wall
-point, computing curvature, Hawking–Ellis stress-energy type, and
-observer-robust energy condition margins. Shows how violations scale with
-warp bubble velocity.
+Surveys six warp drive metrics at representative bubble-wall points,
+computing curvature, Hawking–Ellis stress-energy type, and observer-robust
+energy condition margins. Also shows how violations scale with bubble velocity.
 
 Demonstrates:
 - Constructing every warp drive metric (Lentz, Natário, Rodal, VDB, WarpShell)
@@ -22,7 +21,7 @@ from warpax.metrics import (
     VanDenBroeckMetric,
     WarpShellMetric,
 )
-from warpax.geometry import compute_curvature_chain, kretschner_scalar
+from warpax.geometry import compute_curvature_chain, kretschmann_scalar
 from warpax.energy_conditions import (
     classify_hawking_ellis,
     verify_point,
@@ -47,7 +46,7 @@ metrics["Alcubierre"] = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
 print("Warp Drive Metric Comparison (v_s = 0.5)")
 print("=" * 72)
 print(f"{'Metric':<12s} {'HE Type':>8s} {'Euler NEC':>12s} {'Robust NEC':>12s} "
-      f"{'Robust WEC':>12s} {'Kretschner':>12s}")
+      f"{'Robust WEC':>12s} {'Kretschmann':>12s}")
 print("-" * 72)
 
 for name, metric in metrics.items():
@@ -67,7 +66,7 @@ for name, metric in metrics.items():
 
     # Curvature chain
     result = compute_curvature_chain(metric, coords)
-    K = kretschner_scalar(result.riemann, result.metric, result.metric_inv)
+    K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
 
     # Hawking–Ellis classification of stress-energy
     g_inv = result.metric_inv

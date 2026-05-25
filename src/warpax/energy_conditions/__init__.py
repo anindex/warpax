@@ -1,20 +1,11 @@
-"""Observer-robust energy condition verification (pure JAX).
+"""Observer-robust energy-condition verification (pure JAX).
 
-Two-tier strategy: Hawking-Ellis classification + eigenvalue checks
-for Type I points, Optimistix BFGS optimization over observer space
-for all types. Eulerian-frame comparison available separately.
+Two-tier strategy: Hawking-Ellis classification plus exact eigenvalue
+margins for Type I points, Optimistix BFGS over the observer manifold
+for all four conditions. Eulerian-frame margins are available
+separately for clean single-frame comparisons.
 """
 
-# Types
-from .types import (
-    ClassificationResult,
-    ECGridResult,
-    ECPointResult,
-    ECSummary,
-    WallRestrictedStats,
-)
-
-# Classification
 from .classification import (
     classify_hawking_ellis,
     classify_mixed_tensor,
@@ -25,8 +16,6 @@ from .classification_mpmath import (
     eigenvalues_mpmath,
     verify_classification_at_points,
 )
-
-# Eigenvalue checks
 from .eigenvalue_checks import (
     check_all,
     check_dec,
@@ -35,8 +24,12 @@ from .eigenvalue_checks import (
     check_sec,
     check_wec,
 )
-
-# Observer parameterization
+from .filtering import (
+    compute_wall_restricted_stats,
+    determinant_guard_mask,
+    frobenius_norm_mask,
+    shape_function_mask,
+)
 from .observer import (
     boost_vector_to_params,
     bounded_param,
@@ -47,8 +40,6 @@ from .observer import (
     timelike_from_boost_vector,
     timelike_from_rapidity,
 )
-
-# Optimisation
 from .optimization import (
     OptimizationResult,
     optimize_dec,
@@ -57,8 +48,6 @@ from .optimization import (
     optimize_sec,
     optimize_wec,
 )
-
-# Observer sweep
 from .sweep import (
     cross_validate_sweep,
     make_angular_observers,
@@ -67,21 +56,18 @@ from .sweep import (
     sweep_nec_margins,
     sweep_wec_margins,
 )
-
-# Verifier orchestrator
+from .types import (
+    ClassificationResult,
+    ECGridResult,
+    ECPointResult,
+    ECSummary,
+    WallRestrictedStats,
+)
 from .verifier import (
     anec_integrand,
     compute_eulerian_ec,
     verify_grid,
     verify_point,
-)
-
-# Filtering
-from .filtering import (
-    compute_wall_restricted_stats,
-    determinant_guard_mask,
-    frobenius_norm_mask,
-    shape_function_mask,
 )
 
 __all__ = [
@@ -115,7 +101,7 @@ __all__ = [
     "stereo_to_params",
     "timelike_from_boost_vector",
     "timelike_from_rapidity",
-    # Optimisation
+    # Optimization
     "optimize_dec",
     "optimize_nec",
     "optimize_point",

@@ -1,6 +1,5 @@
 site_name: warpax
 site_description: "Observer-robust energy condition verification for warp drive spacetimes"
-site_url: "https://anindex.github.io/warpax/"
 repo_url: https://github.com/anindex/warpax
 repo_name: anindex/warpax
 
@@ -31,7 +30,6 @@ extra_css:
   - stylesheets/extra.css
 
 extra_javascript:
-  - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 markdown_extensions:
@@ -71,6 +69,7 @@ strict: true
 
 nav:
   - Home: index.md
+  - Examples: tutorials/examples_tour.md
   - Tutorials:
       - tutorials/quickstart.md
       - tutorials/first_curvature_computation.md

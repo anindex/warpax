@@ -4,7 +4,7 @@ warpax ships an [airspeed velocity (`asv`)](https://asv.readthedocs.io)
 regression-benchmark harness at the top-level `benchmarks/` directory.
 The harness tracks commit-to-commit performance deltas across ten
 benchmarks covering curvature grid evaluation, energy-condition
-optimiser multistart, geodesic integration, float64 Hawking-Ellis
+optimizer multistart, geodesic integration, float64 Hawking-Ellis
 classification, and mpmath verification throughput.
 
 ## Naming distinction

@@ -1,7 +1,7 @@
 """ANEC and AWEC averaged energy-condition line integrals along geodesics.
 
 See the source code for
-geodesic-completeness policy  and tangent-norm renormalisation
+geodesic-completeness policy  and tangent-norm renormalization
 semantics .
 
 Public API:

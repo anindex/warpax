@@ -7,11 +7,10 @@ Isotropic form:
 where r_iso = sqrt(x^2 + y^2 + z^2) is the isotropic radial coordinate.
 
 Ground truth:
-- Vacuum solution: T_{mu nu} = 0
-- Kretschner scalar: K = 48 M^2 / r^6 (in Schwarzschild r, not isotropic r_iso)
-  In isotropic coords: r = r_iso * (1 + M/(2*r_iso))^2,
-  so K = 48 M^2 / [r_iso * (1 + M/(2*r_iso))^2]^6
-- All energy conditions trivially satisfied (vacuum)
+- Vacuum solution: ``T_{mu nu} = 0``.
+- Kretschmann scalar ``K = 48 M^2 / r_schw^6`` in Schwarzschild ``r``. In
+  isotropic coordinates ``r_schw = r_iso * (1 + M/(2 r_iso))^2``.
+- All energy conditions trivially satisfied (vacuum).
 """
 
 from __future__ import annotations
@@ -107,15 +106,15 @@ def schwarzschild_symbolic(M: sp.Symbol | None = None) -> SymbolicMetric:
     return SymbolicMetric([t, x, y, z], g)
 
 
-def kretschner_isotropic(
+def kretschmann_isotropic(
     x: Float[Array, "..."],
     y: Float[Array, "..."],
     z: Float[Array, "..."],
     M: float = 1.0,
 ) -> Float[Array, "..."]:
-    """Analytical Kretschner scalar in isotropic coordinates.
+    """Analytical Kretschmann scalar in isotropic coordinates.
 
-    K = 48 M^2 / r_schw^6 where r_schw = r_iso * (1 + M / (2 * r_iso))^2
+    ``K = 48 M^2 / r_schw^6`` with ``r_schw = r_iso * (1 + M / (2 r_iso))^2``.
     """
     r_iso = jnp.sqrt(x**2 + y**2 + z**2)
     r_iso = jnp.maximum(r_iso, 1e-10)

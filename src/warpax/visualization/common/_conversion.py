@@ -75,7 +75,7 @@ def _extract_coordinates(grid_spec: "GridSpec") -> tuple[np.ndarray, np.ndarray,
 # ``T_00_covariant`` exposes the bare covariant component for advanced viewers.
 _CURVATURE_COLORMAPS: dict[str, str] = {
     "ricci_scalar": "RdBu_r",
-    "kretschner": "inferno",
+    "kretschmann": "inferno",
     "ricci_squared": "inferno",
     "weyl_squared": "inferno",
     "energy_density": "RdBu_r",
@@ -122,7 +122,7 @@ def freeze_curvature(
     )
     scalar_fields: dict[str, np.ndarray] = {
         "ricci_scalar": np.asarray(grid_result.ricci_scalar),
-        "kretschner": np.asarray(grid_result.kretschner),
+        "kretschmann": np.asarray(grid_result.kretschmann),
         "ricci_squared": np.asarray(grid_result.ricci_squared),
         "weyl_squared": np.asarray(grid_result.weyl_squared),
         "energy_density": rho_eul,
@@ -210,7 +210,7 @@ def freeze_ec(
 
     if curvature_result is not None:
         scalar_fields["ricci_scalar"] = np.asarray(curvature_result.ricci_scalar)
-        scalar_fields["kretschner"] = np.asarray(curvature_result.kretschner)
+        scalar_fields["kretschmann"] = np.asarray(curvature_result.kretschmann)
         scalar_fields["ricci_squared"] = np.asarray(curvature_result.ricci_squared)
         scalar_fields["weyl_squared"] = np.asarray(curvature_result.weyl_squared)
         scalar_fields["energy_density"] = eulerian_energy_density_grid(

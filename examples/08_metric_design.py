@@ -1,30 +1,20 @@
-"""- Reproduce Alcubierre tanh via 24-knot cubic B-spline.
+"""Alcubierre tanh reproduction via 24-knot cubic B-spline (metric design).
 
-Target: relative error < 1e-4 between the 24-knot cubic B-spline
-**control points** and the canonical Alcubierre tanh shape, when
-evaluated AT the knot locations (where cubic spline interpolation is
-exact). This is the pipeline-consistency golden test per
-Usage
------
+Verifies that the ``design_metric`` pipeline preserves Alcubierre control-point
+values at spline knots (rel_err < 1e-4) when ``max_steps=0`` (reproduction path).
 
-::
+Usage::
 
-    JAX_PLATFORMS=cpu python examples/08_metric_design.py
-    JAX_PLATFORMS=cpu python examples/08_metric_design.py --probe-grid dense
+    python examples/08_metric_design.py
+    python examples/08_metric_design.py --probe-grid dense
 
-Output: prints the relative error and writes the golden fixture
-``tests/fixtures/e2_optimal_parameters_v1_1_0.npy`` .
+Output: prints knot rel_err and writes ``tests/fixtures/alcubierre_optimal_parameters.npy``.
 
-The optimizer runs with ``max_steps=0`` - the reproduction
-path that short-circuits and returns the input spline unchanged.
-This verifies pipeline consistency at the spline's control knots,
-independent of any BFGS convergence behavior.
+With ``--probe-grid dense``, also measures mid-interval spline error at 100
+uniform probe points and writes ``results/design_dense_probe.json`` (measurement
+only, not a gating check).
 
-: with ``--probe-grid dense`` the example additionally
-evaluates rel_err at 100 uniformly-spaced probe points on [0, 12] -
-probing mid-interval spline reconstruction error that the knot-only
-default cannot see. Results are written to
-
+Requires: ``pip install -e ".[design]"`` (interpax).
 """
 from __future__ import annotations
 
@@ -54,10 +44,9 @@ def main(argv=None):
         default="sparse",
         help=(
             "sparse: evaluate rel_err at the 24 spline knots only "
-            "(v1.1 behaviour, default). "
+            "(v1.1 behavior, default). "
             "dense: also evaluate rel_err at 100 uniformly-spaced probe "
-            "points on [0, 12] and write a JSON measurement to "
-            
+            "points on [0, 12] and write results/design_dense_probe.json."
         ),
     )
     parser.add_argument(
@@ -75,7 +64,7 @@ def main(argv=None):
     # 24 knots uniformly over [0, 12]
     knots = jnp.linspace(0.0, 12.0, n_knots)
     # Alcubierre bubble profile: 1 - tanh((r - R)/sigma)^2
-    # (bump of width ~sigma centred at R, bounded in [0, 1]).
+    # (bump of width ~sigma centered at R, bounded in [0, 1]).
     values = 1.0 - jnp.tanh((knots - R) / sigma) ** 2
 
     # Build the starting shape-function
@@ -97,7 +86,7 @@ def main(argv=None):
 
     print(f"Reproduction (24-knot cubic B-spline, R={R}, sigma={sigma})")
     print(f"  Relative error at knots : {float(rel_err):.2e}")
-    print(f"  Target                   : < 1e-4   ")
+    print("  Target                   : < 1e-4")
     print(f"  Physical                 : {report.physicality.overall}")
     print(f"  Optimizer converged      : {report.converged}")
     print(f"  Strategy                 : {report.strategy}")
@@ -106,10 +95,9 @@ def main(argv=None):
         f"FAILED: rel_err={float(rel_err):.2e} >= 1e-4"
     )
 
-    # Save golden fixture for 
     fixture_path = (
         pathlib.Path(__file__).parent.parent
-        / "tests" / "fixtures" / "e2_optimal_parameters_v1_1_0.npy"
+        / "tests" / "fixtures" / "alcubierre_optimal_parameters.npy"
     )
     fixture_path.parent.mkdir(parents=True, exist_ok=True)
     final_values = np.asarray(metric.shape_fn.params["values"])

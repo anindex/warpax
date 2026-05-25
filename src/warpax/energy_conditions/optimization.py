@@ -1,13 +1,14 @@
-"""Optimization-based EC verification (JAX + Optimistix).
+"""Optimizer-based energy-condition verification (JAX + Optimistix).
 
-Minimises WEC/NEC/SEC/DEC functionals over observer boost vectors
-``w in R^3`` (null NEC via stereographic ``R^2``). Multistart BFGS;
-optional projected gradient for ``|w| <= zeta_max``; JIT/vmap-compatible.
-DEC is the joint minimum of the WEC margin, flux causality
-``-g(j, j)`` with ``j^a = -T^a_b u^b``, and future-directedness
-``-j_a n^a``. See ``optimize_wec`` / ``optimize_dec`` for ``strategy``
-(``'tanh'`` smooth cap or ``'hard_bound'`` projected gradient) and
-``warm_start`` / ``starts`` options.
+Minimizes the WEC, NEC, SEC, and DEC functionals over an observer boost
+3-vector ``w`` (null NEC uses a 2-vector via stereographic projection of
+``S^2``). Each call runs multistart BFGS; the ``strategy='hard_bound'``
+variant uses a projected step that enforces ``|w|_2 <= zeta_max``. All
+solvers are JIT- and vmap-safe.
+
+The DEC objective is the joint minimum of the WEC margin
+``T_{ab} u^a u^b``, the flux causality margin ``-g_{ab} j^a j^b``, and
+the future-directedness margin ``-j^a n_a`` with ``j^a = -T^a_b u^b``.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ _VALID_STARTS: frozenset[str] = frozenset({"axis+gaussian", "fibonacci+bfgs_top_
 
 
 def _validate_warm_start(warm_start: str) -> None:
-    """raise ValueError if warm_start is not in the allowed set."""
+    """Raise ``ValueError`` if ``warm_start`` is not in the allowed set."""
     if warm_start not in _VALID_WARM_STARTS:
         raise ValueError(
             f"warm_start must be one of {{'cold', 'spatial_neighbor'}}, "
@@ -34,7 +35,7 @@ def _validate_warm_start(warm_start: str) -> None:
 
 
 def _validate_neighbor_fraction(neighbor_fraction: float) -> None:
-    """raise ValueError on out-of-range neighbor_fraction (0 < f <= 1)."""
+    """Raise ``ValueError`` when ``neighbor_fraction`` is outside ``(0, 1]``."""
     if not (0.0 < float(neighbor_fraction) <= 1.0):
         raise ValueError(
             "neighbor_fraction must satisfy 0 < neighbor_fraction <= 1, "
@@ -43,7 +44,7 @@ def _validate_neighbor_fraction(neighbor_fraction: float) -> None:
 
 
 def _validate_starts(starts: str) -> None:
-    """raise ValueError if starts is not in the allowed set."""
+    """Raise ``ValueError`` if ``starts`` is not in the allowed set."""
     if starts not in _VALID_STARTS:
         raise ValueError(
             f"starts must be one of {{'axis+gaussian', 'fibonacci+bfgs_top_k'}}, "
@@ -108,7 +109,9 @@ def _dec_objective(w, args):
     return jnp.minimum(wec_margin, jnp.minimum(flux_causality, future_margin))
 
 
-# Fixed fold_in salts (literal constants, not py3.12 randomised ``hash``).
+# Fixed fold-in salts for the per-DEC-subcondition PRNG splits.
+# Literal constants (not Python's randomized ``hash``) so seeds are stable
+# across processes.
 _DEC_SUB_SALTS = {
     'wec':    0x57_45_43_01,
     'flux':   0x46_4C_58_02,
@@ -389,10 +392,10 @@ class ProjectedBFGSSolver(optx.BFGS):
     """BFGS with hard projection onto the rapidity ball ``|w|_2 <= zeta_max``.
 
     Bound-inactive iterates pass through unchanged; bound-active iterates
-    are clipped to the radially-nearest feasible point. KKT contract is
-    pinned by ``test_projected_bfgs_hits_kkt_at_bound_active``. See
-    https://docs.kidger.site/optimistix/examples/custom_solver/ for the
-    Optimistix custom-solver pattern.
+    are radially clipped to the nearest feasible point. The KKT contract
+    is pinned by ``test_projected_bfgs_hits_kkt_at_bound_active``. Follows
+    the Optimistix custom-solver pattern
+    (https://docs.kidger.site/optimistix/examples/custom_solver/).
     """
 
     zeta_max: float
@@ -403,14 +406,12 @@ class ProjectedBFGSSolver(optx.BFGS):
 
     def step(self, fn, y, args, options, state, tags):
         y_new, state_new, aux = super().step(fn, y, args, options, state, tags)
-        # Radial projection onto |y|_2 <= zeta_max (identity when bound-inactive).
         norm_y = jnp.linalg.norm(y_new)
         scale_factor = jnp.minimum(
             jnp.float64(1.0),
             jnp.float64(self.zeta_max) / jnp.maximum(norm_y, 1e-12),
         )
-        y_projected = y_new * scale_factor
-        return y_projected, state_new, aux
+        return y_new * scale_factor, state_new, aux
 
 
 def _solve_multistart_3d(objective_fn, args, n_starts, zeta_max, rtol, atol,

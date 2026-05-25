@@ -1,32 +1,37 @@
-"""Observer-robust energy condition verification for warp drive spacetimes.
+"""Observer-robust energy-condition verification for warp drive spacetimes.
 
-Units: geometric (G = c = 1) throughout.
+Units: geometric (``G = c = 1``) throughout.
+
+Environment variables:
+
+- ``WARPAX_JIT_CACHE=1`` enables the version-salted persistent JIT cache
+  at ``~/.cache/warpax/jax/<hash>/`` (see :mod:`warpax._jit_cache`).
+- ``WARPAX_BEARTYPE=1`` installs whole-package runtime type checks via
+  ``beartype.claw``. Off by default so production users pay nothing.
 """
 
-# Float64 enforcement - must happen before any JAX imports that might
-# create arrays with default float32 precision. Also set defensively
-# in standalone scripts for the same reason.
 import os
 
 import jax
 
+# Must run before any JAX array is created.
 jax.config.update("jax_enable_x64", True)
 
-# env-var-gated persistent JAX JIT compilation cache.
-# Activated only when WARPAX_JIT_CACHE=1 is set; default behavior is unchanged.
-# Cache path is version-salted at ~/.cache/warpax/jax/<16hex>/ to prevent
-# cross-version / cross-backend poisoning. See src/warpax/_jit_cache.py.
 from ._jit_cache import _initialize_jit_cache
 
 _initialize_jit_cache()
 
-# Opt-in strict runtime type checking across the whole package.
-# Activate via: `WARPAX_BEARTYPE=1 python ...` (or `WARPAX_BEARTYPE=1 pytest`).
-# Default off: zero import-time cost, zero call-time cost for production users.
 if os.environ.get("WARPAX_BEARTYPE") == "1":
+    from beartype import BeartypeConf
     from beartype.claw import beartype_this_package
 
-    beartype_this_package()
+    # jaxtyping subscripts (e.g. Float[Array, "4 4"]) in NamedTuple fields
+    # become unresolvable forward references under PEP 563. Converting the
+    # resulting decorator exception to a warning lets beartype still check
+    # all decorated functions while skipping NamedTuple class annotations.
+    beartype_this_package(
+        conf=BeartypeConf(warning_cls_on_decorator_exception=UserWarning),
+    )
 
 __version__ = "1.0.0"
 __author__ = "An T. Le"

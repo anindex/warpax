@@ -126,7 +126,7 @@ def _extrinsic_curvature(
     t = coords[0]
     spatial_coords = coords[1:]
 
-    # --- d__t gamma_{ij} ---
+    # d__t gamma_{ij}
     # Compute the time derivative of the spatial metric
     def gamma_at_t(t_val: Float[Array, ""]) -> Float[Array, "3 3"]:
         full_coords = jnp.concatenate([jnp.array([t_val]), spatial_coords])
@@ -135,7 +135,7 @@ def _extrinsic_curvature(
 
     dt_gamma = jax.jacfwd(gamma_at_t)(t)  # shape (3, 3)
 
-    # --- Spatial Christoffel symbols Gamma^k_{ij} ---
+    # Spatial Christoffel symbols Gamma^k_{ij}
     def spatial_metric_at(xyz: Float[Array, "3"]) -> Float[Array, "3 3"]:
         full_coords = jnp.concatenate([jnp.array([t], dtype=coords.dtype), xyz])
         g_at = metric_fn(full_coords)
@@ -152,7 +152,7 @@ def _extrinsic_curvature(
     term3 = jnp.einsum("lk,ijk->lij", gamma_inv, dgamma)  # gamma^{lk} d__k gamma_{ij}
     christoffel_3d = 0.5 * (term1 + term2 - term3)  # Gamma^l_{ij}
 
-    # --- Spatial covariant derivative of beta ---
+    # Spatial covariant derivative of beta
     # beta_j = gamma_{jk} beta^k (lower the shift index)
     beta_lower_local = gamma @ beta_upper
 

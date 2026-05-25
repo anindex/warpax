@@ -5,7 +5,7 @@ from numpy.testing import assert_allclose
 from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.benchmarks.minkowski import MinkowskiMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
-from warpax.benchmarks.schwarzschild import kretschner_isotropic
+from warpax.benchmarks.schwarzschild import kretschmann_isotropic
 from warpax.exceptions import (
     AsymptoticFalloffError,
     ConstraintViolationError,
@@ -24,7 +24,7 @@ from warpax.geometry.grid import (
 from warpax.geometry.invariants import (
     chern_pontryagin,
     compute_invariants,
-    kretschner_scalar,
+    kretschmann_scalar,
     ricci_squared,
     weyl_squared,
 )
@@ -48,9 +48,9 @@ class TestMinkowskiInvariants:
         coords = jnp.array([0.0, 1.0, 2.0, 3.0])
         self.result = compute_curvature_chain(metric, coords)
 
-    def test_kretschner_minkowski_zero(self):
-        """Minkowski: Kretschner scalar K = 0 to machine precision."""
-        K = kretschner_scalar(
+    def test_kretschmann_minkowski_zero(self):
+        """Minkowski: Kretschmann scalar K = 0 to machine precision."""
+        K = kretschmann_scalar(
             self.result.riemann, self.result.metric, self.result.metric_inv
         )
         assert_allclose(float(K), 0.0, atol=1e-14)
@@ -62,7 +62,7 @@ class TestMinkowskiInvariants:
 
     def test_weyl_squared_minkowski_zero(self):
         """Minkowski: C_{abcd} C^{abcd} = 0 to machine precision."""
-        K = kretschner_scalar(
+        K = kretschmann_scalar(
             self.result.riemann, self.result.metric, self.result.metric_inv
         )
         R2 = ricci_squared(self.result.ricci, self.result.metric_inv)
@@ -84,30 +84,29 @@ class TestSchwarzschildInvariants:
         self.coords = jnp.array([0.0, 0.0, 5.0, 0.0])
         self.result = compute_curvature_chain(metric, self.coords)
 
-        # Analytical Kretschner: K = 48 * M^2 / r_s^6
+        # Analytical Kretschmann: K = 48 * M^2 / r_s^6
         # isotropic r_iso = 5.0, Schwarzschild r_s = r_iso * (1 + M/(2*r_iso))^2
         r_iso = 5.0
         r_s = r_iso * (1.0 + self.M / (2.0 * r_iso)) ** 2
         self.expected_K = 48.0 * self.M**2 / r_s**6
 
-    def test_kretschner_schwarzschild_analytical(self):
-        """Kretschner scalar matches K = 48*M^2/r_s^6 for Schwarzschild."""
-        K = kretschner_scalar(
+    def test_kretschmann_schwarzschild_analytical(self):
+        """Kretschmann scalar matches K = 48*M^2/r_s^6 for Schwarzschild."""
+        K = kretschmann_scalar(
             self.result.riemann, self.result.metric, self.result.metric_inv
         )
         assert_allclose(float(K), self.expected_K, rtol=1e-10)
 
     def test_schwarzschild_ricci_flat(self):
-        """Schwarzschild is vacuum: Ricci-flat => ricci_squared=0, weyl_squared=kretschner."""
-        K = kretschner_scalar(
+        """Schwarzschild is vacuum: Ricci-flat => ricci_squared=0, weyl_squared=K."""
+        K = kretschmann_scalar(
             self.result.riemann, self.result.metric, self.result.metric_inv
         )
         R2 = ricci_squared(self.result.ricci, self.result.metric_inv)
         W2 = weyl_squared(K, R2, self.result.ricci_scalar)
 
-        # Ricci tensor vanishes for vacuum => ricci_squared ~ 0
         assert_allclose(float(R2), 0.0, atol=1e-10)
-        # Weyl-squared = Kretschner for Ricci-flat spacetimes
+        # For Ricci-flat spacetimes, Weyl-squared equals Kretschmann.
         assert_allclose(float(W2), float(K), atol=1e-10)
 
 
@@ -123,8 +122,7 @@ class TestInvariantConvenience:
         coords = jnp.array([0.0, 0.0, 5.0, 0.0])
         result = compute_curvature_chain(metric, coords)
 
-        # Individual calls
-        K_individual = kretschner_scalar(result.riemann, result.metric, result.metric_inv)
+        K_individual = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
         R2_individual = ricci_squared(result.ricci, result.metric_inv)
         W2_individual = weyl_squared(K_individual, R2_individual, result.ricci_scalar)
 
@@ -144,7 +142,7 @@ class TestInvariantConvenience:
         coords = jnp.array([0.0, 0.0, 5.0, 0.0])
         result = compute_curvature_chain(metric, coords)
 
-        K = kretschner_scalar(result.riemann, result.metric, result.metric_inv)
+        K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
         R2 = ricci_squared(result.ricci, result.metric_inv)
         W2 = weyl_squared(K, R2, result.ricci_scalar)
 
@@ -258,7 +256,7 @@ class TestGridCurvatureShapes:
         assert result.riemann.shape == (*gs, 4, 4, 4, 4)
         assert result.ricci.shape == (*gs, 4, 4)
         assert result.ricci_scalar.shape == gs
-        assert result.kretschner.shape == gs
+        assert result.kretschmann.shape == gs
         assert result.ricci_squared.shape == gs
         assert result.weyl_squared.shape == gs
 
@@ -268,7 +266,7 @@ class TestGridCurvatureShapes:
             self.metric, self.grid, compute_invariants=False
         )
         assert isinstance(result, CurvatureResult)
-        assert not hasattr(result, "kretschner")
+        assert not hasattr(result, "kretschmann")
         assert not hasattr(result, "weyl_squared")
 
 
@@ -323,8 +321,7 @@ class TestGridMinkowskiFlat:
         assert_allclose(np.array(result.einstein), 0.0, atol=1e-12)
         assert_allclose(np.array(result.stress_energy), 0.0, atol=1e-12)
 
-        # Invariants must be zero
-        assert_allclose(np.array(result.kretschner), 0.0, atol=1e-12)
+        assert_allclose(np.array(result.kretschmann), 0.0, atol=1e-12)
         assert_allclose(np.array(result.ricci_squared), 0.0, atol=1e-12)
         assert_allclose(np.array(result.weyl_squared), 0.0, atol=1e-12)
 
@@ -351,29 +348,24 @@ class TestGridFloat64:
             )
 
 
-# Schwarzschild Kretschner field on grid
+class TestGridSchwarzschildKretschmann:
+    """Schwarzschild Kretschmann scalar field matches the analytical formula on a grid."""
 
-
-class TestGridSchwarzschildKretschner:
-    """Schwarzschild Kretschner scalar field matches analytical formula on a grid."""
-
-    def test_grid_schwarzschild_kretschner_field(self):
-        """Kretschner field matches K=48*M^2/r_s^6 at each grid point."""
+    def test_grid_schwarzschild_kretschmann_field(self):
+        """Kretschmann field matches K=48*M^2/r_s^6 at each grid point."""
         M = 1.0
         metric = SchwarzschildMetric(M=M)
-        # Grid far from origin to avoid singularity
         grid = GridSpec(
             bounds=[(3.0, 7.0), (3.0, 7.0), (-0.5, 0.5)],
             shape=(4, 4, 2),
         )
         result = evaluate_curvature_grid(metric, grid)
 
-        # Compute analytical Kretschner at each grid point
         X, Y, Z = grid.meshgrid
-        K_analytical = np.array(kretschner_isotropic(X, Y, Z, M=M))
+        K_analytical = np.array(kretschmann_isotropic(X, Y, Z, M=M))
 
         assert_allclose(
-            np.array(result.kretschner),
+            np.array(result.kretschmann),
             K_analytical,
             rtol=1e-8,
         )
@@ -547,10 +539,9 @@ class TestClassifierNearDegenerateInputs:
     def test_large_scale_eigenvalues_with_tiny_imaginary(self):
         """Scale ~1e6 with |Im|/|Re| = 0.001 < 3e-3 must still classify as Type I.
 
-        Tests the scale-dependent behavior from Research the
-        classifier's unclamped relative criterion catches split degenerate
-        pairs at large norm where the absolute criterion (tol * scale) alone
-        would misclassify as Type IV.
+        The classifier's unclamped relative criterion catches split-
+        degenerate pairs at large norm where the absolute criterion
+        ``tol * scale`` alone would misclassify the point as Type IV.
         """
         lam = 1e6
         eps = 0.001 * lam

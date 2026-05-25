@@ -24,7 +24,7 @@ class GroundTruth:
     ----------
     properties : dict[str, Any]
         Arbitrary key-value pairs describing the known analytical properties
-        (e.g. kretschner scalar, energy conditions, stress-energy status).
+        (e.g. Kretschmann scalar, energy conditions, stress-energy status).
     """
 
     properties: dict[str, Any] = field(default_factory=dict)
@@ -46,7 +46,7 @@ class MetricRegistry:
 
         registry = MetricRegistry
         metric, gt = registry.get("Minkowski")
-        print(gt["kretschner"]) # 0.0
+        print(gt["kretschmann"]) # 0.0
     """
 
     def __init__(self) -> None:

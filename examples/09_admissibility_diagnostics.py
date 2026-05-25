@@ -1,18 +1,14 @@
-
 """Admissibility diagnostics for the Fuchs warp shell.
 
-Demonstrates the v0.3.0 infrastructure: 3+1 ADM decomposition, constraint
-residuals, ADM mass, source-consistency, junction conditions, and tidal
-diagnostics, all evaluated on the Fuchs et al. (CQG 2024) constant-velocity
-subluminal warp shell.
+Runs the full warp-shell diagnostic stack on the Fuchs et al. (CQG 2024)
+constant-velocity subluminal shell:
 
-Outputs a structured admissibility report covering:
-  1. ADM decomposition (lapse, shift, K_{ij})
-  2. Hamiltonian / momentum constraint residuals
-  3. ADM mass via surface integral
-  4. Source-consistency check (DeltaT = T_input - G/(8pi))
-  5. Junction surface stress-energy
-  6. Tidal deviation (geodesic hazard)
+1. 3+1 ADM decomposition (lapse, shift, extrinsic curvature).
+2. Hamiltonian and momentum constraint residuals.
+3. ADM mass via surface integral with multiple radii.
+4. Source-consistency check (``DeltaT = T_input - G / 8 pi``).
+5. Junction surface stress-energy at the inner boundary.
+6. Geodesic-deviation tidal diagnostic.
 """
 
 import jax

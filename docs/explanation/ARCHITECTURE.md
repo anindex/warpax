@@ -2,10 +2,10 @@
 
 ## Overview
 
-warpax verifies energy conditions (NEC, WEC, SEC, DEC) for warp drive spacetimes
-using JAX automatic differentiation and continuous observer optimization. The key
-insight is that Eulerian-frame checks can miss violations detectable by boosted
-observers - warpax searches the full timelike observer manifold via BFGS.
+`warpax` verifies NEC, WEC, SEC, and DEC for warp-drive spacetimes using JAX
+autodiff and continuous observer optimization. Eulerian-frame checks miss
+violations that boosted observers detect; `warpax` searches the full timelike
+observer manifold via BFGS to find them.
 
 ## Autodiff curvature pipeline
 
@@ -31,7 +31,7 @@ Riemann R^α_{βγδ}
       │ Stress-energy T_{μν}
       │
       ▼
-Curvature invariants (Kretschner, Ricci², Weyl²)
+Curvature invariants (Kretschmann, Ricci², Weyl²)
 ```
 
 No symbolic algebra or finite-difference stencils are used. JAX's forward-mode AD
@@ -46,11 +46,12 @@ invariants, grid evaluation. All tensors are JAX arrays with jaxtyping annotatio
 ### `energy_conditions`
 Two-tier verification strategy:
 
-1. **Hawking–Ellis classification** determines the algebraic type (I/II/III/IV) of
-   the stress-energy tensor. Type I admits closed-form eigenvalue checks.
-2. **BFGS optimization** over the observer 4-velocity parameterized by rapidity
-   ζ ∈ [0, ζ_max] and direction via stereographic projection. Finds the worst-case
-   T_{ab} u^a u^b across the bounded timelike observer manifold.
+1. **Hawking-Ellis classification** (`solver='auto'` by default) determines the
+   algebraic type (I/II/III/IV). Ill-conditioned points fall back to the
+   generalized pencil solve when `warpax[solver]` is installed.
+2. **BFGS optimization** over the observer 4-velocity (rapidity-bounded).
+   Type I points use exact eigenvalue margins; `verify_grid` skips BFGS on
+   Type I by default (`skip_type_i_optimization=True`).
 
 ### `metrics`
 Nine warp drive metrics, each implementing `MetricFunction: (4,) -> (4,4)`:
@@ -95,8 +96,11 @@ Israel/Darmois junction conditions with two-sided extrinsic curvature jump.
 Surface stress-energy for thin-shell constructions.
 
 ### `transport`
-Invariant transport diagnostics: geodesic deviation, null round-trip asymmetry,
-blueshift hazard. All geodesic-based via Diffrax.
+Transport diagnostics: geodesic deviation (`A_geo`, gauge-invariant),
+blueshift hazard (gauge-invariant for a chosen observer worldline), and
+null round-trip *coordinate-time* asymmetry (`null_coord_time_asymmetry`,
+gauge-dependent; invariant only under constant time shifts). All
+geodesic-based via Diffrax.
 
 ### `optimization`
 Source-first shell optimization: Bernstein polynomial basis for profile
@@ -121,3 +125,27 @@ sweep over (compactness, thickness) with `SweepResult` serialization.
   stay within the physical timelike cone, avoiding divergences at the light cone.
 - **Grid-then-optimize** - coarse Fibonacci sphere sampling provides initial
   candidates; BFGS refines each to the true worst-case observer.
+
+## Dependency pins
+
+The current pins are validated against upstream guidance; no migration
+work is required.
+
+- **JAX 0.10.x** - `pmap` is in maintenance mode upstream and is not used
+  by warpax. Multi-device fan-out, when needed, will go through
+  `jax.sharding.NamedSharding` / `shard_map`. The compile cache is opt-in
+  via `WARPAX_JIT_CACHE=1` and respects
+  `WARPAX_JIT_CACHE_MIN_ENTRY_SIZE_BYTES` and
+  `WARPAX_JIT_CACHE_MIN_COMPILE_TIME_SECS`.
+- **Optimistix 0.1** - `optx.minimise(fn, solver, y0, args=..., options=...,
+  max_steps=...)` matches the projected-BFGS observer pipeline; tolerances
+  are passed through the solver constructor (`rtol`, `atol`, `norm`) and
+  documented at each call site.
+- **Diffrax 0.7** - all geodesic integrators use `diffrax.Tsit5()` with
+  `PIDController(rtol, atol)`; `PIController` is not used. `throw=False`
+  is set so non-success result codes are returned and surfaced by callers
+  (e.g. `GeodesicResult.result`). Differentiating geodesics relies on the
+  default `RecursiveCheckpointAdjoint`; callers that need a different
+  adjoint should pass it explicitly to `diffeqsolve`.
+- **Equinox 0.13** - public entry points use `eqx.filter_jit` so
+  `eqx.field(static=True)` parameters key the compile cache automatically.

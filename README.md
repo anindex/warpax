@@ -8,12 +8,12 @@
 
 [**Observer-robust energy condition verification for warp drive spacetimes.**](https://arxiv.org/abs/2602.18023)
 
-warpax uses JAX automatic differentiation to compute exact curvature tensors from
-analytic warp drive metrics and performs continuous BFGS optimization over the full
-timelike observer manifold to find worst-case energy condition violations.  This goes
-beyond the standard Eulerian-observer approach (as in WarpFactory) by searching over
-all physically admissible observers, parameterized by bounded rapidity in stereographic
-coordinates, to detect violations that axis-aligned sampling can miss.
+`warpax` computes exact curvature tensors from analytic warp-drive metrics via JAX
+autodiff and runs multistart BFGS over the timelike observer manifold to locate the
+worst-case energy-condition margins. Unlike single-frame Eulerian checks (as used in
+WarpFactory), it searches every physically admissible observer, parameterized by a
+bounded rapidity and a stereographic projection of the unit sphere, so it catches
+violations that axis-aligned sampling overlooks.
 
 ![Alcubierre Bubble Collapse](./figures/bubble_collapse.gif)
 
@@ -21,74 +21,84 @@ coordinates, to detect violations that axis-aligned sampling can miss.
 
 ## Highlights
 
-- **Observer-robust EC verification**: multi-start BFGS over the full timelike observer manifold with Hawking--Ellis algebraic classification (Type I--IV)
-- **Exact curvature**: forward-mode JAX autodiff from metric to stress-energy; no finite differences
-- **9 warp metrics**: Alcubierre, Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell
-- **Source-consistency modules**: Hamiltonian/momentum constraint residuals, anisotropic TOV equilibrium, ADM mass with falloff verification, Israel junction conditions, invariant transport diagnostics
-- **Source-first shell construction**: Bernstein-parameterized source profiles with constraint-derived metric potentials (S-shell Class I, T-shell Class II)
-- **Parameter sweep**: 2D design-space sweep over (compactness, thickness) with EC certification and phase-diagram visualization
+- Multistart BFGS over the full timelike observer manifold; Hawking--Ellis algebraic classification (Type I--IV).
+- Exact curvature via forward-mode JAX autodiff (no finite-difference stencils).
+- Nine warp metrics: Alcubierre, Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell.
+- Hamiltonian + momentum constraint residuals, anisotropic TOV, ADM mass with falloff, Israel junctions, invariant transport diagnostics.
+- Source-first shells: Bernstein-parameterized profiles with constraint-derived metric potentials (S-shell, T-shell).
+- 2D design sweep over (compactness, thickness) with EC certification and phase-diagram plots.
 
 ## Quick start
 
 ```bash
 # Create environment and install
 conda create -n warpax python=3.12 -y && conda activate warpax
-pip install -e ".[dev]"
+pip install -e ".[dev,viz,design,solver]"
 
 # Run a quick example
 python examples/01_minkowski_sanity.py
 ```
+
+See [`examples/README.md`](examples/README.md) for a numbered learning path (01-10)
+and which optional extras each script needs.
 
 For a 5--10 minute walkthrough from install to seeing an energy condition violation,
 see the [Quickstart tutorial](docs/tutorials/quickstart.md).
 
 ## Key results
 
-### Observer-robust vs. Eulerian analysis
+### Observer-robust vs Eulerian
 
-Eulerian-only energy condition analysis can miss significant violations.  For six warp drive metrics, warpax finds that 15--28% of DEC-violating grid points are invisible to the Eulerian observer.  The Fuchs constant-velocity shell shows 92% of shell-interior EC violations missed by Eulerian analysis.
+Across six warp drives, 15--28% of DEC-violating grid points are invisible to the
+Eulerian observer. The Fuchs constant-velocity shell hides 92% of its
+shell-interior violations from an Eulerian-only check.
 
-### Custom metric design with robust EC validation
+### Custom metrics
 
-Users can define their own warp manifold by subclassing `ADMMetric` and run the
-full verification pipeline.  Below, a Gaussian warp bubble is validated on a 24x24x4
-grid.  The three panels compare SEC margins seen by the Eulerian observer (left) vs.
-the worst-case boosted observer found by BFGS (center).  The right panel highlights
-356 grid points where the Eulerian frame incorrectly reports SEC as satisfied ---
-violations only visible to non-Eulerian observers.
+Subclass `ADMMetric` and run the full pipeline. The figure below validates a
+Gaussian warp bubble on a 24x24x4 grid: SEC margins from the Eulerian observer
+(left), from the worst-case boosted observer found by BFGS (center), and 356 grid
+points the Eulerian frame reports as SEC-satisfied while the boosted observer
+sees them violated (right).
 
 ![Gaussian Warp Grid Comparison](./figures/gaussian_warp_grid_comparison.png)
 
-<p align="center"><em>SEC comparison for a custom Gaussian warp bubble (v<sub>s</sub> = 0.5).  Red regions are violations missed by Eulerian-only analysis.</em></p>
+<p align="center"><em>SEC comparison for a custom Gaussian warp bubble (v<sub>s</sub> = 0.5). Red marks violations the Eulerian frame misses.</em></p>
 
-See [`examples/07_custom_warp_metric.py`](examples/07_custom_warp_metric.py) for the full worked example.
+See [`examples/07_custom_warp_metric.py`](examples/07_custom_warp_metric.py).
 
-### Source-consistency verification
+### Shell admissibility
 
-warpax v0.3+ provides a five-criterion admissibility standard for warp shells:
+`warpax` ships a five-criterion admissibility standard for warp shells:
 
-| Criterion | What it checks |
-|-----------|---------------|
-| A. Regularity | Metric $C^2$ continuity (thick-shell) or Israel junction conditions (thin-shell) |
-| B. Constraints | Hamiltonian + momentum constraint residuals $\epsilon_{\mathcal{H}}$, $\epsilon_{\mathcal{M}}$ |
-| C. Matter model | Interpretable source (anisotropic fluid, elastic shell, etc.) |
+| Criterion | Checks |
+|-----------|--------|
+| A. Regularity | $C^2$ metric continuity (thick) or Israel conditions (thin) |
+| B. Constraints | Hamiltonian + momentum residuals $\epsilon_{\mathcal{H}}$, $\epsilon_{\mathcal{M}}$ |
+| C. Matter model | Identifiable source (anisotropic fluid, elastic shell) |
 | D. EC margins | Observer-robust NEC/WEC/DEC via Hawking--Ellis + BFGS |
-| E. Global diagnostics | Positive ADM mass, asymptotic falloff, tidal forces, invariant transport |
+| E. Global | Positive ADM mass, asymptotic falloff, tidal forces, invariant transport |
 
-Applied to the Fuchs constant-velocity shell: $\epsilon_{\mathcal{H}} = 0.165$, 12/13 shell-interior points violate ECs under observer-robust certification.  The source-first T-shell achieves $\epsilon_{\mathcal{H}} \approx 5\times10^{-3}$ (33$\times$ improvement) with positive EC margins in the deep shell interior.
+Fuchs constant-velocity shell: $\epsilon_{\mathcal{H}} = 0.165$; 12 of 13
+shell-interior points violate ECs under observer-robust certification. The
+source-first T-shell drops $\epsilon_{\mathcal{H}}$ to ~$5\times10^{-3}$ (33x
+improvement) with positive EC margins in the deep interior.
 
 ## Examples
+
+See [`examples/README.md`](examples/README.md) for runtime estimates, install extras,
+and a suggested order for new users.
 
 | Script | Description |
 |--------|-------------|
 | `01_minkowski_sanity.py` | Flat-space sanity check (all ECs satisfied) |
 | `02_schwarzschild_verification.py` | Schwarzschild ground-truth validation |
-| `03_alcubierre_analysis.py` | Alcubierre warp drive EC analysis |
-| `04_warp_drive_comparison.py` | Multi-metric comparison (6 warp drives) |
-| `05_grid_analysis.py` | Grid-based EC verification |
-| `06_geodesic_through_warp_bubble.py` | Geodesic integration with tidal forces and blueshift |
-| `07_custom_warp_metric.py` | Custom warp manifold design with robust EC validation |
-| `08_metric_design.py` | Shape-function metric design with constrained optimization |
+| `03_alcubierre_analysis.py` | Alcubierre warp drive EC analysis (**quickstart entry**) |
+| `04_warp_drive_comparison.py` | Multi-metric comparison (six warp drives) |
+| `05_grid_analysis.py` | Grid-based EC verification + comparison figure |
+| `06_geodesic_through_warp_bubble.py` | Geodesic integration with tidal forces |
+| `07_custom_warp_metric.py` | Custom warp manifold + robust EC validation |
+| `08_metric_design.py` | Shape-function metric design (B-spline reproduction) |
 | `09_admissibility_diagnostics.py` | Admissibility diagnostics on the Fuchs warp shell |
 | `10_phase_diagram.py` | Parameter-space sweep and EC-admissible transport phase diagram |
 
@@ -112,12 +122,12 @@ metrics -> geometry -> energy_conditions -> analysis
 |---------|-------------|
 | `geometry` | JAX autodiff pipeline: metric $\to$ Christoffel $\to$ Riemann $\to$ Ricci $\to$ Einstein $\to$ $T_{\mu\nu}$; ADM 3+1 split; $C^2$ regularity diagnostics |
 | `energy_conditions` | NEC/WEC/SEC/DEC via Hawking--Ellis classification, eigenvalue algebra, multi-start BFGS observer optimization |
-| `metrics` | Nine warp drive metrics: Alcubierre (WarpShell), Natario, Lentz, Rodal, Van den Broeck, Fuchs, S-shell, T-shell |
+| `metrics` | Nine warp drive metrics: Alcubierre, WarpShell, Natario, Lentz, Rodal, Van den Broeck, Fuchs, S-shell, T-shell |
 | `constraints` | Hamiltonian + momentum constraint residuals; S-shell and T-shell constraint solvers (pure JAX) |
 | `tov` | Anisotropic TOV equilibrium checker |
 | `adm` | ADM mass with surface integral and asymptotic falloff verification |
 | `junction` | Israel/Darmois junction conditions and surface stress-energy |
-| `transport` | Invariant diagnostics: geodesic deviation, null round-trip asymmetry, blueshift hazard |
+| `transport` | Invariant diagnostics: geodesic deviation, null coordinate-time asymmetry, blueshift hazard |
 | `optimization` | Bernstein basis, multi-objective loss, EC soft/hard constraints, parameter sweep |
 | `geodesics` | Timelike/null geodesic integration via Diffrax, tidal deviation, blueshift extraction |
 | `design` | Differentiable shape-function parametrization with constrained BFGS optimizer |
@@ -134,8 +144,9 @@ coordinates $x^\mu$ to the covariant metric tensor $g_{\mu\nu}$.
 ## Running tests
 
 ```bash
-pytest                      # Full suite (935 tests, 70 files)
-pytest -m "not slow"        # Skip expensive grid tests
+pytest                      # Full suite (761 tests across 25 files)
+pytest -m "not slow"        # Skip @slow grid tests (~50 s with -n auto)
+pytest -m smoke             # Visualization import / render smoke tests
 pytest -n auto              # Parallel execution
 ```
 
@@ -148,19 +159,18 @@ export PYTHON=$(uv run which python)
 bash reproduce_all.sh
 ```
 
-Phases can be run individually:
+Stages can be run individually:
 
 ```bash
-bash reproduce_all.sh --phase 1   # Core computation
-bash reproduce_all.sh --phase 2   # Ablation studies
-bash reproduce_all.sh --phase 3   # Figure generation
+bash reproduce_all.sh --stage core      # Core computation
+bash reproduce_all.sh --stage ablation  # Ablation studies
+bash reproduce_all.sh --stage figures   # Figure generation
 ```
 
 Use `--keep-cache` to skip cache deletion and only recompute missing results.
 
 For the per-figure, per-claim mapping that backs the warp-shell admissibility
-paper (*Positive-energy warp shells and the boundary cost of source
-consistency*), see the dedicated how-to guide:
+paper (*On the boundary cost of source-consistent warp shells*), see the dedicated how-to guide:
 [**Reproducing the warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md).
 
 ## Documentation
@@ -189,7 +199,7 @@ warpax ships full documentation in [`docs/`](docs/), organized following the [Di
 
 - [**Architecture**](docs/explanation/ARCHITECTURE.md) -- package structure and design decisions
 - [**Theory: ADM 3+1 and Hawking--Ellis types**](docs/explanation/theory.md) -- mathematical background
-- [**Release notes**](docs/explanation/release_notes.md) -- changelog with narrative context
+- [**Release notes**](docs/explanation/release_notes.md) -- version history and release summary
 
 ## Manim visualizations
 
@@ -214,11 +224,10 @@ Rendered videos and images are written to `media/` (not tracked by git).
 If you found this work useful, please consider citing:
 
 ```bibtex
-@article{le2026warpax,
-    title   = {Observer-robust energy condition verification for warp drive spacetimes},
-    author  = {An T. Le},
-    year    = {2026},
-    eprint  = {arXiv:2602.18023},
-    doi     = {10.5281/zenodo.18715933}
+@article{le2026observer,
+  title={Observer-robust energy condition verification for warp drive spacetimes},
+  author={Le, An T},
+  journal={arXiv preprint arXiv:2602.18023},
+  year={2026}
 }
 ```

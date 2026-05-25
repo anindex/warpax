@@ -1,8 +1,7 @@
 # Theory: ADM 3+1 and Hawking-Ellis types
 
 A compact primer on the two physics formalisms that warpax uses everywhere.
-Full derivations live in the CQG paper
-(the accompanying paper, Sections 2–3).
+Full derivations live in the accompanying paper (arXiv:2602.18023, Sections 2-3).
 
 ## ADM 3+1 decomposition
 
@@ -52,7 +51,7 @@ off the Einstein tensor in geometric units $G = c = 1$.
 See [`compute_curvature_chain`](../reference/index.md) for the full
 signature.
 
-## Hawking-Ellis types I–IV
+## Hawking-Ellis types I-IV
 
 The stress-energy tensor $T^a{}_b$ (mixed index) admits an algebraic
 classification based on the structure of its eigendecomposition
@@ -66,14 +65,14 @@ classification based on the structure of its eigendecomposition
 | IV | Complex-conjugate pair of eigenvalues | No real timelike eigenvector |
 
 Type I admits closed-form algebraic energy condition checks on the
-eigenvalues. Types II–IV do **not** - they require a continuous search
+eigenvalues. Types II-IV do **not** - they require a continuous search
 over the timelike observer manifold, which warpax performs via
 Optimistix BFGS over a bounded rapidity parameter.
 
 The observer-robust EC check in warpax thus has two tiers:
 
-1. Classify the point as Type I–IV.
-2. For Type II–IV, run the BFGS observer-space optimization (and for
+1. Classify the point as Type I-IV.
+2. For Type II-IV, run the BFGS observer-space optimization (and for
    Type I, run it anyway as a verification - the algebraic check should
    agree with the optimizer's worst-case margin).
 
@@ -99,4 +98,4 @@ violations hide.
 - Baumgarte, T. W., & Shapiro, S. L. (2010). *Numerical Relativity:
   Solving Einstein's Equations on the Computer*. Cambridge University
   Press. Chapter 2.
-- The accompanying paper (arXiv:2602.18023) - methodology and benchmark results (Sections 2–5).
+- The accompanying paper (arXiv:2602.18023) - methodology and benchmark results (Sections 2-5).

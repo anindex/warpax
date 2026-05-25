@@ -7,13 +7,15 @@ A 5-10 minute path from install to seeing an energy condition violation.
 ```bash
 conda create -n warpax python=3.12 -y
 conda activate warpax
-pip install -e ".[dev]"
+pip install -e ".[dev,viz,design,solver]"
 ```
 
 Optional extras:
 
-- `pip install -e ".[viz]"` adds matplotlib visualization helpers
-- `pip install -e ".[manim]"` adds animated scene rendering (requires ffmpeg)
+- `pip install -e ".[viz]"`: Matplotlib figures (examples 05-07, 10)
+- `pip install -e ".[design]"`: B-spline metric design (example 08)
+- `pip install -e ".[solver]"`: generalized HE classifier for ill-conditioned metrics
+- `pip install -e ".[manim]"`: animated scene rendering (requires ffmpeg)
 
 ## 2. Run the Alcubierre example (under 5 seconds)
 
@@ -29,7 +31,7 @@ prints the result alongside the Eulerian-frame comparison.
 Approximate output:
 
 ```
-Alcubierre Warp Drive Analysis
+Alcubierre warp drive analysis
 ========================================
 Parameters: v_s=0.5, R=1.0, sigma=8.0
 Point: (t, x, y, z) = (0.0, 1.0, 0.5, 0.0)
@@ -44,8 +46,8 @@ Eulerian-frame EC margins:
   NEC: -1.05e-02
   WEC: -1.05e-02
 
-NEC/WEC violation confirmed!
-The Alcubierre warp drive requires exotic matter (negative energy density).
+NEC/WEC violation confirmed.
+The Alcubierre warp drive requires exotic (negative-energy) matter.
 ```
 
 ## 3. Read the output
@@ -58,7 +60,7 @@ The Alcubierre warp drive requires exotic matter (negative energy density).
   negative than the robust NEC margin -- a boosted observer sees a
   substantially worse violation than an Eulerian one.
 
-For a full grid-level view of which regions harbour missed violations, try:
+For a full grid-level view of regions where the Eulerian frame misses violations, try:
 
 ```bash
 python examples/07_custom_warp_metric.py

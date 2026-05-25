@@ -10,7 +10,7 @@ where ``u^a`` is the timelike 4-velocity of a timelike geodesic
 ``gamma`` and ``tau`` is proper time.
 
 Shares the ``geodesic_complete`` + ``termination_reason`` flags with
-``anec``; tangent-norm renormalisation projects ``u`` onto the
+``anec``; tangent-norm renormalization projects ``u`` onto the
 timelike-unit hyperboloid at every saved step (``g(u,u) = -1``).
 """
 from __future__ import annotations
@@ -144,7 +144,7 @@ def awec(
         callable ``geodesic(tau) -> coords``.
     tangent_norm : str
         ``'renormalized'`` (default): rescale ``u`` so ``g(u,u) = -1``.
-        ``'fixed'``: raw velocity without renormalisation.
+        ``'fixed'``: raw velocity without renormalization.
     n_samples : int
         Number of proper-time samples when ``geodesic`` is callable.
     affine_bounds : tuple[float, float]

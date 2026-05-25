@@ -20,12 +20,12 @@ The Lentz wall is **UNRESOLVABLE** at practical 3D resolution. At sigma=8.0 on a
 
 ## 1D Radial Cut (N=500, r=[50.0, 150.0])
 
-Curvature peaks sharply at the wall (r ~ R=100.0). The Kretschner scalar peaks at |K|=4.143598e+04 (r=99.90) and the stress-energy Frobenius norm peaks at ||T||=4.384302e+00 (r=99.90). The sharp curvature concentration near the wall confirms that standard 3D grids cannot adequately sample the wall structure.
+Curvature peaks sharply at the wall (r ~ R=100.0). The Kretschmann scalar peaks at |K|=4.143598e+04 (r=99.90) and the stress-energy Frobenius norm peaks at ||T||=4.384302e+00 (r=99.90). The sharp curvature concentration near the wall confirms that standard 3D grids cannot adequately sample the wall structure.
 
 ### Selected Radial Cut Data Points
 
-| r | f(r) | |Kretschner| | ||T|| |
-|--:|-----:|------------:|------:|
+| r | f(r) | |Kretschmann| | ||T|| |
+|--:|-----:|-------------:|------:|
 | 50.00 | 1.000000 | 0.000000e+00 | 0.000000e+00 |
 | 60.02 | 1.000000 | 0.000000e+00 | 0.000000e+00 |
 | 70.04 | 1.000000 | 0.000000e+00 | 0.000000e+00 |

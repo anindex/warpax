@@ -55,15 +55,13 @@ from warpax.geometry import (  # noqa: E402
     build_coord_batch,
     compute_curvature_chain,
     evaluate_curvature_grid,
-    kretschner_scalar,
+    kretschmann_scalar,
 )
 from warpax.geometry.metric import ADMMetric, SymbolicMetric  # noqa: E402
 from warpax.visualization import plot_comparison_panel  # noqa: E402
 
 
-# ============================================================================
 # Step 1: Define a custom warp drive metric
-# ============================================================================
 
 
 class GaussianWarpMetric(ADMMetric):
@@ -143,9 +141,7 @@ class GaussianWarpMetric(ADMMetric):
         return "GaussianWarp"
 
 
-# ============================================================================
 # Step 2: Single-point curvature + EC verification
-# ============================================================================
 
 
 def run_single_point(metric: GaussianWarpMetric) -> None:
@@ -169,10 +165,10 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
 
     # Compute curvature chain via autodiff
     result = compute_curvature_chain(metric, coords)
-    K = kretschner_scalar(result.riemann, result.metric, result.metric_inv)
+    K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
 
-    print(f"\nRicci scalar:      {float(result.ricci_scalar):+.6e}")
-    print(f"Kretschner scalar: {float(K):+.6e}")
+    print(f"\nRicci scalar:       {float(result.ricci_scalar):+.6e}")
+    print(f"Kretschmann scalar: {float(K):+.6e}")
     print(
         f"Max |T_ab|:        "
         f"{float(jnp.max(jnp.abs(result.stress_energy))):+.6e}"
@@ -207,9 +203,7 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
         )
 
 
-# ============================================================================
 # Step 3: Grid-level Eulerian vs robust comparison
-# ============================================================================
 
 
 def run_grid_comparison(
@@ -273,9 +267,7 @@ def run_grid_comparison(
     return grid, grid_result, comparison
 
 
-# ============================================================================
 # Step 4: Wall-restricted statistics via the filtering API
-# ============================================================================
 
 
 def run_wall_restricted(
@@ -355,9 +347,7 @@ def run_wall_restricted(
     print(f"  DEC:  {_fmt_rate(stats.dec_miss_rate)}")
 
 
-# ============================================================================
 # Step 5: Save comparison figure
-# ============================================================================
 
 
 def save_figure(
@@ -389,9 +379,7 @@ def save_figure(
         pass
 
 
-# ============================================================================
 # Main
-# ============================================================================
 
 
 def main() -> None:

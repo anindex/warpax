@@ -1,14 +1,18 @@
 """Grid EC verification: Hawking-Ellis + eigenvalue + BFGS pipeline.
 
-Strategy: classify, then Type-I algebraic margins (exact for WEC / NEC /
-SEC) plus parallel optimizer diagnostics (``*_opt_margins``); non-Type-I
-falls back to optimizer margins; ``dec_margins = min(WEC, DEC)``.
-Eulerian-frame margins are exposed separately via
-``compute_eulerian_ec`` for single-frame comparisons.
+Strategy: classify each point, then for Type I take the algebraic
+eigenvalue margins (which are exact for WEC, NEC, and SEC) and run the
+optimizer in parallel for diagnostics in ``*_opt_margins``. Non-Type-I
+points fall back to optimizer margins. The DEC margin always takes a
+final ``min(WEC, DEC)`` because DEC implies WEC.
 
-``verify_point`` uses host-side control flow on Type; ``verify_grid``
-handles vectorization by splitting eigenvalue / optimizer branches and
-merging with ``jnp.where``.
+Eulerian-frame margins are exposed separately by
+:func:`compute_eulerian_ec` for clean single-frame comparisons.
+
+:func:`verify_point` uses host-side control flow on the Hawking-Ellis
+type, so it is not JIT-compilable on the outer call. :func:`verify_grid`
+handles vectorization by splitting the eigenvalue and optimizer branches
+and merging with ``jnp.where``; the inner kernels are still vmapped.
 """
 from __future__ import annotations
 
@@ -315,8 +319,9 @@ def verify_point(
 
     he_type_int = int(he_type)
     if he_type_int == 1:
-        # Type-I: algebraic NEC/WEC/SEC are exact; DEC algebraic proxy is
-        # rho - max|p_i| and is necessary-only for flux causality.
+        # Type I: algebraic NEC/WEC/SEC margins are exact. The algebraic
+        # DEC proxy ``rho - max|p_i|`` is necessary only for flux
+        # causality, so combine with the optimizer for tightness.
         nec_eig, wec_eig, sec_eig, dec_eig = check_all(rho, pressures)
         nec_margin = nec_eig
         wec_margin = wec_eig
@@ -328,7 +333,7 @@ def verify_point(
         sec_margin = sec_opt
         dec_margin = dec_opt
 
-    # Re-merge WEC into DEC: DEC implies WEC and the WEC slack may dominate.
+    # DEC implies WEC; the WEC slack can dominate, so re-merge here.
     dec_margin = jnp.minimum(wec_margin, dec_margin)
 
     return ECPointResult(
@@ -516,7 +521,7 @@ def verify_grid(
     n_type_ii = int(jnp.sum(he_types == 2.0))
     n_type_iii = int(jnp.sum(he_types == 3.0))
     n_type_iv = int(jnp.sum(he_types == 4.0))
-    # Near-vacuum is a subset of n_type_i; subtract for vacuum contribution.
+    # Near-vacuum is a subset of n_type_i; reported separately.
     n_vacuum = int(jnp.sum(cls_results.is_vacuum))
     max_imag = float(jnp.max(jnp.abs(cls_results.eigenvalues_imag)))
 
@@ -564,8 +569,8 @@ def _eulerian_ec_point(
     g_ab: Float[Array, "4 4"],
     g_inv: Float[Array, "4 4"],
 ) -> dict[str, Float[Array, ""]]:
-    """Internal: Eulerian EC margins at a single point (vmappable)."""
-    # Floor -g^{00} against CTC noise so near-causal pencils don't emit NaN.
+    """Eulerian-frame EC margins at a single point (vmap-safe)."""
+    # Floor -g^{00} so closed-timelike-curve noise does not emit NaN.
     alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], 1e-30))
     n_up = jnp.zeros(4)
     n_up = n_up.at[0].set(1.0 / alpha)
@@ -605,27 +610,23 @@ def compute_eulerian_ec(
     g_ab: Float[Array, "4 4"],
     g_inv: Float[Array, "4 4"] | None = None,
 ) -> dict[str, Float[Array, ""]]:
-    """Compute energy condition margins for the Eulerian observer ONLY.
+    """Energy-condition margins for the Eulerian observer only.
 
-    This is the "Eulerian-frame EC result computed on request" for clean
-    comparison against observer-robust margins. The Eulerian observer is
-    the unit normal to constant-time spatial hypersurfaces:
-    ``n^a = (1/alpha, -beta^i/alpha)``.
+    The Eulerian observer is the unit normal to constant-time spatial
+    hypersurfaces, ``n^a = (1/alpha, -beta^i/alpha)``. Useful as a clean
+    single-frame baseline against the observer-robust margins.
 
     Parameters
     ----------
-    T_ab : Float[Array, "4 4"]
-        Covariant stress-energy tensor at a single point.
-    g_ab : Float[Array, "4 4"]
-        Covariant metric at the same point.
+    T_ab, g_ab : Float[Array, "4 4"]
+        Covariant stress-energy and metric tensors at a single point.
     g_inv : Float[Array, "4 4"] or None
-        Inverse metric. Computed if not provided.
+        Inverse metric. Computed if omitted.
 
     Returns
     -------
     dict
-        Maps condition name (``"wec"``, ``"nec"``, ``"sec"``, ``"dec"``)
-        to signed margin scalar.
+        Maps ``"nec"``, ``"wec"``, ``"sec"``, ``"dec"`` to signed margins.
     """
     if g_inv is None:
         g_inv = jnp.linalg.inv(g_ab)
@@ -636,25 +637,10 @@ def anec_integrand(
     T_ab: Float[Array, "4 4"],
     k: Float[Array, "4"],
 ) -> Float[Array, ""]:
-    """Pointwise ANEC integrand: T_{ab} k^a k^b.
+    """Pointwise ANEC integrand ``T_{ab} k^a k^b`` at a single point.
 
-    Computes the integrand for the Averaged Null Energy Condition at a
-    single spacetime point. Retained as a primitive integrand helper.
-
-    For the full line integral along a null geodesic, use
-    ``warpax.averaged.anec``.
-
-    Parameters
-    ----------
-    T_ab : Float[Array, "4 4"]
-        Covariant stress-energy tensor at a single point.
-    k : Float[Array, "4"]
-        Null 4-vector (tangent to a null geodesic).
-
-    Returns
-    -------
-    Float[Array, ""]
-        Scalar T_{ab} k^a k^b.
+    For the full line integral along a null geodesic, see
+    :func:`warpax.averaged.anec`.
     """
     return jnp.einsum("a,ab,b->", k, T_ab, k)
 

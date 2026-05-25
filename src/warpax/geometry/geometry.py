@@ -1,15 +1,18 @@
-"""Pointwise curvature computation chain via JAX autodiff.
+"""Pointwise curvature chain via JAX autodiff.
 
-Computes the full chain: metric -> Christoffel -> Riemann -> Ricci -> Einstein -> stress-energy
-at a single spacetime point using exact forward-mode automatic differentiation (jax.jacfwd),
-eliminating all finite-difference error.
+Computes the full chain at a single spacetime point:
+``g_{ab} -> Gamma^a_{bc} -> R^a_{bcd} -> R_{ab} -> G_{ab} -> T_{ab}``.
+All derivatives use forward-mode automatic differentiation
+(``jax.jacfwd``), so the curvature is exact for the implemented metric
+function (no finite-difference truncation).
 
 Index conventions:
-    - Christoffel: Gamma^lam_{mu nu} as (4,4,4) array [upper, lower, lower]
-    - Riemann: R^lam_{mu nu rho} as (4,4,4,4) array [upper, lower, lower, lower]
-    - Ricci: R_{mu nu} as (4,4) array [lower, lower]
-    - Einstein: G_{mu nu} as (4,4) array [lower, lower]
-    - Stress-energy: T_{mu nu} as (4,4) array [lower, lower]
+
+- Christoffel ``Gamma^a_{bc}``, shape ``(4, 4, 4)`` as ``[upper, lower, lower]``.
+- Riemann ``R^a_{bcd}``, shape ``(4, 4, 4, 4)`` as ``[upper, lower, lower, lower]``.
+- Ricci ``R_{ab}``, shape ``(4, 4)``.
+- Einstein ``G_{ab}``, shape ``(4, 4)``.
+- Stress-energy ``T_{ab}``, shape ``(4, 4)``.
 """
 from __future__ import annotations
 
@@ -156,20 +159,11 @@ def einstein_tensor(
 
 
 def stress_energy_tensor(einstein: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
-    """Stress-energy tensor from Einstein field equations (geometric units G=c=1).
+    """Stress-energy from Einstein's equations (geometric units, ``G = c = 1``).
 
-    T_{mu nu} = G_{mu nu} / (8 pi), explicitly symmetrized.
-
-    Einstein's equations guarantee ``T_{ab} = T_{ba}`` analytically; the
-    explicit ``0.5 * (T + T.T)`` projection enforces it numerically
-    regardless of XLA reduction order. It is idempotent on symmetric
-    inputs.
-
-    Args:
-        einstein: Einstein tensor of shape (4, 4).
-
-    Returns:
-        Stress-energy tensor of shape (4, 4), symmetrized.
+    Returns ``T_{ab} = G_{ab} / (8 pi)``, explicitly symmetrized. The
+    field equations guarantee symmetry analytically; the ``0.5 * (T + T.T)``
+    projection makes it robust to XLA reduction order.
     """
     T = einstein / (8.0 * jnp.pi)
     return 0.5 * (T + T.T)
@@ -182,21 +176,8 @@ def compute_curvature_chain(
 ) -> CurvatureResult:
     """Compute the full curvature chain at a single spacetime point.
 
-    Evaluates: metric -> inverse metric -> Christoffel -> Riemann -> Ricci
-    -> Ricci scalar -> Einstein -> stress-energy.
-
-    All derivatives are computed via jax.jacfwd (exact autodiff). The
-    function is wrapped with :func:`equinox.filter_jit` so repeated
-    invocations on the same metric class hit the compile cache; ``eqx.field
-    (static=True)`` parameters on :class:`MetricSpecification` instances
-    therefore key the cache automatically.
-
-    Args:
-        metric_fn: Callable mapping coords (4,) -> metric tensor (4,4).
-        coords: Spacetime coordinates as shape (4,) array.
-
-    Returns:
-        CurvatureResult NamedTuple with all 8 tensors.
+    Wrapped with :func:`equinox.filter_jit` so static metric parameters
+    (``eqx.field(static=True)``) automatically key the compile cache.
     """
     g = metric_fn(coords)
     g_inv = jnp.linalg.inv(g)

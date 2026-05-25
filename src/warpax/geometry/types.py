@@ -9,6 +9,8 @@ compatible with ``jax.jit``, ``jax.vmap``, and other JAX transformations.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import equinox as eqx
 import jax.numpy as jnp
 from jaxtyping import Array, Float
@@ -43,8 +45,6 @@ class TensorField(eqx.Module):
             raise ValueError(
                 f"index_positions length {len(self.index_positions)} != rank {self.rank}"
             )
-
-    # derived properties --------------------------------------------------
 
     @property
     def grid_shape(self) -> tuple[int, ...]:
@@ -86,14 +86,12 @@ class GridSpec(eqx.Module):
         site via :attr:`volume_weights_array`.
     """
 
-    bounds: list = eqx.field(static=True)
+    bounds: Sequence = eqx.field(static=True)
     shape: tuple = eqx.field(static=True)
     # Optional non-uniform-grid fields; both default to None so uniform-grid
     # callers are unaffected.
     coord_arrays: tuple | None = eqx.field(static=True, default=None)
     volume_weights: tuple | None = eqx.field(static=True, default=None)
-
-    # derived properties --------------------------------------------------
 
     @property
     def ndim(self) -> int:

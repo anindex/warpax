@@ -17,7 +17,6 @@ because Eulerian-only analysis can miss a significant fraction of violations.
 
 import os
 
-import jax.numpy as jnp
 import numpy as np
 
 from warpax.benchmarks import AlcubierreMetric
@@ -83,7 +82,7 @@ for cond in ("nec", "wec"):
 # Hawking–Ellis classification breakdown
 stats = comparison.classification_stats
 he_types = np.asarray(comparison.he_types).ravel()
-print(f"  Hawking–Ellis classification:")
+print("  Hawking-Ellis classification:")
 for t in range(1, 5):
     count = int(np.sum(he_types == t))
     if count > 0:
