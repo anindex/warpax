@@ -31,11 +31,10 @@ class TestMinkowski:
         assert g.dtype == jnp.float64
 
     def test_minkowski_pytree(self):
-        """MinkowskiMetric is a valid pytree (jax.tree.leaves returns expected)."""
+        """MinkowskiMetric is a valid pytree with no dynamic leaves."""
         m = MinkowskiMetric()
         leaves = jax.tree.leaves(m)
-        # MinkowskiMetric has no dynamic fields, so leaves should be empty
-        assert isinstance(leaves, list)
+        assert leaves == []
 
     def test_minkowski_symbolic(self):
         """symbolic returns valid SymbolicMetric."""

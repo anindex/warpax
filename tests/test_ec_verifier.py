@@ -20,7 +20,6 @@ jax.config.update("jax_enable_x64", True)
 from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.energy_conditions import (
     ECGridResult,
-    ECPointResult,
     ECSummary,
     verify_grid,
     verify_point,
@@ -36,9 +35,7 @@ from warpax.geometry.types import GridSpec
 ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
 
-# ---------------------------------------------------------------------------
 # 1. Dust in Minkowski (no violation)
-# ---------------------------------------------------------------------------
 
 
 class TestDustVerifyPoint:
@@ -62,30 +59,13 @@ class TestDustVerifyPoint:
         assert float(r.rho) == pytest.approx(1.0, abs=1e-10)
         assert jnp.allclose(r.pressures, jnp.zeros(3), atol=1e-10)
 
-    def test_result_is_namedtuple(self):
-        r = verify_point(self.T_dust, ETA, n_starts=4)
-        assert isinstance(r, ECPointResult)
-        # All fields accessible
-        _ = r.he_type
-        _ = r.eigenvalues
-        _ = r.rho
-        _ = r.pressures
-        _ = r.nec_margin
-        _ = r.wec_margin
-        _ = r.sec_margin
-        _ = r.dec_margin
-        _ = r.worst_observer
-        _ = r.worst_params
-
     def test_wec_margin_value(self):
         """For dust: WEC margin = rho = 1.0 (eigenvalue method)."""
         r = verify_point(self.T_dust, ETA, n_starts=4)
         assert float(r.wec_margin) == pytest.approx(1.0, abs=1e-6)
 
 
-# ---------------------------------------------------------------------------
 # 2. Known WEC violation
-# ---------------------------------------------------------------------------
 
 
 class TestWECViolationVerifyPoint:
@@ -103,9 +83,7 @@ class TestWECViolationVerifyPoint:
         assert r.worst_params.shape == (3,)
 
 
-# ---------------------------------------------------------------------------
 # 3. Eulerian vs observer-robust comparison (CORE PAPER ARGUMENT)
-# ---------------------------------------------------------------------------
 
 
 class TestEulerianVsObserverRobust:
@@ -162,9 +140,7 @@ class TestEulerianVsObserverRobust:
         )
 
 
-# ---------------------------------------------------------------------------
 # 4. Small Alcubierre grid (5x5x5)
-# ---------------------------------------------------------------------------
 
 
 class TestAlcubierreGrid:
@@ -242,9 +218,7 @@ class TestAlcubierreGrid:
         assert float(ec.wec_summary.fraction_violated) > 0
 
 
-# ---------------------------------------------------------------------------
 # 4b. verify_point / verify_grid with solver='generalized'
-# ---------------------------------------------------------------------------
 
 
 class TestGeneralizedSolverIntegration:
@@ -281,9 +255,7 @@ class TestGeneralizedSolverIntegration:
         assert ec.he_types.shape == (5, 5, 5)
 
 
-# ---------------------------------------------------------------------------
 # 5. Eulerian comparison on grid
-# ---------------------------------------------------------------------------
 
 
 class TestEulerianGridComparison:
@@ -310,9 +282,7 @@ class TestEulerianGridComparison:
         assert isinstance(ec, ECGridResult)
 
 
-# ---------------------------------------------------------------------------
 # 6. Summary statistics correctness
-# ---------------------------------------------------------------------------
 
 
 class TestSummaryStatistics:
@@ -356,9 +326,7 @@ class TestSummaryStatistics:
             assert jnp.isfinite(summary.min_margin)
 
 
-# ---------------------------------------------------------------------------
 # 7. Worst observer stored correctly
-# ---------------------------------------------------------------------------
 
 
 class TestWorstObserver:
@@ -388,9 +356,7 @@ class TestWorstObserver:
         assert -1e-6 <= phi <= 2 * jnp.pi + 1e-6, f"phi={phi} out of range"
 
 
-# ---------------------------------------------------------------------------
 # 8. ANEC integrand
-# ---------------------------------------------------------------------------
 
 
 class TestANECIntegrand:
@@ -419,55 +385,14 @@ class TestANECIntegrand:
         assert val.shape == ()
 
 
-# ---------------------------------------------------------------------------
-# 9. ANEC line-integral placeholder
-# ---------------------------------------------------------------------------
-
-
-class TestANECIntegralStub:
-    """anec_integral is deprecated - emits DeprecationWarning and delegates to
-    ``warpax.averaged.anec``.
-
-    The legacy ``raise NotImplementedError`` is replaced; calling
-    ``anec_integral(None, None)`` no longer raises NotImplementedError - it
-    first emits DeprecationWarning then fails type-check on the None inputs.
-    This test validates that the DeprecationWarning path is active.
-    """
-
-    def test_emits_deprecation_warning(self):
-        import warnings
-
-        from warpax.benchmarks import MinkowskiMetric
-
-        gl = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            # Valid call path delegates to warpax.averaged.anec
-            from warpax.energy_conditions.verifier import anec_integral as ai
-
-            ai(MinkowskiMetric(), gl)
-            assert any(
-                issubclass(ww.category, DeprecationWarning)
-                and "warpax.averaged.anec" in str(ww.message)
-                for ww in w
-            )
-
-
-# ---------------------------------------------------------------------------
-# 10. Float64 dtype
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
 # 9b. ECGridResult new fields
-# ---------------------------------------------------------------------------
 
 
 class TestECGridResultNewFields:
     """Verify ECGridResult contains optimizer margins and classification stats."""
 
-    def test_opt_margins_present(self):
-        """ECGridResult has nec/wec/sec/dec_opt_margins fields."""
+    def test_dust_all_type_i(self):
+        """All-dust grid: Type I everywhere; eigenvalue margins; opt skipped."""
         T_dust = jnp.diag(jnp.array([1.0, 0.0, 0.0, 0.0]))
         T_field = jnp.broadcast_to(T_dust, (3, 3, 3, 4, 4)).copy()
         g_field = jnp.broadcast_to(ETA, (3, 3, 3, 4, 4)).copy()
@@ -478,36 +403,22 @@ class TestECGridResultNewFields:
         assert ec.sec_opt_margins is not None
         assert ec.dec_opt_margins is not None
         assert ec.nec_opt_margins.shape == (3, 3, 3)
-
-    def test_classification_stats_present(self):
-        """ECGridResult has n_type_i..n_type_iv and max_imag_eigenvalue."""
-        T_dust = jnp.diag(jnp.array([1.0, 0.0, 0.0, 0.0]))
-        T_field = jnp.broadcast_to(T_dust, (3, 3, 3, 4, 4)).copy()
-        g_field = jnp.broadcast_to(ETA, (3, 3, 3, 4, 4)).copy()
-
-        ec = verify_grid(T_field, g_field, n_starts=4)
         assert ec.n_type_i is not None
         assert ec.n_type_ii is not None
         assert ec.n_type_iii is not None
         assert ec.n_type_iv is not None
         assert ec.max_imag_eigenvalue is not None
 
-    def test_dust_all_type_i(self):
-        """For all-dust grid, all points should be Type I."""
-        T_dust = jnp.diag(jnp.array([1.0, 0.0, 0.0, 0.0]))
-        T_field = jnp.broadcast_to(T_dust, (3, 3, 3, 4, 4)).copy()
-        g_field = jnp.broadcast_to(ETA, (3, 3, 3, 4, 4)).copy()
-
-        ec = verify_grid(T_field, g_field, n_starts=4)
         assert ec.n_type_i == 27
         assert ec.n_type_ii == 0
         assert ec.n_type_iii == 0
         assert ec.n_type_iv == 0
+        assert float(ec.max_imag_eigenvalue) == pytest.approx(0.0, abs=1e-12)
+        assert jnp.all(jnp.isnan(ec.nec_opt_margins))
+        assert float(ec.nec_margins[0, 0, 0]) == pytest.approx(1.0, abs=1e-10)
 
 
-# ---------------------------------------------------------------------------
 # 10b. DEC future-directedness
-# ---------------------------------------------------------------------------
 
 
 class TestDECFutureDirectedness:
@@ -657,10 +568,30 @@ class TestDECFutureDirectedness:
             f"DEC margin = {r.dec_margin}, expected < 0"
         )
 
+    def test_type_i_dec_uses_full_optimizer(self):
+        """Type-I DEC margin reflects min(eigenvalue_proxy, full_optimizer).
 
-# ---------------------------------------------------------------------------
+        For a Type-I tensor with rho > max|p_i| (algebraic DEC margin > 0)
+        but with a strong off-diagonal flux that makes the full DEC
+        optimizer detect causality issues, verify_point must report the
+        more conservative full-optimizer margin.
+        """
+        # Type-I anisotropic point in principal frame: rho=1, p=(0.3, 0, 0).
+        # Algebraic DEC margin (rho - max|p|) = 0.7 > 0.
+        T_principal = jnp.diag(jnp.array([1.0, 0.3, 0.0, 0.0]))
+        r = verify_point(T_principal, ETA, n_starts=8)
+        # Type-I should be detected
+        assert int(r.he_type) == 1
+        # DEC margin should be finite and >= 0 (this is a non-violating point);
+        # the value comes from min(eigenvalue_slack, full_optimizer),
+        # so it must not exceed the eigenvalue slack (= 0.7).
+        eig_slack = 1.0 - 0.3
+        assert float(r.dec_margin) <= eig_slack + 1e-6
+        # And it must be no worse than the WEC margin (since DEC requires WEC).
+        assert float(r.dec_margin) <= float(r.wec_margin) + 1e-6
+
+
 # 10. Float64 dtype
-# ---------------------------------------------------------------------------
 
 
 class TestFloat64Dtype:

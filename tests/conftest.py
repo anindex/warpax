@@ -15,9 +15,7 @@ from warpax.benchmarks.minkowski import MinkowskiMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
 from warpax.benchmarks.alcubierre import AlcubierreMetric
 
-# ---------------------------------------------------------------------------
 # Float64 enforcement check fails LOUD if x64 is not enabled
-# ---------------------------------------------------------------------------
 _probe = jnp.array(1.0)
 assert _probe.dtype == jnp.float64, (
     f"JAX float64 not enabled!  Got dtype={_probe.dtype}.  "
@@ -25,9 +23,7 @@ assert _probe.dtype == jnp.float64, (
 )
 
 
-# ---------------------------------------------------------------------------
 # Grid fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -48,9 +44,7 @@ def fine_grid() -> GridSpec:
     )
 
 
-# ---------------------------------------------------------------------------
 # Coordinate fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -65,9 +59,7 @@ def origin_coords() -> jnp.ndarray:
     return jnp.array([0.0, 0.0, 0.0, 0.0])
 
 
-# ---------------------------------------------------------------------------
 # Metric fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -76,9 +68,7 @@ def all_metrics() -> list:
     return [MinkowskiMetric(), SchwarzschildMetric(), AlcubierreMetric()]
 
 
-# ---------------------------------------------------------------------------
 # --gpu-baseline pytest plugin
-# ---------------------------------------------------------------------------
 #
 # When --gpu-baseline is passed, this plugin applies xfail markers from
 # ``_gpu_xfail_registry.EXPECTED_GPU_FAILURES`` to known-bad tests on
@@ -111,7 +101,7 @@ def pytest_collection_modifyitems(config, items) -> None:
         if item.nodeid in EXPECTED_GPU_FAILURES:
             item.add_marker(
                 pytest.mark.xfail(
-                    reason="sm_120 cuBLAS LT expected failure ()",
+                    reason="sm_120 cuBLAS LT expected failure",
                     strict=False,
                 )
             )
