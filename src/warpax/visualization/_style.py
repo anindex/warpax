@@ -37,6 +37,9 @@ STYLE_PARAMS: dict[str, object] = {
     "text.usetex": USE_TEX,
     "font.family": "serif",
     "font.serif": ["Computer Modern Roman", "DejaVu Serif"],
+    # When usetex is unavailable (e.g. tectonic-only machines), render math in
+    # Computer Modern so mathtext figures match the LaTeX-built panels.
+    "mathtext.fontset": "cm",
     "font.size": 10,
     "axes.labelsize": 11,
     "axes.titlesize": 11,
@@ -80,14 +83,38 @@ COLORS: list[str] = [
     "#56B4E9",  # sky blue
 ]
 
+# Per-metric colors (Okabe-Ito, colorblind-safe). Keys match the names used by
+# the analysis scripts, including accents, so a metric keeps one color across
+# every figure. ``metric_color`` tolerates accent/spelling variants.
 METRIC_COLORS: dict[str, str] = {
-    "Alcubierre": COLORS[0],  # blue
-    "Fuchs":      COLORS[1],  # vermilion
-    "S-shell":    COLORS[2],  # green
-    "T-shell":    COLORS[3],  # pink
-    "Lentz":      COLORS[4],  # amber
-    "Natario":    COLORS[5],  # sky blue
+    "Alcubierre":     COLORS[0],  # blue
+    "Natário":        COLORS[4],  # amber
+    "Van den Broeck": COLORS[2],  # green
+    "Rodal":          COLORS[3],  # reddish purple
+    "WarpShell":      COLORS[5],  # sky blue
+    "Schwarzschild":  "#555555",  # neutral grey (vacuum control)
+    "Lentz":          COLORS[1],  # vermilion (appendix / excluded)
 }
+
+# Accent- and spelling-tolerant lookups for the same colors.
+_METRIC_COLOR_ALIASES: dict[str, str] = {
+    "natario": "Natário",
+    "van den broeck": "Van den Broeck",
+    "vandenbroeck": "Van den Broeck",
+    "vdb": "Van den Broeck",
+    "warp shell": "WarpShell",
+}
+
+
+def metric_color(name: str, default: str = "#000000") -> str:
+    """Return the canonical color for a metric, tolerant of accents/spelling."""
+    if name in METRIC_COLORS:
+        return METRIC_COLORS[name]
+    key = _METRIC_COLOR_ALIASES.get(name.strip().lower())
+    if key is not None:
+        return METRIC_COLORS[key]
+    return default
+
 
 # Sequential map for strictly-negative worst-EC margin heatmaps (~8 decade
 # dynamic range); diverging maps waste the unused positive half. Crameri et al. 2024.

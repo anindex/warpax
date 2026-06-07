@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13"]
+        python-version: ["3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
@@ -79,6 +79,11 @@ jobs:
 
       - name: Script import smoke
         run: uv run python scripts/run_analysis.py --help
+
+      - name: Paper-number audit (every cited number traces to results/*.json)
+        run: uv run python scripts/audit_paper_numbers.py
+        env:
+          PYTHONPATH: scripts
 
   docs:
     runs-on: ubuntu-latest

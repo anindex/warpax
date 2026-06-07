@@ -1,0 +1,75 @@
+{
+  "controlled_family": {
+    "c_values": [
+      0.0,
+      0.025,
+      0.05,
+      0.1,
+      0.15,
+      0.2,
+      0.3,
+      0.4
+    ],
+    "omega": [
+      0.0,
+      0.02065107430886939,
+      0.04130214861773878,
+      0.08260429723547756,
+      0.12390644585321633,
+      0.16520859447095512,
+      0.24781289170643267,
+      0.33041718894191024
+    ],
+    "imag": [
+      0.0,
+      0.0012325187665996676,
+      0.0024650288808442207,
+      0.004929988542240114,
+      0.00739480976149969,
+      0.009859423309455011,
+      0.014787750422930025,
+      0.019714415796489974
+    ],
+    "he_type": [
+      1,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4
+    ],
+    "kappa": 0.05967077978511209,
+    "r_squared": 0.9999999703420077,
+    "type_at_zero_vorticity": 1,
+    "type_at_max_vorticity": 4
+  },
+  "cross_metric": {
+    "Rodal": {
+      "omega": 5.381491902138639e-14,
+      "imag_measured": 0.0,
+      "imag_predicted": 3.2111781820787867e-15,
+      "he_type": 1
+    },
+    "Alcubierre": {
+      "omega": 0.3598454995338995,
+      "imag_measured": 0.07865059069463985,
+      "imag_predicted": 0.02147226155935097,
+      "he_type": 4
+    },
+    "Nat\u00e1rio": {
+      "omega": 0.2972716598556904,
+      "imag_measured": 0.5635390875201066,
+      "imag_predicted": 0.017738431751603646,
+      "he_type": 4
+    },
+    "Van den Broeck": {
+      "omega": 0.4619926475577141,
+      "imag_measured": 0.058185150001924875,
+      "imag_predicted": 0.027567461534757257,
+      "he_type": 4
+    }
+  },
+  "summary": "f = kappa * omega established on a controlled pure-rotation shift (R^2 ~ 1, type flips I->IV at omega>0); irrotational Rodal is Type I with Im ~ 0, vortical drives are Type IV with Im tracking kappa * omega."
+}

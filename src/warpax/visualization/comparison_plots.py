@@ -209,58 +209,30 @@ def plot_comparison_panel(
         eul_vis = eul_2d
         rob_vis = rob_2d
 
-    # Check if Eulerian and Robust ranges are close enough to share a colorbar
-    eul_absmax = max(abs(float(np.nanmin(eul_vis))),
-                     abs(float(np.nanmax(eul_vis))))
-    rob_absmax = max(abs(float(np.nanmin(rob_vis))),
-                     abs(float(np.nanmax(rob_vis))))
-    # Share if the two ranges are within 10x of each other
-    share_cbar = (eul_absmax > 1e-30 and rob_absmax > 1e-30
-                  and max(eul_absmax, rob_absmax)
-                  / min(eul_absmax, rob_absmax) < 10.0)
+    # Always use independent Eulerian and Robust norms. The two fields can
+    # differ by orders of magnitude (e.g. WEC/SEC, where the robust margin is
+    # far more negative), so a shared colorbar would saturate one panel; using
+    # independent norms also keeps every comparison panel on the same layout.
+    eul_norm = _diverging_norm(eul_vis)
+    rob_norm = _diverging_norm(rob_vis)
 
-    if share_cbar:
-        # Unified norm from the union of both visible regions
-        combined_vis = np.concatenate([eul_vis.ravel(), rob_vis.ravel()])
-        shared_norm = _diverging_norm(combined_vis)
-        eul_norm = rob_norm = shared_norm
-    else:
-        eul_norm = _diverging_norm(eul_vis)
-        rob_norm = _diverging_norm(rob_vis)
-
-    # --- Layout: use subplots with shared y-axis for clean spacing ---
+    # --- Layout: 3 panels, each margin panel with its own colorbar. Identical
+    # for every comparison panel so the figures share a consistent aspect. ---
     from matplotlib.gridspec import GridSpec as GS
     from matplotlib.patches import Patch
 
-    if share_cbar:
-        # 3 panels + 1 shared colorbar on the far right
-        fig = plt.figure(figsize=figsize)
-        gs = GS(1, 4, figure=fig,
-                width_ratios=[1, 1, 1, 0.04],
-                wspace=0.08,
-                left=0.08, right=0.95,
-                top=0.82 if title else 0.92,
-                bottom=0.15)
-        ax_eul = fig.add_subplot(gs[0, 0])
-        ax_rob = fig.add_subplot(gs[0, 1], sharey=ax_eul)
-        ax_miss = fig.add_subplot(gs[0, 2], sharey=ax_eul)
-        cax_shared = fig.add_subplot(gs[0, 3])
-    else:
-        # 3 panels + 2 individual colorbars (Eulerian, Robust)
-        # Use wider figure to accommodate separate colorbar labels
-        sep_figsize = (figsize[0] * 1.08, figsize[1])
-        fig = plt.figure(figsize=sep_figsize)
-        gs = GS(1, 7, figure=fig,
-                width_ratios=[1, 0.03, 0.18, 1, 0.03, 0.18, 1],
-                wspace=0.0,
-                left=0.06, right=0.97,
-                top=0.82 if title else 0.92,
-                bottom=0.15)
-        ax_eul = fig.add_subplot(gs[0, 0])
-        cax_eul = fig.add_subplot(gs[0, 1])
-        ax_rob = fig.add_subplot(gs[0, 3], sharey=ax_eul)
-        cax_rob = fig.add_subplot(gs[0, 4])
-        ax_miss = fig.add_subplot(gs[0, 6], sharey=ax_eul)
+    fig = plt.figure(figsize=figsize)
+    gs = GS(1, 7, figure=fig,
+            width_ratios=[1, 0.03, 0.18, 1, 0.03, 0.18, 1],
+            wspace=0.0,
+            left=0.06, right=0.97,
+            top=0.82 if title else 0.92,
+            bottom=0.15)
+    ax_eul = fig.add_subplot(gs[0, 0])
+    cax_eul = fig.add_subplot(gs[0, 1])
+    ax_rob = fig.add_subplot(gs[0, 3], sharey=ax_eul)
+    cax_rob = fig.add_subplot(gs[0, 4])
+    ax_miss = fig.add_subplot(gs[0, 6], sharey=ax_eul)
 
     axes = [ax_eul, ax_rob, ax_miss]
 
@@ -347,15 +319,10 @@ def plot_comparison_panel(
             return rf"{coeff:.1f}e{exp}"
         cb.ax.yaxis.set_major_formatter(FuncFormatter(_compact_fmt))
 
-    if share_cbar:
-        cb = fig.colorbar(im_eul, cax=cax_shared)
-        cb.set_label("Margin", fontsize=8)
-        _fmt_cbar(cb, eul_norm)
-    else:
-        cb_eul = fig.colorbar(im_eul, cax=cax_eul)
-        _fmt_cbar(cb_eul, eul_norm)
-        cb_rob = fig.colorbar(im_rob, cax=cax_rob)
-        _fmt_cbar(cb_rob, rob_norm)
+    cb_eul = fig.colorbar(im_eul, cax=cax_eul)
+    _fmt_cbar(cb_eul, eul_norm)
+    cb_rob = fig.colorbar(im_rob, cax=cax_rob)
+    _fmt_cbar(cb_rob, rob_norm)
 
     # Apply zoom limits to all panels
     if zoom is not None:

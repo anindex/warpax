@@ -44,19 +44,24 @@ Core differential geometry: Christoffel symbols, curvature tensors, stress-energ
 invariants, grid evaluation. All tensors are JAX arrays with jaxtyping annotations.
 
 ### `energy_conditions`
-Two-tier verification strategy:
+Frame-independent, all-velocity certification from the eigenstructure of `T^a_b`
+(`frame_free.py`, public `warpax.certify`) — never builds the Eulerian normal, so
+it is valid at all warp speeds including `v_s >= 1`. Two-tier verification strategy:
 
 1. **Hawking-Ellis classification** (`solver='auto'` by default) determines the
    algebraic type (I/II/III/IV). Ill-conditioned points fall back to the
-   generalized pencil solve when `warpax[solver]` is installed.
-2. **BFGS optimization** over the observer 4-velocity (rapidity-bounded).
-   Type I points use exact eigenvalue margins; `verify_grid` skips BFGS on
-   Type I by default (`skip_type_i_optimization=True`).
+   generalized pencil solve when `warpax[solver]` is installed; Type-IV labels are
+   cross-checked against a 50-digit `mpmath` recomputation (`classification_mpmath.py`).
+2. **BFGS optimization** over the observer 4-velocity (rapidity-bounded), retained
+   as a one-sided diagnostic. Type I points use exact eigenvalue margins (and the
+   closed-form worst observer `sinh^2 zeta_th = rho/|rho+p_i|`,
+   `worst_observer_analytic.py`); `verify_grid` skips BFGS on Type I by default
+   (`skip_type_i_optimization=True`).
 
 ### `metrics`
-Nine warp drive metrics, each implementing `MetricFunction: (4,) -> (4,4)`:
+Nine warp/shell drives in `warpax.metrics`, each implementing
+`MetricFunction: (4,) -> (4,4)` (Alcubierre lives in `benchmarks`):
 
-- **Alcubierre** (WarpShell) - the original warp drive (1994)
 - **Natario** - zero-expansion variant (2001)
 - **Lentz** - shift-only positive-energy candidate (2020)
 - **Rodal** - globally Type I algebraic solution (2025)
@@ -65,18 +70,27 @@ Nine warp drive metrics, each implementing `MetricFunction: (4,) -> (4,4)`:
 - **Fuchs** - constant-velocity physical warp shell (2024)
 - **S-shell** - source-first Class I (flow-orthogonal, constraint-derived potentials)
 - **T-shell** - source-first Class II (tilted matter flow, momentum-constraint-derived shift)
+- **Garattini-Zatrimaylov** - warp bubble on a de Sitter background (2025)
 
 ### `geodesics`
 Geodesic integration via Diffrax ODE solvers. Computes:
 - Timelike and null geodesics through warp bubbles
 - Jacobi deviation (tidal forces) via the geodesic deviation equation
 - Blueshift factors, energy conservation, proper time
+- Structure-preserving symplectic null integrator (`symplectic.py`, Tao-2016
+  extended phase space) that conserves `g(k,k)` to ~machine precision for the
+  rigorous geodesic-integrated ANEC
 
 ### `analysis`
 Higher-level analysis utilities:
 - Eulerian vs robust EC comparison tables
 - Richardson extrapolation convergence analysis
-- Kinematic scalars: expansion θ, shear σ², vorticity ω²
+- Kinematic scalars: expansion θ, shear σ², vorticity ω² (`shift_kinematics.py`)
+- Vorticity → Type-IV mechanism `f = κ ω` (`vorticity_type_analytic.py`)
+- Cross-construction all-observer verification with a wall-resolution gate
+  (`construction_adapter.py`)
+- Curvature-invariant and NEC-severity `v_s` scaling laws and the boost-invariant
+  exoticity ranking
 
 ### `constraints`
 Source-consistency modules: Hamiltonian and momentum constraint residuals with

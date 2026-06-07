@@ -17,6 +17,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="${SCRIPT_DIR}/results"
 FIGURES_DIR="${SCRIPT_DIR}/figures"
+PAPER_FIGURES_DIR="${SCRIPT_DIR}/../warpax_arxiv/figures"
+
+# Figures are generated into the codebase (FIGURES_DIR), then copied to the
+# paper folder. This keeps a single source of truth in the repo and a synced
+# copy under warpax_arxiv/ for the manuscript build.
+sync_figures_to_paper() {
+    echo "  Copying figures: ${FIGURES_DIR}/*.pdf -> ${PAPER_FIGURES_DIR}/"
+    mkdir -p "${PAPER_FIGURES_DIR}"
+    cp -f "${FIGURES_DIR}"/*.pdf "${PAPER_FIGURES_DIR}/" 2>/dev/null || true
+}
 
 KEEP_CACHE=false
 STAGE_ONLY=""
@@ -78,6 +88,58 @@ run_core() {
     echo "============================================================"
     echo " Stage: Core computation"
     echo "============================================================"
+
+    echo ""
+    echo "[K1] run_velocity_sweep.py Velocity-resolved Hawking-Ellis type map"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_velocity_sweep.py"
+
+    echo ""
+    echo "[K2] run_invariant_verification.py Invariant all-observer benchmark"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_invariant_verification.py"
+
+    echo ""
+    echo "[K3] validate_superluminal_classification.py Type-IV 3-solver/50-digit gate"
+    $PYTHON "${SCRIPT_DIR}/scripts/validate_superluminal_classification.py"
+
+    echo ""
+    echo "[K4] run_matched_benchmark.py Matched wall-resolved benchmark + convergence"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_matched_benchmark.py"
+
+    echo ""
+    echo "[K5] run_shift_vorticity.py Shift vorticity controls the type (reads K1)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_shift_vorticity.py"
+
+    echo ""
+    echo "[K6] run_anec_retained.py Averaged null energy along null rays"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_anec_retained.py"
+
+    echo ""
+    echo "[K6b] run_anec_symplectic.py Rigorous geodesic-integrated ANEC (symplectic + witness)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_anec_symplectic.py"
+
+    echo ""
+    echo "[K7] run_quantum_inequality.py Ford-Roman quantum inequality (reads K6)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_quantum_inequality.py"
+
+    echo ""
+    echo "[K8] run_construction_verification.py Cross-construction all-observer verification"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_construction_verification.py"
+
+    echo ""
+    echo "[K9] run_exoticity_ranking.py Boost-invariant exoticity ranking + v_s scaling laws (reads K1, K6b)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_exoticity_ranking.py"
+
+    echo ""
+    echo "[K10] derive_vorticity_type.py Vorticity -> Type-IV mechanism (f = kappa omega)"
+    $PYTHON "${SCRIPT_DIR}/scripts/derive_vorticity_type.py"
+
+    echo ""
+    echo "[K11] run_curvature_scaling.py Universal v_s scaling of wall curvature invariants"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_curvature_scaling.py"
+
+    echo ""
+    echo "[K12] run_ssv_bound.py SSV NEC lower-bound saturation (reads K1)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_ssv_bound.py"
 
     echo ""
     echo "[1/5] run_analysis.py Full metric analysis sweep"
@@ -187,6 +249,10 @@ run_figures() {
     echo ""
     echo "[2/2] generate_vdb_comparison_figures.py VdB NEC/WEC/SEC/DEC panels"
     $PYTHON "${SCRIPT_DIR}/scripts/generate_vdb_comparison_figures.py"
+
+    echo ""
+    echo "[sync] Copy generated figures into the paper folder"
+    sync_figures_to_paper
 
     echo ""
     echo " Figures stage complete."

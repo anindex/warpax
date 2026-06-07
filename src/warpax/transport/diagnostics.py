@@ -19,11 +19,28 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float
+from jaxtyping import Array, Float, Int
 
 from ..geodesics.initial_conditions import null_ic
 from ..geodesics.integrator import integrate_geodesic
 from ..geodesics.deviation import tidal_eigenvalues
+
+
+def _first_local_min_idx(d: Float[Array, "N"]) -> Int[Array, ""]:
+    """Index of the first interior local minimum of ``d`` (else global argmin).
+
+    Closest-approach detection for a round-trip null ray must pick the FIRST
+    time the geodesic reaches the target, not a later re-approach: a warp bubble
+    can carry a ray past the receiver and back, so a global ``argmin`` over the
+    whole saved trajectory may select a spurious second pass and report the
+    wrong arrival time. We take the first ``d[i] <= d[i-1] and d[i] <= d[i+1]``;
+    if none exists (still approaching at the integration horizon) we fall back
+    to the global minimum. vmap/JIT-safe (no data-dependent Python control).
+    """
+    interior = (d[1:-1] <= d[:-2]) & (d[1:-1] <= d[2:])  # shape (N-2,)
+    has_local = jnp.any(interior)
+    first_local = jnp.argmax(interior) + 1  # +1: interior starts at index 1
+    return jnp.where(has_local, first_local, jnp.argmin(d))
 
 
 def null_coord_time_asymmetry(
@@ -89,7 +106,7 @@ def null_coord_time_asymmetry(
 
     # Find arrival: closest approach to receiver position
     spatial_dist_fwd = jnp.linalg.norm(sol_fwd.positions[:, 1:] - receiver[1:], axis=1)
-    idx_fwd = jnp.argmin(spatial_dist_fwd)
+    idx_fwd = _first_local_min_idx(spatial_dist_fwd)
     t_arrive_fwd = sol_fwd.positions[idx_fwd, 0]
     dt_coord_fwd = t_arrive_fwd - emitter[0]
 
@@ -111,7 +128,7 @@ def null_coord_time_asymmetry(
 
     # Find return: closest approach to emitter position
     spatial_dist_bwd = jnp.linalg.norm(sol_bwd.positions[:, 1:] - emitter[1:], axis=1)
-    idx_bwd = jnp.argmin(spatial_dist_bwd)
+    idx_bwd = _first_local_min_idx(spatial_dist_bwd)
     t_arrive_bwd = sol_bwd.positions[idx_bwd, 0]
     dt_coord_bwd = t_arrive_bwd - arrival_pos[0]
 
@@ -187,40 +204,38 @@ def blueshift_hazard(
     u_observer = jnp.array([u_t, 0.0, 0.0, 0.0], dtype=emitter.dtype)
 
     # Probe directions: +/-x, +/-y, +/-z (or fewer)
-    directions = [
+    directions = jnp.stack([
         jnp.array([1.0, 0.0, 0.0]),
         jnp.array([-1.0, 0.0, 0.0]),
         jnp.array([0.0, 1.0, 0.0]),
         jnp.array([0.0, -1.0, 0.0]),
         jnp.array([0.0, 0.0, 1.0]),
         jnp.array([0.0, 0.0, -1.0]),
-    ][:n_directions]
+    ])[:n_directions]
 
-    max_log_shift = jnp.float64(0.0)
+    def omega_at(x, k):
+        g_at = metric_fn(x)
+        u_t_at = 1.0 / jnp.sqrt(jnp.maximum(-g_at[0, 0], 1e-30))
+        u_at = jnp.array([u_t_at, 0.0, 0.0, 0.0], dtype=x.dtype)
+        return -jnp.einsum("ab,a,b", g_at, k, u_at)
 
-    for d in directions:
+    def _hazard_one(d):
         _, k0 = null_ic(metric_fn, emitter, d)
-
         sol = integrate_geodesic(
             metric_fn, emitter, k0,
             tau_span=(0.0, tau_max),
             num_points=num_points,
             dt0=0.01, rtol=1e-8, atol=1e-8,
         )
-
-        # Compute blueshift at each point relative to emission
         # omega = -g_{ab} k^a u^b for a static observer
         omega_emit = -jnp.einsum("ab,a,b", g, k0, u_observer)
-
-        def omega_at(x, k):
-            g_at = metric_fn(x)
-            u_t_at = 1.0 / jnp.sqrt(jnp.maximum(-g_at[0, 0], 1e-30))
-            u_at = jnp.array([u_t_at, 0.0, 0.0, 0.0], dtype=x.dtype)
-            return -jnp.einsum("ab,a,b", g_at, k, u_at)
-
         omegas = jax.vmap(omega_at)(sol.positions, sol.velocities)
-        log_shifts = jnp.abs(jnp.log(jnp.maximum(jnp.abs(omegas / omega_emit), 1e-30)))
-        max_this = jnp.max(log_shifts)
-        max_log_shift = jnp.maximum(max_log_shift, max_this)
+        log_shifts = jnp.abs(
+            jnp.log(jnp.maximum(jnp.abs(omegas / omega_emit), 1e-30))
+        )
+        return jnp.max(log_shifts)
 
+    # vmap the independent per-direction integrations (was a Python loop of
+    # sequential Diffrax solves). The outer max over directions is unchanged.
+    max_log_shift = jnp.max(jax.vmap(_hazard_one)(directions))
     return max_log_shift

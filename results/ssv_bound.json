@@ -1,0 +1,37 @@
+{
+  "model": "min(rho+p_i) = -C v_s^2 (SSV-saturating, unit-lapse flat-slice)",
+  "fits": {
+    "Alcubierre": {
+      "C": 0.6313089855112752,
+      "r_squared_fixed": 0.9999996715995688,
+      "q_free": 2.0029734356786086,
+      "r_squared_free": 0.9999997809109685,
+      "max_rel_dev": 0.003518410506821027,
+      "n": 5
+    },
+    "Nat\u00e1rio": {
+      "C": 8.3733224698827,
+      "r_squared_fixed": 0.9999649715059901,
+      "q_free": 2.0549047581249056,
+      "r_squared_free": 0.9999551760419318,
+      "max_rel_dev": 0.13265577578406199,
+      "n": 6
+    },
+    "Van den Broeck": {
+      "C": 0.6017270657803614,
+      "r_squared_fixed": -2.8740188769054504,
+      "q_free": -0.18471875553753037,
+      "r_squared_free": 0.0999898811005987,
+      "max_rel_dev": 0.9900782746895478,
+      "n": 6
+    },
+    "Rodal": {
+      "C": 0.6880272744446153,
+      "r_squared_fixed": 1.0,
+      "q_free": 2.0,
+      "r_squared_free": 1.0,
+      "max_rel_dev": 8.824551571476347e-16,
+      "n": 6
+    }
+  }
+}

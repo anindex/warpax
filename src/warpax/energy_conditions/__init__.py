@@ -30,6 +30,12 @@ from .filtering import (
     frobenius_norm_mask,
     shape_function_mask,
 )
+from .frame_free import (
+    certify_grid_frame_free,
+    certify_point_frame_free,
+    type_fractions,
+    typeI_min_margins,
+)
 from .observer import (
     boost_vector_to_params,
     bounded_param,
@@ -61,7 +67,12 @@ from .types import (
     ECGridResult,
     ECPointResult,
     ECSummary,
+    FrameFreeGridResult,
     WallRestrictedStats,
+)
+from .worst_observer_analytic import (
+    boosted_energy_density,
+    worst_observer_typeI,
 )
 from .verifier import (
     anec_integrand,
@@ -76,6 +87,7 @@ __all__ = [
     "ECGridResult",
     "ECPointResult",
     "ECSummary",
+    "FrameFreeGridResult",
     "OptimizationResult",
     "WallRestrictedStats",
     # Classification
@@ -124,4 +136,12 @@ __all__ = [
     "determinant_guard_mask",
     "frobenius_norm_mask",
     "shape_function_mask",
+    # Frame-free (all-velocity) certification
+    "certify_grid_frame_free",
+    "certify_point_frame_free",
+    "type_fractions",
+    "typeI_min_margins",
+    # Analytic worst observer
+    "boosted_energy_density",
+    "worst_observer_typeI",
 ]

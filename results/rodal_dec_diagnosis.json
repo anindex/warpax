@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-05-21T13:45:09Z",
+    "date": "2026-06-06T21:15:17Z",
     "script": "scripts/rodal_dec_ablation.py",
     "baseline": {
       "v_s": 0.5,
@@ -150,9 +150,9 @@
           "wall_dec_miss_rate": 0.0,
           "wall_nec_miss_rate": 0.0,
           "wall_wec_miss_rate": 0.0,
-          "wall_sec_miss_rate": 0.18666666666666668,
-          "wall_type_iv_frac": 0.9644444444444444,
-          "wall_type_i_frac": 0.035555555555555556,
+          "wall_sec_miss_rate": 0.20444444444444446,
+          "wall_type_iv_frac": 0.9911111111111112,
+          "wall_type_i_frac": 0.008888888888888889,
           "wall_type_ii_frac": 0.0,
           "wall_type_iii_frac": 0.0,
           "wall_n_total": 1800
@@ -163,9 +163,9 @@
           "wall_dec_miss_rate": 0.0,
           "wall_nec_miss_rate": 0.0,
           "wall_wec_miss_rate": 0.0,
-          "wall_sec_miss_rate": 0.23076923076923078,
-          "wall_type_iv_frac": 0.9807692307692307,
-          "wall_type_i_frac": 0.019230769230769232,
+          "wall_sec_miss_rate": 0.15384615384615385,
+          "wall_type_iv_frac": 1.0,
+          "wall_type_i_frac": 0.0,
           "wall_type_ii_frac": 0.0,
           "wall_type_iii_frac": 0.0,
           "wall_n_total": 416
@@ -176,7 +176,7 @@
           "wall_dec_miss_rate": 0.0,
           "wall_nec_miss_rate": 0.0,
           "wall_wec_miss_rate": 0.0,
-          "wall_sec_miss_rate": 0.08333333333333333,
+          "wall_sec_miss_rate": 0.25,
           "wall_type_iv_frac": 1.0,
           "wall_type_i_frac": 0.0,
           "wall_type_ii_frac": 0.0,
@@ -189,9 +189,9 @@
           "wall_dec_miss_rate": 0.0,
           "wall_nec_miss_rate": 0.0,
           "wall_wec_miss_rate": 0.0,
-          "wall_sec_miss_rate": 0.13333333333333333,
-          "wall_type_iv_frac": 0.8666666666666667,
-          "wall_type_i_frac": 0.13333333333333333,
+          "wall_sec_miss_rate": 0.26666666666666666,
+          "wall_type_iv_frac": 1.0,
+          "wall_type_i_frac": 0.0,
           "wall_type_ii_frac": 0.0,
           "wall_type_iii_frac": 0.0,
           "wall_n_total": 120

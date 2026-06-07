@@ -37,6 +37,13 @@ from .observables import (
     proper_time_elapsed,
     velocity_norm,
 )
+from .symplectic import (
+    SymplecticGeodesicResult,
+    integrate_geodesic_symplectic,
+    integrate_geodesic_symplectic_family,
+    null_ic_canonical,
+    timelike_ic_canonical,
+)
 
 __all__ = [
     # Core integrator
@@ -63,4 +70,10 @@ __all__ = [
     "monitor_conservation",
     "proper_time_elapsed",
     "velocity_norm",
+    # Symplectic (structure-preserving) integrator
+    "SymplecticGeodesicResult",
+    "integrate_geodesic_symplectic",
+    "integrate_geodesic_symplectic_family",
+    "null_ic_canonical",
+    "timelike_ic_canonical",
 ]

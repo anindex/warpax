@@ -537,6 +537,28 @@ def generate_fibonacci_dec_figure(figures_dir, results_dir):
     return 0
 
 
+def generate_shift_vorticity_figure(figures_dir, results_dir):
+    """Generate the shift-vorticity control figure (panels a and b)."""
+    expected = os.path.join(figures_dir, "shift_vorticity.pdf")
+    _run_standalone_script("run_shift_vorticity.py", figures_dir)
+    if os.path.isfile(expected):
+        print(f"  Generated: {expected}")
+        return 1
+    print(f"  WARNING: {expected} not produced")
+    return 0
+
+
+def generate_velocity_summary_figure(figures_dir, results_dir):
+    """Generate the merged luminal-transition summary figure (panels a and b)."""
+    expected = os.path.join(figures_dir, "velocity_summary.pdf")
+    _run_standalone_script("run_velocity_sweep.py", figures_dir, "--from-cache")
+    if os.path.isfile(expected):
+        print(f"  Generated: {expected}")
+        return 1
+    print(f"  WARNING: {expected} not produced")
+    return 0
+
+
 def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> int:
     """Generate merged velocity sweep + convergence figure (two panels).
 
@@ -593,6 +615,8 @@ FIGURE_SETS = {
     "c1_vs_c2": generate_c1_vs_c2_figure,
     "rodal_dec_ablation": generate_rodal_dec_ablation_figure,
     "fibonacci_dec": generate_fibonacci_dec_figure,
+    "shift_vorticity": generate_shift_vorticity_figure,
+    "velocity_summary": generate_velocity_summary_figure,
 }
 
 

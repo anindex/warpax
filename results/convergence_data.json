@@ -7,35 +7,35 @@
   ],
   "min_margin_nec": {
     "values": [
-      -0.6310512295451954,
-      -0.6263116093865744,
-      -0.6294798988825571
+      -6650600315669.628,
+      -0.6283694438533752,
+      -0.6294798988825568
     ],
-    "extrapolated_value": -0.630535995381218,
+    "extrapolated_value": -0.6298500505589507,
     "observed_order": 2.0,
-    "error_estimate": 0.0010560964986608967,
+    "error_estimate": 0.0003701516763938706,
     "converged": true
   },
   "l2_violation_nec": {
     "values": [
-      3.001653843184546,
-      8.75525443399913,
-      23.245437553913135
+      6650600315669.628,
+      8.558081103748119,
+      22.593854060787766
     ],
-    "extrapolated_value": -0.7874615973622467,
-    "observed_order": -1.332538847868696,
-    "error_estimate": 24.03289915127538,
-    "converged": false
+    "extrapolated_value": 27.27244504646765,
+    "observed_order": 2.0,
+    "error_estimate": 4.678590985679882,
+    "converged": true
   },
   "integrated_violation_nec": {
     "values": [
-      1.8128416522769077,
-      1.904500738918663,
-      1.7444544937483266
+      481090879318.1611,
+      1.805767229995756,
+      1.6429991749608213
     ],
-    "extrapolated_value": 1.6911057453582146,
-    "observed_order": 2.0,
-    "error_estimate": 0.053348748390112055,
-    "converged": true
+    "extrapolated_value": 1.6429991749607664,
+    "observed_order": 41.426629004114965,
+    "error_estimate": 5.484501741648273e-14,
+    "converged": false
   }
 }

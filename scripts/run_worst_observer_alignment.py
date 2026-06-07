@@ -27,14 +27,18 @@ import numpy as np
 
 from warpax.metrics import RodalMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.grids import wall_clustered
 from warpax.energy_conditions.verifier import verify_grid
 from warpax.energy_conditions.classification import classify_hawking_ellis
 
 
-# Primary metric configuration
-R = 100.0
-SIGMA = 0.03
-GRID_BOUNDS = [(-300, 300)] * 3
+# Matched lab-frame parameters and a wall-clustered grid, consistent with
+# run_velocity_sweep.py and run_invariant_verification.py. A uniform grid at
+# the native parameters (R=100, sigma=0.03) does not resolve the thin Rodal
+# wall and finds no DEC-violating points, so the wall must be resolved here.
+R = 1.0
+SIGMA = 8.0
+GRID_BOUNDS = [(-3, 3)] * 3
 GRID_SHAPE = (50, 50, 50)
 VELOCITIES = [0.1, 0.5, 0.9, 0.99]
 
@@ -65,10 +69,14 @@ def _compute_alignment_angles(
     """
     curv = evaluate_curvature_grid(metric, grid, batch_size=256)
 
-    # Run full verification
+    # Run full verification. This analysis compares the optimizer's empirical
+    # worst-observer direction against the eigenvector prediction at Type-I DEC
+    # points, so the Type-I optimization must NOT be skipped (the default
+    # algebraic shortcut leaves worst_params unset at Type-I points).
     ec = verify_grid(
         curv.stress_energy, curv.metric, curv.metric_inv,
         n_starts=n_starts, batch_size=batch_size,
+        skip_type_i_optimization=False,
     )
 
     # Flatten
@@ -128,12 +136,11 @@ def _compute_alignment_angles(
 
 def run_alignment():
     """Analyze worst-observer alignment at multiple velocities."""
-    grid = GridSpec(bounds=GRID_BOUNDS, shape=GRID_SHAPE)
-    n_total = int(np.prod(grid.shape))
+    n_total = int(np.prod(GRID_SHAPE))
 
     print("=" * 70)
     print("Worst-Observer Alignment Analysis (Multi-Velocity)")
-    print(f"Rodal R={R}, sigma={SIGMA}, grid={GRID_SHAPE}")
+    print(f"Rodal R={R}, sigma={SIGMA}, wall-clustered grid={GRID_SHAPE}")
     print(f"Velocities: {VELOCITIES}")
     print("=" * 70)
 
@@ -142,6 +149,7 @@ def run_alignment():
     for v_s in VELOCITIES:
         print(f"\n--- v_s = {v_s} ---")
         metric = RodalMetric(v_s=v_s, R=R, sigma=SIGMA)
+        grid = wall_clustered(metric, GRID_BOUNDS, GRID_SHAPE, a=1.2)
 
         t0 = time.time()
         angles = _compute_alignment_angles(metric, grid, n_starts=8, batch_size=64)

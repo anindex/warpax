@@ -71,6 +71,7 @@ def christoffel_symbols(
 def riemann_tensor(
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
     coords: Float[Array, "4"],
+    gamma: Float[Array, "4 4 4"] | None = None,
 ) -> Float[Array, "4 4 4 4"]:
     """Riemann curvature tensor at a single spacetime point.
 
@@ -83,6 +84,13 @@ def riemann_tensor(
     Args:
         metric_fn: Callable mapping coords (4,) -> metric tensor (4,4).
         coords: Spacetime coordinates as shape (4,) array.
+        gamma: Optional precomputed Christoffel symbols at ``coords`` (shape
+            (4,4,4)). When supplied, the quadratic connection terms reuse it
+            instead of recomputing ``christoffel_symbols`` -- the derivative
+            term still differentiates the Christoffel function, so the result
+            is bit-identical. Threading the value avoids a redundant
+            ``jacfwd(metric)`` in :func:`compute_curvature_chain` and the
+            geodesic-deviation RHS.
 
     Returns:
         Riemann tensor of shape (4, 4, 4, 4) with index convention
@@ -91,7 +99,7 @@ def riemann_tensor(
     def gamma_at(x):
         return christoffel_symbols(metric_fn, x)
 
-    gamma = gamma_at(coords)
+    gamma = gamma_at(coords) if gamma is None else gamma
     # dgamma[l, m, n, s] = d Gamma^l_{mn} / d x^s (derivative index LAST)
     dgamma = jax.jacfwd(gamma_at)(coords)
 
@@ -182,7 +190,7 @@ def compute_curvature_chain(
     g = metric_fn(coords)
     g_inv = jnp.linalg.inv(g)
     gamma = christoffel_symbols(metric_fn, coords)
-    R_tensor = riemann_tensor(metric_fn, coords)
+    R_tensor = riemann_tensor(metric_fn, coords, gamma=gamma)
     Ric = ricci_tensor(R_tensor)
     R_scalar = ricci_scalar(g_inv, Ric)
     G = einstein_tensor(Ric, R_scalar, g)

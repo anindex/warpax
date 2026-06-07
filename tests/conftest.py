@@ -97,6 +97,29 @@ def pytest_collection_modifyitems(config, items) -> None:
 
     from ._gpu_xfail_registry import EXPECTED_GPU_FAILURES
 
+    collected_ids = {item.nodeid for item in items}
+    collected_files = {nid.split("::", 1)[0] for nid in collected_ids}
+    # Staleness guard: a registry that points at renamed/deleted tests silently
+    # turns every "expected failure" into a real regression (the dead-registry
+    # bug this fix repaired). Warn loudly if an entry whose FILE was collected
+    # no longer matches a collected test. Restricting to collected files keeps
+    # subset runs (e.g. a single test file) from spuriously flagging entries
+    # for files that simply were not part of this run.
+    unmatched = sorted(
+        e for e in EXPECTED_GPU_FAILURES
+        if e.split("::", 1)[0] in collected_files and e not in collected_ids
+    )
+    if unmatched:
+        import warnings
+        warnings.warn(
+            "GPU xfail registry has "
+            f"{len(unmatched)} entr{'y' if len(unmatched) == 1 else 'ies'} "
+            "matching no collected test (stale node IDs): "
+            + ", ".join(unmatched[:5])
+            + (" ..." if len(unmatched) > 5 else ""),
+            stacklevel=2,
+        )
+
     for item in items:
         if item.nodeid in EXPECTED_GPU_FAILURES:
             item.add_marker(

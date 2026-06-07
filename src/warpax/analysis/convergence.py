@@ -113,6 +113,66 @@ def richardson_extrapolation(
     }
 
 
+def f_miss_stability(
+    values: list[float],
+    abs_tol_pp: float = 0.5,
+    rel_tol: float = 0.05,
+) -> dict:
+    """Resolution-stability test for a (discontinuous) miss-fraction series.
+
+    The missed-violation fraction ``f_miss`` is a discontinuous
+    point-count statistic and is *not* a valid input for Richardson
+    extrapolation. Instead we ask whether it is *stable* under grid
+    refinement. A pure relative criterion (``max|f - mean| / mean``) is
+    misleading when the mean is tiny: a fraction of ~0.8% wandering by a
+    physically negligible 0.15 percentage points registers as a spurious
+    ~10% "instability" purely because the denominator is small.
+
+    This helper therefore declares stability when *either* the absolute
+    spread is within ``abs_tol_pp`` percentage points *or* the relative
+    deviation is within ``rel_tol``. The absolute floor prevents
+    false-instability on small-magnitude fractions while the relative
+    bound still catches genuine drift in large fractions.
+
+    Parameters
+    ----------
+    values : list[float]
+        ``f_miss`` in *percent* at each resolution (coarsest -> finest).
+    abs_tol_pp : float
+        Absolute tolerance in percentage points (default 0.5 pp).
+    rel_tol : float
+        Relative tolerance on max deviation from the mean (default 0.05).
+
+    Returns
+    -------
+    dict
+        Keys ``values``, ``mean``, ``max_dev_pp`` (max |value - mean| in
+        pp), ``max_dev_rel`` (max_dev_pp / mean), ``stable`` (bool), and
+        ``criterion`` (human-readable description).
+    """
+    if len(values) < 2:
+        raise ValueError(f"stability test needs >= 2 resolutions, got {len(values)}")
+
+    arr = np.asarray(values, dtype=float)
+    mean = float(np.mean(arr))
+    max_dev_pp = float(np.max(np.abs(arr - mean)))
+    max_dev_rel = max_dev_pp / mean if mean > 1e-12 else math.inf
+
+    stable = (max_dev_pp <= abs_tol_pp) or (max_dev_rel <= rel_tol)
+
+    return {
+        "values": [float(v) for v in arr],
+        "mean": mean,
+        "max_dev_pp": max_dev_pp,
+        "max_dev_rel": max_dev_rel,
+        "stable": bool(stable),
+        "criterion": (
+            f"stable if max|f - mean| <= {abs_tol_pp} pp (absolute floor) "
+            f"OR <= {rel_tol:.0%} relative"
+        ),
+    }
+
+
 def compute_convergence_quantity(
     margins: np.ndarray,
     quantity: str,

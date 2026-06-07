@@ -3,6 +3,20 @@
 How `warpax` arrived at v1.0.0. Per-release line items live in
 [`CHANGELOG.md`](https://github.com/anindex/warpax/blob/main/CHANGELOG.md).
 
+## Unreleased (post-1.0)
+
+The frame-independent certification core: `warpax.certify` decides the
+all-observer energy conditions from the eigenstructure of `T^a_b` at all warp
+speeds (including superluminal `v_s >= 1`), with explicit, physically certified
+Type-IV detection and a closed-form Type-I worst observer. New physics: the shift
+vorticity controls the Hawking-Ellis type (`f = κ ω`); a rigorous
+geodesic-integrated ANEC via a symplectic null integrator with an on-cone witness;
+a cross-construction all-observer verification panel; a boost-invariant exoticity
+ranking; and universal `v_s` scaling laws for the wall NEC deficit (saturating the
+Santiago-Schuster-Visser bound) and the wall curvature invariants. The
+Garattini-Zatrimaylov de Sitter bubble joins the metric set. See `CHANGELOG.md`
+for the full line items.
+
 ## v1.0.0 (2026-05)
 
 Version 1.0 ships the energy-condition stack, source-first shell

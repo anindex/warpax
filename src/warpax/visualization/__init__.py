@@ -8,6 +8,7 @@ Modules
 - **geodesic_plots**: Tidal eigenvalue evolution and blueshift profile plots.
 - **alignment_plots**: Worst-observer alignment angle histograms.
 - **phase_diagram**: EC-admissible transport phase diagrams.
+- **shift_vorticity_plots**: Shift-vorticity control of the Hawking-Ellis type.
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from .geodesic_plots import plot_blueshift_profile, plot_tidal_evolution
 from .kinematic_plots import plot_kinematic_comparison, plot_kinematic_scalars
 from .alignment_plots import plot_alignment_histogram
 from .phase_diagram import plot_phase_diagram, plot_phase_summary
+from .shift_vorticity_plots import plot_shift_vorticity
 
 __all__ = [
     # comparison_plots
@@ -43,4 +45,6 @@ __all__ = [
     # phase_diagram
     "plot_phase_diagram",
     "plot_phase_summary",
+    # shift_vorticity_plots
+    "plot_shift_vorticity",
 ]

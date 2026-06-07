@@ -10,6 +10,7 @@ from ._fuchs_legacy import (
     fuchs_input_stress_energy,
     fuchs_shell_profiles,
 )
+from .garattini import GarattiniMetric, garattini_default
 from .lentz import LentzMetric
 from .natario import NatarioMetric
 from .rodal import RodalMetric
@@ -33,6 +34,7 @@ from .warpshell import WarpShellMetric, WarpShellPhysical, WarpShellStressTest
 __all__ = [
     "FuchsMetric",
     "FuchsShellProfiles",
+    "GarattiniMetric",
     "LentzMetric",
     "NatarioMetric",
     "RodalMetric",
@@ -52,6 +54,7 @@ __all__ = [
     "fuchs_default",
     "fuchs_input_stress_energy",
     "fuchs_shell_profiles",
+    "garattini_default",
     "parabolic_density_profiles",
     "parabolic_velocity_profiles",
     "sshell_default",

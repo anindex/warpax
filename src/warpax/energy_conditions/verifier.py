@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jax import lax
 from jaxtyping import Array, Float
 
@@ -43,8 +44,6 @@ def _classify_grid_batch(
     solver: str,
 ):
     """Classify a flattened grid with optional auto generalized fallback."""
-    import numpy as np
-
     if solver == "generalized":
         def _classify_gen(T_mixed_i, g_i, T_ab_i):
             return classify_hawking_ellis(
@@ -55,47 +54,51 @@ def _classify_grid_batch(
     if solver == "standard":
         return jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
 
-    # auto: standard everywhere, generalized only on unreliable points
-    cls_results = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
+    # auto: standard everywhere, generalized pencil only on unreliable points.
+    #
+    # We deliberately do NOT vmap a lax.cond here: under vmap, lax.cond becomes
+    # a select that evaluates BOTH branches for every point, which would run the
+    # (slow, sequential pure_callback) generalized pencil on the entire grid.
+    # Instead, batch the generalized solve over just the unreliable subset and
+    # scatter the results back with a single vectorized ``.at[idx].set`` -- this
+    # removes the historical Python per-point loop and its N device->host
+    # gathers while keeping the generalized solve restricted to the points that
+    # need it. Byte-identical to the old host loop (same standard classification
+    # at imag_rtol=3e-3, same _standard_solver_unreliable_mask decision at
+    # imag_rtol=0.05, same per-point generalized classify on the covariant T).
+    cls_std = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
     unreliable = np.asarray(
         _standard_solver_unreliable_mask(
-            cls_results.he_type,
-            cls_results.eigenvalues,
-            cls_results.eigenvalues_imag,
+            cls_std.he_type,
+            cls_std.eigenvalues,
+            cls_std.eigenvalues_imag,
         ),
         dtype=bool,
     )
     if not unreliable.any():
-        return cls_results
+        return cls_std
 
-    he_types = np.array(cls_results.he_type, copy=True)
-    eigenvalues = np.array(cls_results.eigenvalues, copy=True)
-    eigenvectors = np.array(cls_results.eigenvectors, copy=True)
-    rho = np.array(cls_results.rho, copy=True)
-    pressures = np.array(cls_results.pressures, copy=True)
-    eigenvalues_imag = np.array(cls_results.eigenvalues_imag, copy=True)
-    is_vacuum = np.array(cls_results.is_vacuum, copy=True)
+    idx = jnp.asarray(np.where(unreliable)[0])
 
-    for i in np.where(unreliable)[0]:
-        cls_i = classify_with_solver(
-            flat_T_mixed[i], flat_g[i], flat_T[i], solver="generalized",
+    def _classify_gen(T_mixed_i, g_i, T_ab_i):
+        return classify_hawking_ellis(
+            T_mixed_i, g_i, solver="generalized", T_ab=T_ab_i,
         )
-        he_types[i] = float(cls_i.he_type)
-        eigenvalues[i] = np.asarray(cls_i.eigenvalues)
-        eigenvectors[i] = np.asarray(cls_i.eigenvectors)
-        rho[i] = float(cls_i.rho)
-        pressures[i] = np.asarray(cls_i.pressures)
-        eigenvalues_imag[i] = np.asarray(cls_i.eigenvalues_imag)
-        is_vacuum[i] = float(cls_i.is_vacuum)
 
-    return type(cls_results)(
-        he_type=jnp.asarray(he_types),
-        eigenvalues=jnp.asarray(eigenvalues),
-        eigenvectors=jnp.asarray(eigenvectors),
-        rho=jnp.asarray(rho),
-        pressures=jnp.asarray(pressures),
-        eigenvalues_imag=jnp.asarray(eigenvalues_imag),
-        is_vacuum=jnp.asarray(is_vacuum),
+    sub = jax.vmap(_classify_gen)(
+        flat_T_mixed[idx], flat_g[idx], flat_T[idx]
+    )
+
+    return type(cls_std)(
+        he_type=cls_std.he_type.at[idx].set(sub.he_type),
+        eigenvalues=cls_std.eigenvalues.at[idx].set(sub.eigenvalues),
+        eigenvectors=cls_std.eigenvectors.at[idx].set(sub.eigenvectors),
+        rho=cls_std.rho.at[idx].set(sub.rho),
+        pressures=cls_std.pressures.at[idx].set(sub.pressures),
+        eigenvalues_imag=cls_std.eigenvalues_imag.at[idx].set(
+            sub.eigenvalues_imag
+        ),
+        is_vacuum=cls_std.is_vacuum.at[idx].set(sub.is_vacuum),
     )
 
 
@@ -115,8 +118,6 @@ def _run_grid_optimization(
     starts,
 ):
     """Run per-point optimization, optionally skipping Type-I points."""
-    import numpy as np
-
     n_points = flat_T.shape[0]
     nan = jnp.nan
 
@@ -203,10 +204,13 @@ def _run_grid_optimization(
             lambda args: optimize_single((args[0], args[1], args[2], None))
         )((sub_T, sub_g, sub_keys))
 
+        idx_dev = jnp.asarray(idx)
+
         def _scatter(full, partial, indices):
-            for j, i in enumerate(indices):
-                full = full.at[i].set(partial[j])
-            return full
+            # Single vectorized scatter (full[indices[j]] = partial[j]) instead
+            # of a Python loop of N full-array .at[i].set copies. Same result,
+            # O(N) -> one fused op.
+            return full.at[idx_dev].set(partial)
 
         nec_opt, wec_opt, sec_opt, dec_opt, worst_obs, worst_par = out[:6]
         nec_opt = _scatter(nec_opt, sub_results[0], idx)
@@ -439,7 +443,8 @@ def verify_grid(
         key = jax.random.PRNGKey(42)
 
     grid_shape = T_field.shape[:-2]
-    n_points = int(jnp.prod(jnp.array(grid_shape)))
+    # Pure-host product of static shape dims; avoids a device round-trip.
+    n_points = int(np.prod(grid_shape))
 
     # Flatten to (N, 4, 4)
     flat_T = T_field.reshape(n_points, 4, 4)
@@ -523,7 +528,9 @@ def verify_grid(
     n_type_iv = int(jnp.sum(he_types == 4.0))
     # Near-vacuum is a subset of n_type_i; reported separately.
     n_vacuum = int(jnp.sum(cls_results.is_vacuum))
-    max_imag = float(jnp.max(jnp.abs(cls_results.eigenvalues_imag)))
+    # nanmax: a NaN-sanitized eigenvalue must not poison the grid-wide
+    # imaginary-part diagnostic (it is a summary, not a certified margin).
+    max_imag = float(jnp.nanmax(jnp.abs(cls_results.eigenvalues_imag)))
 
     def reshape(arr):
         return arr.reshape(*grid_shape, *arr.shape[1:])

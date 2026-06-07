@@ -87,7 +87,8 @@ def compare_eulerian_vs_robust(
     if key is None:
         key = jax.random.PRNGKey(42)
 
-    n_points = int(jnp.prod(jnp.array(grid_shape)))
+    # Pure-host product of static shape dims; avoids a device round-trip.
+    n_points = int(np.prod(grid_shape))
     flat_T = T_field.reshape(n_points, 4, 4)
     flat_g = g_field.reshape(n_points, 4, 4)
     flat_g_inv = g_inv_field.reshape(n_points, 4, 4)

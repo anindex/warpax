@@ -1,9 +1,13 @@
 # warpax
 
 Observer-robust energy condition verification for warp-drive spacetimes. A JAX
-toolkit built around three pieces: an autodiff curvature chain, Hawking-Ellis
-algebraic classification of $T_{\mu\nu}$, and continuous BFGS optimization over
-the timelike observer manifold.
+toolkit built around a frame-independent core: an autodiff curvature chain, the
+Hawking-Ellis algebraic classification of $T^a{}_b$, and frame-free,
+all-velocity energy-condition certification from its eigenstructure (with a
+closed-form Type-I worst observer and continuous BFGS optimization retained as a
+one-sided diagnostic at non-Type-I points). It extends to rigorous
+geodesic-integrated ANEC via a structure-preserving symplectic integrator and an
+all-observer verification of published positive-energy constructions.
 
 ## Examples
 

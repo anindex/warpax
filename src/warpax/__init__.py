@@ -38,10 +38,13 @@ __author__ = "An T. Le"
 __email__ = "an@robot-learning.de"
 
 from . import design as design
+from .certify import CertifyResult, certify
 
 __all__ = [
+    "CertifyResult",
     "__author__",
     "__email__",
     "__version__",
+    "certify",
     "design",
 ]

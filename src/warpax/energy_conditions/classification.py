@@ -271,10 +271,15 @@ def classify_hawking_ellis(
     )
 
     # Type I extraction: ``rho = -eigenvalue(timelike)``, pressures = the
-    # spacelike eigenvalues sorted. The 1e-15 tiebreaker biases towards
-    # the most negative eigenvalue when causal characters are degenerate,
-    # making the Type I ``rho`` stable under f64 noise.
-    timelike_idx = jnp.argmin(causal + 1e-15 * evals_real)
+    # spacelike eigenvalues sorted. Pick the most-timelike eigenvector by its
+    # NORMALIZED causal character ``relative_g_quad`` (in roughly [-1, 1]),
+    # with a tiny scale-free bias toward the most-negative eigenvalue to break
+    # ties when two causal characters are degenerate. The bias is normalized by
+    # ``scale`` so it stays ~1e-12 regardless of ||T||: the previous
+    # ``1e-15 * evals_real`` form grew to ~1e-4 at ||T|| ~ 1e11 (e.g. WarpShell),
+    # large enough to mis-select the timelike eigenvector on near-degenerate
+    # points and flip the sign of ``rho``.
+    timelike_idx = jnp.argmin(relative_g_quad + 1e-12 * (evals_real / scale))
 
     indices = jnp.arange(4)
     is_spacelike = indices != timelike_idx

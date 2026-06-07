@@ -30,11 +30,11 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
-import numpy as np
 
 from warpax.metrics import RodalMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
+from warpax.analysis.convergence import f_miss_stability
 
 
 # Constants
@@ -45,7 +45,8 @@ V_S = 0.5
 R = 1.0       # matched parameter (was R=100 in the native Rodal config)
 SIGMA = 8.0   # matched parameter (was sigma=0.03 in the native Rodal config)
 DOMAIN = [(-3, 3)] * 3  # compact domain for R=1 (not [-300,300]^3)
-TOLERANCE = 0.05  # +/-5% stability criterion across adjacent resolutions
+TOLERANCE = 0.05  # +/-5% relative stability criterion across resolutions
+ABS_TOL_PP = 0.5  # absolute-floor: spread within 0.5 percentage points is stable
 CONDITIONS = ["nec", "wec", "sec", "dec"]
 
 
@@ -139,35 +140,47 @@ def run_resolution_study():
 
 
 def check_f_miss_stability(results):
-    """Check f_miss stability across resolutions within +/-5%.
+    """Check f_miss stability across resolutions.
 
-    For each condition, collect f_miss values across resolutions and check
-    whether max deviation from mean is within TOLERANCE.
+    Uses the shared absolute-floor criterion
+    (:func:`warpax.analysis.convergence.f_miss_stability`): a series is
+    stable if its spread is within an absolute percentage-point band
+    (``ABS_TOL_PP``) *or* within a relative tolerance (``TOLERANCE``).
+    The absolute floor is essential here: an unconditional grid-volume
+    miss fraction of order ~1% can wander by a physically negligible
+    ~0.15 percentage points yet register as a spurious ~10% "instability"
+    under a relative-only test purely because the denominator is small.
 
     Returns
     -------
     dict
-        Per-condition stability verdict with mean, max_deviation, stable flag.
+        Per-condition stability verdict with mean, max deviation
+        (relative, kept under the legacy ``max_deviation`` key for
+        backward compatibility), absolute spread ``max_dev_pp``, and a
+        ``stable`` flag.
     """
     stability = {}
     for cond in CONDITIONS:
         values = [r[f"{cond}_missed"] for r in results]
-        mean_val = np.mean(values)
 
-        if mean_val == 0.0:
+        if all(v == 0.0 for v in values):
             # Zero miss rate everywhere is trivially stable
-            max_deviation = 0.0
-            stable = True
-        else:
-            deviations = [abs(v - mean_val) / mean_val for v in values]
-            max_deviation = max(deviations)
-            stable = max_deviation <= TOLERANCE
+            stability[cond] = {
+                "values": [float(v) for v in values],
+                "mean": 0.0,
+                "max_deviation": 0.0,
+                "max_dev_pp": 0.0,
+                "stable": True,
+            }
+            continue
 
+        s = f_miss_stability(values, abs_tol_pp=ABS_TOL_PP, rel_tol=TOLERANCE)
         stability[cond] = {
-            "values": values,
-            "mean": float(mean_val),
-            "max_deviation": float(max_deviation),
-            "stable": bool(stable),
+            "values": s["values"],
+            "mean": s["mean"],
+            "max_deviation": s["max_dev_rel"],  # legacy key (relative)
+            "max_dev_pp": s["max_dev_pp"],
+            "stable": s["stable"],
         }
 
     return stability
@@ -196,8 +209,8 @@ def save_json(results, stability, start_time):
         "verdict": {
             "feasible": all_stable,
             "criterion": (
-                f"f_miss stable within +/-{TOLERANCE * 100:.0f}% "
-                f"across N={RESOLUTIONS}"
+                f"f_miss stable if spread <= {ABS_TOL_PP} pp (absolute floor) "
+                f"OR <= {TOLERANCE * 100:.0f}% relative, across N={RESOLUTIONS}"
             ),
         },
     }

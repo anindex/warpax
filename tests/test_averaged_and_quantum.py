@@ -1,7 +1,7 @@
 """Averaged and quantum inequality tests: ANEC, AWEC, Ford-Roman."""
 
 from __future__ import annotations
-from warpax.averaged import ANECResult, anec
+from warpax.averaged import ANECResult, RigorousANEC, anec, anec_rigorous
 from warpax.averaged import AWECResult, awec
 from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric
 from warpax.geodesics.integrator import GeodesicResult
@@ -83,10 +83,57 @@ class TestANEC:
         """``ANECResult`` exposes named attributes."""
         gl = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
         result = anec(MinkowskiMetric(), gl)
-        li, gc, tr = result
+        li, gc, tr, *_witness = result
         assert float(li) == float(result.line_integral)
         assert gc is result.geodesic_complete
         assert tr == result.termination_reason
+        # Witness fields appended (append-only NamedTuple extension).
+        assert hasattr(result, "max_abs_g_kk")
+        assert isinstance(result.null_preserved, bool)
+
+    def test_witness_zero_on_minkowski(self):
+        """Minkowski null ray: ANEC=0 AND on-cone witness ~0."""
+        gl = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
+        r = anec(MinkowskiMetric(), gl)
+        assert float(jnp.abs(r.line_integral)) < 1e-8
+        assert float(r.max_abs_g_kk) < 1e-10
+        assert r.null_preserved is True
+
+
+class TestRigorousANEC:
+    """Symplectic geodesic-integrated ANEC with on-cone witness (P0)."""
+
+    def test_minkowski_rigorous_zero(self):
+        r = anec_rigorous(
+            MinkowskiMetric(),
+            jnp.array([0.0, -5.0, 1e-3, 0.0]),
+            jnp.array([1.0, 0.0, 0.0]),
+            affine_bounds=(0.0, 10.0), num_steps=512,
+        )
+        assert isinstance(r, RigorousANEC)
+        assert r.method_used == "symplectic"
+        assert r.projection is None
+        assert float(jnp.abs(r.symplectic.line_integral)) < 1e-8
+        assert r.symplectic.null_preserved is True
+
+    def test_alcubierre_long_bubble_is_rigorous(self):
+        """The long-crossing case where Tsit5 drifts off-cone is now certified
+        on-cone by the symplectic integrator (witness << tol)."""
+        m = AlcubierreMetric(v_s=0.1, R=20.0, sigma=2.0)
+        r = anec_rigorous(
+            m, jnp.array([0.0, -30.0, 1e-3, 0.0]), jnp.array([1.0, 0.0, 0.0]),
+            affine_bounds=(0.0, 60.0), num_steps=8192,
+        )
+        assert r.symplectic.geodesic_complete is True
+        assert r.symplectic.null_preserved is True
+        assert float(r.symplectic.max_abs_g_kk) < 1e-7
+        assert jnp.isfinite(r.symplectic.line_integral)
+        # Deterministic across invocations.
+        r2 = anec_rigorous(
+            m, jnp.array([0.0, -30.0, 1e-3, 0.0]), jnp.array([1.0, 0.0, 0.0]),
+            affine_bounds=(0.0, 60.0), num_steps=8192,
+        )
+        assert float(r2.symplectic.line_integral) == float(r.symplectic.line_integral)
 
 
 class TestAWEC:

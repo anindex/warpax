@@ -16,12 +16,14 @@ Both return a NamedTuple with ``line_integral``,
 """
 from __future__ import annotations
 
-from .anec import ANECResult, anec
+from .anec import ANECResult, RigorousANEC, anec, anec_rigorous
 from .awec import AWECResult, awec
 
 __all__ = [
     "ANECResult",
     "AWECResult",
+    "RigorousANEC",
     "anec",
+    "anec_rigorous",
     "awec",
 ]

@@ -110,6 +110,44 @@ class ECGridResult(NamedTuple):
     dec_opt_n_steps: Float[Array, "..."] | None
 
 
+class FrameFreeGridResult(NamedTuple):
+    """Frame-independent (eigenvalue-only) certification across a grid.
+
+    Unlike :class:`ECGridResult`, this carries NO optimizer or Eulerian-frame
+    quantities: every field derives solely from the Hawking-Ellis classification
+    of ``T^a_b`` and the Type-I eigenvalue inequalities. Because neither the
+    Eulerian normal nor a timelike tetrad is ever constructed, this result is
+    well-defined at ALL warp velocities, including v_s >= 1 where g_00 changes
+    sign and the Eulerian congruence ceases to exist.
+
+    For non-Type-I points the eigenvalue margins are NaN by construction (no
+    invariant rest frame / proper energy density exists): this is the honest
+    statement, not a defect. Use the type census to quantify the non-Type-I
+    (intrinsically observer-dependent) fraction.
+
+    Each margin/scalar field has leading grid dimensions ``(*grid_shape,)``.
+    """
+
+    he_types: Float[Array, "..."]  # int-valued, shape (*grid_shape,)
+    eigenvalues: Float[Array, "... 4"]  # Re eigenvalues of T^a_b
+    eigenvalues_imag: Float[Array, "... 4"]  # Im eigenvalues of T^a_b
+    rho: Float[Array, "..."]  # invariant energy density (Type I) or NaN
+    pressures: Float[Array, "... 3"]  # principal pressures (Type I) or NaN
+    nec_margins: Float[Array, "..."]  # NaN where non-Type-I
+    wec_margins: Float[Array, "..."]
+    sec_margins: Float[Array, "..."]
+    dec_margins: Float[Array, "..."]
+    is_vacuum: Float[Array, "..."]  # 1.0 near-vacuum, else 0.0
+    # Classification census (host ints)
+    n_type_i: int
+    n_type_ii: int
+    n_type_iii: int
+    n_type_iv: int
+    n_vacuum: int
+    n_total: int
+    max_imag_eigenvalue: float
+
+
 class WallRestrictedStats(NamedTuple):
     """Wall-restricted HE-type breakdown and EC violation statistics.
 

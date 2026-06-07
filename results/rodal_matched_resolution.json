@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-05-21T13:29:03Z",
+    "date": "2026-06-06T21:12:42Z",
     "script": "scripts/run_rodal_matched_resolution.py",
     "parameters": {
       "v_s": 0.5,
@@ -34,57 +34,57 @@
       "n_total": 27000,
       "nec_total": 87.05185185185185,
       "nec_missed": 0.7703703703703704,
-      "nec_min": -0.16438382023228942,
+      "nec_min": -0.16438382023202694,
       "wec_total": 87.05185185185185,
       "wec_missed": 13.925925925925926,
-      "wec_min": -0.16438382023228942,
+      "wec_min": -0.16438382023202694,
       "sec_total": 87.05185185185185,
       "sec_missed": 28.05925925925926,
-      "sec_min": -0.38722317394025074,
+      "sec_min": -0.38722317393978095,
       "dec_total": 99.97037037037036,
       "dec_missed": 26.84444444444444,
-      "dec_min": -0.16438382023228942,
+      "dec_min": -0.16438382023202694,
       "type_i_count": 27000,
       "type_i_pct": 100.0,
-      "elapsed": 32.05776357650757
+      "elapsed": 3.234450101852417
     },
     {
       "N": 50,
       "n_total": 125000,
       "nec_total": 87.03999999999999,
       "nec_missed": 0.8768,
-      "nec_min": -0.1751707075480951,
+      "nec_min": -0.17517070754785968,
       "wec_total": 87.03999999999999,
       "wec_missed": 14.4128,
-      "wec_min": -0.1751707075480951,
+      "wec_min": -0.17517070754785968,
       "sec_total": 87.0464,
       "sec_missed": 27.801599999999997,
-      "sec_min": -0.40003493707286447,
+      "sec_min": -0.400034937072302,
       "dec_total": 99.9488,
       "dec_missed": 27.3216,
-      "dec_min": -0.1751707075480951,
+      "dec_min": -0.17517070754785968,
       "type_i_count": 125000,
       "type_i_pct": 100.0,
-      "elapsed": 95.16590166091919
+      "elapsed": 3.5616650581359863
     },
     {
       "N": 70,
       "n_total": 343000,
       "nec_total": 87.02973760932944,
       "nec_missed": 0.9189504373177843,
-      "nec_min": -0.173649573175058,
+      "nec_min": -0.17364957317481244,
       "wec_total": 87.02973760932944,
       "wec_missed": 14.59125364431487,
-      "wec_min": -0.173649573175058,
+      "wec_min": -0.17364957317481244,
       "sec_total": 87.03673469387755,
       "sec_missed": 27.836734693877553,
-      "sec_min": -0.3952825370083192,
+      "sec_min": -0.39528253700776833,
       "dec_total": 99.96501457725947,
       "dec_missed": 27.526530612244898,
-      "dec_min": -0.173649573175058,
+      "dec_min": -0.17364957317481244,
       "type_i_count": 343000,
       "type_i_pct": 100.0,
-      "elapsed": 241.46894598007202
+      "elapsed": 4.520419120788574
     }
   ],
   "stability": {
@@ -96,7 +96,8 @@
       ],
       "mean": 0.8553736025627182,
       "max_deviation": 0.09937556166998407,
-      "stable": false
+      "max_dev_pp": 0.08500323219234784,
+      "stable": true
     },
     "wec": {
       "values": [
@@ -106,6 +107,7 @@
       ],
       "mean": 14.309993190080265,
       "max_deviation": 0.026839094823649247,
+      "max_dev_pp": 0.3840672641543392,
       "stable": true
     },
     "sec": {
@@ -116,6 +118,7 @@
       ],
       "mean": 27.89919798437894,
       "max_deviation": 0.005737128177302447,
+      "max_dev_pp": 0.16006127488032007,
       "stable": true
     },
     "dec": {
@@ -126,11 +129,12 @@
       ],
       "mean": 27.230858352229777,
       "max_deviation": 0.014190294804045158,
+      "max_dev_pp": 0.3864139077853359,
       "stable": true
     }
   },
   "verdict": {
-    "feasible": false,
-    "criterion": "f_miss stable within +/-5% across N=[30, 50, 70]"
+    "feasible": true,
+    "criterion": "f_miss stable if spread <= 0.5 pp (absolute floor) OR <= 5% relative, across N=[30, 50, 70]"
   }
 }

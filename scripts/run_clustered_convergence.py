@@ -38,12 +38,14 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
+from types import SimpleNamespace
+
+from warpax.analysis import compare_eulerian_vs_robust
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import RodalMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import wall_clustered
-from warpax.energy_conditions.verifier import verify_grid
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,
     shape_function_mask,
@@ -62,25 +64,55 @@ def run_single(
     n_starts: int,
     batch_size: int,
 ) -> dict:
-    """Run verify_grid + wall-restricted on a single (metric, grid) pair."""
+    """Compare Eulerian vs robust EC and compute wall-restricted stats.
+
+    Uses a single :func:`compare_eulerian_vs_robust` pass (one robust
+    optimizer sweep) which yields the Eulerian margins, robust margins,
+    and Hawking-Ellis types together. The wall-restricted conditional
+    miss rates are then volume-weighted on the (non-uniform) clustered
+    grid via ``grid_spec.volume_weights_array``, so the reported rates
+    are unbiased toward the densely-sampled wall band.
+    """
     t0 = time.time()
     curv = evaluate_curvature_grid(metric, grid_spec, batch_size=256)
     t_curv = time.time() - t0
 
     t0 = time.time()
-    ec = verify_grid(
-        curv.stress_energy, curv.metric, curv.metric_inv,
-        n_starts=n_starts, batch_size=batch_size, compute_eulerian=False,
+    comparison = compare_eulerian_vs_robust(
+        curv.stress_energy, curv.metric, curv.metric_inv, grid_spec.shape,
+        n_starts=n_starts, batch_size=batch_size,
     )
     t_vg = time.time() - t0
 
+    # Lightweight shim exposing exactly the fields compute_wall_restricted_stats
+    # reads (he_types + robust margins), avoiding a redundant verify_grid pass.
+    ec = SimpleNamespace(
+        he_types=comparison.he_types,
+        nec_margins=comparison.robust_margins["nec"],
+        wec_margins=comparison.robust_margins["wec"],
+        sec_margins=comparison.robust_margins["sec"],
+        dec_margins=comparison.robust_margins["dec"],
+    )
+    eulerian_margins = {
+        c: comparison.eulerian_margins[c] for c in ("nec", "wec", "sec", "dec")
+    }
+
     coords = build_coord_batch(grid_spec, t=0.0)
     mask = shape_function_mask(metric, coords, grid_spec.shape, f_low=F_LOW, f_high=F_HIGH)
-    wall = compute_wall_restricted_stats(ec, mask)
+    # Proper per-cell volume weights on clustered grids; None (uniform) recovers
+    # raw point-fraction behaviour exactly.
+    vol_w = grid_spec.volume_weights_array
+    wall = compute_wall_restricted_stats(
+        ec, mask, eulerian_margins=eulerian_margins, volume_weights=vol_w,
+    )
 
+    def _rate(x):
+        return float(x) if x is not None else None
+
+    he_flat = np.asarray(comparison.he_types).ravel()
     n_grid = int(np.prod(grid_spec.shape))
-    full_type_i = float(ec.n_type_i / n_grid) if ec.n_type_i is not None else float("nan")
-    full_type_iv = float(ec.n_type_iv / n_grid) if ec.n_type_iv is not None else float("nan")
+    full_type_i = float(np.mean(he_flat == 1.0))
+    full_type_iv = float(np.mean(he_flat == 4.0))
 
     return {
         "metric": name,
@@ -88,15 +120,18 @@ def run_single(
         "shape": list(grid_spec.shape),
         "n_grid_total": n_grid,
         "wall_n_total": int(wall.n_total),
+        "volume_weighted": bool(vol_w is not None),
         "wall_frac_type_i": float(wall.frac_type_i),
         "wall_frac_type_iv": float(wall.frac_type_iv),
-        "wall_nec_miss_rate": float(wall.nec_miss_rate) if wall.nec_miss_rate is not None else None,
-        "wall_dec_miss_rate": float(wall.dec_miss_rate) if wall.dec_miss_rate is not None else None,
+        "wall_nec_miss_rate": _rate(wall.nec_miss_rate),
+        "wall_wec_miss_rate": _rate(wall.wec_miss_rate),
+        "wall_sec_miss_rate": _rate(wall.sec_miss_rate),
+        "wall_dec_miss_rate": _rate(wall.dec_miss_rate),
         "full_frac_type_i": full_type_i,
         "full_frac_type_iv": full_type_iv,
-        "n_vacuum": int(ec.n_vacuum) if ec.n_vacuum is not None else -1,
-        "nec_min_margin": float(jnp.min(ec.nec_margins)),
-        "dec_min_margin": float(jnp.min(ec.dec_margins)),
+        "n_vacuum": int(np.sum(he_flat == 0.0)),
+        "nec_min_margin": float(jnp.min(comparison.robust_margins["nec"])),
+        "dec_min_margin": float(jnp.min(comparison.robust_margins["dec"])),
         "t_curvature_s": t_curv,
         "t_verify_grid_s": t_vg,
     }

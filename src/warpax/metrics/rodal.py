@@ -156,11 +156,17 @@ class RodalMetric(ADMMetric):
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 
     def symbolic(self) -> SymbolicMetric:
-        """Return SymPy symbolic form for inspection and cross-validation.
+        """Return SymPy symbolic form for STRUCTURAL INSPECTION ONLY.
 
-        The symbolic form uses f_Alc(r) for the radial shift (same as
-        Alcubierre) since the angular correction g(r) is complex to
-        represent symbolically and is handled numerically.
+        WARNING: this symbolic form is NOT the irrotational Rodal metric. It
+        uses a simplified x-only shift ``beta_x = -v_s f_Alc(r)`` with
+        ``beta_y = beta_z = 0`` (Alcubierre-like), because the angular profile
+        ``G(r)`` that makes the shift irrotational has no compact closed form in
+        sympy. The full irrotational shift -- and hence the globally Type-I
+        stress-energy of arXiv:2512.18008 -- is realised only by the numeric
+        ``__call__`` / :meth:`shift` path, which is what the verification
+        pipeline uses. Do NOT compute stress-energy or energy conditions from
+        this symbolic form; it will give the (different) Alcubierre-like answer.
         """
         t, x, y, z = sp.symbols("t x y z")
         v_s = sp.Symbol("v_s", positive=True)

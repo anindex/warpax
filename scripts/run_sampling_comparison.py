@@ -218,6 +218,9 @@ def fibonacci_dec_comparison():
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from warpax.visualization._style import apply_style
+    apply_style()
+
     from warpax.metrics.rodal import RodalMetric
     from warpax.geometry import GridSpec, evaluate_curvature_grid
     from warpax.energy_conditions.verifier import verify_grid

@@ -1,0 +1,97 @@
+{
+  "config": {
+    "v_s": 0.5,
+    "N": 50,
+    "metrics": [
+      "Alcubierre",
+      "Nat\u00e1rio",
+      "Van den Broeck",
+      "Rodal"
+    ],
+    "smoke": false
+  },
+  "rows": [
+    {
+      "metric": "Alcubierre",
+      "v_s": 0.5,
+      "N": 50,
+      "frac_type_i": 0.008810597247268692,
+      "frac_type_iv": 0.9911894027527313,
+      "wall_n": 1386,
+      "invariant_nec_min": -0.15768043578245422,
+      "miss_wec_pct": 0.0,
+      "miss_nec_pct": 0.0,
+      "miss_dec_pct": 0.0,
+      "E_minus_inv": -0.0009195422728640061,
+      "E_minus_eul": -0.052742645924645906,
+      "peak_deficit_inv": 0.03922893231963602,
+      "peak_deficit_eul": 0.03945030004257692
+    },
+    {
+      "metric": "Nat\u00e1rio",
+      "v_s": 0.5,
+      "N": 50,
+      "frac_type_i": 0.10070751733666707,
+      "frac_type_iv": 0.8992924826633331,
+      "wall_n": 1386,
+      "invariant_nec_min": -2.068759643938877,
+      "miss_wec_pct": 0.0,
+      "miss_nec_pct": 0.0,
+      "miss_dec_pct": 0.0,
+      "E_minus_inv": -0.06517686729918329,
+      "E_minus_eul": -0.6679302196808279,
+      "peak_deficit_inv": 0.49724148054821793,
+      "peak_deficit_eul": 0.49817871115592016
+    },
+    {
+      "metric": "Van den Broeck",
+      "v_s": 0.5,
+      "N": 50,
+      "frac_type_i": 0.12197844102947163,
+      "frac_type_iv": 0.8780215589705284,
+      "wall_n": 1386,
+      "invariant_nec_min": -0.1949215668495284,
+      "miss_wec_pct": 42.22655539713905,
+      "miss_nec_pct": 12.628745641874008,
+      "miss_dec_pct": 37.45572511011273,
+      "E_minus_inv": -0.0004614104821475981,
+      "E_minus_eul": -0.7816383786231271,
+      "peak_deficit_inv": 0.1919084998068575,
+      "peak_deficit_eul": 0.5966367510907122
+    },
+    {
+      "metric": "Rodal",
+      "v_s": 0.5,
+      "N": 50,
+      "frac_type_i": 1.0,
+      "frac_type_iv": 0.0,
+      "wall_n": 1386,
+      "invariant_nec_min": -0.17200681861115386,
+      "miss_wec_pct": 72.05481920875046,
+      "miss_nec_pct": 12.427279460545144,
+      "miss_dec_pct": 73.33670059353624,
+      "E_minus_inv": -0.0016433419232205974,
+      "E_minus_eul": -0.0016433419232205974,
+      "peak_deficit_inv": 0.004574440777104695,
+      "peak_deficit_eul": 0.004574440777104695
+    }
+  ],
+  "reduction_factors": {
+    "Alcubierre": {
+      "vs_Alcubierre_inv": 1.0,
+      "vs_Alcubierre_eul": 1.0
+    },
+    "Nat\u00e1rio": {
+      "vs_Alcubierre_inv": 0.07889312105736915,
+      "vs_Alcubierre_eul": 0.07918905236042845
+    },
+    "Van den Broeck": {
+      "vs_Alcubierre_inv": 0.20441477245206544,
+      "vs_Alcubierre_eul": 0.06612113647115735
+    },
+    "Rodal": {
+      "vs_Alcubierre_inv": 8.5756782590735,
+      "vs_Alcubierre_eul": 8.624070561811108
+    }
+  }
+}

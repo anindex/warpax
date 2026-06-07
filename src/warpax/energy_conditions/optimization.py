@@ -822,6 +822,7 @@ def optimize_sec(
     starts: str = "axis+gaussian",
     neighbor_observer: Float[Array, "4"] | None = None,
     tetrad: Float[Array, "4 4"] | None = None,
+    g_inv: Float[Array, "4 4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case SEC observer via Optimistix BFGS.
 
@@ -853,7 +854,8 @@ def optimize_sec(
 
     if tetrad is None:
         tetrad = compute_orthonormal_tetrad(g_ab)
-    g_inv = jnp.linalg.inv(g_ab)
+    if g_inv is None:
+        g_inv = jnp.linalg.inv(g_ab)
     T_trace = jnp.einsum("ab,ab->", g_inv, T_ab)
     sec_tensor = T_ab - 0.5 * T_trace * g_ab
     zeta_max_arr = jnp.float64(zeta_max)
@@ -900,6 +902,7 @@ def optimize_dec(
     starts: str = "axis+gaussian",
     neighbor_observer: Float[Array, "4"] | None = None,
     tetrad: Float[Array, "4 4"] | None = None,
+    g_inv: Float[Array, "4 4"] | None = None,
 ) -> OptimizationResult:
     """Find the worst-case DEC observer via Optimistix BFGS.
 
@@ -940,7 +943,8 @@ def optimize_dec(
 
     if tetrad is None:
         tetrad = compute_orthonormal_tetrad(g_ab)
-    g_inv = jnp.linalg.inv(g_ab)
+    if g_inv is None:
+        g_inv = jnp.linalg.inv(g_ab)
     T_mixed = jnp.einsum("ac,cb->ab", g_inv, T_ab)
     zeta_max_arr = jnp.float64(zeta_max)
 
@@ -1018,8 +1022,10 @@ def optimize_point(
     if key is None:
         key = jax.random.PRNGKey(42)
 
-    # Hoist the orthonormal tetrad once and share across the four optimizers.
+    # Hoist the orthonormal tetrad and inverse metric once and share across
+    # the four optimizers (SEC/DEC both need g^{ab}).
     tetrad = compute_orthonormal_tetrad(g_ab)
+    g_inv = jnp.linalg.inv(g_ab)
 
     _optimizers = {
         "nec": lambda k: optimize_nec(
@@ -1043,6 +1049,7 @@ def optimize_point(
             starts=starts,
             neighbor_observer=neighbor_observer,
             tetrad=tetrad,
+            g_inv=g_inv,
         ),
         "dec": lambda k: optimize_dec(
             T_ab, g_ab, n_starts, zeta_max, rtol, atol, max_steps, k,
@@ -1052,6 +1059,7 @@ def optimize_point(
             starts=starts,
             neighbor_observer=neighbor_observer,
             tetrad=tetrad,
+            g_inv=g_inv,
         ),
     }
 

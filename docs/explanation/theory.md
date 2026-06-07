@@ -89,6 +89,21 @@ observer-robust margin strictly bounds the Eulerian margin from below
 (`robust_margin ≤ eulerian_margin`), and the gap is where physical
 violations hide.
 
+**Shift vorticity controls the type.** Which warp geometries are Type-IV walled is
+fixed by a single quantity: the vorticity of the ADM shift. An irrotational shift
+(Rodal) gives a globally Type-I drive whose all-observer energy conditions are
+decided exactly by the eigenvalues; a shift with nonzero vorticity drives the wall
+to Type IV. The zero-expansion Natario drive — vortical but expansion-free — is
+Type-IV walled, isolating vorticity rather than expansion as the obstruction. In a
+controlled pure-rotation limit the imaginary part of the Type-IV eigenvalue pair is
+linear in the vorticity, `f = κ ω` (`R² = 1`). The same vorticity sets how fast the
+wall curvature grows with warp speed: the wall-peak curvature invariants scale as
+`v_s²` for the vortical walls but `v_s⁴` for the irrotational Rodal wall, because a
+rotational shift contributes a curvature term linear in `v_s` that the irrotational
+drive lacks. Every drive still violates the NEC (the wall deficit
+`min(ρ+p_i) = -C v_s²` saturates the Santiago-Schuster-Visser bound); the
+irrotational drive is simply the mildest on every boost-invariant axis.
+
 ## References
 
 - Alcubierre, M. (1994). *The warp drive: hyper-fast travel within

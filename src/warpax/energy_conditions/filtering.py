@@ -137,6 +137,7 @@ def compute_wall_restricted_stats(
     mask: Float[Array, "..."],
     atol: float = 1e-10,
     eulerian_margins: dict[str, Float[Array, "..."]] | None = None,
+    volume_weights: Float[Array, "..."] | None = None,
 ) -> WallRestrictedStats:
     """Compute Type breakdown and EC statistics within a masked region.
 
@@ -154,6 +155,15 @@ def compute_wall_restricted_stats(
         ``"dec"`` mapping to Eulerian margin arrays. Used to compute
         conditional miss rates:
         ``(eulerian >= 0) & (robust < -atol) & mask``.
+    volume_weights : Float[Array, "..."] | None
+        Optional per-point cell volume (same shape as ``mask``). When
+        provided, type fractions, violated fractions, and conditional
+        miss rates are proper-volume-weighted, so they are unbiased on
+        non-uniform (e.g. wall-clustered) grids where cells near the wall
+        are smaller than cells in the bulk. When ``None`` (default), all
+        points carry equal weight, recovering the raw point-count
+        statistics exactly. The reported integer ``n_*`` counts are
+        always raw point counts regardless of weighting.
 
     Returns
     -------
@@ -164,20 +174,27 @@ def compute_wall_restricted_stats(
     mask_flat = mask.ravel().astype(bool)
     n_total = int(jnp.sum(mask_flat))
 
-    # Type counts
+    # Raw integer point counts -- preserved for transparency regardless of
+    # volume weighting (a count is a count).
     n_i = int(jnp.sum((he_flat == 1.0) & mask_flat))
     n_ii = int(jnp.sum((he_flat == 2.0) & mask_flat))
     n_iii = int(jnp.sum((he_flat == 3.0) & mask_flat))
     n_iv = int(jnp.sum((he_flat == 4.0) & mask_flat))
 
-    # Safe denominator
-    n_safe = max(n_total, 1)
+    # Weighting used for fractions/rates: per-point volume when provided,
+    # else uniform (recovers raw point-fraction behaviour exactly).
+    if volume_weights is not None:
+        weight = volume_weights.ravel().astype(float) * mask_flat
+    else:
+        weight = mask_flat.astype(float)
+    w_total = float(jnp.sum(weight))
+    w_safe = w_total if w_total > 0.0 else 1.0
 
-    # Type fractions
-    frac_i = n_i / n_safe
-    frac_ii = n_ii / n_safe
-    frac_iii = n_iii / n_safe
-    frac_iv = n_iv / n_safe
+    # Type fractions (volume-weighted when weights supplied)
+    frac_i = float(jnp.sum(weight * (he_flat == 1.0))) / w_safe
+    frac_ii = float(jnp.sum(weight * (he_flat == 2.0))) / w_safe
+    frac_iii = float(jnp.sum(weight * (he_flat == 3.0))) / w_safe
+    frac_iv = float(jnp.sum(weight * (he_flat == 4.0))) / w_safe
 
     # Per-condition violations
     conditions = {
@@ -190,9 +207,9 @@ def compute_wall_restricted_stats(
     violated_counts: dict[str, int] = {}
     violated_fracs: dict[str, float] = {}
     for cond, margins in conditions.items():
-        v = int(jnp.sum((margins.ravel() < -atol) & mask_flat))
-        violated_counts[cond] = v
-        violated_fracs[cond] = v / n_safe
+        viol = (margins.ravel() < -atol) & mask_flat
+        violated_counts[cond] = int(jnp.sum(viol))
+        violated_fracs[cond] = float(jnp.sum(weight * viol)) / w_safe
 
     # Miss rates (if eulerian_margins provided)
     miss_rates: dict[str, float | None] = {
@@ -206,10 +223,10 @@ def compute_wall_restricted_stats(
             eul = eulerian_margins[cond].ravel()
             rob = robust_margins.ravel()
             robust_violated = (rob < -atol) & mask_flat
-            n_rob_violated = int(jnp.sum(robust_violated))
-            if n_rob_violated > 0:
+            w_rob_violated = float(jnp.sum(weight * robust_violated))
+            if w_rob_violated > 0.0:
                 missed = (eul >= 0.0) & robust_violated
-                miss_rates[cond] = int(jnp.sum(missed)) / n_rob_violated
+                miss_rates[cond] = float(jnp.sum(weight * missed)) / w_rob_violated
             else:
                 miss_rates[cond] = None
 

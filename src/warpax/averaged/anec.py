@@ -36,6 +36,12 @@ from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
 from ..geodesics.integrator import GeodesicResult
+from ..geodesics.observables import velocity_norm
+from ..geodesics.symplectic import (
+    SymplecticGeodesicResult,
+    integrate_geodesic_symplectic,
+    null_ic_canonical,
+)
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
 
@@ -71,11 +77,22 @@ class ANECResult(NamedTuple):
     termination_reason : str
         Human-readable reason: ``'complete'``, ``'max_steps'``,
         ``'nan'``, ``'out_of_bounds'``, or ``'singularity'``.
+    max_abs_g_kk : Float[Array, ""]
+        Rigor witness: the worst off-cone deviation ``max_n |g_{ab} k^a k^b|``
+        over the sampled tangents. For a genuine null average this should be
+        tiny; a large value flags that the integrated tangent drifted off the
+        null cone (use the symplectic integrator or the ``null_projected``
+        tangent norm). 0.0 by construction when ``tangent_norm='null_projected'``.
+    null_preserved : bool
+        True iff ``max_abs_g_kk < null_tol`` -- i.e. the line integral is a
+        defensible null-geodesic average rather than a coordinate-ray diagnostic.
     """
 
     line_integral: Float[Array, ""]
     geodesic_complete: bool
     termination_reason: str
+    max_abs_g_kk: Float[Array, ""]
+    null_preserved: bool
 
 
 def _tangent_renormalized_null(
@@ -146,14 +163,19 @@ def _extract_trajectory(
     """Return (ts, positions, velocities, result_code) from either a
     ``GeodesicResult`` or a callable geodesic.
     """
-    if isinstance(geodesic, GeodesicResult):
-        # Diffrax ``result`` may be a typed enumeration; coerce to plain int
-        # via the underlying numeric value (.value if present, raw int else).
-        raw = geodesic.result
-        try:
-            result_code = int(getattr(raw, "value", raw))
-        except (TypeError, ValueError):
-            result_code = _SUCCESS_CODE
+    # Duck-type on the trajectory interface so this accepts both the Diffrax
+    # GeodesicResult (carries an int ``result``) and the SymplecticGeodesicResult
+    # (carries a bool ``complete`` + ``termination_reason``).
+    if hasattr(geodesic, "positions") and hasattr(geodesic, "velocities"):
+        if hasattr(geodesic, "result"):
+            raw = geodesic.result
+            try:
+                result_code = int(getattr(raw, "value", raw))
+            except (TypeError, ValueError):
+                result_code = _SUCCESS_CODE
+        else:
+            # Symplectic result: map completeness to the diffrax code convention.
+            result_code = _SUCCESS_CODE if bool(geodesic.complete) else 2
         return (
             geodesic.ts,
             geodesic.positions,
@@ -177,11 +199,13 @@ def anec(
     metric: MetricSpecification,
     geodesic: Union[
         GeodesicResult,
+        SymplecticGeodesicResult,
         Callable[[Float[Array, ""]], Float[Array, "4"]],
     ],
     tangent_norm: str = "renormalized",
     n_samples: int = 256,
     affine_bounds: tuple[float, float] = (-5.0, 5.0),
+    null_tol: float = 1e-8,
 ) -> ANECResult:
     """Evaluate the Averaged Null Energy Condition line integral.
 
@@ -212,12 +236,17 @@ def anec(
     affine_bounds : tuple[float, float]
         Affine bounds ``(lam_min, lam_max)`` when ``geodesic`` is a
         callable. Ignored when a ``GeodesicResult`` is passed.
+    null_tol : float
+        Threshold on the rigor witness ``max|g(k,k)|`` below which the
+        integral is certified as a genuine null-geodesic average
+        (``null_preserved=True``). Default ``1e-8``.
 
     Returns
     -------
     ANECResult
-        NamedTuple with ``line_integral``, ``geodesic_complete``, and
-        ``termination_reason``.
+        NamedTuple with ``line_integral``, ``geodesic_complete``,
+        ``termination_reason``, ``max_abs_g_kk`` (rigor witness), and
+        ``null_preserved``.
 
     Raises
     ------
@@ -242,6 +271,20 @@ def anec(
     # trapezoid over affine parameter (non-uniform lam OK)
     line_integral = jnp.trapezoid(integrand, lam)
 
+    # Rigor witness: worst off-cone deviation of the SAMPLED tangents. With
+    # 'null_projected' this is ~0 by construction; otherwise it reports how
+    # well the integrated geodesic stayed on the null cone.
+    if tangent_norm == "null_projected":
+        g_kk = jax.vmap(
+            lambda c, u: velocity_norm(metric, c, _project_to_null(metric(c), u))
+        )(positions, velocities)
+    else:
+        g_kk = jax.vmap(lambda c, u: velocity_norm(metric, c, u))(
+            positions, velocities
+        )
+    max_abs_g_kk = jnp.max(jnp.abs(g_kk))
+    null_preserved = bool(max_abs_g_kk < null_tol)
+
     geodesic_complete = result_code == _SUCCESS_CODE
     termination_reason = _TERMINATION_REASONS.get(result_code, "unknown")
 
@@ -249,4 +292,85 @@ def anec(
         line_integral=line_integral,
         geodesic_complete=geodesic_complete,
         termination_reason=termination_reason,
+        max_abs_g_kk=max_abs_g_kk,
+        null_preserved=null_preserved,
     )
+
+
+class RigorousANEC(NamedTuple):
+    """Dual-path rigorous ANEC: symplectic primary + projection fallback.
+
+    Attributes
+    ----------
+    symplectic : ANECResult
+        ANEC along the structure-preserving symplectic null geodesic, with its
+        ``max_abs_g_kk`` witness. This is the rigorous, geodesic-integrated
+        value -- defensible whenever ``symplectic.null_preserved`` is True.
+    projection : ANECResult or None
+        Populated only when the symplectic witness exceeds ``null_tol`` (or the
+        geodesic is incomplete): the same trajectory re-evaluated with the
+        per-sample ``null_projected`` tangent, a clearly-labeled safety net for
+        the strongest-shift cases. ``None`` when the symplectic value already
+        passed.
+    method_used : str
+        ``'symplectic'`` or ``'symplectic+projection_fallback'``.
+    """
+
+    symplectic: ANECResult
+    projection: ANECResult | None
+    method_used: str
+
+
+def anec_rigorous(
+    metric: MetricSpecification,
+    x0: Float[Array, "4"],
+    n_spatial: Float[Array, "3"],
+    *,
+    affine_bounds: tuple[float, float] = (-30.0, 30.0),
+    num_steps: int = 8192,
+    order: int = 4,
+    omega: float = 1.0,
+    null_tol: float = 1e-8,
+) -> RigorousANEC:
+    """Rigorous geodesic-integrated ANEC with an on-cone witness.
+
+    Integrates the *actual* null geodesic from ``x0`` in spatial direction
+    ``n_spatial`` using the structure-preserving symplectic integrator (which
+    holds ``g(k,k)`` to ~machine precision where adaptive RK drifts off the
+    cone for long bubble crossings), then evaluates
+    :math:`\\int T_{ab} k^a k^b \\, d\\lambda`. The returned
+    :class:`RigorousANEC` carries the rigor witness ``max|g(k,k)|`` and, where
+    that witness exceeds ``null_tol``, an additionally projection-corrected
+    fallback value.
+
+    Parameters
+    ----------
+    metric : MetricSpecification
+        The warp-drive spacetime.
+    x0 : Float[Array, "4"]
+        Geodesic starting point (should lie in the asymptotically-flat region).
+    n_spatial : Float[Array, "3"]
+        Spatial direction of the null ray (need not be unit norm).
+    affine_bounds, num_steps, order, omega
+        Forwarded to :func:`warpax.geodesics.integrate_geodesic_symplectic`.
+    null_tol : float
+        On-cone witness threshold for certifying the symplectic value.
+
+    Returns
+    -------
+    RigorousANEC
+    """
+    x0c, p0 = null_ic_canonical(metric, x0, n_spatial)
+    geo = integrate_geodesic_symplectic(
+        metric, x0c, p0, affine_bounds,
+        num_steps=num_steps, order=order, omega=omega,
+    )
+    # 'fixed' tangent: do not mask the witness -- the symplectic integrator is
+    # supposed to keep the raw tangent on the cone.
+    sym = anec(metric, geo, tangent_norm="fixed", null_tol=null_tol)
+    if sym.null_preserved and geo.complete:
+        return RigorousANEC(symplectic=sym, projection=None,
+                            method_used="symplectic")
+    proj = anec(metric, geo, tangent_norm="null_projected", null_tol=null_tol)
+    return RigorousANEC(symplectic=sym, projection=proj,
+                        method_used="symplectic+projection_fallback")

@@ -89,8 +89,10 @@ def geodesic_deviation_vector_field(
     # Christoffel symbols at current position: Gamma^lam_{mu nu} (4,4,4)
     gamma = christoffel_symbols(metric_fn, x)
 
-    # Riemann tensor at current position: R^lam_{mu nu rho} (4,4,4,4)
-    R = riemann_tensor(metric_fn, x)
+    # Riemann tensor at current position: R^lam_{mu nu rho} (4,4,4,4).
+    # Reuse the Christoffel computed above (bit-identical; avoids a second
+    # jacfwd(metric) on every ODE step).
+    R = riemann_tensor(metric_fn, x, gamma=gamma)
 
     # Geodesic equations
     # a^lam = -Gamma^lam_{mu nu} v^mu v^nu

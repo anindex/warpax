@@ -2,12 +2,42 @@
 
 All scripts assume the repository root as working directory (as `reproduce_all.sh` does).
 
+## Canonical certification entrypoints (start here)
+
+The frame-independent, all-velocity energy-condition certification is exposed
+as a one-call public API:
+
+```python
+from warpax import certify
+from warpax.metrics import RodalMetric
+r = certify(RodalMetric(v_s=2.0, R=1.0, sigma=8.0))   # works at any v_s, incl. >= 1
+```
+
+The paper's three contribution results are produced by these scripts (the others
+below are supporting ablations / convergence studies, retained for
+reproducibility):
+
+| Script | Produces | Paper artifact |
+|--------|----------|----------------|
+| `validate_superluminal_classification.py` | `results/superluminal_gate*` | Type-IV trustworthiness gate (3-solver + 50-digit) |
+| `run_velocity_sweep.py` | `tables/velocity_type_structure.tex`, `figures/velocity_type_structure.pdf`, `figures/rodal_invariant_margins.pdf` | K1: type/EC structure across the luminal transition |
+| `run_invariant_verification.py` | `tables/invariant_benchmark.tex` | K2: invariant all-observer verification (single-frame miss, E_-) |
+| `run_shift_vorticity.py` | `tables/shift_vorticity.tex`, `figures/shift_vorticity.pdf`, `results/shift_vorticity.json` | K3: shift vorticity controls the Hawking-Ellis type (reads cached `velocity_sweep.json`) |
+| `run_matched_benchmark.py` | `tables/missed_wall_restricted.tex`, `tables/convergence_per_metric.tex` | matched wall-resolved benchmark + per-metric convergence |
+
+Several convergence scripts overlap (`run_convergence.py`,
+`run_clustered_convergence.py`, `run_rodal_matched_resolution.py`,
+`run_warpshell_convergence.py`, `run_tshell_convergence.py`); for new work
+prefer `run_matched_benchmark.py` (cross-metric) and `run_velocity_sweep.py`.
+
 ## Pipeline (`reproduce_all.sh`)
 
 ### Core computation
 
 | Script | Output |
 |--------|--------|
+| `run_curvature_scaling.py` | `results/curvature_scaling.json`, `tables/curvature_scaling.tex`, `figures/curvature_scaling.pdf` (K11: universal v_s scaling of wall curvature invariants) |
+| `run_ssv_bound.py` | `results/ssv_bound.json`, `tables/ssv_bound.tex` (K12: SSV NEC lower-bound saturation, reads K1) |
 | `run_analysis.py` | `results/comparison_table.json` |
 | `run_convergence.py` | `results/convergence_data.json` |
 | `run_kinematic_scalars.py` | kinematic scalar NPZ/JSON under `results/` |

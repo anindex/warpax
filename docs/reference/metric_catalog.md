@@ -1,8 +1,10 @@
 # Metric catalog
 
-warpax ships eleven metrics: nine warp drive variants under
-``warpax.metrics``, and two reference spacetimes (Minkowski, Schwarzschild)
-under ``warpax.benchmarks``.
+warpax ships ten warp/shell drives -- nine under ``warpax.metrics`` (Natario,
+Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell,
+Garattini--Zatrimaylov) and Alcubierre under ``warpax.benchmarks`` -- plus the
+Minkowski and Schwarzschild reference spacetimes (also under
+``warpax.benchmarks``).
 
 ## Warp drive metrics - ``warpax.metrics``
 
@@ -88,6 +90,14 @@ source-consistency critique. Achieves $\epsilon_{\mathcal{H}} \approx 5
 \times 10^{-3}$ with positive EC margins in the deep shell interior.
 
 ::: warpax.metrics.TShellMetric
+
+### `GarattiniMetric`
+
+Garattini--Zatrimaylov (2025) warp bubble on a de Sitter background. Faithful
+closed-form `.symbolic()` that reduces exactly to Alcubierre at $H=0$, used to
+study how a cosmological background reshapes the energy-condition structure.
+
+::: warpax.metrics.GarattiniMetric
 
 ## Reference spacetimes - ``warpax.benchmarks``
 
