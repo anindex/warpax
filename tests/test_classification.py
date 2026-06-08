@@ -692,6 +692,24 @@ class TestScaleAwareImaginaryTolerance:
             f"Expected Type IV but got Type {int(result.he_type)}"
         )
 
+    def test_imag_rtol_threshold_boundary(self):
+        """Pin the 3e-3 relative-imaginary threshold from both sides at unit
+        scale: |Im|/|lambda| = 4e-3 (> threshold) is Type IV, 2e-3 (< threshold)
+        is Type I. Guards against silently widening the float64 blind spot
+        (which the 50-digit mpmath gate exists to cover) or loosening it into
+        spurious Type IV. Eigenvalues of the (1,2) block are 1 +/- i*imag."""
+        def _classify(imag):
+            T_mixed = jnp.array([
+                [-1.0, 0.0,   0.0,  0.0],
+                [ 0.0, 1.0, -imag,  0.0],
+                [ 0.0, imag,  1.0,  0.0],
+                [ 0.0, 0.0,   0.0,  0.5],
+            ])
+            return int(classify_hawking_ellis(T_mixed, ETA).he_type)
+
+        assert _classify(4e-3) == 4, "|Im/Re|=4e-3 (> 3e-3) must be Type IV"
+        assert _classify(2e-3) == 1, "|Im/Re|=2e-3 (< 3e-3) must be Type I"
+
     def test_eigenvalues_imag_field_present(self):
         """ClassificationResult has eigenvalues_imag field."""
         T_mixed = jnp.diag(jnp.array([-1.0, 0.5, 0.3, 0.1]))

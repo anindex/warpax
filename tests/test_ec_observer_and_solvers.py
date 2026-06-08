@@ -122,6 +122,34 @@ class TestTetradAlcubierre:
         np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-12)
 
 
+class TestTetradSuperluminal:
+    """Tetrad validity boundary across the luminal transition."""
+
+    @pytest.mark.parametrize("v_s", [0.3, 0.7, 0.95])
+    def test_orthonormal_across_subluminal_sweep(self, v_s):
+        """g_{ab} e_I^a e_J^b = eta_{IJ} at the wall for every v_s < 1, where a
+        timelike normal exists (g^{00} < 0)."""
+        metric = AlcubierreMetric(v_s=v_s, R=1.0, sigma=8.0, x_s=0.0)
+        g = metric(jnp.array([0.0, 1.0, 0.1, 0.0]))
+        tetrad = compute_orthonormal_tetrad(g)
+        deviation = _orthonormality_check(tetrad, g)
+        np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-10)
+
+    def test_orthonormal_at_superluminal_center(self):
+        """At the center of a superluminal bubble the coordinate-time direction
+        turns spacelike (g_{00} > 0), yet the slice normal stays timelike
+        (g^{00} = -1/alpha^2 = -1) so the tetrad remains orthonormal. This pins
+        the all-velocity validity of the ADM-normal frame the certifier relies
+        on (and guards against confusing g_{00} with g^{00})."""
+        metric = AlcubierreMetric(v_s=2.0, R=1.0, sigma=8.0, x_s=0.0)
+        g = metric(jnp.array([0.0, 0.0, 0.0, 0.0]))   # center: f=1, g_00=+3
+        assert float(g[0, 0]) > 0.0                    # coordinate time spacelike
+        assert float(jnp.linalg.inv(g)[0, 0]) < 0.0    # slice normal still timelike
+        tetrad = compute_orthonormal_tetrad(g)
+        deviation = _orthonormality_check(tetrad, g)
+        np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-10)
+
+
 class TestTetradJITVmap:
     """JIT and vmap compatibility for tetrad construction."""
 

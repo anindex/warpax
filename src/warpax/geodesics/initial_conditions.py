@@ -51,7 +51,11 @@ def timelike_ic(
     Notes
     -----
     Returns NaN for v^0 if no real root exists (superluminal velocity).
-    Chooses the future-directed root (positive v^0 for -+++ signature).
+    Selects the ``v^0 = (-b + sqrt(disc)) / (2 g_00)`` root. For the usual
+    ``g_00 < 0`` this is the algebraically smaller (``v^0 < 0``) root and the
+    geodesic is integrated forward in the affine parameter; tidal and other
+    observables quadratic in the 4-velocity are insensitive to this sign.
+    Negate ``v0`` if a strictly future-directed velocity is required.
     """
     g = metric_fn(x0)  # (4, 4)
 
@@ -63,11 +67,11 @@ def timelike_ic(
     # Discriminant
     disc = b**2 - 4.0 * a * c
 
-    # Future-directed root: for g_00 < 0 (-+++), a < 0, so the larger
-    # v^0 is (-b + sqrt(disc)) / (2a). Floor the radicand so the
-    # forward gradient stays finite even when disc < 0; downstream
-    # callers should check ``jnp.isfinite`` on v0_t to detect the
-    # superluminal case rather than relying on NaN propagation.
+    # Root ``(-b + sqrt(disc)) / (2a)``: for g_00 < 0 (-+++) this is the
+    # algebraically smaller root. Floor the radicand so the forward gradient
+    # stays finite even when disc < 0; downstream callers should check
+    # ``jnp.isfinite`` on v0_t to detect the superluminal case rather than
+    # relying on NaN propagation.
     sqrt_disc = jnp.sqrt(jnp.maximum(disc, 0.0))
     v0_t = (-b + sqrt_disc) / (2.0 * a)
 
@@ -86,8 +90,11 @@ def null_ic(
     """Construct null initial conditions satisfying g_ab k^a k^b = 0.
 
     Given an initial position and spatial direction (need not be unit norm),
-    solves for the temporal component k^0 (future-directed) using the
-    null norm constraint.
+    solves for the temporal component k^0 using the null norm constraint.
+    Selects the ``k^0 = (-b + sqrt(disc)) / (2 g_00)`` root, which for the
+    usual ``g_00 < 0`` is past-directed (``k^0 < 0``); the ANEC integrand
+    ``T_ab k^a k^b`` is even in ``k`` so the averaged null energy along the
+    geodesic is unaffected by this sign (the ray still crosses the wall).
 
     The constraint g_ab k^a k^b = 0 expands to:
         g_00 (k^0)^2 + 2 g_0i k^0 n^i + g_ij n^i n^j = 0

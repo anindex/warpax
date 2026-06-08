@@ -57,6 +57,44 @@ class TestSentinels:
         K_exact = 48.0 * M**2 / r_areal**6
         assert abs(K - K_exact) / K_exact < 1e-6
 
+    def test_schwarzschild_weyl_equals_kretschmann(self):
+        """Schwarzschild is Ricci-flat: Ricci^2 = 0 and C^2 = K exactly.
+        Guards the sign of the Weyl term in the Gauss-Bonnet identity."""
+        res = compute_curvature_chain(
+            SchwarzschildMetric(M=1.0), jnp.array([0.0, 5.0, 0.0, 0.0])
+        )
+        K, R2, W2, _ = compute_invariants(res)
+        assert float(jnp.abs(R2)) < 1e-8                       # Ricci-flat
+        assert abs(float(W2) - float(K)) / float(K) < 1e-6     # C^2 = K
+
+    def test_schwarzschild_chern_pontryagin_zero(self):
+        """A static, parity-even spacetime has vanishing Chern-Pontryagin.
+        Guards the Levi-Civita permutation tables / Hodge-dual contraction."""
+        res = compute_curvature_chain(
+            SchwarzschildMetric(M=1.0), jnp.array([0.0, 5.0, 0.0, 0.0])
+        )
+        _, _, _, CP = compute_invariants(res)
+        assert float(jnp.abs(CP)) < 1e-8
+
+    def test_conformally_flat_weyl_zero(self):
+        """g = Omega(x)^2 eta is conformally flat: C^2 = 0 exactly, while
+        K and Ricci^2 are nonzero. This is the only sentinel exercising the
+        three-term cancellation in C^2 = K - 2 R_ab R^ab + R^2/3 with every
+        term contributing (Minkowski has all three zero; Schwarzschild has
+        R^2 = R = 0)."""
+        eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+
+        def conformal(coords):
+            x, y, z = coords[1], coords[2], coords[3]
+            omega2 = 1.0 + 0.3 * jnp.exp(-(x**2 + y**2 + z**2) / 4.0)
+            return omega2 * eta
+
+        res = compute_curvature_chain(conformal, jnp.array([0.0, 1.0, 0.0, 0.0]))
+        K, R2, W2, _ = compute_invariants(res)
+        assert float(jnp.abs(W2)) < 1e-8           # conformally flat -> Weyl = 0
+        assert float(jnp.abs(K)) > 1e-4            # but K nonzero ...
+        assert float(jnp.abs(R2)) > 1e-4           # ... and Ricci^2 nonzero
+
 
 class TestFit:
     def test_power_law_recovers_exponent(self):

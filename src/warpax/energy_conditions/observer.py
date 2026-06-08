@@ -61,10 +61,18 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     -------
     Float[Array, "4 4"]
         Tetrad with ``tetrad[I, a] = e_I^a`` (row ``I`` is the ``I``-th
-        tetrad vector, column ``a`` is the coordinate component).
+        tetrad vector, column ``a`` is the coordinate component). Well-defined
+        at all warp speeds: the slice normal ``e_0`` stays timelike even where
+        the coordinate-time direction ``g_{00}`` turns spacelike.
     """
     g_inv = jnp.linalg.inv(g_ab)
 
+    # e_0 is the future-pointing unit normal to the spatial slices. For a
+    # spacelike foliation (positive-definite gamma) ``g^{00} = -1/alpha^2 < 0``
+    # holds at *all* warp speeds -- even superluminally, where the coordinate
+    # time direction g_{00} turns spacelike, the slice normal stays timelike.
+    # The tetrad is therefore well-defined for every v_s (see the superluminal
+    # orthonormality sentinel in tests/test_ec_observer_and_solvers.py).
     alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], 1e-30))
     beta_up = -g_inv[0, 1:4] / g_inv[0, 0]
     e0 = jnp.array([1.0 / alpha, -beta_up[0] / alpha,

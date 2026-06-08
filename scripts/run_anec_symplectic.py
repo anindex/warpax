@@ -100,6 +100,13 @@ def main() -> None:
         raise RuntimeError(
             f"Minkowski ANEC sentinel {sent_anec:.2e} exceeds tol {SENTINEL_TOL}"
         )
+    # The flat-space rays must also stay on the null cone; a regressed
+    # integrator that drifts off-cone even in Minkowski would invalidate the
+    # on-cone witness reported for the warp metrics below.
+    if sent_wit >= NULL_TOL:
+        raise RuntimeError(
+            f"Minkowski g(k,k) witness {sent_wit:.2e} exceeds tol {NULL_TOL}"
+        )
 
     per_metric: dict[str, dict] = {}
     for name in METRIC_ORDER:

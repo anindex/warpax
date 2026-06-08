@@ -135,6 +135,20 @@ class TestRigorousANEC:
         )
         assert float(r2.symplectic.line_integral) == float(r.symplectic.line_integral)
 
+    def test_alcubierre_anec_negative_at_wall(self):
+        """Sign sentinel: a null ray through the Alcubierre wall has negative
+        ANEC (NEC violation). On-axis the integral is positive; the minimum
+        over impact parameter sits at the wall (b ~ R_b, here b=1.121, the
+        certified K6b minimum). Guards against a sign regression in the
+        curvature/integrand chain that the Minkowski-zero sentinel cannot see."""
+        m = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
+        r = anec_rigorous(
+            m, jnp.array([0.0, -8.0, 1.121, 0.0]), jnp.array([1.0, 0.0, 0.0]),
+            affine_bounds=(0.0, 16.0), num_steps=8192,
+        )
+        assert r.symplectic.null_preserved is True
+        assert float(r.symplectic.line_integral) < -1e-3
+
 
 class TestAWEC:
     """AWEC line-integral regression tests ."""
