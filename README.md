@@ -32,12 +32,12 @@ WarpFactory), it returns the observer-independent truth.
 - Closed-form Type-I worst observer ($\sinh^2\zeta_{\rm th} = \rho/|\rho+p_i|$), validated against the BFGS optimizer.
 - Shift-vorticity analysis: the vorticity of the ADM shift controls the Hawking--Ellis type of the bubble wall — the imaginary part of the Type-IV eigenvalue pair is linear in the vorticity, $f = \kappa\,\omega$ (established in a controlled pure-rotation limit).
 - Rigorous geodesic-integrated ANEC via a structure-preserving symplectic null integrator (conserves $g(k,k)$ to ~machine precision where adaptive RK drifts off the cone), reported with an on-cone witness $\max|g(k,k)|$; plus a Ford--Roman quantum-inequality diagnostic.
-- Cross-construction all-observer verification (Fuchs, WarpShell, S-/T-shell, Rodal, Alcubierre) with a wall-resolution gate, and a boost-invariant exoticity ranking with universal $v_s$ scaling laws.
+- Cross-construction all-observer verification (Fuchs, WarpShell, Rodal, Alcubierre) with a wall-resolution gate, and a boost-invariant exoticity ranking with universal $v_s$ scaling laws.
 - Universal $v_s$ scaling of the wall curvature invariants (Kretschmann, Weyl-squared, Ricci-squared), split by shift vorticity — the vortical walls grow as $v_s^2$, the irrotational Rodal wall as $v_s^4$; and saturation of the quantitative Santiago--Schuster--Visser $\min(\rho+p_i) = -C\,v_s^2$ bound.
 - Exact curvature via forward-mode JAX autodiff (no finite-difference stencils); multistart BFGS retained as a one-sided diagnostic at non-Type-I points.
 - Ten warp/shell metrics: Alcubierre (in `warpax.benchmarks`, with Minkowski and Schwarzschild), plus Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, and Garattini--Zatrimaylov (de Sitter) in `warpax.metrics`.
 - Hamiltonian + momentum constraint residuals, anisotropic TOV, ADM mass with falloff, Israel junctions, invariant transport diagnostics.
-- Source-first shells: Bernstein-parameterized profiles with constraint-derived metric potentials (S-shell, T-shell); 2D design sweep over (compactness, thickness) with EC certification and phase-diagram plots.
+- Source-first shells: Bernstein-parameterized profiles with constraint-derived metric potentials (S-shell, T-shell); 2D design sweep over (compactness, thickness) with EC certification and phase-diagram plots. These constructions and their boundary-cost analysis are the subject of the companion note (arXiv:2605.25417); warpax ships them as toolkit and does not certify them in the main paper.
 
 ## Quick start
 
@@ -120,7 +120,10 @@ See [`examples/07_custom_warp_metric.py`](examples/07_custom_warp_metric.py).
 Fuchs constant-velocity shell: $\epsilon_{\mathcal{H}} = 0.165$; 12 of 13
 shell-interior points violate ECs under observer-robust certification. The
 source-first T-shell drops $\epsilon_{\mathcal{H}}$ to ~$5\times10^{-3}$ (33x
-improvement) with positive EC margins in the deep interior.
+improvement) with positive EC margins in the deep interior. This five-criterion
+admissibility study is developed in the companion note (arXiv:2605.25417); the
+figures here illustrate the warpax toolkit that feeds it, not a result of the
+main observer-robust-certification paper.
 
 ## Examples
 

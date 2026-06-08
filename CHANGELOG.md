@@ -43,10 +43,12 @@ history is summarized in `docs/explanation/release_notes.md`.
   for the strongest-shift walls (`run_anec_symplectic.py`). `ANECResult` now
   carries `max_abs_g_kk` and `null_preserved`.
 - **Cross-construction all-observer verification**: a uniform adapter
-  (`analysis.construction_adapter`) flows the Fuchs constant-velocity shell, the
-  Bobrick-Martire/Fell-Heisenberg WarpShell, and the source-first S-/T-shells
-  (alongside Alcubierre and Rodal) through the same frame-independent certifier
-  with a wall-resolution gate (`run_construction_verification.py`).
+  (`analysis.construction_adapter`) flows the Fuchs constant-velocity shell and
+  the Bobrick-Martire/Fell-Heisenberg WarpShell (alongside Alcubierre and Rodal)
+  through the same frame-independent certifier with a wall-resolution gate
+  (`run_construction_verification.py`). The source-first S-/T-shells stay in the
+  construction registry as a toolkit but are now certified in the companion note
+  (arXiv:2605.25417), not here, keeping the two contributions disjoint.
 - **Garattini-Zatrimaylov de Sitter bubble** (`metrics.GarattiniMetric`): a
   warp bubble on a de Sitter background with a faithful closed-form `.symbolic()`
   that reduces exactly to Alcubierre at $H=0$.
@@ -85,6 +87,12 @@ history is summarized in `docs/explanation/release_notes.md`.
   that could pick a spurious re-approach for bubble-crossing geodesics (changes
   `delta_t_coord` for such geodesics by design; not an energy-condition number).
 - Hardened NaN handling in the imaginary-eigenvalue summary (`nanmax`).
+- Corrected the goodness-of-fit metric for the through-origin (no-intercept)
+  fits — the $f=\kappa\,\omega$ vorticity fit and the SSV $-C\,v_s^2$ fit — to
+  use the uncentered total sum of squares. The previous mean-centered form
+  understated $R^2$ and produced a spurious negative value for the poorly-fit
+  Van den Broeck branch; fitted coefficients and every cited number are
+  unchanged.
 
 ### Tooling
 
@@ -98,6 +106,11 @@ history is summarized in `docs/explanation/release_notes.md`.
   `scripts/emit_paper_numbers.py` and guarded in CI by
   `scripts/audit_paper_numbers.py` (every cited number traces to a cached
   result). New `make` targets: `lint`, `reproduce`, `numbers`, `audit-numbers`.
+- Added analytic physics-fidelity sentinels independent of the code's own
+  output: Schwarzschild $C^2 = K$ and Chern-Pontryagin $= 0$, a conformally-flat
+  $C^2 = 0$ check that exercises the three-term Gauss-Bonnet cancellation, the
+  Type-IV imaginary-tolerance threshold boundary, tetrad orthonormality at
+  superluminal speeds, and a negative-ANEC wall sign check.
 - Repaired the GPU expected-failure registry (stale node IDs remapped to the
   current test tree) with a staleness guard, and pinned `mpmath` as a direct
   dependency.
