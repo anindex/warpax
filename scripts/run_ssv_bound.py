@@ -74,7 +74,11 @@ def fit_bound(vs, deficits):
     C = float(np.sum(deficits * v2) / np.sum(v2 ** 2))
     pred = C * v2
     ss_res = float(np.sum((deficits - pred) ** 2))
-    ss_tot = float(np.sum((deficits - np.mean(deficits)) ** 2))
+    # Through-origin fit (deficit = C v_s^2, no intercept): use the uncentered
+    # total sum of squares. The mean-centered form is only valid for fits with
+    # an intercept and here produces a spurious negative R^2 for poorly-fit
+    # metrics (e.g. the Type-IV-dominated Van den Broeck branch).
+    ss_tot = float(np.sum(deficits ** 2))
     r2_fixed = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
     max_rel_dev = float(np.max(np.abs(deficits - pred) / np.abs(deficits)))
     # Free exponent (log-log) for an independent check that q ~ 2.

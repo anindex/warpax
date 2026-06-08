@@ -75,6 +75,9 @@ def fit_kappa(omega: np.ndarray, imag: np.ndarray) -> dict:
     kappa = float(np.sum(omega * imag) / denom) if denom > 0 else 0.0
     pred = kappa * omega
     ss_res = float(np.sum((imag - pred) ** 2))
-    ss_tot = float(np.sum((imag - np.mean(imag)) ** 2))
+    # Uncentered total sum of squares: the model is forced through the origin
+    # (no intercept), so the correct baseline is 0, not the mean. Using the
+    # mean-centered form here understates R^2 (and can even go negative).
+    ss_tot = float(np.sum(imag ** 2))
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
     return {"kappa": kappa, "r_squared": r2, "n": int(omega.size)}

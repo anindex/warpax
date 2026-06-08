@@ -103,3 +103,15 @@ class TestMechanism:
         # f = kappa * omega holds to ~machine precision for pure rotation.
         assert fit["r_squared"] > 0.9999
         assert fit["kappa"] > 0.0
+
+
+def test_fit_kappa_uncentered_r2_with_scatter():
+    """For a through-origin fit, R^2 must use the uncentered total sum of
+    squares (baseline 0), not the mean. On proportional-plus-noise data the
+    uncentered R^2 (~0.999) exceeds the mean-centered value (~0.996); this
+    pins the correct no-intercept convention and would fail with the old
+    mean-centered formula."""
+    omega = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+    imag = 0.06 * omega + 5e-4 * np.array([-1.0, 1.0, -1.0, 1.0, 0.0])
+    fit = fit_kappa(omega, imag)
+    assert fit["r_squared"] > 0.999
