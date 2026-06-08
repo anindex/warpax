@@ -3,9 +3,7 @@
     "Alcubierre",
     "Rodal",
     "Fuchs",
-    "WarpShell",
-    "S-shell",
-    "T-shell"
+    "WarpShell"
   ],
   "rows": [
     {
@@ -87,46 +85,6 @@
       "miss_wec_pct": 0.0,
       "miss_nec_pct": 0.0,
       "miss_dec_pct": 0.0
-    },
-    {
-      "metric": "S-shell",
-      "speed_param": "v_s",
-      "speed": 0.02,
-      "N": 60,
-      "wall_cells": 14.0,
-      "resolved": true,
-      "is_comoving": true,
-      "claim": "source-first Class-I positive-density shell",
-      "wall_n": 18039,
-      "frac_type_i": 1.0,
-      "frac_type_iv": 0.0,
-      "invariant_nec_min": 8.743054195280462e-05,
-      "E_minus_inv": 0.0,
-      "peak_deficit_inv": -9.099368913194892e-05,
-      "eulerian_valid": true,
-      "miss_wec_pct": null,
-      "miss_nec_pct": null,
-      "miss_dec_pct": null
-    },
-    {
-      "metric": "T-shell",
-      "speed_param": "v_0",
-      "speed": 0.1,
-      "N": 60,
-      "wall_cells": 48.0,
-      "resolved": true,
-      "is_comoving": false,
-      "claim": "origin-static transport shell (matter tilt v_0)",
-      "wall_n": 100521,
-      "frac_type_i": 0.23697369965559698,
-      "frac_type_iv": 0.7630263003444032,
-      "invariant_nec_min": -0.0003816586278491487,
-      "E_minus_inv": 0.0,
-      "peak_deficit_inv": -2.969300532321219e-11,
-      "eulerian_valid": true,
-      "miss_wec_pct": 1.1718705382715109,
-      "miss_nec_pct": 0.08674252537366706,
-      "miss_dec_pct": 0.44813677373035643
     }
   ]
 }
