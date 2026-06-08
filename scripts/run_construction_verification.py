@@ -1,9 +1,12 @@
 """Cross-construction all-observer verification of positive-energy warp drives (K8).
 
-Extends the n=1 Rodal verification to a panel of published positive-energy / source-
-prescribed constructions -- Fuchs constant-velocity shell (arXiv:2405.02709),
-the Bobrick-Martire / Fell-Heisenberg WarpShell, the source-first S-shell and
-T-shell -- alongside the Alcubierre baseline and the Rodal global-Type-I drive.
+Extends the n=1 Rodal verification to a panel of published positive-energy
+constructions -- Fuchs constant-velocity shell (arXiv:2405.02709) and the
+Bobrick-Martire / Fell-Heisenberg WarpShell -- alongside the Alcubierre baseline
+and the Rodal global-Type-I drive. The source-first S-/T-shells remain available
+in the construction registry as a toolkit, but are introduced and audited in the
+companion note (arXiv:2605.25417), not certified here, to keep the contributions
+disjoint.
 
 Each construction flows through the SAME frame-independent eigenstructure certifier
 and all-observer verification, wall-restricted and volume-weighted, with a
@@ -47,7 +50,7 @@ RESULTS_DIR = os.path.join(HERE, "..", "results")
 TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 F_LOW, F_HIGH = 0.1, 0.9
-ORDER = ["Alcubierre", "Rodal", "Fuchs", "WarpShell", "S-shell", "T-shell"]
+ORDER = ["Alcubierre", "Rodal", "Fuchs", "WarpShell"]
 
 
 def verify_one(spec, speed, n):
