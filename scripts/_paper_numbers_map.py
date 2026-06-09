@@ -32,6 +32,11 @@ def _rodal_nec_scaling():
     return d["scaling_laws"]["Rodal"]["A"]
 
 
+def _kappa_vorticity():
+    """Slope of the controlled pure-rotation f = kappa*omega law (R^2 ~ 1)."""
+    return _load("vorticity_type_analytic.json")["controlled_family"]["kappa"]
+
+
 def _vdb_transition_vs():
     """v_s where the VdB wall Type-I fraction first reaches 0.5 (linear interp)."""
     rows = [r for r in _load("velocity_sweep.json")["rows"]
@@ -57,6 +62,8 @@ AUTO_SOURCED = {
     "vdbVortFrac": (lambda: _vort("Van den Broeck"), 3, "shift_vorticity.json"),
     "rodalNECscaling": (_rodal_nec_scaling, 3, "exoticity_ranking.json (scaling fit)"),
     "vdbTransitionVS": (_vdb_transition_vs, 2, "velocity_sweep.json (50% Type-I crossover)"),
+    "kappaVorticity": (_kappa_vorticity, 3,
+                       "vorticity_type_analytic.json (controlled pure-rotation slope)"),
 }
 
 # Manually maintained (multi-file/derived provenance): verified by hand against

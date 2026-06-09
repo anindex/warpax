@@ -12,7 +12,7 @@ arXiv:2405.02709, Section 3) for the constant-velocity subluminal warp shell:
 
 The original paper uses MATLAB ``smooth()`` (a moving-average lowpass
 filter). We substitute a Gaussian kernel convolution, which provides
-equivalent boundary regularization with superior spectral properties.
+equivalent boundary regularization without the moving average's spectral sidelobes.
 The kernel width is matched as sigma_gauss = span_MA / sqrt(12).
 See Weickert (1998) and Getreuer (2013) for the equivalence.
 

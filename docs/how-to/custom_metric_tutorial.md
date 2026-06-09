@@ -153,7 +153,7 @@ frames plus the missed-violation mask (points where Eulerian reports
 
 ## Step 4: Wall-restricted statistics
 
-Key insight: full-grid statistics dilute warp-wall violations across vacuum
+Full-grid statistics dilute warp-wall violations across vacuum
 regions. Wall-restricted filtering uses the shape function to isolate the
 active region. This is where the `shape_function_value` override in Step 1
 pays off.

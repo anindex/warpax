@@ -43,18 +43,23 @@ history is summarized in `docs/explanation/release_notes.md`.
   for the strongest-shift walls (`run_anec_symplectic.py`). `ANECResult` now
   carries `max_abs_g_kk` and `null_preserved`.
 - **Cross-construction all-observer verification**: a uniform adapter
-  (`analysis.construction_adapter`) flows the Fuchs constant-velocity shell and
-  the Bobrick-Martire/Fell-Heisenberg WarpShell (alongside Alcubierre and Rodal)
+  (`analysis.construction_adapter`) flows the Fuchs constant-velocity shell, the
+  Bobrick-Martire/Fell-Heisenberg WarpShell, and the Garattini-Zatrimaylov de
+  Sitter bubble (alongside Alcubierre and Rodal)
   through the same frame-independent certifier with a wall-resolution gate
   (`run_construction_verification.py`). The source-first S-/T-shells stay in the
   construction registry as a toolkit but are now certified in the companion note
   (arXiv:2605.25417), not here, keeping the two contributions disjoint.
 - **Garattini-Zatrimaylov de Sitter bubble** (`metrics.GarattiniMetric`): a
   warp bubble on a de Sitter background with a faithful closed-form `.symbolic()`
-  that reduces exactly to Alcubierre at $H=0$.
+  that reduces exactly to Alcubierre at $H=0$. Certified at its matched
+  $v_s = H R$ averaged-condition regime, the wall is Hawking-Ellis Type IV and
+  the Eulerian frame misses ~63% of the wall weak-energy violations even though
+  the de Sitter background renders the Eulerian density non-negative.
 - **Vorticity -> Type-IV mechanism**: the imaginary part of the Hawking-Ellis
   Type-IV eigenvalue pair is shown to be linear in the shift vorticity,
-  $f = \kappa\,\omega$ (`analysis.vorticity_type_analytic`,
+  $f = \kappa\,\omega$ with slope $\kappa \approx 0.06$ in the controlled
+  construction (`analysis.vorticity_type_analytic`,
   `derive_vorticity_type.py`; controlled pure-rotation fit $R^2 = 1$).
 - **Invariant exoticity ranking and $v_s$ scaling laws**: a boost-invariant
   multi-axis figure of merit (NEC severity, Type-IV fraction, rigorous ANEC
@@ -63,10 +68,10 @@ history is summarized in `docs/explanation/release_notes.md`.
 - **Universal $v_s$ scaling of the wall curvature invariants**: the wall-peak
   Kretschmann, Weyl-squared and Ricci-squared invariants follow clean power
   laws in the warp speed, split by shift vorticity — the vortical walls grow as
-  $v_s^2$, the irrotational Rodal wall as $v_s^4$ ($R^2 = 1$;
+  $v_s^2$, the irrotational Rodal wall as $v_s^4$ ($R^2 \ge 0.996$;
   `run_curvature_scaling.py`).
-- **Quantitative Santiago-Schuster-Visser bound saturation**: the wall NEC
-  deficit saturates the necessarily-quadratic $\min(\rho+p_i) = -C\,v_s^2$ form
+- **Santiago-Schuster-Visser no-go made quantitative**: the wall NEC
+  deficit follows the necessarily-quadratic $\min(\rho+p_i) = -C\,v_s^2$ form
   with a geometry-fixed coefficient $C>0$, making the no-go theorem a measured
   rather than asserted statement (`run_ssv_bound.py`).
 

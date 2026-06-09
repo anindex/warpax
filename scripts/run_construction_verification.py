@@ -50,7 +50,7 @@ RESULTS_DIR = os.path.join(HERE, "..", "results")
 TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 F_LOW, F_HIGH = 0.1, 0.9
-ORDER = ["Alcubierre", "Rodal", "Fuchs", "WarpShell"]
+ORDER = ["Alcubierre", "Rodal", "Fuchs", "WarpShell", "Garattini"]
 
 
 def verify_one(spec, speed, n):

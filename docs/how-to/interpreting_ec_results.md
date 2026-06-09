@@ -154,7 +154,7 @@ safe for direct printing or JSON serialization.
 
 ## When to trust a number
 
-Use the following checks before reporting a warpax result:
+Run these checks before reporting a warpax result:
 
 1. **Resolution support.** Is the wall resolved? Table 3 in the paper
    reports wall-width / `dx` / cells-per-wall-width per metric. If the

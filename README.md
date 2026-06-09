@@ -30,10 +30,10 @@ WarpFactory), it returns the observer-independent truth.
 - Frame-independent, all-observer, all-velocity energy-condition certification (including superluminal $v_s \ge 1$) from the eigenstructure of $T^a{}_b$ — the eigenvalue test never builds the Eulerian normal.
 - Hawking--Ellis classification (Type I--IV) with explicit Type-IV detection, certified physical by a three-solver (`eig`, LAPACK `zggev` pencil) and 50-digit `mpmath` cross-check.
 - Closed-form Type-I worst observer ($\sinh^2\zeta_{\rm th} = \rho/|\rho+p_i|$), validated against the BFGS optimizer.
-- Shift-vorticity analysis: the vorticity of the ADM shift controls the Hawking--Ellis type of the bubble wall — the imaginary part of the Type-IV eigenvalue pair is linear in the vorticity, $f = \kappa\,\omega$ (established in a controlled pure-rotation limit).
+- Shift-vorticity analysis: the vorticity of the ADM shift controls the Hawking--Ellis type of the bubble wall — the imaginary part of the Type-IV eigenvalue pair is linear in the vorticity, $f = \kappa\,\omega$ with slope $\kappa \approx 0.06$ (established in a controlled pure-rotation limit), so the Type-I $\to$ Type-IV transition itself is linear in the shift vorticity.
 - Rigorous geodesic-integrated ANEC via a structure-preserving symplectic null integrator (conserves $g(k,k)$ to ~machine precision where adaptive RK drifts off the cone), reported with an on-cone witness $\max|g(k,k)|$; plus a Ford--Roman quantum-inequality diagnostic.
-- Cross-construction all-observer verification (Fuchs, WarpShell, Rodal, Alcubierre) with a wall-resolution gate, and a boost-invariant exoticity ranking with universal $v_s$ scaling laws.
-- Universal $v_s$ scaling of the wall curvature invariants (Kretschmann, Weyl-squared, Ricci-squared), split by shift vorticity — the vortical walls grow as $v_s^2$, the irrotational Rodal wall as $v_s^4$; and saturation of the quantitative Santiago--Schuster--Visser $\min(\rho+p_i) = -C\,v_s^2$ bound.
+- Cross-construction all-observer verification (Fuchs, WarpShell, Garattini--Zatrimaylov de Sitter, Rodal, Alcubierre) with a wall-resolution gate, and a boost-invariant exoticity ranking with universal $v_s$ scaling laws. Even the de Sitter bubble — certified at its matched $v_s = H R$ averaged-condition regime — is Type-IV walled, with the Eulerian frame missing ~63% of the wall weak-energy violations.
+- Universal $v_s$ scaling of the wall curvature invariants (Kretschmann, Weyl-squared, Ricci-squared), split by shift vorticity — the vortical walls grow as $v_s^2$, the irrotational Rodal wall as $v_s^4$; and the Santiago--Schuster--Visser no-go made quantitative, $\min(\rho+p_i) = -C\,v_s^2$.
 - Exact curvature via forward-mode JAX autodiff (no finite-difference stencils); multistart BFGS retained as a one-sided diagnostic at non-Type-I points.
 - Ten warp/shell metrics: Alcubierre (in `warpax.benchmarks`, with Minkowski and Schwarzschild), plus Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, and Garattini--Zatrimaylov (de Sitter) in `warpax.metrics`.
 - Hamiltonian + momentum constraint residuals, anisotropic TOV, ADM mass with falloff, Israel junctions, invariant transport diagnostics.
@@ -80,10 +80,10 @@ A boost-invariant ranking (NEC severity, Type-IV fraction, rigorous ANEC minimum
 places the irrotational Rodal drive about a factor of sixty below the bubble-wall
 drives — driven by its vanishing Type-IV fraction and tiny averaged-null energy,
 not by a milder pointwise NEC. Two universal $v_s$ laws follow: the wall NEC deficit
-$\min(\rho+p_i) = -C\,v_s^2$ saturates the Santiago--Schuster--Visser bound (the
-no-go measured, not asserted), and the wall curvature splits by the same vorticity
+$\min(\rho+p_i) = -C\,v_s^2$ makes the Santiago--Schuster--Visser no-go quantitative
+(measured, not asserted), and the wall curvature splits by the same vorticity
 that sets the type — the vortical walls grow as $v_s^2$, the irrotational Rodal wall
-as $v_s^4$ ($R^2 = 1$).
+as $v_s^4$ ($R^2 \ge 0.996$).
 
 ### Observer-robust vs Eulerian
 

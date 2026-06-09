@@ -3,7 +3,8 @@
     "Alcubierre",
     "Rodal",
     "Fuchs",
-    "WarpShell"
+    "WarpShell",
+    "Garattini"
   ],
   "rows": [
     {
@@ -83,6 +84,26 @@
       "peak_deficit_inv": NaN,
       "eulerian_valid": true,
       "miss_wec_pct": 0.0,
+      "miss_nec_pct": 0.0,
+      "miss_dec_pct": 0.0
+    },
+    {
+      "metric": "Garattini",
+      "speed_param": "v_s",
+      "speed": 0.1,
+      "N": 50,
+      "wall_cells": 6.0,
+      "resolved": true,
+      "is_comoving": true,
+      "claim": "de Sitter background; averaged ANEC/AWEC satisfied at the matched speed v_s = H R, pointwise NEC/WEC violated at the wall (arXiv:2502.13153)",
+      "wall_n": 1386,
+      "frac_type_i": 0.0,
+      "frac_type_iv": 1.0,
+      "invariant_nec_min": NaN,
+      "E_minus_inv": 0.0,
+      "peak_deficit_inv": NaN,
+      "eulerian_valid": true,
+      "miss_wec_pct": 62.58550884425402,
       "miss_nec_pct": 0.0,
       "miss_dec_pct": 0.0
     }

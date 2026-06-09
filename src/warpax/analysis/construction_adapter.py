@@ -26,6 +26,7 @@ import numpy as np
 from ..benchmarks import AlcubierreMetric
 from ..geometry.metric import MetricSpecification
 from ..metrics import (
+    GarattiniMetric,
     NatarioMetric,
     RodalMetric,
     VanDenBroeckMetric,
@@ -76,6 +77,12 @@ def _vdb(v_s):
     )
 
 
+def _garattini(v_s):
+    # de Sitter background warp bubble; H is matched so that the audit speed
+    # v_s = H * R sits at the Garattini-Zatrimaylov averaged-condition regime.
+    return GarattiniMetric(v_s=v_s, R=1.0, sigma=8.0, H=v_s)
+
+
 def construction_registry() -> dict[str, ConstructionSpec]:
     """All audit constructions keyed by name (compact references + shells)."""
     specs = [
@@ -102,6 +109,13 @@ def construction_registry() -> dict[str, ConstructionSpec]:
             ((-25.0, 25.0),) * 3, 60, is_comoving=True,
             claim="Bobrick-Martire / Fell-Heisenberg shell; WEC/NEC/SEC at wall, "
                   "DEC violated",
+        ),
+        ConstructionSpec(
+            "Garattini", _garattini, 0.1, "v_s",
+            ((-3.0, 3.0),) * 3, 50, is_comoving=True,
+            claim="de Sitter background; averaged ANEC/AWEC satisfied at the "
+                  "matched speed v_s = H R, pointwise NEC/WEC violated at the wall "
+                  "(arXiv:2502.13153)",
         ),
         ConstructionSpec(
             "S-shell", lambda v: sshell_default(v_s=v), 0.02, "v_s",

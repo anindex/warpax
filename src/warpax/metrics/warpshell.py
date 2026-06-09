@@ -115,7 +115,7 @@ class WarpShellMetric(ADMMetric):
     """WarpShell warp drive metric via ADM 3+1 decomposition.
 
     Features non-unit lapse and non-flat spatial metric in the shell
-    region, making it the most physically complex warp metric.
+    region.
 
     All parameters are dynamic fields (no recompilation on change).
 
