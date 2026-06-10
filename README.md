@@ -35,9 +35,24 @@ WarpFactory), it returns the observer-independent truth.
 - Cross-construction all-observer verification (Fuchs, WarpShell, Garattini--Zatrimaylov de Sitter, Rodal, Alcubierre) with a wall-resolution gate, and a boost-invariant exoticity ranking with universal $v_s$ scaling laws. Even the de Sitter bubble — certified at its matched $v_s = H R$ averaged-condition regime — is Type-IV walled, with the Eulerian frame missing ~63% of the wall weak-energy violations.
 - Universal $v_s$ scaling of the wall curvature invariants (Kretschmann, Weyl-squared, Ricci-squared), split by shift vorticity — the vortical walls grow as $v_s^2$, the irrotational Rodal wall as $v_s^4$; and the Santiago--Schuster--Visser no-go made quantitative, $\min(\rho+p_i) = -C\,v_s^2$.
 - Exact curvature via forward-mode JAX autodiff (no finite-difference stencils); multistart BFGS retained as a one-sided diagnostic at non-Type-I points.
-- Ten warp/shell metrics: Alcubierre (in `warpax.benchmarks`, with Minkowski and Schwarzschild), plus Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, and Garattini--Zatrimaylov (de Sitter) in `warpax.metrics`.
+- Ten warp/shell metrics: nine in `warpax.metrics` (Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, Garattini--Zatrimaylov), plus Alcubierre in `warpax.benchmarks` alongside the Minkowski and Schwarzschild references.
 - Hamiltonian + momentum constraint residuals, anisotropic TOV, ADM mass with falloff, Israel junctions, invariant transport diagnostics.
-- Source-first shells: Bernstein-parameterized profiles with constraint-derived metric potentials (S-shell, T-shell); 2D design sweep over (compactness, thickness) with EC certification and phase-diagram plots. These constructions and their boundary-cost analysis are the subject of the companion note (arXiv:2605.25417); warpax ships them as toolkit and does not certify them in the main paper.
+- Source-first shells: Bernstein-parameterized profiles with constraint-derived metric potentials (S-shell, T-shell); 2D design sweep over (compactness, thickness) with EC certification and phase-diagram plots (companion-paper material, see below).
+
+## Two papers, one toolkit
+
+warpax backs two separate papers with disjoint claims. If you cite a result,
+cite the paper it belongs to:
+
+| | Certification paper ([arXiv:2602.18023](https://arxiv.org/abs/2602.18023)) | Companion note ([arXiv:2605.25417](https://arxiv.org/abs/2605.25417)) |
+|---|---|---|
+| **Question** | Which observers see energy-condition violations, at which warp speeds? | Can source-first shells satisfy the energy conditions at all? |
+| **Results** | Frame-free all-velocity certifier; velocity-resolved type map; shift-vorticity → type control ($f=\kappa\omega$); closed-form worst observer; exoticity ranking + $v_s$ scaling laws | S-/T-shell constructions from the Einstein constraints; five-criterion admissibility standard; boundary-cost analysis |
+| **Modules** | `energy_conditions`, `geometry`, `averaged`, `quantum`, `analysis`, `geodesics`, `transport`; metrics Alcubierre / Natário / Van den Broeck / Rodal / Lentz / WarpShell / Garattini | `constraints` (S-/T-shell solvers), `tov`, `adm`, `junction`, `design`, `optimization`; `metrics/sshell.py`, `metrics/tshell.py` |
+| **Examples** | 01–07 | 08–10 |
+
+The S-/T-shells are constructed and certified in the companion note, not in the
+certification paper; neither paper's results depend on the other's.
 
 ## Quick start
 
@@ -72,12 +87,12 @@ by boosted observers — an exact
 eigenvalue statement, not an optimizer artefact. A rigorous geodesic-integrated
 ANEC (symplectic integrator with an on-cone witness) and a Ford--Roman comparison
 preserve the ordering: every drive violates, and the irrotational Rodal geometry is
-the mildest by one to three orders of magnitude.
+the mildest by one to two orders of magnitude.
 
 ### Invariant exoticity ranking and scaling laws
 
 A boost-invariant ranking (NEC severity, Type-IV fraction, rigorous ANEC minimum)
-places the irrotational Rodal drive about a factor of sixty below the bubble-wall
+places the irrotational Rodal drive about a factor of seventy below the bubble-wall
 drives — driven by its vanishing Type-IV fraction and tiny averaged-null energy,
 not by a milder pointwise NEC. Two universal $v_s$ laws follow: the wall NEC deficit
 $\min(\rho+p_i) = -C\,v_s^2$ makes the Santiago--Schuster--Visser no-go quantitative
@@ -120,10 +135,9 @@ See [`examples/07_custom_warp_metric.py`](examples/07_custom_warp_metric.py).
 Fuchs constant-velocity shell: $\epsilon_{\mathcal{H}} = 0.165$; 12 of 13
 shell-interior points violate ECs under observer-robust certification. The
 source-first T-shell drops $\epsilon_{\mathcal{H}}$ to ~$5\times10^{-3}$ (33x
-improvement) with positive EC margins in the deep interior. This five-criterion
-admissibility study is developed in the companion note (arXiv:2605.25417); the
-figures here illustrate the warpax toolkit that feeds it, not a result of the
-main observer-robust-certification paper.
+improvement) with positive EC margins in the deep interior. The admissibility
+standard and these shell results belong to the companion note (see
+[Two papers, one toolkit](#two-papers-one-toolkit)).
 
 ## Examples
 
@@ -163,7 +177,7 @@ metrics -> geometry -> energy_conditions -> analysis
 |---------|-------------|
 | `geometry` | JAX autodiff pipeline: metric $\to$ Christoffel $\to$ Riemann $\to$ Ricci $\to$ Einstein $\to$ $T_{\mu\nu}$; ADM 3+1 split; $C^2$ regularity diagnostics |
 | `energy_conditions` | NEC/WEC/SEC/DEC via Hawking--Ellis classification, eigenvalue algebra, multi-start BFGS observer optimization |
-| `metrics` | Nine warp/shell metrics: Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, Garattini--Zatrimaylov (Alcubierre + Minkowski + Schwarzschild ship in `benchmarks`) |
+| `metrics` | Nine warp/shell metrics: Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, Garattini--Zatrimaylov (Alcubierre, Minkowski, and Schwarzschild ship in `benchmarks`, making ten warp metrics total) |
 | `constraints` | Hamiltonian + momentum constraint residuals; S-shell and T-shell constraint solvers (pure JAX) |
 | `tov` | Anisotropic TOV equilibrium checker |
 | `adm` | ADM mass with surface integral and asymptotic falloff verification |
@@ -185,7 +199,7 @@ coordinates $x^\mu$ to the covariant metric tensor $g_{\mu\nu}$.
 ## Running tests
 
 ```bash
-pytest                      # Full suite (950+ tests across 34 modules)
+pytest                      # Full suite (1000+ tests across 33 modules)
 pytest -m "not slow"        # Skip @slow grid tests (~50 s with -n auto)
 pytest -m smoke             # Visualization import / render smoke tests
 pytest -n auto              # Parallel execution

@@ -75,6 +75,72 @@ history is summarized in `docs/explanation/release_notes.md`.
   with a geometry-fixed coefficient $C>0$, making the no-go theorem a measured
   rather than asserted statement (`run_ssv_bound.py`).
 
+### Adversarial audit fixes (June 2026)
+
+A multi-agent adversarial audit (five independent finders, every claim
+re-verified by three skeptics against 50-digit or analytic oracles) confirmed
+fourteen defects; all are fixed, each with a regression test:
+
+- **Near-vacuum gate ignored imaginary parts**: a stress tensor with a purely
+  imaginary spectrum (pure momentum flux, eigenvalues $\pm iq$ — genuine
+  Type IV at any $q$) was absorbed as vacuum Type I. The gate now tests the
+  eigenvalue modulus, in both the float64 and the 50-digit classifier.
+- **Relative imaginary tolerance now has a scale floor**: the $3\times10^{-3}$
+  split-degenerate tier exists to absorb eigensolver noise at large $\|T\|$
+  (WarpShell), but at small $\|T\|$ it was absorbing genuine weak Type-IV
+  physics (the Alcubierre far-field tail, $|{\rm Im}|\sim10^{-8}$, certified
+  complex at 50 digits). The tier engages only above $\|T\|\sim10^6$; below it
+  the absolute tier governs. Full-grid type fractions shift accordingly;
+  wall-restricted fractions are unchanged.
+- **Scale-aware violation gate**: the violated/satisfied threshold now carries
+  a relative term ($10^{-12}\,\max|\lambda|$) so float64 roundoff at
+  $\|T\|\gtrsim10^6$ cannot mint violations — about a quarter of the previous
+  WarpShell "violated" counts were noise, not physics.
+- **Geodesic initial conditions were past-directed**: `timelike_ic`/`null_ic`
+  returned the $u^0<0$ root, so the published tidal/blueshift geodesics ran
+  backwards and never met the bubble (peak tidal exactly 0). Both now select
+  the future-directed root; the regenerated geodesics cross the wall
+  (min $r_s\approx0.05$ at $v_s=0.5$), and the round-trip asymmetry and
+  blueshift diagnostics are recomputed on the future cone.
+- **Null projection picked the reflected root** where $g_{00}>0$ (superluminal
+  interiors): `_project_to_null` now picks the root closest to identity, so an
+  exactly-null tangent is returned unchanged.
+- **diffrax result codes were silently mapped to success**: `int()` on a
+  diffrax 0.7.2 `EnumerationItem` raises, and the fallback declared every
+  failed integration complete. A shared converter now resolves codes robustly
+  (unknown maps to *not* complete) and the termination-reason table matches
+  diffrax 0.7.2; `awec()` accepts real `GeodesicResult`s again.
+- **ANEC default is now `tangent_norm='null_projected'`** (the rigorous path);
+  `'renormalized'` remains available. Paper scripts already passed it
+  explicitly, so published ANEC numbers are unaffected.
+- **Shell `total_mass` was a static jit leaf**, recompiling the curvature chain
+  for every candidate in `optimize_shell`; it is now an array leaf.
+- **Design optimizer was a silent no-op**: `ShapeFunctionMetric` validation
+  raised under tracing and degraded BFGS to its random seeds; validation is
+  now trace-safe and the optimizer actually descends.
+- **Sweep checkpoints scrambled cells in parallel mode**: checkpoints now keep
+  full positional lists, so an interrupted parallel sweep reloads correctly.
+- **Einstein Toolkit loader used the wrong shift convention** (ADMBase
+  `betax/betay/betaz` are contravariant); fixed with the correct
+  $g_{0i}=\gamma_{ij}\beta^j$ assembly.
+- **Multistart PRNG keys are now distinct** per probe point and condition in
+  the EC constraint helpers (previously every point reused `PRNGKey(42)`).
+- **`results/*.json` are now valid RFC 8259 JSON**: all scripts serialize
+  through a shared helper that maps non-finite floats to `null`.
+
+The full pipeline was regenerated after these fixes. The headline numbers
+survive untouched: the invariant benchmark (Rodal 72/73% Eulerian misses,
+Type-IV wall fractions, peak deficits) is bit-for-bit identical, and all 15
+audited paper macros are unchanged. What did move: the rigorous ANEC values
+(the geodesics now actually cross the bubble) — Rodal $-0.0041$, Van den
+Broeck $-0.045$, Natário $-0.051$ (now symplectically certified, no fallback),
+Alcubierre $-0.159$ — so the exoticity index becomes Rodal 0.014 / Natário
+0.661 / VdB 0.629 / Alcubierre 0.997 (Rodal ~70x below baseline, mildest by
+one to two orders); the tidal/blueshift validation figures show genuine
+bubble crossings (frequency ratio matches $1/\gamma(v_s)$ to six figures);
+and the matched-benchmark wall Type-I percentages drop a few points as weak
+Type-IV points are no longer absorbed.
+
 ### Performance & correctness
 
 - De-serialized the two host-side Python loops in the grid energy-condition
@@ -119,6 +185,18 @@ history is summarized in `docs/explanation/release_notes.md`.
 - Repaired the GPU expected-failure registry (stale node IDs remapped to the
   current test tree) with a staleness guard, and pinned `mpmath` as a direct
   dependency.
+- The reproduction pipeline enables the persistent JIT cache by default
+  (`WARPAX_JIT_CACHE=1` with a 0.05 s min-compile-time floor); warm stages
+  skip recompilation entirely (~60% less CPU on the velocity-sweep smoke).
+  Dependency floors aligned with current releases (jaxtyping 0.3.10,
+  matplotlib 3.10.9, ruff 0.15.16); `mpmath` stays `<1.4` because sympy 1.14
+  (latest) requires it.
+- New regression net from the audit: `tests/test_bug_hunt_regressions.py`
+  (near-vacuum modulus gate, scale-aware violation gate, imag-tolerance
+  sentinel with a 50-digit agreement check on a superluminal slab, timelike
+  tiebreak across 30 decades of $\|T\|$, DEC bound-vs-optimizer parity), plus
+  future-directed IC, null-projection, result-code, checkpoint, and
+  ET-convention tests in their home modules.
 
 ---
 
