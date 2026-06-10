@@ -208,9 +208,13 @@ def compute_wall_restricted_stats(
         "dec": ec_result.dec_margins,
     }
 
-    # Per-point eigenvalue scale for the violation gate.
-    eig_scale = jnp.max(jnp.abs(ec_result.eigenvalues), axis=-1).ravel()
-    threshold = atol + rtol * eig_scale
+    # Per-point eigenvalue scale for the violation gate. Duck-typed
+    # callers without eigenvalues fall back to the absolute gate.
+    eigs = getattr(ec_result, "eigenvalues", None)
+    if eigs is not None:
+        threshold = atol + rtol * jnp.max(jnp.abs(eigs), axis=-1).ravel()
+    else:
+        threshold = jnp.asarray(atol)
 
     violated_counts: dict[str, int] = {}
     violated_fracs: dict[str, float] = {}
