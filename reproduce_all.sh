@@ -62,6 +62,12 @@ export PYTHONPATH="${SCRIPT_DIR:-$PWD}/src${PYTHONPATH:+:${PYTHONPATH}}"
 # (cuBLAS LT autotuner; cuSolver DN handle creation), so the committed cache
 # is CPU-provenanced. Override with JAX_PLATFORMS=gpu (non-deterministic).
 export JAX_PLATFORMS="${JAX_PLATFORMS:-cpu}"
+# Persistent XLA compilation cache: each stage is a fresh python process,
+# so without this every stage repays full compile cost. Numerics-safe
+# (cached artifacts are the same XLA programs). Disable with =0.
+export WARPAX_JIT_CACHE="${WARPAX_JIT_CACHE:-1}"
+# JAX's 1s default floor skips most of our kernels; 0.05s captures them.
+export WARPAX_JIT_CACHE_MIN_COMPILE_TIME_SECS="${WARPAX_JIT_CACHE_MIN_COMPILE_TIME_SECS:-0.05}"
 echo "[reproduce_all.sh] JAX backend pinned: JAX_PLATFORMS=${JAX_PLATFORMS}" >&2
 if [ "${JAX_PLATFORMS}" != "cpu" ]; then
     echo "[reproduce_all.sh] WARNING: non-CPU backend selected." >&2
