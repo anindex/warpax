@@ -61,9 +61,14 @@ class TestSymplecticBeatsTsit5:
     the null cone where adaptive RK drifts off it."""
 
     def test_alcubierre_long_crossing(self):
+        # Head-on crossing: photon moving -x into the bubble moving +x
+        # (closing speed 1 + v_s). With the future-directed null_ic root a
+        # +x photon merely *chases* the bubble at closing speed 1 - v_s,
+        # which no longer stresses Tsit5; the head-on geometry reproduces
+        # the regime the past-directed root used to probe.
         m = AlcubierreMetric(v_s=0.1, R=20.0, sigma=2.0)
-        start = jnp.array([0.0, -30.0, 1e-3, 0.0])
-        ndir = jnp.array([1.0, 0.0, 0.0])
+        start = jnp.array([0.0, 30.0, 1e-3, 0.0])
+        ndir = jnp.array([-1.0, 0.0, 0.0])
         span = (0.0, 60.0)
 
         x0n, k0 = null_ic(m, start, ndir)

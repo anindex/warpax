@@ -993,7 +993,7 @@ class TestSchwarzschildRadialInfallBenchmark:
 
         # Compute E_i = -g_{0a} v^a at each trajectory point (first 500 points).
         # For diagonal Schwarzschild in isotropic coords: E = -g_00 v^0.
-        # |E| = |g_00 v^0| is conserved; v^0 sign follows affine-parameter convention.
+        # timelike_ic returns the future-directed root (v^0 > 0), so E > 0.
         n_valid = 500
         positions_valid = self.sol.positions[:n_valid]
         velocities_valid = self.sol.velocities[:n_valid]
@@ -1015,8 +1015,7 @@ class TestSchwarzschildRadialInfallBenchmark:
             f"E_start={E_start:.6f}, E_analytical={E_analytical:.6f}"
         )
 
-        # Verify |E_start| matches analytical (sign depends on affine parameter
-        # direction convention in timelike_ic)
+        # Verify E_start matches analytical (future-directed convention: E > 0)
         npt.assert_allclose(
             abs(E_start),
             E_analytical,

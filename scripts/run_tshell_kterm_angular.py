@@ -15,8 +15,9 @@ value.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
+
+from _json_io import dump_json
 
 import jax
 import jax.numpy as jnp
@@ -231,7 +232,7 @@ def main():
         "kterm": kterm,
         "angular_ec": {"r_R1": ang_r1, "r_R2": ang_r2},
     }
-    OUTPUT.write_text(json.dumps(out, indent=2))
+    dump_json(out, OUTPUT)
     print(f"\n  -> {OUTPUT}")
 
 

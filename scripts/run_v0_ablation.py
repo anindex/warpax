@@ -7,10 +7,11 @@ margin would indicate a kinematic (shift-driven) origin.
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from pathlib import Path
+
+from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -65,7 +66,7 @@ def main():
         print(f"  v_0={v0}: eps_H_max={rec['eps_H_max']:.3e}  "
               f"interior={rec['worst_interior_margin']:+.3e}  "
               f"r=R_1={rec['worst_R1_boundary_margin']:+.3e}  ({rec['elapsed_s']:.1f}s)")
-    OUTPUT.write_text(json.dumps({"results": out}, indent=2))
+    dump_json({"results": out}, OUTPUT)
     print(f"\n  -> {OUTPUT}")
 
 

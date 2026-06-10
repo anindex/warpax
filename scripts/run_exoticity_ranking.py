@@ -31,6 +31,8 @@ import json
 import math
 import os
 
+from _json_io import dump_json
+
 import numpy as np
 
 HERE = os.path.dirname(__file__)
@@ -195,8 +197,7 @@ def main():
         "scores": scores,
     }
     out_path = os.path.join(RESULTS_DIR, "exoticity_ranking.json")
-    with open(out_path, "w") as f:
-        json.dump(out, f, indent=2)
+    dump_json(out, out_path)
     print(f"\nWrote {out_path}")
     write_scaling_table(fits, os.path.join(TABLES_DIR, "scaling_laws.tex"))
     write_ranking_table(scores, os.path.join(TABLES_DIR, "exoticity_ranking.tex"))

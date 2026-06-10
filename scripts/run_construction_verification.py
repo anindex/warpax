@@ -24,8 +24,9 @@ Outputs
 from __future__ import annotations
 
 import argparse
-import json
 import os
+
+from _json_io import dump_json
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -187,8 +188,7 @@ def main():
             print(f"  {name:>12s}  {r.get('note')}")
 
     out_path = os.path.join(RESULTS_DIR, "construction_verification.json")
-    with open(out_path, "w") as f:
-        json.dump({"order": metrics, "rows": rows}, f, indent=2)
+    dump_json({"order": metrics, "rows": rows}, out_path)
     print(f"\nWrote {out_path}")
 
     if not args.smoke:

@@ -21,9 +21,10 @@ Outputs:
 """
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
+
+from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -159,8 +160,7 @@ def main() -> None:
         "metrics": per_metric,
     }
     out_path = os.path.join(RESULTS_DIR, "retained_symplectic.json")
-    with open(out_path, "w") as f:
-        json.dump(out, f, indent=2)
+    dump_json(out, out_path)
     print(f"Wrote {out_path}")
 
     # Paper table: rigorous geodesic ANEC + on-cone rigor witness.

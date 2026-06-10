@@ -21,9 +21,10 @@ Usage
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import time
+
+from _json_io import dump_json
 
 import matplotlib
 matplotlib.use("Agg")
@@ -172,8 +173,7 @@ def main():
 
     # Save results
     out_path = os.path.join(results_dir, "nstarts_ablation.json")
-    with open(out_path, "w") as f:
-        json.dump(results, f, indent=2)
+    dump_json(results, out_path)
     print(f"\nResults saved to {out_path}")
 
     # Print summary table

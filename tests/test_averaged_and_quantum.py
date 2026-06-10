@@ -135,16 +135,22 @@ class TestRigorousANEC:
         )
         assert float(r2.symplectic.line_integral) == float(r.symplectic.line_integral)
 
-    def test_alcubierre_anec_negative_at_wall(self):
-        """Sign sentinel: a null ray through the Alcubierre wall has negative
-        ANEC (NEC violation). On-axis the integral is positive; the minimum
-        over impact parameter sits at the wall (b ~ R_b, here b=1.121, the
-        certified K6b minimum). Guards against a sign regression in the
-        curvature/integrand chain that the Minkowski-zero sentinel cannot see."""
+    def test_alcubierre_anec_negative_through_bubble(self):
+        """Sign sentinel: a null ray through the Alcubierre bubble has
+        negative ANEC (NEC violation). Guards against a sign regression in
+        the curvature/integrand chain that the Minkowski-zero sentinel
+        cannot see.
+
+        Geometry note: with the FUTURE-directed null tangent (null_ic root
+        fix) the photon overtakes the bubble at relative speed 1 - v_s, so
+        the crossing happens near t ~ 16 and the ANEC minimum over impact
+        parameter sits inside the bubble (b = 0.5 here; the old
+        past-directed pin at the wall b = 1.121 is positive for the
+        future-directed ray)."""
         m = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
         r = anec_rigorous(
-            m, jnp.array([0.0, -8.0, 1.121, 0.0]), jnp.array([1.0, 0.0, 0.0]),
-            affine_bounds=(0.0, 16.0), num_steps=8192,
+            m, jnp.array([0.0, -8.0, 0.5, 0.0]), jnp.array([1.0, 0.0, 0.0]),
+            affine_bounds=(0.0, 30.0), num_steps=8192,
         )
         assert r.symplectic.null_preserved is True
         assert float(r.symplectic.line_integral) < -1e-3
@@ -245,3 +251,118 @@ class TestFordRoman:
         assert float(m) == float(result.margin)
         assert float(b) == float(result.bound)
         assert float(c) == float(result.C)
+
+
+class TestProjectToNull:
+    """Regression: _project_to_null picked the wrong quadratic root.
+
+    Bug: ``lam = (-cross + sqrt_disc) / (2 A_s)`` selects the *reflected*
+    null branch wherever ``A_t > A_s`` (g_00 > 0 regions, e.g. the interior
+    of a superluminal Alcubierre bubble), mapping the exactly-null tangent
+    (1, 1, 0, 0) to (1, 3, 0, 0). The fix picks the root closest to 1, the
+    identity for already-null input.
+    """
+
+    def test_exactly_null_tangent_unchanged_in_g00_positive_region(self):
+        from warpax.averaged.anec import _project_to_null
+
+        m = AlcubierreMetric(v_s=2.0, R=2.0, sigma=8.0)
+        x = jnp.array([0.0, 0.1, 0.0, 0.0])
+        g = m(x)
+        k = jnp.array([1.0, 1.0, 0.0, 0.0])
+        # Interior point: g_00 > 0 and (1,1,0,0) is exactly null there.
+        assert float(g[0, 0]) > 0.0
+        assert abs(float(jnp.einsum("a,ab,b->", k, g, k))) < 1e-12
+        k_proj = _project_to_null(g, k)
+        assert float(jnp.max(jnp.abs(k_proj - k))) < 1e-12, (
+            f"exactly-null tangent changed: {k_proj}"
+        )
+
+    def test_non_null_vector_projects_onto_cone(self):
+        from warpax.averaged.anec import _project_to_null
+
+        m = AlcubierreMetric(v_s=2.0, R=2.0, sigma=8.0)
+        x = jnp.array([0.0, 0.1, 0.0, 0.0])
+        g = m(x)
+        u = jnp.array([1.0, 0.7, 0.2, 0.1])  # not null
+        k_proj = _project_to_null(g, u)
+        g_kk = float(jnp.einsum("a,ab,b->", k_proj, g, k_proj))
+        assert abs(g_kk) < 1e-12, f"projection off-cone: g(k,k) = {g_kk}"
+
+
+class TestDiffraxResultCodes:
+    """Regression: diffrax 0.7.2 result codes were silently swallowed.
+
+    Bug: ``int(getattr(raw, 'value', raw))`` raises TypeError on the
+    equinox ``EnumerationItem`` (which carries ``._value``, not ``.value``),
+    and the ``except`` mapped *every* outcome -- including failures -- to
+    success. Also the old reason table did not match the installed
+    ``diffrax.RESULTS`` indices.
+    """
+
+    def test_max_steps_reached_reported_incomplete(self):
+        """A max_steps-truncated geodesic must not report 'complete'."""
+        from warpax.geodesics import integrate_geodesic, null_ic
+
+        m = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+        x0, k0 = null_ic(
+            m, jnp.array([0.0, 5.0, 0.1, 0.0]), jnp.array([-1.0, 0.0, 0.0])
+        )
+        # max_steps far too small: diffrax reports max_steps_reached (code 1).
+        geo = integrate_geodesic(
+            m, x0, k0, tau_span=(0.0, 15.0), num_points=32, max_steps=8
+        )
+        result = anec(m, geo)
+        assert result.geodesic_complete is False
+        assert result.termination_reason != "complete"
+        assert result.termination_reason == "max_steps"
+
+    def test_unconvertible_result_maps_to_unknown_not_success(self):
+        """An unrecognized result object must NOT default to success."""
+        from warpax.geodesics._result_codes import (
+            RESULT_UNKNOWN,
+            result_code_to_int,
+            termination_reason,
+        )
+
+        class Opaque:
+            pass
+
+        code = result_code_to_int(Opaque())
+        assert code == RESULT_UNKNOWN
+        assert termination_reason(code) == "unknown"
+
+    def test_awec_accepts_real_geodesic_result(self):
+        """Regression: awec() crashed with TypeError on any real
+        GeodesicResult from integrate_geodesic (``int(geodesic.result)``
+        on a diffrax EnumerationItem)."""
+        from warpax.geodesics import integrate_geodesic, timelike_ic
+
+        mk = MinkowskiMetric()
+        x0, v0 = timelike_ic(
+            mk, jnp.array([0.0, 0.0, 0.0, 0.0]), jnp.array([0.3, 0.0, 0.0])
+        )
+        geo = integrate_geodesic(mk, x0, v0, tau_span=(0.0, 5.0), num_points=64)
+        result = awec(mk, geo)
+        assert result.geodesic_complete is True
+        assert result.termination_reason == "complete"
+        assert abs(float(result.line_integral)) < 1e-10
+
+
+class TestDefaultTangentNorm:
+    """API change: anec() default tangent_norm is now 'null_projected'."""
+
+    def test_default_path_stays_on_null_cone(self):
+        """The default must yield a vanishing on-cone witness on a short
+        Alcubierre coordinate ray (projection is exact by construction)."""
+        m = AlcubierreMetric(v_s=0.5)
+        ray = lambda lam: jnp.array([lam, lam, 0.5, 0.0])
+        result = anec(m, ray, n_samples=64, affine_bounds=(-3.0, 3.0))
+        assert float(result.max_abs_g_kk) <= 1e-10
+        assert result.null_preserved is True
+
+    def test_renormalized_still_available(self):
+        """The legacy 'renormalized' option remains selectable."""
+        gl = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
+        result = anec(MinkowskiMetric(), gl, tangent_norm="renormalized")
+        assert float(jnp.abs(result.line_integral)) < 1e-6

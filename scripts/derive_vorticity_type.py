@@ -25,8 +25,9 @@ Outputs
 """
 from __future__ import annotations
 
-import json
 import os
+
+from _json_io import dump_json
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -200,8 +201,7 @@ def main():
         ),
     }
     out_path = os.path.join(RESULTS_DIR, "vorticity_type_analytic.json")
-    with open(out_path, "w") as f:
-        json.dump(out, f, indent=2)
+    dump_json(out, out_path)
     print(f"\nWrote {out_path}")
     _make_figure(controlled, cross,
                  os.path.join(FIG_DIR, "vorticity_type_mechanism.pdf"))

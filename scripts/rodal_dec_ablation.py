@@ -18,10 +18,11 @@ Usage
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from datetime import datetime, timezone
+
+from _json_io import dump_json
 
 import matplotlib
 matplotlib.use("Agg")
@@ -522,8 +523,7 @@ def save_diagnosis(sweeps, diagnosis, start_time):
         os.path.dirname(__file__), "..", "results", "rodal_dec_diagnosis.json",
     )
     os.makedirs(os.path.dirname(outpath), exist_ok=True)
-    with open(outpath, "w") as f:
-        json.dump(output, f, indent=2)
+    dump_json(output, outpath)
     print(f"\nDiagnosis saved to {outpath}")
     return output
 

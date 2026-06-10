@@ -18,10 +18,11 @@ Usage
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from datetime import datetime, timezone
+
+from _json_io import dump_json
 
 # Non-interactive backend (before any other matplotlib import)
 import matplotlib
@@ -369,8 +370,7 @@ def main():
         }
         json_data["rows"].append(json_row)
 
-    with open(JSON_PATH, "w") as f:
-        json.dump(json_data, f, indent=2)
+    dump_json(json_data, JSON_PATH)
     print(f"Saved JSON: {JSON_PATH}")
 
     # Save LaTeX table

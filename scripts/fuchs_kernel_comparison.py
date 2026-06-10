@@ -26,10 +26,11 @@ Outputs: results/fuchs_kernel_comparison.json
 """
 from __future__ import annotations
 
-import json
 import sys
 import time
 from pathlib import Path
+
+from _json_io import dump_json
 
 import jax
 import jax.numpy as jnp
@@ -237,8 +238,7 @@ def main():
     }
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUTPUT, "w") as f:
-        json.dump(report, f, indent=2, default=str)
+    dump_json(report, OUTPUT, default=str)
     print(f"  -> {OUTPUT}")
 
     # compact console summary

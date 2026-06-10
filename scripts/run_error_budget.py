@@ -16,10 +16,11 @@ worst-DEC probe point, and the relationship between eps_H and |worst margin|.
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from pathlib import Path
+
+from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -188,7 +189,7 @@ def main():
         ),
     }
 
-    OUTPUT.write_text(json.dumps(out, indent=2))
+    dump_json(out, OUTPUT)
     print(f"\n  all_negative={all_neg}  corr(eps_H,|margin|)={corr:.3f}")
     print(f"  -> {OUTPUT}")
 

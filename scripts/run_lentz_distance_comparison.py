@@ -15,10 +15,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from _json_io import dump_json
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _radial_sweep import radial_sweep
 
-import json
 
 from warpax.metrics import LentzMetric
 
@@ -71,8 +72,7 @@ def main():
     }
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUTPUT, "w") as f:
-        json.dump(out, f, indent=2, default=str)
+    dump_json(out, OUTPUT, default=str)
 
     # Compact stdout table
     for d in ("L1", "L2"):

@@ -51,11 +51,11 @@ def timelike_ic(
     Notes
     -----
     Returns NaN for v^0 if no real root exists (superluminal velocity).
-    Selects the ``v^0 = (-b + sqrt(disc)) / (2 g_00)`` root. For the usual
-    ``g_00 < 0`` this is the algebraically smaller (``v^0 < 0``) root and the
-    geodesic is integrated forward in the affine parameter; tidal and other
-    observables quadratic in the 4-velocity are insensitive to this sign.
-    Negate ``v0`` if a strictly future-directed velocity is required.
+    Selects the FUTURE-directed root (the larger ``v^0``; for the usual
+    ``g_00 < 0`` exactly one root is positive and this picks it). The sign
+    of ``v^0`` matters for time-dependent metrics: an Alcubierre bubble at
+    ``x_s = v_s t`` is *not* symmetric under ``t -> -t``, so a past-directed
+    velocity traces a physically different trajectory, not a time-reverse.
     """
     g = metric_fn(x0)  # (4, 4)
 
@@ -67,13 +67,17 @@ def timelike_ic(
     # Discriminant
     disc = b**2 - 4.0 * a * c
 
-    # Root ``(-b + sqrt(disc)) / (2a)``: for g_00 < 0 (-+++) this is the
-    # algebraically smaller root. Floor the radicand so the forward gradient
-    # stays finite even when disc < 0; downstream callers should check
-    # ``jnp.isfinite`` on v0_t to detect the superluminal case rather than
-    # relying on NaN propagation.
+    # Future-directed root: of the two roots ``(-b +/- sqrt(disc)) / (2a)``
+    # take the larger v^0 (for g_00 < 0 the roots have opposite signs and
+    # this selects the positive, future-directed one; jit-safe). Floor the
+    # radicand so the forward gradient stays finite even when disc < 0;
+    # downstream callers should check ``jnp.isfinite`` on v0_t to detect the
+    # superluminal case rather than relying on NaN propagation.
     sqrt_disc = jnp.sqrt(jnp.maximum(disc, 0.0))
-    v0_t = (-b + sqrt_disc) / (2.0 * a)
+    v0_t = jnp.maximum(
+        (-b + sqrt_disc) / (2.0 * a),
+        (-b - sqrt_disc) / (2.0 * a),
+    )
 
     nan_sentinel = jax.lax.stop_gradient(jnp.full_like(v0_t, jnp.nan))
     v0_t = jnp.where(disc >= 0.0, v0_t, nan_sentinel)
@@ -91,10 +95,12 @@ def null_ic(
 
     Given an initial position and spatial direction (need not be unit norm),
     solves for the temporal component k^0 using the null norm constraint.
-    Selects the ``k^0 = (-b + sqrt(disc)) / (2 g_00)`` root, which for the
-    usual ``g_00 < 0`` is past-directed (``k^0 < 0``); the ANEC integrand
-    ``T_ab k^a k^b`` is even in ``k`` so the averaged null energy along the
-    geodesic is unaffected by this sign (the ray still crosses the wall).
+    Selects the FUTURE-directed root (the larger ``k^0``; for the usual
+    ``g_00 < 0`` exactly one root is positive and this picks it). Although
+    the ANEC integrand ``T_ab k^a k^b`` is even in ``k``, the *trajectory*
+    is not: for time-dependent metrics (e.g. an Alcubierre bubble at
+    ``x_s = v_s t``) a past-directed ray traces a different path through
+    the bubble, so the sign of ``k^0`` changes the geodesic itself.
 
     The constraint g_ab k^a k^b = 0 expands to:
         g_00 (k^0)^2 + 2 g_0i k^0 n^i + g_ij n^i n^j = 0
@@ -129,8 +135,13 @@ def null_ic(
     # Discriminant
     disc = b**2 - 4.0 * a * c
 
+    # Future-directed root: take the larger k^0 of the two quadratic roots
+    # (for g_00 < 0 the roots have opposite signs; jit-safe selection).
     sqrt_disc = jnp.sqrt(jnp.maximum(disc, 0.0))
-    k0_t = (-b + sqrt_disc) / (2.0 * a)
+    k0_t = jnp.maximum(
+        (-b + sqrt_disc) / (2.0 * a),
+        (-b - sqrt_disc) / (2.0 * a),
+    )
 
     nan_sentinel = jax.lax.stop_gradient(jnp.full_like(k0_t, jnp.nan))
     k0_t = jnp.where(disc >= 0.0, k0_t, nan_sentinel)

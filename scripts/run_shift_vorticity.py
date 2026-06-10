@@ -23,6 +23,8 @@ import argparse
 import json
 import os
 
+from _json_io import dump_json
+
 import matplotlib
 matplotlib.use("Agg")
 
@@ -180,9 +182,9 @@ def main():
         fig_sweep[m] = [(v, r_mean, t) for v, t in type_iv[m]]
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    with open(os.path.join(RESULTS_DIR, "shift_vorticity.json"), "w") as f:
-        json.dump({"config": vars(args), "raw": raw, "fingerprint": fingerprint,
-                   "type_iv_range": type_iv_range}, f, indent=2)
+    dump_json({"config": vars(args), "raw": raw, "fingerprint": fingerprint,
+               "type_iv_range": type_iv_range},
+              os.path.join(RESULTS_DIR, "shift_vorticity.json"))
     print(f"\nWrote {os.path.join(RESULTS_DIR, 'shift_vorticity.json')}")
 
     if not args.smoke:

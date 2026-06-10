@@ -21,6 +21,8 @@ import argparse
 import os
 import time
 
+from _json_io import dump_json
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -251,7 +253,6 @@ def main():
             }
 
     # Save results
-    import json
     out_path = os.path.join(RESULTS_DIR, "missed_detection_comparison.json")
     # Convert to serializable
     serializable = {}
@@ -269,8 +270,7 @@ def main():
                     for ns, r in data["sampling_results"].items()
                 },
             }
-    with open(out_path, "w") as f:
-        json.dump(serializable, f, indent=2)
+    dump_json(serializable, out_path)
     print(f"\nResults saved to {out_path}")
 
 

@@ -28,6 +28,8 @@ from __future__ import annotations
 import json
 import os
 
+from _json_io import dump_json
+
 import numpy as np
 
 HERE = os.path.dirname(__file__)
@@ -148,8 +150,7 @@ def main():
         "fits": fits,
     }
     out_path = os.path.join(RESULTS_DIR, "ssv_bound.json")
-    with open(out_path, "w") as f:
-        json.dump(out, f, indent=2)
+    dump_json(out, out_path)
     print(f"\nWrote {out_path}")
     write_table(fits, os.path.join(TABLES_DIR, "ssv_bound.tex"))
 

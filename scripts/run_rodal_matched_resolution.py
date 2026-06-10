@@ -18,10 +18,11 @@ Usage
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from datetime import datetime, timezone
+
+from _json_io import dump_json
 
 import matplotlib
 matplotlib.use("Agg")
@@ -216,8 +217,7 @@ def save_json(results, stability, start_time):
     }
 
     outpath = os.path.join(RESULTS_DIR, "rodal_matched_resolution.json")
-    with open(outpath, "w") as f:
-        json.dump(output, f, indent=2)
+    dump_json(output, outpath)
     print(f"\nJSON saved to {outpath}")
     return output
 

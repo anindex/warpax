@@ -23,10 +23,11 @@ Usage
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from datetime import datetime, timezone
+
+from _json_io import dump_json
 
 import matplotlib
 
@@ -427,8 +428,7 @@ def save_json(results, summary, start_time):
         "summary": summary,
     }
     outpath = os.path.join(RESULTS_DIR, "superluminal_characterization.json")
-    with open(outpath, "w") as f:
-        json.dump(output, f, indent=2)
+    dump_json(output, outpath)
     print(f"\nJSON saved to {outpath}")
 
 

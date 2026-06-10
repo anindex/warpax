@@ -31,9 +31,10 @@ Show help::
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import time
+
+from _json_io import dump_json
 
 import numpy as np
 
@@ -387,8 +388,7 @@ def save_scaling_json(
         "tidal_scaling": tidal_data,
         "blueshift_divergence": blueshift_data,
     }
-    with open(out_path, "w") as f:
-        json.dump(payload, f, indent=2)
+    dump_json(payload, out_path)
     print(f"\n  Saved scaling data: {out_path}")
     return out_path
 

@@ -23,20 +23,17 @@ import jax.numpy as jnp
 from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
+from ..geodesics._result_codes import (
+    RESULT_SUCCESS,
+    result_code_to_int,
+    termination_reason,
+)
 from ..geodesics.integrator import GeodesicResult
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
 
 
 _VALID_TANGENT_NORM = frozenset({"renormalized", "fixed"})
-_SUCCESS_CODE = 0
-_TERMINATION_REASONS: dict[int, str] = {
-    0: "complete",
-    1: "max_steps",
-    2: "nan",
-    3: "out_of_bounds",
-    4: "singularity",
-}
 
 
 class AWECResult(NamedTuple):
@@ -52,8 +49,10 @@ class AWECResult(NamedTuple):
         True iff the Diffrax integrator completed without early
         termination .
     termination_reason : str
-        Human-readable reason: ``'complete'``, ``'max_steps'``,
-        ``'nan'``, ``'out_of_bounds'``, or ``'singularity'``.
+        Human-readable reason: ``'complete'`` on success; otherwise a
+        Diffrax failure mode (e.g. ``'max_steps'``, ``'nonfinite'``,
+        ``'dt_min_reached'``, ``'event_occurred'``) or ``'unknown'``
+        for an unrecognized result code.
     """
 
     line_integral: Float[Array, ""]
@@ -104,11 +103,13 @@ def _extract_trajectory(
 ]:
     """Return (ts, positions, velocities, result_code)."""
     if isinstance(geodesic, GeodesicResult):
+        # Robust conversion (diffrax 0.7.x EnumerationItem is not
+        # int()-convertible); never defaults to success.
         return (
             geodesic.ts,
             geodesic.positions,
             geodesic.velocities,
-            int(geodesic.result),
+            result_code_to_int(geodesic.result),
         )
     lam_min, lam_max = affine_bounds
     lam = jnp.linspace(lam_min, lam_max, n_samples)
@@ -118,7 +119,7 @@ def _extract_trajectory(
 
     positions = jax.vmap(_pos)(lam)
     velocities = jax.vmap(jax.jacfwd(_pos))(lam)
-    return lam, positions, velocities, _SUCCESS_CODE
+    return lam, positions, velocities, RESULT_SUCCESS
 
 
 @jaxtyped(typechecker=beartype)
@@ -180,11 +181,10 @@ def awec(
     # non-uniform lam spacing returned by the sampler.
     line_integral = jnp.trapezoid(integrand, lam)
 
-    geodesic_complete = result_code == _SUCCESS_CODE
-    termination_reason = _TERMINATION_REASONS.get(result_code, "unknown")
+    geodesic_complete = result_code == RESULT_SUCCESS
 
     return AWECResult(
         line_integral=line_integral,
         geodesic_complete=geodesic_complete,
-        termination_reason=termination_reason,
+        termination_reason=termination_reason(result_code),
     )

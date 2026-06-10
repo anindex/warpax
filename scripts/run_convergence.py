@@ -23,9 +23,10 @@ margin for convergence. Use --full-100 to force optimization at 100^3
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import time
+
+from _json_io import dump_json
 
 import matplotlib
 matplotlib.use("Agg")
@@ -235,8 +236,7 @@ def main():
 
     # Save convergence data
     output_path = os.path.join(results_dir, "convergence_data.json")
-    with open(output_path, "w") as f:
-        json.dump(convergence_data, f, indent=2)
+    dump_json(convergence_data, output_path)
     print(f"\nSaved: {output_path}")
 
     print("\nDone.")

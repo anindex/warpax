@@ -14,9 +14,10 @@ cross-check is in ``run_anec_geodesic_check.py``.
 """
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
+
+from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -130,31 +131,30 @@ def main():
         y_scan["Fuchs"].append({"y": y, "line_integral": rf["line_integral"]})
         y_scan["Alcubierre"].append({"y": y, "line_integral": ra["line_integral"]})
 
-    with open(OUTPUT_DIR / "summary.json", "w") as f:
-        json.dump({
-            "anec_line_integrals": summary,
-            "y_offset_scan": y_scan,
-            "notes": {
-                "method": (
-                    "Coordinate null ray with affine straight-line "
-                    "parameterization in coordinates (not a "
-                    "metric-integrated geodesic).  See "
-                    "run_anec_geodesic_check.py for the geodesic-integrated "
-                    "supplementary cross-check."
-                ),
-                "high_C_tshell": {
-                    "compactness": high_C, "thickness_ratio": high_dR,
-                    "R_1": R_1_high, "R_2": R_2, "rho_0": rho_0_high,
-                    "v_0": 0.1,
-                },
-                "interpretation": (
-                    "high-C T-shell tests whether pointwise binding-corner DEC "
-                    "violation flips averaged ANEC sign; y-scan tests that the "
-                    "off-axis ray choice is not a coordinate artifact for "
-                    "spherically symmetric shells."
-                ),
+    dump_json({
+        "anec_line_integrals": summary,
+        "y_offset_scan": y_scan,
+        "notes": {
+            "method": (
+                "Coordinate null ray with affine straight-line "
+                "parameterization in coordinates (not a "
+                "metric-integrated geodesic).  See "
+                "run_anec_geodesic_check.py for the geodesic-integrated "
+                "supplementary cross-check."
+            ),
+            "high_C_tshell": {
+                "compactness": high_C, "thickness_ratio": high_dR,
+                "R_1": R_1_high, "R_2": R_2, "rho_0": rho_0_high,
+                "v_0": 0.1,
             },
-        }, f, indent=2)
+            "interpretation": (
+                "high-C T-shell tests whether pointwise binding-corner DEC "
+                "violation flips averaged ANEC sign; y-scan tests that the "
+                "off-axis ray choice is not a coordinate artifact for "
+                "spherically symmetric shells."
+            ),
+        },
+    }, OUTPUT_DIR / "summary.json")
     print(f"\n  -> {OUTPUT_DIR}")
 
 

@@ -7,10 +7,11 @@ for grid stability.
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from pathlib import Path
+
+from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -63,7 +64,7 @@ def main():
         out.append({**pt, "by_resolution": runs,
                     "sign_stable": all(s == signs[0] for s in signs)})
 
-    OUTPUT.write_text(json.dumps(out, indent=2))
+    dump_json(out, OUTPUT)
     print(f"\n  -> {OUTPUT}")
 
 

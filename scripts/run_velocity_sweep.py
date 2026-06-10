@@ -29,6 +29,8 @@ import argparse
 import json
 import os
 
+from _json_io import dump_json
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -251,8 +253,7 @@ def main():
                   f"TypeIV={r['wall_frac_type_iv']*100:5.1f}%  "
                   f"NECmin={r['typeI_nec_min']:.3g}  DECmin={r['typeI_dec_min']:.3g}")
 
-    with open(os.path.join(RESULTS_DIR, "velocity_sweep.json"), "w") as f:
-        json.dump({"config": vars(args), "rows": rows}, f, indent=2)
+    dump_json({"config": vars(args), "rows": rows}, os.path.join(RESULTS_DIR, "velocity_sweep.json"))
     print(f"\nWrote {os.path.join(RESULTS_DIR, 'velocity_sweep.json')}")
 
     if not args.smoke:

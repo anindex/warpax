@@ -16,9 +16,10 @@ Proposals evaluated:
 """
 from __future__ import annotations
 
-import json
 import sys
 import time
+
+from _json_io import dump_json
 
 import jax
 import jax.numpy as jnp
@@ -400,8 +401,7 @@ def run_all_evaluations():
             for r in reports
         },
     }
-    with open(report_path, "w") as f:
-        json.dump(combined, f, indent=2, default=str)
+    dump_json(combined, report_path, default=str)
     print(f"Combined report: {report_path}")
 
     return combined

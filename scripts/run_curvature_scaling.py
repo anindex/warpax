@@ -29,6 +29,8 @@ import argparse
 import json
 import os
 
+from _json_io import dump_json
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -249,8 +251,7 @@ def main():
             print(f"    {name:16s} {key:14s} q={_f(fl['q'])}  "
                   f"A={_f(fl['A'],3)}  R^2={_f(fl['r_squared'],4)}")
 
-    with open(os.path.join(RESULTS_DIR, "curvature_scaling.json"), "w") as f:
-        json.dump({"config": vars(args), "rows": rows, "fits": fits}, f, indent=2)
+    dump_json({"config": vars(args), "rows": rows, "fits": fits}, os.path.join(RESULTS_DIR, "curvature_scaling.json"))
     print(f"\nWrote {os.path.join(RESULTS_DIR, 'curvature_scaling.json')}")
 
     if not args.smoke:

@@ -20,9 +20,10 @@ Usage
 """
 from __future__ import annotations
 
-import json
 import math
 import os
+
+from _json_io import dump_json
 
 
 def main():
@@ -152,8 +153,7 @@ def main():
 
     # Save JSON
     out_path = os.path.join(results_dir, "wall_resolution.json")
-    with open(out_path, "w") as f:
-        json.dump(results, f, indent=2)
+    dump_json(results, out_path)
     print(f"\nSaved: {out_path}")
 
 

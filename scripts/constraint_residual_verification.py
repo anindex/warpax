@@ -16,8 +16,9 @@ Conventions:
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
+
+from _json_io import dump_json
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -224,8 +225,7 @@ def main():
 
     out_path = Path(__file__).resolve().parents[1] / "results" / "constraint_residual_verification.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w") as f:
-        json.dump(out, f, indent=2)
+    dump_json(out, out_path)
     print(f"Saved: {out_path}")
 
     # Compact table

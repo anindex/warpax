@@ -8,9 +8,10 @@ Lentz comparison cases. Outputs a structured JSON report.
 """
 from __future__ import annotations
 
-import json
 import sys
 import time
+
+from _json_io import dump_json
 
 import jax
 import jax.numpy as jnp
@@ -350,8 +351,7 @@ def run_fuchs_evaluation():
     from pathlib import Path
     report_path = Path(__file__).resolve().parents[1] / "results" / "fuchs_verification_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(report_path, "w") as f:
-        json.dump(report, f, indent=2)
+    dump_json(report, report_path)
     print(f"Report: {report_path}")
 
     # Verdict

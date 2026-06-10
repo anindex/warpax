@@ -14,16 +14,15 @@ The ``geodesic_complete`` flag and ``termination_reason`` field on
 
 .. note::
 
-   ``tangent_norm='renormalized'`` (the default) is a near-identity
-   rescale that protects against zero-``u^0`` numerical degeneracies;
-   it does **not** project the tangent onto the null cone. The
-   line integral is therefore evaluated along the geodesic tangent
-   produced by Diffrax, which can drift from exact null by integrator
-   tolerance. ``'fixed'`` selects the unmodified tangent. Treat the
-   resulting ANEC value as a coordinate-ray integral; for an exact
-   null-cone observable, decrease ``rtol``/``atol`` on the geodesic
-   integrator. See :func:`_tangent_renormalized_null` for the
-   implementation detail.
+   ``tangent_norm='null_projected'`` (the default) rescales the spatial
+   part of each sampled tangent so ``g(k, k) = 0`` exactly, making the
+   line integral a genuine null-cone average even when the underlying
+   integrator drifts off the cone. ``'renormalized'`` (the legacy
+   default) is a near-identity rescale that protects against
+   zero-``u^0`` numerical degeneracies but does **not** project onto
+   the null cone; ``'fixed'`` selects the unmodified tangent. For
+   certification use ``'null_projected'`` or the symplectic integrator
+   (:func:`anec_rigorous`).
 """
 from __future__ import annotations
 
@@ -35,6 +34,11 @@ import jax.numpy as jnp
 from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
+from ..geodesics._result_codes import (
+    RESULT_SUCCESS,
+    result_code_to_int,
+    termination_reason,
+)
 from ..geodesics.integrator import GeodesicResult
 from ..geodesics.observables import velocity_norm
 from ..geodesics.symplectic import (
@@ -47,19 +51,6 @@ from ..geometry.metric import MetricSpecification
 
 
 _VALID_TANGENT_NORM = frozenset({"renormalized", "fixed", "null_projected"})
-
-# Diffrax result-code convention (matches `diffrax.RESULTS`):
-# 0 = successful, anything else = non-success.
-_SUCCESS_CODE = 0
-
-# Human-readable termination reason dispatch
-_TERMINATION_REASONS: dict[int, str] = {
-    0: "complete",
-    1: "max_steps",
-    2: "nan",
-    3: "out_of_bounds",
-    4: "singularity",
-}
 
 
 class ANECResult(NamedTuple):
@@ -75,8 +66,10 @@ class ANECResult(NamedTuple):
         True iff the Diffrax integrator completed without early
         termination .
     termination_reason : str
-        Human-readable reason: ``'complete'``, ``'max_steps'``,
-        ``'nan'``, ``'out_of_bounds'``, or ``'singularity'``.
+        Human-readable reason: ``'complete'`` on success; otherwise a
+        Diffrax failure mode (e.g. ``'max_steps'``, ``'nonfinite'``,
+        ``'dt_min_reached'``, ``'event_occurred'``) or ``'unknown'``
+        for an unrecognized result code.
     max_abs_g_kk : Float[Array, ""]
         Rigor witness: the worst off-cone deviation ``max_n |g_{ab} k^a k^b|``
         over the sampled tangents. For a genuine null average this should be
@@ -117,6 +110,10 @@ def _project_to_null(
 
     Splits ``u = u_t e_0 + u_s`` (along the coordinate ``t``-axis) and
     solves the quadratic for ``lambda`` in ``k = u_t e_0 + lambda u_s``.
+    Of the two roots, picks the one closest to 1 (jit-safe), so an
+    already-null tangent is returned unchanged. The naive ``+sqrt`` root
+    selects the reflected null branch wherever ``g_00 > 0`` (e.g. inside
+    a superluminal Alcubierre bubble), mangling exactly-null input.
     Exact on Minkowski-like metrics; stable Lagrange projection elsewhere.
     """
     e0 = jnp.array([1.0, 0.0, 0.0, 0.0], dtype=u.dtype)
@@ -127,7 +124,14 @@ def _project_to_null(
     cross = 2.0 * jnp.einsum("ab,a,b->", g_ab, u_t * e0, u_s)
     disc = cross**2 - 4.0 * A_s * A_t
     sqrt_disc = jnp.sqrt(jnp.maximum(disc, 0.0))
-    lam = (-cross + sqrt_disc) / (2.0 * A_s + 1e-30)
+    denom = 2.0 * A_s + 1e-30
+    lam_plus = (-cross + sqrt_disc) / denom
+    lam_minus = (-cross - sqrt_disc) / denom
+    lam = jnp.where(
+        jnp.abs(lam_plus - 1.0) <= jnp.abs(lam_minus - 1.0),
+        lam_plus,
+        lam_minus,
+    )
     return u_t * e0 + lam * u_s
 
 
@@ -168,14 +172,13 @@ def _extract_trajectory(
     # (carries a bool ``complete`` + ``termination_reason``).
     if hasattr(geodesic, "positions") and hasattr(geodesic, "velocities"):
         if hasattr(geodesic, "result"):
-            raw = geodesic.result
-            try:
-                result_code = int(getattr(raw, "value", raw))
-            except (TypeError, ValueError):
-                result_code = _SUCCESS_CODE
+            # Robust conversion (diffrax 0.7.x EnumerationItem carries
+            # ``._value``, not ``.value``); never defaults to success.
+            result_code = result_code_to_int(geodesic.result)
         else:
-            # Symplectic result: map completeness to the diffrax code convention.
-            result_code = _SUCCESS_CODE if bool(geodesic.complete) else 2
+            # Symplectic result: map completeness to the diffrax code
+            # convention (9 = nonfinite, its only failure mode).
+            result_code = RESULT_SUCCESS if bool(geodesic.complete) else 9
         return (
             geodesic.ts,
             geodesic.positions,
@@ -191,7 +194,7 @@ def _extract_trajectory(
 
     positions = jax.vmap(_pos)(lam)
     velocities = jax.vmap(jax.jacfwd(_pos))(lam)
-    return lam, positions, velocities, _SUCCESS_CODE
+    return lam, positions, velocities, RESULT_SUCCESS
 
 
 @jaxtyped(typechecker=beartype)
@@ -202,7 +205,7 @@ def anec(
         SymplecticGeodesicResult,
         Callable[[Float[Array, ""]], Float[Array, "4"]],
     ],
-    tangent_norm: str = "renormalized",
+    tangent_norm: str = "null_projected",
     n_samples: int = 256,
     affine_bounds: tuple[float, float] = (-5.0, 5.0),
     null_tol: float = 1e-8,
@@ -221,16 +224,26 @@ def anec(
         ``jax.jacfwd`` and the affine parameter is sampled uniformly
         over ``affine_bounds``.
     tangent_norm : str
-        - ``'renormalized'`` (default): legacy historical option; preserves
+        - ``'null_projected'`` (default): rescale the spatial part of the
+          tangent so that ``g_{ab} k^a k^b = 0`` exactly, via a
+          Lagrange-style quadratic solve. Identity for already-null
+          tangents; corrects integrator drift off the null cone.
+        - ``'renormalized'``: legacy historical option; preserves
           direction up to a numerical floor and is the identity for null
-          tangents (see :func:`_tangent_renormalized_null`).
-        - ``'null_projected'``: rescale the spatial part of the tangent
-          so that ``g_{ab} k^a k^b = 0`` exactly, via a Lagrange-style
-          quadratic solve. Use this when the underlying geodesic
-          integrator drifts off the null cone enough to bias the
-          integral.
+          tangents (see :func:`_tangent_renormalized_null`). Does NOT
+          project onto the null cone.
         - ``'fixed'``: pass the raw velocity through; integral is then a
           coordinate-ray average rather than a null average.
+
+        .. admonition:: Recommendation
+
+           For certification-grade ANEC values use ``'null_projected'``
+           (the default) or, better, the symplectic geodesic integrator
+           via :func:`anec_rigorous`, which keeps the raw tangent on the
+           null cone to ~machine precision and carries an explicit
+           on-cone witness. ``'renormalized'`` and ``'fixed'`` evaluate
+           coordinate-ray averages whenever the integrated tangent has
+           drifted off the cone.
     n_samples : int
         Number of affine samples when ``geodesic`` is a callable.
     affine_bounds : tuple[float, float]
@@ -285,13 +298,12 @@ def anec(
     max_abs_g_kk = jnp.max(jnp.abs(g_kk))
     null_preserved = bool(max_abs_g_kk < null_tol)
 
-    geodesic_complete = result_code == _SUCCESS_CODE
-    termination_reason = _TERMINATION_REASONS.get(result_code, "unknown")
+    geodesic_complete = result_code == RESULT_SUCCESS
 
     return ANECResult(
         line_integral=line_integral,
         geodesic_complete=geodesic_complete,
-        termination_reason=termination_reason,
+        termination_reason=termination_reason(result_code),
         max_abs_g_kk=max_abs_g_kk,
         null_preserved=null_preserved,
     )

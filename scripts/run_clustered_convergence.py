@@ -28,9 +28,10 @@ Usage
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import time
+
+from _json_io import dump_json
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -257,8 +258,7 @@ def main():
 
     alc_panel = alcubierre_panel(args)
     out_alc = os.path.join(args.results_dir, "clustered_convergence_alcubierre.json")
-    with open(out_alc, "w") as f:
-        json.dump(alc_panel, f, indent=2)
+    dump_json(alc_panel, out_alc)
     print(f"\nWrote {out_alc}")
 
     write_convergence_table(alc_panel, "../warpax_arxiv/tables/clustered_convergence.tex")
@@ -267,8 +267,7 @@ def main():
         rodal_panel = rodal_matched_panel(args)
         out_rodal = os.path.join(args.results_dir,
                                  "clustered_convergence_rodal_matched.json")
-        with open(out_rodal, "w") as f:
-            json.dump(rodal_panel, f, indent=2)
+        dump_json(rodal_panel, out_rodal)
         print(f"Wrote {out_rodal}")
 
     # Print summary

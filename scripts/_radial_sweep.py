@@ -6,10 +6,11 @@ violation counts, worst margins) used by ``run_*.py`` callers.
 """
 from __future__ import annotations
 
-import json
 import sys
 import time
 from pathlib import Path
+
+from _json_io import dump_json
 
 import jax
 import jax.numpy as jnp
@@ -109,6 +110,5 @@ def radial_sweep(
 
 def save_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2, default=str)
+    dump_json(data, path, default=str)
     print(f"  -> {path}")

@@ -6,10 +6,11 @@ physical transport signal rather than a coordinate artifact.
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from pathlib import Path
+
+from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -54,7 +55,7 @@ def main():
         print(f"  delta_tau = {float(dt):+.5e}  ({rec['elapsed_s']:.1f}s)")
         results.append(rec)
 
-    OUTPUT.write_text(json.dumps({"results": results}, indent=2))
+    dump_json({"results": results}, OUTPUT)
     print(f"\n  -> {OUTPUT}")
 
 

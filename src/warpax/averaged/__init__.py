@@ -6,7 +6,7 @@ semantics .
 
 Public API:
 
-- ``anec(metric, geodesic, tangent_norm='renormalized')`` - Averaged
+- ``anec(metric, geodesic, tangent_norm='null_projected')`` - Averaged
   Null Energy Condition line integral along a null geodesic.
 - ``awec(metric, geodesic, tangent_norm='renormalized')`` - Averaged
   Weak Energy Condition line integral along a timelike geodesic.

@@ -28,10 +28,11 @@ Usage
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import time
 from types import SimpleNamespace
+
+from _json_io import dump_json
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -234,20 +235,19 @@ def main():
             panels[name].append(r)
 
     out_json = os.path.join(RESULTS_DIR, "matched_benchmark.json")
-    with open(out_json, "w") as f:
-        json.dump(
-            {
-                "metadata": {
-                    "v_s": V_S, "R": 1.0, "sigma": 8.0,
-                    "bounds": [list(b) for b in BOUNDS],
-                    "resolutions": resolutions, "n_starts": args.n_starts,
-                    "wall_bounds": [F_LOW, F_HIGH], "grid": "wall_clustered(a=1.2)",
-                    "statistic": "volume-weighted wall-restricted conditional miss rate",
-                },
-                "panels": panels,
+    dump_json(
+        {
+            "metadata": {
+                "v_s": V_S, "R": 1.0, "sigma": 8.0,
+                "bounds": [list(b) for b in BOUNDS],
+                "resolutions": resolutions, "n_starts": args.n_starts,
+                "wall_bounds": [F_LOW, F_HIGH], "grid": "wall_clustered(a=1.2)",
+                "statistic": "volume-weighted wall-restricted conditional miss rate",
             },
-            f, indent=2,
-        )
+            "panels": panels,
+        },
+        out_json,
+    )
     print(f"\nWrote {out_json}")
 
     write_headline_table(panels, resolutions, os.path.join(TABLES_DIR, "missed_wall_restricted.tex"))

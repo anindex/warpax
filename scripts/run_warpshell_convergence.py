@@ -10,10 +10,11 @@ Output: results/warpshell_convergence.json
 """
 from __future__ import annotations
 
-import json
 import math
 import os
 import time
+
+from _json_io import dump_json
 
 import matplotlib
 matplotlib.use("Agg")
@@ -169,8 +170,7 @@ def main():
 
     # Save
     out_path = "results/warpshell_convergence.json"
-    with open(out_path, "w") as f:
-        json.dump(results, f, indent=2)
+    dump_json(results, out_path)
     print(f"\nResults saved to {out_path}")
 
     # Summary

@@ -9,9 +9,10 @@ R=100, sigma=0.03; 50-point radial sweep; n_starts=16).
 """
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
+
+from _json_io import dump_json
 
 from verify_proposals import evaluate_rodal  # sibling script on sys.path[0]
 
@@ -33,8 +34,7 @@ def main() -> None:
     }
     out_path = Path(__file__).resolve().parents[1] / "results" / "rodal_verification.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w") as f:
-        json.dump(out, f, indent=2, default=str)
+    dump_json(out, out_path, default=str)
 
     v = ec["violated"]
     print(f"\nRodal verification persisted: {out_path}")

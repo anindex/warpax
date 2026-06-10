@@ -838,3 +838,51 @@ def test_boosted_observer_trace_is_invariant():
     r_schw = _iso_to_schw_r(r_iso, M)
     bound = 4.0 * M / r_schw**3 * (np.cosh(float(rapidity)) ** 2)
     assert np.all(np.abs(eigs) < bound + 1e-9)
+
+
+class TestFutureDirectedICs:
+    """Regression: timelike_ic / null_ic must select the FUTURE-directed root.
+
+    Bug: both helpers deliberately returned the past-directed root
+    (``u^0 < 0`` / ``k^0 < 0`` for ``g_00 < 0``) with a docstring claiming
+    sign-insensitivity. That claim is false for time-dependent metrics:
+    an Alcubierre bubble at ``x_s = v_s t`` is not symmetric under
+    ``t -> -t`` (which maps ``v_s -> -v_s``), so a past-directed leg
+    traces a physically different trajectory.
+    """
+
+    # (metric, starting point) cases including a time-dependent metric
+    CASES = [
+        ("Minkowski", MinkowskiMetric(), jnp.array([0.0, 0.0, 0.0, 0.0])),
+        ("Schwarzschild", SchwarzschildMetric(M=1.0), jnp.array([0.0, 10.0, 0.0, 0.0])),
+        ("Alcubierre", AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0),
+         jnp.array([0.0, 5.0, 0.1, 0.0])),
+    ]
+
+    @pytest.mark.parametrize("name,metric,x0", CASES, ids=[c[0] for c in CASES])
+    def test_timelike_ic_future_directed(self, name, metric, x0):
+        """v^0 > 0 and g(v, v) = -1 for the returned timelike IC."""
+        _, v0 = timelike_ic(metric, x0, jnp.array([0.3, 0.0, 0.0]))
+        assert float(v0[0]) > 0.0, f"{name}: past-directed v^0 = {float(v0[0])}"
+        norm = float(jnp.einsum("a,ab,b->", v0, metric(x0), v0))
+        assert abs(norm + 1.0) < 1e-12, f"{name}: norm {norm} != -1"
+
+    @pytest.mark.parametrize("name,metric,x0", CASES, ids=[c[0] for c in CASES])
+    def test_null_ic_future_directed(self, name, metric, x0):
+        """k^0 > 0 and g(k, k) = 0 for the returned null IC."""
+        _, k0 = null_ic(metric, x0, jnp.array([1.0, 0.0, 0.0]))
+        assert float(k0[0]) > 0.0, f"{name}: past-directed k^0 = {float(k0[0])}"
+        norm = float(jnp.einsum("a,ab,b->", k0, metric(x0), k0))
+        assert abs(norm) < 1e-12, f"{name}: null norm {norm} != 0"
+
+    def test_superluminal_nan_sentinel_preserved(self):
+        """Future-root selection keeps the disc < 0 NaN sentinel intact.
+
+        A static observer (zero 3-velocity) does not exist inside a
+        superluminal Alcubierre bubble (g_00 > 0 there), so timelike_ic
+        must still return the NaN sentinel rather than a spurious root.
+        """
+        m = AlcubierreMetric(v_s=2.0, R=2.0, sigma=8.0)
+        _, v0 = timelike_ic(m, jnp.array([0.0, 0.1, 0.0, 0.0]),
+                            jnp.array([0.0, 0.0, 0.0]))
+        assert bool(jnp.isnan(v0[0])), "expected NaN sentinel for no real root"

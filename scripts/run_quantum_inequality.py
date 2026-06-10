@@ -33,6 +33,8 @@ import os
 import shutil
 from pathlib import Path
 
+from _json_io import dump_json
+
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import jax
@@ -263,8 +265,7 @@ def main() -> None:
         "order": ORDER,
         "metrics": per_metric,
     }
-    with open(os.path.join(RESULTS_DIR, "ford_roman.json"), "w") as f:
-        json.dump(qi, f, indent=2)
+    dump_json(qi, os.path.join(RESULTS_DIR, "ford_roman.json"))
     print(f"Wrote {os.path.join(RESULTS_DIR, 'ford_roman.json')}")
 
     with open(ANEC_JSON) as f:

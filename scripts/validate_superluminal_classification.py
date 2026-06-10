@@ -41,9 +41,10 @@ Usage
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import time
+
+from _json_io import dump_json
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -328,8 +329,7 @@ def main():
             )
 
     out_json = os.path.join(RESULTS_DIR, "superluminal_gate.json")
-    with open(out_json, "w") as f:
-        json.dump({"config": vars(args), "cells": cells}, f, indent=2)
+    dump_json({"config": vars(args), "cells": cells}, out_json)
     print(f"\nWrote {out_json}")
     write_report(cells, os.path.join(RESULTS_DIR, "superluminal_gate_report.md"))
 

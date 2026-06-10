@@ -21,9 +21,10 @@ overwrite the coordinate-ray ``summary.json`` consumed by
 """
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
+
+from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -108,20 +109,19 @@ def main():
         summary[name] = _evaluate(name, m)
 
     out_path = OUTPUT_DIR / "geodesic_check.json"
-    with open(out_path, "w") as f:
-        json.dump({
-            "method": (
-                "Metric-integrated null geodesic: null IC solved via "
-                "warpax.geodesics.null_ic; geodesic integrated by "
-                "warpax.geodesics.integrate_geodesic (Diffrax Tsit5, "
-                "rtol=atol=1e-10). g(k, k) drift along integrated "
-                "trajectory is reported alongside each line integral "
-                "as a numerical-null-preservation diagnostic; entries "
-                "with null_preserved=false should be read as a numerical "
-                "limit rather than a converged ANEC value."
-            ),
-            "results": summary,
-        }, f, indent=2)
+    dump_json({
+        "method": (
+            "Metric-integrated null geodesic: null IC solved via "
+            "warpax.geodesics.null_ic; geodesic integrated by "
+            "warpax.geodesics.integrate_geodesic (Diffrax Tsit5, "
+            "rtol=atol=1e-10). g(k, k) drift along integrated "
+            "trajectory is reported alongside each line integral "
+            "as a numerical-null-preservation diagnostic; entries "
+            "with null_preserved=false should be read as a numerical "
+            "limit rather than a converged ANEC value."
+        ),
+        "results": summary,
+    }, out_path)
     print(f"\n  -> {out_path}")
 
 

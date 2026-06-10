@@ -27,8 +27,9 @@ Outputs
 from __future__ import annotations
 
 import argparse
-import json
 import os
+
+from _json_io import dump_json
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -169,9 +170,8 @@ def main():
                            "peak_deficit_eul": r["peak_deficit_eul"]} for r in rows}
     rfac = reduction_factors(peaks) if "Alcubierre" in peaks else {}
 
-    with open(os.path.join(RESULTS_DIR, "invariant_verification.json"), "w") as f:
-        json.dump({"config": vars(args), "rows": rows, "reduction_factors": rfac},
-                  f, indent=2)
+    dump_json({"config": vars(args), "rows": rows, "reduction_factors": rfac},
+              os.path.join(RESULTS_DIR, "invariant_verification.json"))
     print(f"\nWrote {os.path.join(RESULTS_DIR, 'invariant_verification.json')}")
     if rfac:
         print("\nPeak-deficit reduction factors vs Alcubierre (invariant / Eulerian):")

@@ -15,9 +15,10 @@ and algebraic truth, producing a convergence-of-sampled-min figure.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import time
+
+from _json_io import dump_json
 
 import jax
 import jax.numpy as jnp
@@ -191,8 +192,7 @@ def main():
 
     # Save results
     out_path = f"{args.results_dir}/sampling_comparison.json"
-    with open(out_path, "w") as f:
-        json.dump(results, f, indent=2)
+    dump_json(results, out_path)
     print(f"\nResults saved to {out_path}")
 
 
@@ -397,16 +397,15 @@ def fibonacci_dec_comparison():
 
     # Save JSON
     json_out = "results/fibonacci_dec_comparison.json"
-    with open(json_out, "w") as f:
-        json.dump({
-            "n_zeta": n_zeta,
-            "zeta_max": zeta_max,
-            "n_points": n_points,
-            "n_violations": n_viol,
-            "bfgs_min_dec": float(np.nanmin(bfgs_dec)),
-            "alg_min_dec": float(np.nanmin(alg_dec)),
-            "results": results,
-        }, f, indent=2)
+    dump_json({
+        "n_zeta": n_zeta,
+        "zeta_max": zeta_max,
+        "n_points": n_points,
+        "n_violations": n_viol,
+        "bfgs_min_dec": float(np.nanmin(bfgs_dec)),
+        "alg_min_dec": float(np.nanmin(alg_dec)),
+        "results": results,
+    }, json_out)
     print(f"JSON saved: {json_out}")
 
 
