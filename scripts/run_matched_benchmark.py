@@ -1,7 +1,7 @@
 """Matched-parameter, wall-resolved cross-metric benchmark.
 
-Addresses the central referee request: a common-parameter, wall-resolved
-comparison of all *resolved* warp metrics. Every metric is evaluated at the
+A common-parameter, wall-resolved comparison of all *resolved* warp
+metrics. Every metric is evaluated at the
 SAME family parameters (R = 1, sigma = 8) on identical compact bounds, using
 wall-clustered grids that place several cells across the bubble wall, and the
 reported statistic is the volume-weighted, WALL-RESTRICTED conditional miss

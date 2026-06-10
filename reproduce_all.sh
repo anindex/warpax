@@ -229,6 +229,10 @@ run_ablation() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_rodal_matched_resolution.py"
 
     echo ""
+    echo "[+] run_rodal_native_resolution.py Rodal native-param resolution stability"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_rodal_native_resolution.py"
+
+    echo ""
     echo "[+] run_lentz_wall_assessment.py Lentz wall resolution assessment"
     $PYTHON "${SCRIPT_DIR}/scripts/run_lentz_wall_assessment.py"
 
@@ -247,14 +251,18 @@ run_figures() {
     echo "============================================================"
 
     echo ""
-    echo "[1/2] reproduce_figures.py Generate all figure PDFs"
+    echo "[1/3] reproduce_figures.py Generate all figure PDFs"
     $PYTHON "${SCRIPT_DIR}/scripts/reproduce_figures.py" \
         --figures-dir "${FIGURES_DIR}/" \
         --results-dir "${RESULTS_DIR}/"
 
     echo ""
-    echo "[2/2] generate_vdb_comparison_figures.py VdB NEC/WEC/SEC/DEC panels"
+    echo "[2/3] generate_vdb_comparison_figures.py VdB NEC/WEC/SEC/DEC panels"
     $PYTHON "${SCRIPT_DIR}/scripts/generate_vdb_comparison_figures.py"
+
+    echo ""
+    echo "[3/3] emit_diagnostic_tables.py Diagnostic/ablation LaTeX tables"
+    $PYTHON "${SCRIPT_DIR}/scripts/emit_diagnostic_tables.py"
 
     echo ""
     echo "[sync] Copy generated figures into the paper folder"

@@ -183,6 +183,17 @@ def main():
             print(f"    Eulerian EC: {time.time() - t0:.1f}s")
             print(f"    NOTE: Using Eulerian NEC margin for convergence at {N}^3")
 
+        # Exclude the exact coordinate center, where the C-infinity
+        # regularization guard (epsilon ~ 1e-12 inside r_s) dominates the
+        # autodiff derivatives and produces a spurious O(1/epsilon) margin.
+        # Only odd N samples the center; the mask is empty otherwise.
+        axes = [np.linspace(lo, hi, n) for (lo, hi), n in zip(bounds, grid_spec.shape)]
+        X, Y, Z = np.meshgrid(*axes, indexing="ij")
+        core = (X * X + Y * Y + Z * Z) < 1e-12
+        if core.any():
+            nec_margin = np.where(core, np.nan, nec_margin)
+            print(f"    Excluded {int(core.sum())} regularized-core point(s) at r=0")
+
         # Extract convergence quantities
         q_min = compute_convergence_quantity(nec_margin, "min_margin")
         q_l2 = compute_convergence_quantity(nec_margin, "l2_violation")
@@ -224,6 +235,7 @@ def main():
             "observed_order": result["observed_order"],
             "error_estimate": result["error_estimate"],
             "converged": result["converged"],
+            "fallback": result.get("fallback", False),
         }
 
         print(f"\n  {qname}:")

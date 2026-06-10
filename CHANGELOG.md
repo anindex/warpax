@@ -61,6 +61,15 @@ history is summarized in `docs/explanation/release_notes.md`.
   $f = \kappa\,\omega$ with slope $\kappa \approx 0.06$ in the controlled
   construction (`analysis.vorticity_type_analytic`,
   `derive_vorticity_type.py`; controlled pure-rotation fit $R^2 = 1$).
+- **Shear amplification of the Type-IV pair quantified**: the cross-metric
+  validation now records the shift expansion, shear, shear-to-vorticity ratio,
+  and the excess of the measured $f$ over the pure-rotation prediction
+  $\kappa\,\omega$ at the matched wall sample (`excess_over_pure_rotation` in
+  `analysis.vorticity_type_analytic`). The excess (x2.1 Van den Broeck, x3.7
+  Alcubierre, x31.8 Natário) grows with $\sigma/\omega$; the zero-expansion
+  Natário wall makes the symmetric gradient pure shear, and the irrotational
+  Rodal shift carries same-order shear with $f = 0$ — shear amplifies the
+  imaginary pair that vorticity opens, but does not open one itself.
 - **Invariant exoticity ranking and $v_s$ scaling laws**: a boost-invariant
   multi-axis figure of merit (NEC severity, Type-IV fraction, rigorous ANEC
   minimum) plus power-law fits of the NEC severity, recovering the universal
@@ -197,6 +206,17 @@ Type-IV points are no longer absorbed.
   tiebreak across 30 decades of $\|T\|$, DEC bound-vs-optimizer parity), plus
   future-directed IC, null-projection, result-code, checkpoint, and
   ET-convention tests in their home modules.
+- Diagnostic/ablation tables are now script-emitted from cached results
+  (`scripts/emit_diagnostic_tables.py`, wired into the figures stage of
+  `reproduce_all.sh`): the uniform-grid missed-violation table, the
+  Hawking-Ellis type breakdown, the `N_starts` ablation, the C1-vs-C2
+  WarpShell smoothness comparison, and the Richardson convergence table all
+  trace to `results/*.json` and cannot drift.
+- The wall-restricted analysis records the full-grid `max|Im lambda|` per
+  metric, and the Richardson convergence study excludes the exact coordinate
+  center, where the C-infinity regularization guard (not physics) dominates
+  the autodiff derivatives at odd grid sizes; the convergence JSON also keeps
+  the non-monotone-fallback flag so assumed-order entries are labelled.
 
 ---
 

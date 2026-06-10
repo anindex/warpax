@@ -19,11 +19,11 @@ reproducibility):
 
 | Script | Produces | Paper artifact |
 |--------|----------|----------------|
-| `validate_superluminal_classification.py` | `results/superluminal_gate*` | Type-IV trustworthiness gate (3-solver + 50-digit) |
 | `run_velocity_sweep.py` | `tables/velocity_type_structure.tex`, `figures/velocity_type_structure.pdf`, `figures/rodal_invariant_margins.pdf` | K1: type/EC structure across the luminal transition |
 | `run_invariant_verification.py` | `tables/invariant_benchmark.tex` | K2: invariant all-observer verification (single-frame miss, E_-) |
-| `run_shift_vorticity.py` | `tables/shift_vorticity.tex`, `figures/shift_vorticity.pdf`, `results/shift_vorticity.json` | K3: shift vorticity controls the Hawking-Ellis type (reads cached `velocity_sweep.json`) |
-| `run_matched_benchmark.py` | `tables/missed_wall_restricted.tex`, `tables/convergence_per_metric.tex` | matched wall-resolved benchmark + per-metric convergence |
+| `validate_superluminal_classification.py` | `results/superluminal_gate*` | K3: Type-IV trustworthiness gate (3-solver + 50-digit) |
+| `run_matched_benchmark.py` | `tables/missed_wall_restricted.tex`, `tables/convergence_per_metric.tex` | K4: matched wall-resolved benchmark + per-metric convergence |
+| `run_shift_vorticity.py` | `tables/shift_vorticity.tex`, `figures/shift_vorticity.pdf`, `results/shift_vorticity.json` | K5: shift vorticity controls the Hawking-Ellis type (reads cached `velocity_sweep.json`) |
 
 Several convergence scripts overlap (`run_convergence.py`,
 `run_clustered_convergence.py`, `run_rodal_matched_resolution.py`,
@@ -36,6 +36,12 @@ prefer `run_matched_benchmark.py` (cross-metric) and `run_velocity_sweep.py`.
 
 | Script | Output |
 |--------|--------|
+| `run_anec_retained.py` | `results/anec/retained.json` (K6: ANEC line integrals along null rays) |
+| `run_anec_symplectic.py` | `results/anec/retained_symplectic.json`, `tables/anec_symplectic.tex` (K6b: rigorous geodesic-integrated ANEC, symplectic + on-cone witness) |
+| `run_quantum_inequality.py` | `results/quantum/ford_roman.json`, `tables/averaged_quantum.tex`, `figures/averaged_quantum.pdf` (K7: Ford-Roman quantum-inequality diagnostic, reads K6) |
+| `run_construction_verification.py` | `results/construction_verification.json`, `tables/construction_verification.tex` (K8: cross-construction all-observer verification) |
+| `run_exoticity_ranking.py` | `results/exoticity_ranking.json`, `tables/exoticity_ranking.tex`, `tables/scaling_laws.tex` (K9: boost-invariant exoticity ranking + v_s scaling laws, reads K1/K6b) |
+| `derive_vorticity_type.py` | `results/vorticity_type_analytic.json`, `figures/vorticity_type_mechanism.pdf` (K10: vorticity -> Type-IV mechanism f = kappa*omega; cross-metric entries record theta, sigma, sigma/omega, and the excess Im/(kappa*omega)) |
 | `run_curvature_scaling.py` | `results/curvature_scaling.json`, `tables/curvature_scaling.tex`, `figures/curvature_scaling.pdf` (K11: universal v_s scaling of wall curvature invariants) |
 | `run_ssv_bound.py` | `results/ssv_bound.json`, `tables/ssv_bound.tex` (K12: SSV NEC lower-bound saturation, reads K1) |
 | `run_analysis.py` | `results/comparison_table.json` |
@@ -60,15 +66,17 @@ prefer `run_matched_benchmark.py` (cross-metric) and `run_velocity_sweep.py`.
 | `run_missed_detection_comparison.py` | `results/missed_detection_comparison.json` |
 | `run_superluminal_investigation.py` | `results/superluminal_characterization.json` |
 | `run_rodal_matched_resolution.py` | `results/rodal_matched_resolution.json` |
+| `run_rodal_native_resolution.py` | `results/rodal_native_resolution.json`, `tables/rodal_resolution.tex` |
 | `run_lentz_wall_assessment.py` | `results/lentz_wall_assessment.json` |
 | `run_wall_restricted_analysis.py` | `results/wall_restricted_analysis.json` |
 
-### Figures
+### Figures and emitted tables
 
 | Script | Output |
 |--------|--------|
 | `reproduce_figures.py` | `figures/*.pdf` |
 | `generate_vdb_comparison_figures.py` | Van den Broeck comparison figures |
+| `emit_diagnostic_tables.py` | `tables/{missed_uniform,type_breakdown,nstarts,c1_vs_c2,convergence_richardson}.tex` from cached `results/*.json` |
 
 ## Paper verification
 

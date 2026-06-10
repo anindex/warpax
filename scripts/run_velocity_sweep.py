@@ -9,9 +9,9 @@ superluminal and record, on wall-clustered grids, the wall-restricted
   - Type-I invariant eigenvalue margins min(rho+p_i) [NEC] and min(rho-|p_i|) [DEC];
   - the proper-volume extent of Type-IV ("no rest frame") regions.
 
-This delivers the analysis the CQG referee (R2, pt 4) identified as missing: the
-local all-observer energy-condition problem studied in a tetrad/eigenvalue
-framework across subluminal, luminal, AND superluminal regimes. The Type-IV
+This delivers the local all-observer energy-condition problem studied in a
+tetrad/eigenvalue framework across subluminal, luminal, AND superluminal
+regimes. The Type-IV
 labels here are certified physical (not numerical artefact) by the companion
 gate ``validate_superluminal_classification.py`` (3-solver + 50-digit mpmath
 agreement); this production sweep therefore uses the fast standard eig solver.

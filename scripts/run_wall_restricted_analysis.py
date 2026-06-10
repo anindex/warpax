@@ -215,6 +215,10 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
         "wec_pct_missed": float(comparison.pct_missed["wec"]),
         "sec_pct_missed": float(comparison.pct_missed["sec"]),
         "dec_pct_missed": float(comparison.pct_missed["dec"]),
+        "max_imag_eigenvalue": (
+            float(ec_grid.max_imag_eigenvalue)
+            if ec_grid.max_imag_eigenvalue is not None else None
+        ),
     }
 
     wall_restricted_dict = {

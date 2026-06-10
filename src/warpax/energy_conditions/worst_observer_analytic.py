@@ -20,9 +20,9 @@ Hence:
 
   measures negative energy density.
 
-This makes precise the referee's point (CQG-115130.R2 pts 2,6): the "worst-case
-non-Eulerian observer" is not a numerical discovery of a rapidity-capped
-optimizer but a closed-form consequence of the eigenstructure of ``T^a_b``. The
+This makes the point precise: the "worst-case non-Eulerian observer" is not a
+numerical discovery of a rapidity-capped optimizer but a closed-form
+consequence of the eigenstructure of ``T^a_b``. The
 worst spatial boost direction is the principal eigenvector ``e_{i*}`` of the
 most-violating principal pressure, and the threshold rapidity is the closed form
 above. This module returns exactly those quantities; it is validated against the

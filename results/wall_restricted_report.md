@@ -1,6 +1,6 @@
 # Wall-Restricted Type-IV Analysis Report
 
-**Date:** 2026-06-10T07:53:06Z
+**Date:** 2026-06-10T12:49:55Z
 **Script:** `scripts/run_wall_restricted_analysis.py`
 **Grid resolution:** 50^3 (per metric; bounds follow run_analysis.py)
 **Wall region:** shape function in [0.1, 0.9]
@@ -18,7 +18,7 @@ Full-domain Type-IV fractions are computed over the full grid, which for large-b
 - Type I/II/III/IV wall breakdown: 0.00% / 0.00% / 0.00% / 100.00%
 - Full-grid miss % (Eulerian satisfied, robust violated): NEC=0.00%, WEC=0.00%, SEC=4.31%, DEC=0.00%
 - Wall-restricted conditional miss rate: NEC=0.00%, WEC=0.00%, SEC=15.38%, DEC=0.00%
-- Elapsed: 11.5s
+- Elapsed: 12.2s
 
 ## rodal
 
@@ -28,7 +28,7 @@ Full-domain Type-IV fractions are computed over the full grid, which for large-b
 - Type I/II/III/IV wall breakdown: 100.00% / 0.00% / 0.00% / 0.00%
 - Full-grid miss % (Eulerian satisfied, robust violated): NEC=1.58%, WEC=15.60%, SEC=28.01%, DEC=28.53%
 - Wall-restricted conditional miss rate: NEC=10.13%, WEC=60.78%, SEC=11.60%, DEC=62.67%
-- Elapsed: 1.2s
+- Elapsed: 2.1s
 
 ## vdb
 
@@ -38,7 +38,7 @@ Full-domain Type-IV fractions are computed over the full grid, which for large-b
 - Type I/II/III/IV wall breakdown: 15.38% / 0.00% / 0.00% / 84.62%
 - Full-grid miss % (Eulerian satisfied, robust violated): NEC=0.10%, WEC=0.36%, SEC=1.15%, DEC=0.31%
 - Wall-restricted conditional miss rate: NEC=13.33%, WEC=53.33%, SEC=13.46%, DEC=33.33%
-- Elapsed: 5.9s
+- Elapsed: 7.2s
 
 ## natario
 
@@ -48,7 +48,7 @@ Full-domain Type-IV fractions are computed over the full grid, which for large-b
 - Type I/II/III/IV wall breakdown: 9.62% / 0.00% / 0.00% / 90.38%
 - Full-grid miss % (Eulerian satisfied, robust violated): NEC=0.00%, WEC=0.00%, SEC=0.00%, DEC=0.00%
 - Wall-restricted conditional miss rate: NEC=0.00%, WEC=0.00%, SEC=0.00%, DEC=0.00%
-- Elapsed: 9.1s
+- Elapsed: 10.3s
 
 ## lentz
 
@@ -60,7 +60,7 @@ Full-domain Type-IV fractions are computed over the full grid, which for large-b
 - Type I/II/III/IV wall breakdown: 0.00% / 0.00% / 0.00% / 100.00%
 - Full-grid miss % (Eulerian satisfied, robust violated): NEC=0.00%, WEC=0.00%, SEC=0.05%, DEC=0.00%
 - Wall-restricted conditional miss rate: NEC=0.00%, WEC=0.00%, SEC=0.00%, DEC=0.00%
-- Elapsed: 3.9s
+- Elapsed: 4.5s
 
 ## warpshell
 
@@ -70,7 +70,7 @@ Full-domain Type-IV fractions are computed over the full grid, which for large-b
 - Type I/II/III/IV wall breakdown: 0.00% / 67.86% / 32.14% / 0.00%
 - Full-grid miss % (Eulerian satisfied, robust violated): NEC=0.03%, WEC=0.06%, SEC=0.05%, DEC=0.01%
 - Wall-restricted conditional miss rate: NEC=8.96%, WEC=21.92%, SEC=16.67%, DEC=0.00%
-- Elapsed: 5.1s
+- Elapsed: 6.2s
 
 ## Summary Table
 

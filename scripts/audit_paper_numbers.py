@@ -5,7 +5,7 @@ the value committed in ``warpax_arxiv/paper_numbers.tex``; exits non-zero on any
 drift. Manually-maintained macros (multi-file/derived provenance) are listed
 with their source for review and their source file is checked for existence.
 
-This is the CI guard behind the referee-proofing rule "every cited number traces
+This is the CI guard behind the provenance rule "every cited number traces
 to results/*.json". Run after the K-stage reproduction.
 
 Usage::
