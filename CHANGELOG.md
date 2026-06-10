@@ -206,6 +206,35 @@ Type-IV points are no longer absorbed.
   tiebreak across 30 decades of $\|T\|$, DEC bound-vs-optimizer parity), plus
   future-directed IC, null-projection, result-code, checkpoint, and
   ET-convention tests in their home modules.
+- Test-suite hardening sweep: every test module reviewed against its source for
+  vacuous or circular assertions, stale baselines, and duplicate coverage.
+  Highlights: stress-energy symmetry tests now check the pre-symmetrization
+  Einstein tensor (the old T-symmetry assertion was made vacuous by the
+  explicit `0.5*(T+T.T)` projection in the source); WarpShell density
+  baselines re-pinned against the live pipeline (the stored values had
+  drifted, passing only because `atol` exceeded the values); the C1-vs-C2
+  regression now pins lapse/Riemann values that genuinely distinguish the
+  two smoothness classes; the fibonacci starter-pool golden is regenerated
+  and actually compared (the old snapshot was stored but never asserted
+  against); the parity-golden fixture gains a per-group key-count sentinel
+  and `capture_goldens.py` fails on any skipped block (no more silent
+  shrink); the mpmath imag-tolerance sentinel re-targeted above the 1e6
+  scale floor where the float64 tier genuinely absorbs the split; sentinel
+  ANEC/AWEC/transport values pinned to measured numbers instead of
+  isfinite checks; `evaluate_loss` threads distinct PRNG keys per probe
+  point (same fix the EC-constraint path already had) with regression
+  coverage; TOV residual tests now exercise the radial pressure-gradient
+  term, and `tov_residual_from_metric` gains first coverage; stale
+  "necessary but not sufficient" comments about the Type-I DEC eigenvalue
+  bound corrected (it is necessary and sufficient at Type I); ~45 duplicate
+  or tautological tests merged or removed with their assertions preserved
+  in the surviving tests; `test_curvature_scaling.py` and
+  `test_ssv_bound.py` are now standalone-runnable (no hidden sys.path
+  dependency on collection order).
+- CI restructured: the full fast suite runs on the primary Python with the
+  beartype smoke; the other supported versions run the critical core tier
+  (classification, frame-free path, verifier, regression nets, parity
+  goldens, benchmarks) for cross-version compatibility.
 - Diagnostic/ablation tables are now script-emitted from cached results
   (`scripts/emit_diagnostic_tables.py`, wired into the figures stage of
   `reproduce_all.sh`): the uniform-grid missed-violation table, the

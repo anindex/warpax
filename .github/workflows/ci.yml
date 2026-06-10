@@ -12,12 +12,54 @@ env:
   WARPAX_JIT_CACHE: "1"
 
 jobs:
+  # Full fast suite on the primary Python; cross-version compatibility is
+  # covered by the cheaper core job below (version breaks are API/typing
+  # breaks, not physics breaks).
   test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.10.9"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Set up Python 3.13
+        run: uv python install 3.13
+
+      - name: Install package + dev deps
+        run: uv sync --extra dev --extra solver --extra design
+
+      - name: Restore JAX compile cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/warpax/jax
+          key: jax-cache-3.13-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            jax-cache-3.13-
+
+      - name: Fast test suite (parallel)
+        run: uv run pytest -m "not slow" -n auto -q --tb=short --maxfail=10
+
+      - name: Beartype smoke (EC modules)
+        env:
+          WARPAX_BEARTYPE: "1"
+        run: uv run pytest -q tests/test_classification.py tests/test_ec_verifier.py --tb=short
+
+  # Cross-version compatibility: the critical tier only — certification
+  # engine, frame-free path, regression nets, parity goldens, and the
+  # benchmark sentinels. Catches import/typing/API breakage per version
+  # without re-running the whole suite three times.
+  core-compat:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13", "3.14"]
+        python-version: ["3.12", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
@@ -43,14 +85,17 @@ jobs:
           restore-keys: |
             jax-cache-${{ matrix.python-version }}-
 
-      - name: Fast test suite (parallel)
-        run: uv run pytest -m "not slow" -n auto -q --tb=short --maxfail=10
-
-      - name: Beartype smoke (EC modules)
-        if: matrix.python-version == '3.13'
-        env:
-          WARPAX_BEARTYPE: "1"
-        run: uv run pytest -q tests/test_classification.py tests/test_ec_verifier.py --tb=short
+      - name: Core test tier (parallel)
+        run: >
+          uv run pytest -m "not slow" -n auto -q --tb=short --maxfail=10
+          tests/test_classification.py
+          tests/test_frame_free.py
+          tests/test_worst_observer_analytic.py
+          tests/test_ec_verifier.py
+          tests/test_bug_hunt_regressions.py
+          tests/test_parity_golden.py
+          tests/test_shift_kinematics.py
+          tests/test_benchmarks/
 
   lint:
     runs-on: ubuntu-latest
