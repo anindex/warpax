@@ -66,11 +66,23 @@ def _ec_margins_at_point(
     g: Float[Array, "4 4"],
     conditions: tuple[str, ...],
     n_starts: int,
+    key=None,
 ) -> dict[str, Float[Array, ""]]:
-    """Per-point dict of EC margins; traced once, cached across probes."""
+    """Per-point dict of EC margins; traced once, cached across probes.
+
+    Bug fix (PRNG key reuse): the optimizers were previously called with
+    no ``key``, so every probe point and every condition fell back to
+    ``PRNGKey(42)`` - identical random multistarts everywhere. Callers
+    now thread a per-point key; each condition gets a distinct
+    ``fold_in`` of it. ``key=None`` falls back to ``PRNGKey(42)``
+    (legacy callers), still with per-condition decorrelation.
+    """
+    if key is None:
+        key = jax.random.PRNGKey(42)
     out = {}
-    for cond in conditions:
-        out[cond] = _OPTIMIZER_MAP[cond](T, g, n_starts=n_starts).margin
+    for idx, cond in enumerate(conditions):
+        cond_key = jax.random.fold_in(key, idx)
+        out[cond] = _OPTIMIZER_MAP[cond](T, g, n_starts=n_starts, key=cond_key).margin
     return out
 
 
@@ -80,17 +92,28 @@ def ec_penalty(
     *,
     conditions: tuple[str, ...] = ("nec", "wec", "dec"),
     n_starts: int = 4,
+    key=None,
 ) -> Float[Array, ""]:
     """Soft EC penalty: ``sum_i sum_c softplus(-margin_{i,c})^2``.
 
     Vectorises the curvature chain across probes and JIT-caches the
     per-point margin evaluation, so repeated invocations during
     optimization re-use the compiled trace instead of re-tracing.
+
+    ``key`` seeds the per-point multistart randomness; ``None`` keeps
+    the deterministic default ``PRNGKey(42)``. Each probe point gets a
+    distinct ``fold_in(key, i)`` so multistarts decorrelate across
+    points (PRNG key reuse bug fix).
     """
+    if key is None:
+        key = jax.random.PRNGKey(42)
     T_batch, g_batch = _probe_T_g(metric, r_probes)
     total_penalty = jnp.float64(0.0)
     for i in range(r_probes.shape[0]):
-        margins = _ec_margins_at_point(T_batch[i], g_batch[i], conditions, n_starts)
+        point_key = jax.random.fold_in(key, i)
+        margins = _ec_margins_at_point(
+            T_batch[i], g_batch[i], conditions, n_starts, point_key
+        )
         for cond in conditions:
             total_penalty = total_penalty + jax.nn.softplus(-margins[cond]) ** 2
 
@@ -103,15 +126,25 @@ def ec_feasibility_check(
     *,
     conditions: tuple[str, ...] = ("nec", "wec", "dec"),
     n_starts: int = 16,
+    key=None,
 ) -> ECFeasibilityResult:
     """Hard EC check with per-point, per-condition margins.
 
     Uses n_starts=16 by default for certification quality.
+
+    ``key`` seeds the per-point multistart randomness; ``None`` keeps
+    the deterministic default ``PRNGKey(42)``. Each probe point gets a
+    distinct ``fold_in(key, i)`` (PRNG key reuse bug fix).
     """
+    if key is None:
+        key = jax.random.PRNGKey(42)
     T_batch, g_batch = _probe_T_g(metric, r_probes)
     margins = {cond: [] for cond in conditions}
     for i in range(r_probes.shape[0]):
-        per_point = _ec_margins_at_point(T_batch[i], g_batch[i], conditions, n_starts)
+        point_key = jax.random.fold_in(key, i)
+        per_point = _ec_margins_at_point(
+            T_batch[i], g_batch[i], conditions, n_starts, point_key
+        )
         for cond in conditions:
             margins[cond].append(per_point[cond])
     margins = {cond: jnp.stack(vals) for cond, vals in margins.items()}

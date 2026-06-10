@@ -1510,3 +1510,41 @@ class TestTShell:
         chain = compute_curvature_chain(m, coords)
         assert jnp.all(jnp.isfinite(chain.stress_energy))
         assert jnp.all(jnp.isfinite(chain.metric))
+
+
+class TestShellTotalMassArrayLeaf:
+    """Regression (total_mass static-leaf retrace): ``total_mass`` was a
+    Python float pytree leaf, so ``eqx.partition(metric, eqx.is_array)``
+    placed it in the static partition and ``eqx.filter_jit`` retraced for
+    every new mass value. It must live in the array partition.
+    """
+
+    def test_sshell_total_mass_in_array_partition(self):
+        import equinox as eqx
+        from warpax.metrics.sshell import sshell_from_profiles
+        from warpax.metrics.sshell_profiles import constant_density_profiles
+
+        profiles = constant_density_profiles(R_1=10.0, R_2=20.0, rho_0=1e-4)
+        m = sshell_from_profiles(profiles, n_grid=128)
+        arrays, static = eqx.partition(m, eqx.is_array)
+        assert eqx.is_array(arrays.total_mass), (
+            f"total_mass not in array partition: {type(arrays.total_mass)}"
+        )
+        assert static.total_mass is None
+        assert float(arrays.total_mass) > 0.0
+
+    def test_tshell_total_mass_in_array_partition(self):
+        import equinox as eqx
+        from warpax.metrics.tshell import tshell_from_profiles
+        from warpax.metrics.tshell_profiles import constant_velocity_profiles
+
+        profiles = constant_velocity_profiles(
+            R_1=10.0, R_2=20.0, rho_0=1e-4, v_0=0.1,
+        )
+        m = tshell_from_profiles(profiles, n_grid=128)
+        arrays, static = eqx.partition(m, eqx.is_array)
+        assert eqx.is_array(arrays.total_mass), (
+            f"total_mass not in array partition: {type(arrays.total_mass)}"
+        )
+        assert static.total_mass is None
+        assert float(arrays.total_mass) > 0.0

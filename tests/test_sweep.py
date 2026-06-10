@@ -84,6 +84,65 @@ class TestSweepResult:
             np.asarray(result.compactness_values),
         )
 
+    def test_out_of_order_checkpoint_preserves_cell_placement(self, tmp_path):
+        """Regression (checkpoint corruption in parallel mode): checkpoints
+        previously serialized a None-compacted points list, so out-of-order
+        (parallel) completion scrambled to_grids() cell placement after a
+        save/load round trip. The list must stay full-length with explicit
+        nulls; list position k always maps to cell (k // Nt, k % Nt).
+        """
+        from warpax.optimization.sweep import SweepPoint, SweepResult
+
+        nc, nt = 2, 3
+        total = nc * nt
+        filled = (4, 1, 5, 0)  # parallel completion order with holes (2, 3)
+
+        def _mk(k):
+            return SweepPoint(
+                compactness=0.05 * (k // nt + 1),
+                thickness_ratio=0.3 + 0.1 * (k % nt),
+                rho_max=1e-4,
+                transport=float(k + 1),  # unique marker per grid cell
+                transport_invariant=0.0,
+                ec_feasible=True,
+                worst_ec_margin=0.01,
+                constraint_residual=0.001,
+                mass=2.0,
+                tidal=1e-6,
+            )
+
+        points: list = [None] * total
+        for k in filled:
+            points[k] = _mk(k)
+
+        partial = SweepResult(
+            points=points,
+            compactness_values=jnp.linspace(0.05, 0.10, nc),
+            thickness_values=jnp.linspace(0.3, 0.5, nt),
+        )
+        save_file = str(tmp_path / "checkpoint.npz")
+        partial.save(save_file)
+
+        loaded = SweepResult.load(save_file)
+        assert len(loaded.points) == total
+        for k in range(total):
+            if k in filled:
+                assert loaded.points[k] is not None
+                assert loaded.points[k].transport == float(k + 1)
+            else:
+                assert loaded.points[k] is None
+
+        grids = loaded.to_grids()
+        for k in filled:
+            i, j = divmod(k, nt)
+            assert grids["transport"][i, j] == float(k + 1), (
+                f"point {k} placed in wrong cell after checkpoint round trip"
+            )
+        for k in range(total):
+            if k not in filled:
+                i, j = divmod(k, nt)
+                assert np.isnan(grids["transport"][i, j])
+
 
 # -- Density scaling ----------------------------------------------------------
 

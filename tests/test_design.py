@@ -218,7 +218,16 @@ class TestDesignOptimization:
         )
 
     def test_alcubierre_recovery_e2_1(self, alcubierre_knots_values):
-        """Small-step optimizer does not escape Alcubierre local minimum."""
+        """Optimizer never returns a loss worse than the Alcubierre seed.
+
+        Updated for the design/optimizer BFGS silent no-op bug fix:
+        the previous assertion (margin stays within 0.05 of the seed)
+        only held because ``ShapeFunctionMetric.__check_init__`` raised
+        ``TracerBoolConversionError`` under ``optx.minimise`` tracing,
+        silently degrading BFGS to a no-op. With BFGS actually running,
+        the guaranteed invariant is the seed baseline: ``design_metric``
+        never accepts an iterate with higher loss than the seed.
+        """
         knots, values = alcubierre_knots_values
         shape = ShapeFunction.spline(knots, values)
         key = jax.random.PRNGKey(42)
@@ -238,8 +247,10 @@ class TestDesignOptimization:
             max_steps=4,
             key=key,
         )
-        # Optimizer may worsen margin slightly but must not find a much better basin.
-        assert float(report.final_margin) >= float(report_start.final_margin) - 0.05
+        # Seed-baseline guarantee: best-of-N includes the seed evaluation,
+        # so the final loss is never worse than the seed loss (small slack
+        # for the sigmoid-reparam round trip at the tails).
+        assert float(report.final_margin) <= float(report_start.final_margin) + 1e-6
 
     def test_alcubierre_reproduction_under_1e_4(self, alcubierre_knots_values):
         """Alcubierre recovery <1e-4 rel error.
@@ -302,6 +313,55 @@ class TestDesignOptimization:
         np.testing.assert_allclose(
             np.asarray(metric.shape_fn.params["values"]), np.asarray(golden),
             rtol=0.0, atol=1e-14,
+        )
+
+    def test_construction_under_jit_tracing_does_not_raise(self):
+        """Regression (design/optimizer BFGS silent no-op): constructing a
+        ShapeFunctionMetric under JAX tracing must not raise.
+
+        ``__check_init__ -> verify_physical`` used ``bool(jnp.all(...))``,
+        raising ``TracerBoolConversionError`` inside ``optx.minimise``'s
+        traced loss; the optimizer's try/except swallowed it and BFGS
+        silently became a no-op.
+        """
+        from warpax.design import ShapeFunctionMetric
+
+        knots = jnp.linspace(0.0, 3.0, 8)
+        values = 1.0 - jnp.tanh((knots - 1.0) / 0.3) ** 2
+
+        @jax.jit
+        def build_and_eval(vals):
+            sf = ShapeFunction.spline(knots, vals)
+            sfm = ShapeFunctionMetric(sf, v_s=jnp.asarray(0.5), strict=True)
+            return sfm.shift(jnp.array([0.0, 1.0, 0.0, 0.0]))
+
+        out = build_and_eval(values)  # must not raise under tracing
+        assert out.shape == (3,)
+        assert bool(jnp.all(jnp.isfinite(out)))
+
+    def test_bfgs_strictly_reduces_loss_tiny_problem(self):
+        """Regression (design/optimizer BFGS silent no-op): on a tiny
+        spline problem, BFGS must strictly reduce the loss vs the seed.
+
+        Pre-fix, every ``optx.minimise`` call raised at trace time and the
+        returned loss exactly equaled the seed loss (no-op).
+        """
+        knots = jnp.linspace(0.0, 3.0, 8)
+        values = 0.8 * (1.0 - jnp.tanh((knots - 1.0) / 0.3) ** 2)
+        shape = ShapeFunction.spline(knots, values)
+        key = jax.random.PRNGKey(7)
+
+        _, report_seed = design_metric(
+            shape, objective="nec", n_starts=1, max_steps=0, key=key,
+        )
+        _, report = design_metric(
+            shape, objective="nec", n_starts=1, max_steps=20, key=key,
+        )
+        assert report.n_steps > 0
+        assert float(report.final_margin) < float(report_seed.final_margin), (
+            "BFGS made no progress: loss "
+            f"{float(report.final_margin)} vs seed "
+            f"{float(report_seed.final_margin)} (silent no-op regression)"
         )
 
     def test_convergence_report_fields(self, alcubierre_knots_values):

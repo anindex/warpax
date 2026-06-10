@@ -49,8 +49,10 @@ class TShellMetric(ADMMetric):
         Pre-solved potential grids.
     R_1, R_2 : float
         Inner/outer shell radii.
-    total_mass : float
-        Total shell mass M = m(R_2).
+    total_mass : Float[Array, ""]
+        Total shell mass M = m(R_2), stored as a jnp scalar array leaf
+        (a Python float here would be partitioned as static by
+        ``eqx.filter_jit`` and force a retrace per mass value).
     """
 
     _r_grid: Float[Array, "N"]
@@ -61,7 +63,7 @@ class TShellMetric(ADMMetric):
 
     R_1: float
     R_2: float
-    total_mass: float
+    total_mass: Float[Array, ""]
 
     def _interp(
         self, r: Float[Array, ""], grid_vals: Float[Array, "N"]
@@ -152,7 +154,9 @@ def tshell_from_potentials(
         _beta_x_grid=potentials.beta_x_grid,
         R_1=R_1,
         R_2=R_2,
-        total_mass=potentials.total_mass,
+        # jnp.asarray: keep total_mass an array pytree leaf (retrace fix);
+        # the T-shell solver still reports a Python float.
+        total_mass=jnp.asarray(potentials.total_mass),
     )
 
 

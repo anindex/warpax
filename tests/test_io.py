@@ -74,6 +74,59 @@ class TestLoadCactusSlice:
             load_cactus_slice(FIXTURE_PATH, iteration=99, timelevel=0)
 
 
+@requires_h5py
+class TestCactusShiftConvention:
+    """Regression (ET shift convention): Einstein Toolkit ADMBase
+    betax/betay/betaz are CONTRAVARIANT beta^i. The loader previously
+    treated them as covariant beta_i and raised the index with
+    gamma^{ij}, corrupting the shift for any non-flat spatial metric.
+    """
+
+    @staticmethod
+    def _write_synthetic_slice(path):
+        """gamma = diag(4, 1, 1), alpha = 1, beta^x = 0.2 (uniform)."""
+        import h5py
+
+        n = 4
+        ones = np.ones((n, n, n), dtype=np.float64)
+        zeros = np.zeros((n, n, n), dtype=np.float64)
+        with h5py.File(path, "w") as f:
+            grp = f.create_group("ITERATION=0/TIMELEVEL=0")
+            grp["alp"] = ones
+            grp["betax"] = 0.2 * ones  # contravariant beta^x
+            grp["betay"] = zeros
+            grp["betaz"] = zeros
+            grp["gxx"] = 4.0 * ones
+            grp["gxy"] = zeros
+            grp["gxz"] = zeros
+            grp["gyy"] = ones
+            grp["gyz"] = zeros
+            grp["gzz"] = ones
+            grp.attrs["time"] = 0.0
+            for axis in ("x", "y", "z"):
+                grp.attrs[f"{axis}0"] = -1.0
+                grp.attrs[f"d{axis}"] = 2.0 / (n - 1)
+
+    def test_contravariant_shift_and_four_metric(self, tmp_path):
+        slice_path = tmp_path / "tilted_slice.h5"
+        self._write_synthetic_slice(slice_path)
+
+        m = load_cactus_slice(slice_path)
+        coords = jnp.array([0.0, 0.0, 0.0, 0.0])
+
+        # beta^x must be the raw ET value 0.2 (NOT gamma^{xx} * 0.2 = 0.05).
+        beta = np.asarray(m.shift(coords))
+        np.testing.assert_allclose(beta, [0.2, 0.0, 0.0], atol=1e-12)
+
+        # 4-metric assembly: g_{0x} = gamma_xx beta^x = 4 * 0.2 = 0.8,
+        # g_00 = -(alpha^2 - gamma_ij beta^i beta^j) = -(1 - 4*0.04) = -0.84.
+        g = np.asarray(m(coords))
+        np.testing.assert_allclose(g[0, 1], 0.8, atol=1e-12)
+        np.testing.assert_allclose(g[1, 0], 0.8, atol=1e-12)
+        np.testing.assert_allclose(g[0, 0], -0.84, atol=1e-12)
+        np.testing.assert_allclose(g[1, 1], 4.0, atol=1e-12)
+
+
 FIXTURE_DIR = (
     Path(__file__).parent / "fixtures" / "einfields" / "minkowski.ckpt"
 )

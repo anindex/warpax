@@ -54,8 +54,10 @@ class SShellMetric(ADMMetric):
         Inner/outer shell radii.
     smooth_width : float
         Transition width for the shift profile.
-    total_mass : float
-        Total shell mass M = m(R_2).
+    total_mass : Float[Array, ""]
+        Total shell mass M = m(R_2), stored as a jnp scalar array leaf
+        (a Python float here would be partitioned as static by
+        ``eqx.filter_jit`` and force a retrace per mass value).
     """
 
     _r_grid: Float[Array, "N"]
@@ -67,7 +69,7 @@ class SShellMetric(ADMMetric):
     R_1: float
     R_2: float
     smooth_width: float
-    total_mass: float
+    total_mass: Float[Array, ""]
 
     def _interp(
         self, r: Float[Array, ""], grid_vals: Float[Array, "N"]
@@ -166,7 +168,8 @@ def sshell_from_potentials(
         R_1=R_1,
         R_2=R_2,
         smooth_width=sw,
-        total_mass=potentials.total_mass,
+        # jnp.asarray: keep total_mass an array pytree leaf (retrace fix).
+        total_mass=jnp.asarray(potentials.total_mass),
     )
 
 

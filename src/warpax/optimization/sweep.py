@@ -57,17 +57,31 @@ class SweepPoint(NamedTuple):
 class SweepResult(NamedTuple):
     """Full parameter sweep results.
 
-    points : list of SweepPoint, one per grid cell.
+    points : full-length list of SweepPoint-or-None, one entry per grid
+        cell in row-major order: list position ``k`` is grid cell
+        ``(k // Nt, k % Nt)``. ``None`` marks a not-yet-evaluated cell
+        (partial checkpoints written while a parallel sweep is running).
+
+        Bug fix (checkpoint corruption in parallel mode): checkpoints
+        previously serialized a None-compacted list, so parallel
+        completion order scrambled list positions and ``to_grids``
+        placed points in the wrong cells. The list is now kept at full
+        length with explicit ``None`` holes (``null`` in the JSON
+        sidecar) so position always encodes the grid cell.
     compactness_values : 1D array of sampled compactness values.
     thickness_values : 1D array of sampled thickness ratios.
     """
 
-    points: list[SweepPoint]
+    points: list[SweepPoint | None]
     compactness_values: Float[Array, "Nc"]
     thickness_values: Float[Array, "Nt"]
 
     def to_grids(self) -> dict[str, np.ndarray]:
-        """Reshape scalar fields to 2D grids (Nc, Nt) for plotting."""
+        """Reshape scalar fields to 2D grids (Nc, Nt) for plotting.
+
+        Placement is by list position: ``points[k]`` fills cell
+        ``(k // Nt, k % Nt)``. ``None`` entries leave NaN/False holes.
+        """
         nc = self.compactness_values.shape[0]
         nt = self.thickness_values.shape[0]
 
@@ -87,6 +101,8 @@ class SweepResult(NamedTuple):
             j = k % nt
             if i >= nc or j >= nt:
                 break
+            if pt is None:
+                continue
             grids["transport"][i, j] = pt.transport
             grids["transport_invariant"][i, j] = pt.transport_invariant
             grids["ec_feasible"][i, j] = pt.ec_feasible
@@ -99,7 +115,13 @@ class SweepResult(NamedTuple):
         return grids
 
     def save(self, path: str) -> None:
-        """Save to .npz + .json sidecar."""
+        """Save to .npz + .json sidecar.
+
+        Format: the JSON sidecar is a full-length list with one record
+        per grid cell in row-major order; not-yet-evaluated cells are
+        serialized as explicit ``null`` so list position always maps to
+        grid cell ``(k // Nt, k % Nt)``.
+        """
         grids = self.to_grids()
         np.savez(
             path,
@@ -108,15 +130,20 @@ class SweepResult(NamedTuple):
             **grids,
         )
         json_path = str(path).replace(".npz", ".json")
-        records = [pt._asdict() for pt in self.points]
+        records = [None if pt is None else pt._asdict() for pt in self.points]
         for r in records:
-            r["ec_feasible"] = bool(r["ec_feasible"])
+            if r is not None:
+                r["ec_feasible"] = bool(r["ec_feasible"])
         with open(json_path, "w") as f:
             json.dump(records, f, indent=2)
 
     @staticmethod
     def load(path: str) -> SweepResult:
-        """Load from .npz + .json sidecar."""
+        """Load from .npz + .json sidecar.
+
+        ``null`` JSON records map back to ``None`` holes so positional
+        grid-cell placement survives a save/load round trip.
+        """
         data = np.load(path)
         compactness_values = jnp.asarray(data["compactness_values"])
         thickness_values = jnp.asarray(data["thickness_values"])
@@ -125,7 +152,7 @@ class SweepResult(NamedTuple):
         with open(json_path) as f:
             records = json.load(f)
 
-        points = [SweepPoint(**r) for r in records]
+        points = [None if r is None else SweepPoint(**r) for r in records]
         return SweepResult(
             points=points,
             compactness_values=compactness_values,
@@ -359,8 +386,11 @@ def sweep_transport(
         if pbar is not None:
             pbar.update(1)
         if save_path is not None and (idx + 1) % max(1, total // 10) == 0:
+            # Bug fix (checkpoint corruption in parallel mode): checkpoint
+            # the FULL-length list (None holes included). Compacting it
+            # scrambled grid-cell placement under parallel completion order.
             partial = SweepResult(
-                points=[p for p in points if p is not None],
+                points=list(points),
                 compactness_values=c_vals,
                 thickness_values=t_vals,
             )
@@ -380,8 +410,10 @@ def sweep_transport(
         if pbar is not None:
             pbar.close()
 
+    # All cells are filled at this point (failures yield sentinel points);
+    # keep the full-length positional list for index -> cell placement.
     result = SweepResult(
-        points=[p for p in points if p is not None],
+        points=list(points),
         compactness_values=c_vals,
         thickness_values=t_vals,
     )

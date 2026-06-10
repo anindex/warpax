@@ -36,8 +36,8 @@ class SShellPotentials(NamedTuple):
         Radial metric potential: gamma_rr = e^{2 Lambda(r)}.
     m_fn : callable r -> m(r)
         Cumulative mass function.
-    total_mass : float
-        Total shell mass M = m(R_2).
+    total_mass : Float[Array, ""]
+        Total shell mass M = m(R_2), as a jnp scalar (array pytree leaf).
     r_grid : Float[Array, "N"]
         Radial grid used for integration.
     Phi_grid : Float[Array, "N"]
@@ -51,7 +51,7 @@ class SShellPotentials(NamedTuple):
     Phi_fn: Callable[[Float[Array, ""]], Float[Array, ""]]
     Lambda_fn: Callable[[Float[Array, ""]], Float[Array, ""]]
     m_fn: Callable[[Float[Array, ""]], Float[Array, ""]]
-    total_mass: float
+    total_mass: Float[Array, ""]
     r_grid: Float[Array, "N"]
     Phi_grid: Float[Array, "N"]
     Lambda_grid: Float[Array, "N"]
@@ -112,7 +112,10 @@ def solve_sshell_potentials(
         jnp.cumsum(0.5 * (integrand[:-1] + integrand[1:]) * dr),
     ])
 
-    total_mass = float(m_grid[-1])
+    # Bug fix (total_mass static-leaf retrace): keep total_mass a jnp array
+    # leaf, NOT a Python float. eqx.filter_jit partitions Python floats into
+    # the static side, so a float total_mass forced a retrace per value.
+    total_mass = jnp.asarray(m_grid[-1])
 
     compactness_max = float(jnp.max(2.0 * m_grid / jnp.maximum(r_grid, 1e-30)))
     if compactness_max >= 1.0:

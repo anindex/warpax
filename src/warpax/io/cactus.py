@@ -11,7 +11,7 @@ Schema (matches our hand-synth generator at
 
     /ITERATION={i}/TIMELEVEL={t}/
         alp -> (nz, ny, nx) float64 lapse
-        betax -> (nz, ny, nx) float64 shift (lower index)
+        betax -> (nz, ny, nx) float64 shift beta^x (upper index)
         betay -> (nz, ny, nx) float64
         betaz -> (nz, ny, nx) float64
         gxx -> (nz, ny, nx) float64 spatial metric (symmetric)
@@ -82,10 +82,16 @@ def _assemble_adm_from_zyx(
     # Single timelevel wrapped into the warpax (Nt, Nx, Ny, Nz) shape.
     alpha = alp_zyx.transpose(perm)[None, :, :, :]  # (1, nx, ny, nz)
 
-    # Shift: stored lower-index beta_i; warpax stores upper-index beta^i.
-    # For Minkowski or any case with gamma_{ij} = delta_{ij}, lower == upper.
-    # For general cases we invert the spatial metric pointwise.
-    beta_lower = np.stack(
+    # Shift: Einstein Toolkit ADMBase betax/betay/betaz are CONTRAVARIANT
+    # beta^i - exactly the upper-index convention warpax stores. No index
+    # raising is needed.
+    #
+    # Bug fix (ET shift convention): the loader previously treated the ET
+    # arrays as covariant beta_i and raised them with gamma^{ij}, silently
+    # corrupting the shift (and hence g_{0i} = gamma_{ij} beta^j and
+    # g_00 = -(alpha^2 - gamma_{ij} beta^i beta^j)) for any non-flat
+    # spatial metric.
+    beta_upper_3d = np.stack(
         [
             data["betax"].transpose(perm),
             data["betay"].transpose(perm),
@@ -112,10 +118,6 @@ def _assemble_adm_from_zyx(
         ],
         axis=-2,
     )  # (nx, ny, nz, 3, 3)
-
-    # Convert lower-index beta_i -> upper-index beta^i via gamma^{ij}.
-    gamma_inv = np.linalg.inv(gamma)
-    beta_upper_3d = np.einsum("...ij,...j->...i", gamma_inv, beta_lower)
 
     # Wrap to (Nt=1, Nx, Ny, Nz, ...).
     beta = beta_upper_3d[None, ...]
