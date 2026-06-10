@@ -1,12 +1,17 @@
 """Tests for the vorticity -> Type-IV analytic mechanism (f = kappa * omega)."""
 from __future__ import annotations
 
+import json
+import os
+
 import jax.numpy as jnp
 import numpy as np
+import pytest
 import sympy as sp
 
 from warpax.analysis.shift_kinematics import compute_shift_kinematics
 from warpax.analysis.vorticity_type_analytic import (
+    excess_over_pure_rotation,
     fit_kappa,
     imaginary_part_estimate,
     typeIV_threshold,
@@ -14,6 +19,7 @@ from warpax.analysis.vorticity_type_analytic import (
 from warpax.energy_conditions.classification import classify_hawking_ellis
 from warpax.geometry.geometry import compute_curvature_chain
 from warpax.geometry.metric import ADMMetric, SymbolicMetric
+from warpax.metrics import NatarioMetric
 
 
 class _RotationShift(ADMMetric):
@@ -103,6 +109,57 @@ class TestMechanism:
         # f = kappa * omega holds to ~machine precision for pure rotation.
         assert fit["r_squared"] > 0.9999
         assert fit["kappa"] > 0.0
+
+
+class TestExcessRatio:
+    def test_exact_value(self):
+        assert excess_over_pure_rotation(0.12, 0.5, 0.06) == pytest.approx(4.0)
+
+    def test_irrotational_returns_none(self):
+        assert excess_over_pure_rotation(0.1, 0.0, 0.06) is None
+        assert excess_over_pure_rotation(0.1, 5e-14, 0.06) is None
+
+    def test_full_metric_exceeds_pure_rotation_slope(self):
+        """Physics sentinel: the high-shear Natario wall sits well above the
+        pure-rotation prediction (measured excess ~32x; 2x is a loose floor)."""
+        omegas, imags = [], []
+        for c in (0.1, 0.2, 0.4):
+            pt = jnp.array([0.0, 0.5, 0.5, 0.0])
+            m = _RotationShift(c=c, w=1.0)
+            _, _, omega_sq = compute_shift_kinematics(m, pt)
+            cur = compute_curvature_chain(m, pt)
+            cls = classify_hawking_ellis(
+                cur.metric_inv @ cur.stress_energy, cur.metric)
+            omegas.append(float(np.sqrt(max(float(omega_sq), 0.0))))
+            imags.append(float(jnp.max(jnp.abs(cls.eigenvalues_imag))))
+        kappa = fit_kappa(np.array(omegas), np.array(imags))["kappa"]
+
+        pt = jnp.array([0.0, 1.0, 0.3, 0.0])  # wall sample used in K10
+        nat = NatarioMetric(v_s=0.5, R=1.0, sigma=8.0)
+        _, _, omega_sq = compute_shift_kinematics(nat, pt)
+        cur = compute_curvature_chain(nat, pt)
+        cls = classify_hawking_ellis(cur.metric_inv @ cur.stress_energy, cur.metric)
+        omega = float(np.sqrt(max(float(omega_sq), 0.0)))
+        imag = float(jnp.max(jnp.abs(cls.eigenvalues_imag)))
+        assert int(cls.he_type) == 4
+        assert imag > 2.0 * kappa * omega
+
+    def test_cached_cross_metric_excess(self):
+        path = os.path.join(os.path.dirname(__file__), "..", "results",
+                            "vorticity_type_analytic.json")
+        if not os.path.exists(path):
+            pytest.skip("results/vorticity_type_analytic.json not present")
+        cross = json.load(open(path))["cross_metric"]
+        assert cross["Rodal"]["imag_ratio"] is None
+        vortical = ["Van den Broeck", "Alcubierre", "Natário"]
+        for name in vortical:
+            assert cross[name]["imag_ratio"] > 1.0
+            assert cross[name]["sigma"] > 0.0
+        # The excess over kappa*omega orders with the shear-to-vorticity ratio.
+        ratios = [cross[n]["imag_ratio"] for n in vortical]
+        shears = [cross[n]["shear_to_vorticity"] for n in vortical]
+        assert ratios == sorted(ratios)
+        assert shears == sorted(shears)
 
 
 def test_fit_kappa_uncentered_r2_with_scatter():

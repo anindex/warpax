@@ -50,26 +50,42 @@
       "omega": 5.381491902138639e-14,
       "imag_measured": 0.0,
       "imag_predicted": 3.2111781820787867e-15,
-      "he_type": 1
+      "he_type": 1,
+      "theta": 2.249503822225317,
+      "sigma": 1.1651371757619509,
+      "shear_to_vorticity": null,
+      "imag_ratio": null
     },
     "Alcubierre": {
       "omega": 0.3598454995338995,
       "imag_measured": 0.07865059069463985,
       "imag_predicted": 0.02147226155935097,
-      "he_type": 4
+      "he_type": 4,
+      "theta": 1.6963279526658732,
+      "sigma": 1.4310279983978405,
+      "shear_to_vorticity": 3.976784481816284,
+      "imag_ratio": 3.6628927268440545
     },
     "Nat\u00e1rio": {
       "omega": 0.2972716598556904,
       "imag_measured": 0.5635390875201066,
       "imag_predicted": 0.017738431751603646,
-      "he_type": 4
+      "he_type": 4,
+      "theta": 5.551115123125783e-16,
+      "sigma": 2.179012562069717,
+      "shear_to_vorticity": 7.330037996650983,
+      "imag_ratio": 31.769386122263022
     },
     "Van den Broeck": {
       "omega": 0.4619926475577141,
       "imag_measured": 0.058185150001924875,
       "imag_predicted": 0.027567461534757257,
-      "he_type": 4
+      "he_type": 4,
+      "theta": 2.418617363130927,
+      "sigma": 1.4310279983978405,
+      "shear_to_vorticity": 3.0975124949776833,
+      "imag_ratio": 2.110645912339974
     }
   },
-  "summary": "f = kappa * omega established on a controlled pure-rotation shift (R^2 ~ 1, type flips I->IV at omega>0); irrotational Rodal is Type I with Im ~ 0, vortical drives are Type IV with Im tracking kappa * omega."
+  "summary": "f = kappa * omega established on a controlled pure-rotation shift (R^2 ~ 1, type flips I->IV at omega>0); irrotational Rodal is Type I with Im ~ 0, vortical drives are Type IV with Im tracking kappa * omega; the pure-rotation slope under-predicts the full-metric Im (x2-x32), increasing with the shear-to-vorticity ratio at the sample point (shear amplifies the pair that vorticity opens)."
 }

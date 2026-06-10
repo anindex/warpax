@@ -11,7 +11,10 @@ vorticity* for the unit-lapse, flat-slice warp family:
 
   2. Cross-metric validation -- at matched wall points, the irrotational Rodal
      drive (omega ~ 0) is Type I with ``Im ~ 0``, while Natario/Alcubierre/VdB
-     (omega > 0) are Type IV with ``Im`` tracking ``kappa * omega``.
+     (omega > 0) are Type IV with ``Im`` tracking ``kappa * omega``. Each
+     cross-metric entry also records the shift expansion ``theta``, shear
+     ``sigma``, shear-to-vorticity ratio, and the excess ``Im / (kappa*omega)``
+     over the pure-rotation prediction.
 
 This supplies the analytic *mechanism* behind Rodal's empirical irrotational ->
 global-Type-I result (arXiv:2512.18008) and Santiago-Schuster-Visser's
@@ -37,7 +40,11 @@ import numpy as np
 import sympy as sp
 
 from warpax.analysis.shift_kinematics import compute_shift_kinematics
-from warpax.analysis.vorticity_type_analytic import fit_kappa, imaginary_part_estimate
+from warpax.analysis.vorticity_type_analytic import (
+    excess_over_pure_rotation,
+    fit_kappa,
+    imaginary_part_estimate,
+)
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.classification import classify_hawking_ellis
 from warpax.geometry.geometry import compute_curvature_chain
@@ -83,15 +90,16 @@ class _RotationShift(ADMMetric):
         return "RotationShift"
 
 
-def _omega_and_imag(metric, point) -> tuple[float, float, int]:
-    """Return (omega = sqrt(omega^2), max|Im lambda|, he_type) at a point."""
-    _, _, omega_sq = compute_shift_kinematics(metric, point)
+def _kinematics_and_imag(metric, point) -> tuple[float, float, float, float, int]:
+    """Return (theta, sigma, omega, max|Im lambda|, he_type) at a point."""
+    theta, sigma_sq, omega_sq = compute_shift_kinematics(metric, point)
     cur = compute_curvature_chain(metric, point)
     T_mixed = cur.metric_inv @ cur.stress_energy
     cls = classify_hawking_ellis(T_mixed, cur.metric)
+    sigma = float(np.sqrt(max(float(sigma_sq), 0.0)))
     omega = float(np.sqrt(max(float(omega_sq), 0.0)))
     imag = float(jnp.max(jnp.abs(cls.eigenvalues_imag)))
-    return omega, imag, int(cls.he_type)
+    return float(theta), sigma, omega, imag, int(cls.he_type)
 
 
 def controlled_family() -> dict:
@@ -100,7 +108,7 @@ def controlled_family() -> dict:
     omegas, imags, types = [], [], []
     c_values = [0.0, 0.025, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4]
     for c in c_values:
-        om, im, he = _omega_and_imag(_RotationShift(c=c, w=1.0), point)
+        _, _, om, im, he = _kinematics_and_imag(_RotationShift(c=c, w=1.0), point)
         omegas.append(om)
         imags.append(im)
         types.append(he)
@@ -131,12 +139,16 @@ def cross_metric(kappa: float) -> dict:
     }
     out = {}
     for name, m in metrics.items():
-        om, im, he = _omega_and_imag(m, point)
+        th, sigma, om, im, he = _kinematics_and_imag(m, point)
         out[name] = {
             "omega": om,
             "imag_measured": im,
             "imag_predicted": imaginary_part_estimate(om, kappa),
             "he_type": he,
+            "theta": th,
+            "sigma": sigma,
+            "shear_to_vorticity": (sigma / om) if om > 1e-12 else None,
+            "imag_ratio": excess_over_pure_rotation(im, om, kappa),
         }
     return out
 
@@ -184,10 +196,12 @@ def main():
     print(f"    type at omega=0: {controlled['type_at_zero_vorticity']}  "
           f"type at omega_max: {controlled['type_at_max_vorticity']}")
     cross = cross_metric(controlled["kappa"])
-    print("  Cross-metric (omega, Im measured, Im predicted, type):")
+    print("  Cross-metric (omega, sigma, Im measured, Im predicted, ratio, type):")
     for name, d in cross.items():
-        print(f"    {name:16s} omega={d['omega']:.3e}  "
+        ratio = d["imag_ratio"]
+        print(f"    {name:16s} omega={d['omega']:.3e}  sigma={d['sigma']:.3e}  "
               f"Im={d['imag_measured']:.3e}  pred={d['imag_predicted']:.3e}  "
+              f"ratio={'-' if ratio is None else f'{ratio:.1f}'}  "
               f"type={d['he_type']}")
 
     out = {
@@ -197,7 +211,10 @@ def main():
             "f = kappa * omega established on a controlled pure-rotation shift "
             "(R^2 ~ 1, type flips I->IV at omega>0); irrotational Rodal is "
             "Type I with Im ~ 0, vortical drives are Type IV with Im tracking "
-            "kappa * omega."
+            "kappa * omega; the pure-rotation slope under-predicts the "
+            "full-metric Im (x2-x32), increasing with the shear-to-vorticity "
+            "ratio at the sample point (shear amplifies the pair that "
+            "vorticity opens)."
         ),
     }
     out_path = os.path.join(RESULTS_DIR, "vorticity_type_analytic.json")

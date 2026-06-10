@@ -23,7 +23,10 @@ recovering Type I.
 This is a sufficient-direction / controlled-limit mechanism, not a full converse:
 for general (non-flat-slice) shells the link remains numerical. The numeric
 validation against Natario/Alcubierre/VdB (vorticity, Type IV) versus Rodal
-(irrotational, Type I) is in ``scripts/derive_vorticity_type.py``.
+(irrotational, Type I) is in ``scripts/derive_vorticity_type.py``. The
+cross-metric excess of the measured ``f`` over ``kappa * omega`` -- largest for
+the high-shear, zero-expansion Natario wall -- quantifies the wall-geometry
+dependence of ``kappa`` and points to a subleading shear coupling.
 """
 from __future__ import annotations
 
@@ -46,6 +49,24 @@ def imaginary_part_estimate(omega: float, kappa: float) -> float:
         Wall-geometry coefficient (fit per family via :func:`fit_kappa`).
     """
     return float(kappa) * float(abs(omega))
+
+
+def excess_over_pure_rotation(
+    imag_measured: float,
+    omega: float,
+    kappa: float,
+    omega_floor: float = 1e-12,
+) -> float | None:
+    r"""Ratio ``Im_measured / (kappa * omega)`` at a point.
+
+    Quantifies how far a full metric sits above the pure-rotation prediction
+    (a ratio of 1 means the controlled-limit slope is exact there). Returns
+    ``None`` when the shift is effectively irrotational, where the
+    pure-rotation prediction is vacuous.
+    """
+    if omega <= omega_floor:
+        return None
+    return float(imag_measured) / (float(kappa) * float(omega))
 
 
 def typeIV_threshold(kappa: float, imag_floor: float = _IMAG_FLOOR) -> float:
