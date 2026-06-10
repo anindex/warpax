@@ -19,23 +19,23 @@
   "l2_violation_nec": {
     "values": [
       6650600315669.628,
-      8.558081103748119,
+      8.558081103809219,
       22.593854060787766
     ],
-    "extrapolated_value": 27.27244504646765,
+    "extrapolated_value": 27.272445046447285,
     "observed_order": 2.0,
-    "error_estimate": 4.678590985679882,
+    "error_estimate": 4.678590985659518,
     "converged": true
   },
   "integrated_violation_nec": {
     "values": [
-      481090879318.1611,
-      1.805767229995756,
+      481090879318.1608,
+      1.8057681633515072,
       1.6429991749608213
     ],
-    "extrapolated_value": 1.6429991749607664,
-    "observed_order": 41.426629004114965,
-    "error_estimate": 5.484501741648273e-14,
+    "extrapolated_value": 1.6429991749607662,
+    "observed_order": 41.42662073133777,
+    "error_estimate": 5.5067062021407764e-14,
     "converged": false
   }
 }

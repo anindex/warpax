@@ -1,6 +1,6 @@
 # Superluminal Characterization Report
 
-**Date:** 2026-06-06T21:12:34Z
+**Date:** 2026-06-10T07:52:41Z
 **Script:** `scripts/run_superluminal_investigation.py`
 **Metrics tested:** Alcubierre (tanh), Lentz (L1/diamond)
 **Velocities:** 1.0, 1.5, 2.0
@@ -15,7 +15,7 @@ The metric signature (-,+,+,+) is preserved: one eigenvalue of g_ab remains nega
 
 | Metric | g_00 = 0 location | det(g) | NaN found | HE types | NEC margin range | WEC margin range |
 |--------|-------------------|--------|-----------|----------|-----------------|-----------------|
-| Alcubierre | N/A | det(g) = -1 (max dev: 0.0e+00) | No | 1, 2 | [-6.37e-01, 0.00e+00] | [-3.51e+03, -0.00e+00] |
+| Alcubierre | N/A | det(g) = -1 (max dev: 0.0e+00) | No | 1, 4 | [-6.37e-01, 0.00e+00] | [-3.51e+03, -0.00e+00] |
 | Lentz | N/A | det(g) = -1 (max dev: 0.0e+00) | No | 1, 4 | [-1.63e+01, 0.00e+00] | [-8.96e+04, -0.00e+00] |
 
 At the luminal threshold (v_s = 1.0), g_00 = 0 exactly at points where f(r) = 1 (bubble center). This is a coordinate degeneracy of the zero-shift surface, not a metric degeneracy.
@@ -24,14 +24,14 @@ At the luminal threshold (v_s = 1.0), g_00 = 0 exactly at points where f(r) = 1 
 
 | Metric | g_00 = 0 location | det(g) | NaN found | HE types | NEC margin range | WEC margin range |
 |--------|-------------------|--------|-----------|----------|-----------------|-----------------|
-| Alcubierre | r ~ 100.3 | det(g) = -1 (max dev: 0.0e+00) | No | 1, 2 | [-1.43e+00, 0.00e+00] | [-7.89e+03, -0.00e+00] |
+| Alcubierre | r ~ 100.3 | det(g) = -1 (max dev: 0.0e+00) | No | 1, 4 | [-1.43e+00, 0.00e+00] | [-7.89e+03, -0.00e+00] |
 | Lentz | r ~ 100.3 | det(g) = -1 (max dev: 0.0e+00) | No | 1, 4 | [-2.49e+01, 0.00e+00] | [-1.37e+05, -0.00e+00] |
 
 ## v_s = 2.0
 
 | Metric | g_00 = 0 location | det(g) | NaN found | HE types | NEC margin range | WEC margin range |
 |--------|-------------------|--------|-----------|----------|-----------------|-----------------|
-| Alcubierre | r ~ 101.1 | det(g) = -1 (max dev: 6.7e-16) | No | 1, 2 | [-2.55e+00, 0.00e+00] | [-1.40e+04, -0.00e+00] |
+| Alcubierre | r ~ 101.1 | det(g) = -1 (max dev: 6.7e-16) | No | 1, 4 | [-2.55e+00, 0.00e+00] | [-1.40e+04, -0.00e+00] |
 | Lentz | r ~ 101.1 | det(g) = -1 (max dev: 2.2e-16) | No | 1, 4 | [-3.40e+01, 0.00e+00] | [-1.87e+05, -0.00e+00] |
 
 ## det(g) = -1 Confirmation

@@ -28,8 +28,8 @@
       "n_vacuum": 0,
       "nec_min_margin": -0.1530246284215415,
       "dec_min_margin": -0.1530246284215415,
-      "t_curvature_s": 1.056946039199829,
-      "t_verify_grid_s": 0.0450439453125
+      "t_curvature_s": 1.029561996459961,
+      "t_verify_grid_s": 0.039495229721069336
     },
     {
       "metric": "rodal_matched",
@@ -53,8 +53,8 @@
       "n_vacuum": 0,
       "nec_min_margin": -0.17200681861115386,
       "dec_min_margin": -0.17200681861115386,
-      "t_curvature_s": 1.3195009231567383,
-      "t_verify_grid_s": 0.20261311531066895
+      "t_curvature_s": 0.7290859222412109,
+      "t_verify_grid_s": 0.20090079307556152
     },
     {
       "metric": "rodal_matched",
@@ -78,8 +78,8 @@
       "n_vacuum": 0,
       "nec_min_margin": -0.1909344030378231,
       "dec_min_margin": -0.1909344030378231,
-      "t_curvature_s": 5.88121485710144,
-      "t_verify_grid_s": 2.008920192718506
+      "t_curvature_s": 5.063091993331909,
+      "t_verify_grid_s": 1.6061832904815674
     }
   ]
 }

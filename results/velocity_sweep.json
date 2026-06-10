@@ -32,9 +32,9 @@
       "wall_frac_type_i": 0.0,
       "wall_frac_type_iv": 1.0,
       "wall_n": 1386,
-      "typeI_nec_min": NaN,
-      "typeI_dec_min": NaN,
-      "typeI_wec_min": NaN,
+      "typeI_nec_min": null,
+      "typeI_dec_min": null,
+      "typeI_wec_min": null,
       "n_type_i_wall": 0
     },
     {
@@ -101,13 +101,13 @@
       "metric": "Alcubierre",
       "v_s": 1.0,
       "N": 50,
-      "wall_frac_type_i": 0.05735812129431836,
-      "wall_frac_type_iv": 0.9426418787056817,
+      "wall_frac_type_i": 0.05582239757266436,
+      "wall_frac_type_iv": 0.9441776024273356,
       "wall_n": 1386,
       "typeI_nec_min": -0.6313887862394333,
       "typeI_dec_min": -0.6313887862394333,
       "typeI_wec_min": -0.6313887862394333,
-      "n_type_i_wall": 79
+      "n_type_i_wall": 77
     },
     {
       "metric": "Alcubierre",
@@ -257,13 +257,13 @@
       "metric": "Nat\u00e1rio",
       "v_s": 1.1,
       "N": 50,
-      "wall_frac_type_i": 0.2352134371060265,
-      "wall_frac_type_iv": 0.7647865628939735,
+      "wall_frac_type_i": 0.23381877259855333,
+      "wall_frac_type_iv": 0.7661812274014467,
       "wall_n": 1386,
       "typeI_nec_min": -10.168186377838556,
       "typeI_dec_min": -10.168186377838556,
       "typeI_wec_min": -10.168186377838556,
-      "n_type_i_wall": 325
+      "n_type_i_wall": 323
     },
     {
       "metric": "Nat\u00e1rio",
@@ -293,25 +293,25 @@
       "metric": "Nat\u00e1rio",
       "v_s": 2.0,
       "N": 50,
-      "wall_frac_type_i": 0.33828636537885676,
-      "wall_frac_type_iv": 0.6617136346211432,
+      "wall_frac_type_i": 0.33763230236491976,
+      "wall_frac_type_iv": 0.6623676976350803,
       "wall_n": 1386,
       "typeI_nec_min": -33.78155538754328,
       "typeI_dec_min": -33.78155538754328,
       "typeI_wec_min": -33.78155538754328,
-      "n_type_i_wall": 468
+      "n_type_i_wall": 467
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 2.5,
       "N": 50,
-      "wall_frac_type_i": 0.3919345023320243,
-      "wall_frac_type_iv": 0.6080654976679757,
+      "wall_frac_type_i": 0.38709335299731906,
+      "wall_frac_type_iv": 0.612906647002681,
       "wall_n": 1386,
       "typeI_nec_min": -52.82446101103362,
       "typeI_dec_min": -52.82446101103362,
       "typeI_wec_min": -52.82446101103362,
-      "n_type_i_wall": 541
+      "n_type_i_wall": 534
     },
     {
       "metric": "Van den Broeck",

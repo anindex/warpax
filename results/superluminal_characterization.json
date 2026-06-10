@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-06-06T21:12:34Z",
+    "date": "2026-06-10T07:52:41Z",
     "script": "scripts/run_superluminal_investigation.py",
     "velocities": [
       1.0,
@@ -817,7 +817,7 @@
             ],
             "has_nan_stress_energy": false,
             "T_max": 0.636614674602032,
-            "he_type": 2,
+            "he_type": 4,
             "nec_margin": -0.6366188162122379,
             "wec_margin": -3505.2973467842676,
             "sec_margin": -3505.9339614588703,
@@ -891,7 +891,7 @@
         "n_g00_positive": 0,
         "g00_zero_crossing_r": null,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 3.658297061920166,
+        "elapsed_s": 4.018082857131958,
         "wall_analysis_v1": [
           {
             "r": 98.0,
@@ -1760,7 +1760,7 @@
             ],
             "has_nan_stress_energy": false,
             "T_max": 1.432383017854571,
-            "he_type": 2,
+            "he_type": 4,
             "nec_margin": -1.4323872443926446,
             "wec_margin": -7886.890987619313,
             "sec_margin": -7888.32337063717,
@@ -1834,7 +1834,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 100.27664399092964,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 0.8425042629241943
+        "elapsed_s": 0.8927781581878662
       },
       "2.0": {
         "v_s": 2.0,
@@ -2631,7 +2631,7 @@
             ],
             "has_nan_stress_energy": false,
             "T_max": 2.5464586984081277,
-            "he_type": 2,
+            "he_type": 4,
             "nec_margin": -2.5464630122573357,
             "wec_margin": -14021.12191084603,
             "sec_margin": -14023.668369544353,
@@ -2705,7 +2705,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 101.06989795918363,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 0.8356339931488037
+        "elapsed_s": 0.882591962814331
       }
     },
     "lentz": {
@@ -3578,7 +3578,7 @@
         "n_g00_positive": 0,
         "g00_zero_crossing_r": null,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 0.908160924911499,
+        "elapsed_s": 0.9445810317993164,
         "wall_analysis_v1": [
           {
             "r": 98.0,
@@ -4521,7 +4521,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 100.27664399092964,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 0.8380959033966064
+        "elapsed_s": 0.9571137428283691
       },
       "2.0": {
         "v_s": 2.0,
@@ -5392,7 +5392,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 101.06989795918363,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 0.837493896484375
+        "elapsed_s": 0.9197790622711182
       }
     }
   },
@@ -5476,7 +5476,7 @@
           "ec_margins_all_finite": true,
           "he_types_found": [
             1,
-            2
+            4
           ],
           "pipeline_functional": true
         },
@@ -5485,7 +5485,7 @@
           "ec_margins_all_finite": true,
           "he_types_found": [
             1,
-            2
+            4
           ],
           "pipeline_functional": true
         },
@@ -5494,7 +5494,7 @@
           "ec_margins_all_finite": true,
           "he_types_found": [
             1,
-            2
+            4
           ],
           "pipeline_functional": true
         }

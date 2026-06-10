@@ -225,20 +225,20 @@
   },
   "warpshell_vs0.5": {
     "nec": {
-      "n_missed_total": 31,
-      "n_tested": 31,
+      "n_missed_total": 32,
+      "n_tested": 32,
       "sampling_results": {
         "100": {
-          "n_detected": 20,
-          "detection_rate_pct": 64.51612903225806
+          "n_detected": 21,
+          "detection_rate_pct": 65.625
         },
         "1000": {
-          "n_detected": 20,
-          "detection_rate_pct": 64.51612903225806
+          "n_detected": 21,
+          "detection_rate_pct": 65.625
         },
         "10000": {
           "n_detected": 21,
-          "detection_rate_pct": 67.74193548387096
+          "detection_rate_pct": 65.625
         }
       }
     },

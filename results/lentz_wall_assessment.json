@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-06-06T21:12:55Z",
+    "date": "2026-06-10T07:53:04Z",
     "script": "scripts/run_lentz_wall_assessment.py",
     "lentz_params": {
       "R": 100.0,

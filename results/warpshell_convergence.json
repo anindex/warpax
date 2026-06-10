@@ -26,7 +26,7 @@
   ],
   "integrated_nec_violation_robust": [
     -2.1599265194849247e+25,
-    -6.674053664734841e+33,
+    -6.674053664735167e+33,
     null
   ],
   "min_wec_margin_robust": [
@@ -36,7 +36,7 @@
   ],
   "n_type_i": [
     15554,
-    124508,
+    124517,
     null
   ],
   "n_type_iv": [
@@ -45,9 +45,9 @@
     null
   ],
   "time_s": [
-    6.8,
-    7.4,
-    6.8
+    7.0,
+    5.8,
+    5.8
   ],
   "richardson_order_min_nec_eulerian": -1.2640893093133594,
   "extrapolated_min_nec_eulerian": 2.1144540867391353e+33,

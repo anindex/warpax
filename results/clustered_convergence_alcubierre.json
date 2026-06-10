@@ -23,13 +23,13 @@
       "wall_wec_miss_rate": 0.0,
       "wall_sec_miss_rate": 0.0,
       "wall_dec_miss_rate": 0.0,
-      "full_frac_type_i": 0.9664,
-      "full_frac_type_iv": 0.033344,
+      "full_frac_type_i": 0.94784,
+      "full_frac_type_iv": 0.05216,
       "n_vacuum": 0,
       "nec_min_margin": -6650600315669.628,
       "dec_min_margin": -6.089560738314838e+28,
-      "t_curvature_s": 0.6791050434112549,
-      "t_verify_grid_s": 6.420828819274902
+      "t_curvature_s": 0.3869786262512207,
+      "t_verify_grid_s": 5.67903208732605
     },
     {
       "metric": "alcubierre",
@@ -48,13 +48,13 @@
       "wall_wec_miss_rate": 0.0,
       "wall_sec_miss_rate": 0.10586357356575249,
       "wall_dec_miss_rate": 0.0,
-      "full_frac_type_i": 0.975232,
-      "full_frac_type_iv": 0.024768,
+      "full_frac_type_i": 0.961088,
+      "full_frac_type_iv": 0.038912,
       "n_vacuum": 0,
       "nec_min_margin": -0.605350186727247,
       "dec_min_margin": -3333.404003758358,
-      "t_curvature_s": 0.4466400146484375,
-      "t_verify_grid_s": 3.4107489585876465
+      "t_curvature_s": 0.47835206985473633,
+      "t_verify_grid_s": 3.4639718532562256
     },
     {
       "metric": "alcubierre",
@@ -73,13 +73,13 @@
       "wall_wec_miss_rate": 0.0,
       "wall_sec_miss_rate": 0.15384615384615385,
       "wall_dec_miss_rate": 0.0,
-      "full_frac_type_i": 0.964992,
-      "full_frac_type_iv": 0.035008,
+      "full_frac_type_i": 0.944512,
+      "full_frac_type_iv": 0.055488,
       "n_vacuum": 0,
       "nec_min_margin": -0.6283694438533752,
       "dec_min_margin": -3460.1671570502067,
-      "t_curvature_s": 0.9696261882781982,
-      "t_verify_grid_s": 941.2436611652374
+      "t_curvature_s": 0.5859558582305908,
+      "t_verify_grid_s": 6.943741083145142
     },
     {
       "metric": "alcubierre",
@@ -98,13 +98,13 @@
       "wall_wec_miss_rate": 0.0,
       "wall_sec_miss_rate": 0.16895072737017794,
       "wall_dec_miss_rate": 0.0,
-      "full_frac_type_i": 0.974248,
-      "full_frac_type_iv": 0.025752,
+      "full_frac_type_i": 0.958592,
+      "full_frac_type_iv": 0.041408,
       "n_vacuum": 0,
       "nec_min_margin": -0.6305267911683852,
       "dec_min_margin": -3472.047692524932,
-      "t_curvature_s": 0.9380650520324707,
-      "t_verify_grid_s": 11.431135177612305
+      "t_curvature_s": 0.9504721164703369,
+      "t_verify_grid_s": 5.1105358600616455
     },
     {
       "metric": "alcubierre",
@@ -123,13 +123,13 @@
       "wall_wec_miss_rate": 0.0,
       "wall_sec_miss_rate": 0.1952941176470588,
       "wall_dec_miss_rate": 0.0,
-      "full_frac_type_i": 0.963792,
-      "full_frac_type_iv": 0.036208,
+      "full_frac_type_i": 0.94264,
+      "full_frac_type_iv": 0.05736,
       "n_vacuum": 0,
       "nec_min_margin": -0.6303462452935369,
       "dec_min_margin": -3471.0529883283293,
-      "t_curvature_s": 4.664880275726318,
-      "t_verify_grid_s": 3912.033759832382
+      "t_curvature_s": 4.040974855422974,
+      "t_verify_grid_s": 23.08008599281311
     },
     {
       "metric": "alcubierre",
@@ -148,13 +148,13 @@
       "wall_wec_miss_rate": 0.0,
       "wall_sec_miss_rate": 0.18847928939554426,
       "wall_dec_miss_rate": 0.0,
-      "full_frac_type_i": 0.973417,
-      "full_frac_type_iv": 0.026583,
+      "full_frac_type_i": 0.957364,
+      "full_frac_type_iv": 0.042636,
       "n_vacuum": 0,
       "nec_min_margin": -0.6307687288443208,
       "dec_min_margin": -3473.3790075934085,
-      "t_curvature_s": 930.3137891292572,
-      "t_verify_grid_s": 1981.4792709350586
+      "t_curvature_s": 4.4781389236450195,
+      "t_verify_grid_s": 17.156593084335327
     }
   ]
 }
