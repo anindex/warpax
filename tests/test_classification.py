@@ -343,15 +343,11 @@ class TestGeneralizedSolver:
         [ 0.0,  0.2,  0.1,  1.5],
     ])
 
-    def test_solver_kwarg_accepted(self):
-        T = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
-        r = classify_hawking_ellis(T, ETA, solver='generalized', T_ab=ETA @ T)
-        assert isinstance(r, ClassificationResult)
-
     def test_minkowski_perfect_fluid(self):
         T_mixed = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
         T_ab = ETA @ T_mixed
         r = classify_hawking_ellis(T_mixed, ETA, solver='generalized', T_ab=T_ab)
+        assert isinstance(r, ClassificationResult)
         assert int(r.he_type) == 1
 
     def test_non_minkowski_type_i(self):
@@ -463,27 +459,17 @@ class TestJITAndVmap:
 class TestECChecksDust:
     """Dust (rho > 0, p = 0): all conditions satisfied."""
 
-    def test_dust_all_satisfied(self):
-        """rho=1, p=[0,0,0] satisfies all four ECs."""
-        rho = jnp.float64(1.0)
+    def test_dust_exact_margins(self):
+        """All four EC margins via check_all are exactly rho for dust."""
+        rho = jnp.float64(2.0)
         pressures = jnp.array([0.0, 0.0, 0.0])
 
         nec, wec, sec, dec = check_all(rho, pressures)
 
-        assert float(nec) >= 0.0  # min(1+0) = 1
-        assert float(wec) >= 0.0  # min(1, 1+0) = 1
-        assert float(sec) >= 0.0  # min(1+0, 1+0) = 1
-        assert float(dec) >= 0.0  # min(1-0) = 1
-
-    def test_dust_exact_margins(self):
-        """Verify exact margin values for dust."""
-        rho = jnp.float64(2.0)
-        pressures = jnp.array([0.0, 0.0, 0.0])
-
-        np.testing.assert_allclose(float(check_nec(rho, pressures)), 2.0, atol=1e-12)
-        np.testing.assert_allclose(float(check_wec(rho, pressures)), 2.0, atol=1e-12)
-        np.testing.assert_allclose(float(check_sec(rho, pressures)), 2.0, atol=1e-12)
-        np.testing.assert_allclose(float(check_dec(rho, pressures)), 2.0, atol=1e-12)
+        np.testing.assert_allclose(float(nec), 2.0, atol=1e-12)
+        np.testing.assert_allclose(float(wec), 2.0, atol=1e-12)
+        np.testing.assert_allclose(float(sec), 2.0, atol=1e-12)
+        np.testing.assert_allclose(float(dec), 2.0, atol=1e-12)
 
 
 class TestNegativeEnergyDensity:
@@ -544,30 +530,32 @@ class TestDECViolation:
             atol=0.0,
         )
 
-    def test_dec_eigenvalue_bound_is_necessary_only(self):
-        """Anisotropic Type-I matter can pass eigenvalue DEC yet fail flux DEC.
+    def test_dec_eigenvalue_bound_matches_optimizer_typeI(self):
+        """Eigenvalue bound and optimizer agree on anisotropic Type-I DEC.
 
-        Counterexample: ``rho = 1``, ``pressures = [0.9, -0.9, 0.0]``.
-
-        - Eigenvalue check: ``rho - max|p_i| = 1 - 0.9 = 0.1 > 0`` (PASS).
-        - Full flux check: ``T^a_b = diag(-1, 0.9, -0.9, 0.0)`` projected
-          onto a unit timelike observer ``u^a = (1, 0, 0, 0)`` in the
-          principal frame yields a flux ``j^a = (1, 0, 0, 0)`` whose
-          ``g(j, j) = -1 < 0``: timelike future-directed, OK. But for an
-          observer slightly boosted along axis 2 (negative pressure), the
-          flux becomes spacelike when ``cosh(zeta) sinh(zeta) > rho/p_2``
-          drops below the causality threshold; the optimizer-based DEC
-          exposes this whereas the eigenvalue-only check cannot.
-
-        We assert only that the eigenvalue check claims PASS so the
-        documentation "necessary-only" caveat is empirically backed.
+        For Type-I matter the eigenvalue bound ``rho >= |p_i|`` is
+        necessary AND sufficient for DEC (Hawking & Ellis sec. 4.3;
+        Martin-Moruno & Visser). For ``rho = 1``,
+        ``pressures = [0.9, -0.9, 0.0]`` the boosted-observer flux has
+        ``g(j, j) = -rho^2 cosh^2(z) + sum p_i^2 sinh^2(z) n_i^2
+        <= -cosh^2(z) + 0.81 sinh^2(z) < 0`` for every boost, so both
+        the eigenvalue check and the optimizer must pass.
         """
+        from warpax.energy_conditions.optimization import optimize_dec
+
         rho = jnp.float64(1.0)
         pressures = jnp.array([0.9, -0.9, 0.0])
         eigenvalue_margin = float(check_dec(rho, pressures))
-        assert eigenvalue_margin > 0.0, (
-            f"eigenvalue DEC margin {eigenvalue_margin} should be positive "
-            "for this anisotropic Type-I example"
+        # min(1-0.9, 1-0.9, 1-0) = 0.1
+        assert eigenvalue_margin == pytest.approx(0.1)
+
+        # Cross-validate with the optimizer on the same tensor.
+        T_mixed = jnp.diag(jnp.array([-1.0, 0.9, -0.9, 0.0]))
+        T_ab = ETA @ T_mixed
+        res = optimize_dec(T_ab, ETA, n_starts=8, zeta_max=5.0)
+        assert float(res.margin) > 0.0, (
+            f"optimizer DEC margin {float(res.margin)} should be positive: "
+            "the Type-I eigenvalue bound is sufficient for DEC"
         )
 
 
@@ -656,13 +644,12 @@ class TestScaleAwareImaginaryTolerance:
         relative to scale (~1e3) they are ~1e-11, well below tolerance.
         """
         # Build T_mixed with known real eigenvalues, then add tiny imaginary
-        # perturbation via a near-antisymmetric off-diagonal term.
-        # Direct approach: use a diagonal with large eigenvalues.
-        T_mixed = jnp.diag(jnp.array([-1e3, 5e2, 3e2, 1e2]))
+        # perturbation via an antisymmetric off-diagonal term. The (1,2)
+        # diagonal entries must be EQUAL: an antisymmetric eps on a 2x2
+        # block diag(a, a) gives a genuine complex pair a +/- i*eps,
+        # whereas on unequal entries the spectrum stays exactly real.
+        T_mixed = jnp.diag(jnp.array([-1e3, 5e2, 5e2, 1e2]))
 
-        # Add a tiny off-diagonal perturbation that produces ~1e-8 imaginary parts
-        # when eigendecomposed. A 2x2 rotation block with angle epsilon
-        # gives eigenvalues with imaginary part ~ epsilon.
         eps = 1e-8
         T_mixed = T_mixed.at[1, 2].set(eps)
         T_mixed = T_mixed.at[2, 1].set(-eps)
@@ -676,21 +663,10 @@ class TestScaleAwareImaginaryTolerance:
             f"Scale-aware tolerance should classify this as real."
         )
 
-    def test_genuine_type_iv_large_imaginary(self):
-        """T^a_b with genuinely complex eigenvalues -> still Type IV."""
-        T_mixed = jnp.array([
-            [-1.0,  0.0,  0.0, 0.0],
-            [ 0.0,  0.0, -1.0, 0.0],
-            [ 0.0,  1.0,  0.0, 0.0],
-            [ 0.0,  0.0,  0.0, 0.5],
-        ])
-
-        result = classify_hawking_ellis(T_mixed, ETA)
-
-        # Eigenvalues include +/- i, which are large relative to scale ~ 1
-        assert int(result.he_type) == 4, (
-            f"Expected Type IV but got Type {int(result.he_type)}"
-        )
+    # Genuine Type IV on this matrix is pinned (with NaN assertions) by
+    # TestTypeIVClassification::test_complex_eigenvalues; Type-IV preservation
+    # under the scale-aware tolerance is covered by
+    # test_imag_rtol_threshold_boundary below.
 
     def test_imag_rtol_threshold_boundary(self):
         """Pin the relative-imaginary tier from both sides.
@@ -762,6 +738,11 @@ class TestTypeIINullDustBenchmark:
         Phi_sq = 1.0
         T_ab = Phi_sq * jnp.outer(k_down, k_down)
 
+        # Fixture sanity: k is null, so T_ab k^a k^b = Phi^2 (k_a k^a)^2 = 0.
+        assert float(jnp.einsum("a,ab,b->", k_up, T_ab, k_up)) == pytest.approx(
+            0.0, abs=1e-12
+        )
+
         # T^a_b = g^{ac} T_{cb}
         g_inv = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
         T_mixed = g_inv @ T_ab
@@ -775,36 +756,30 @@ class TestTypeIINullDustBenchmark:
             f"Null dust should not be Type IV, got Type {int(result.he_type)}"
         )
 
-    def test_null_dust_nec_saturation(self):
-        """NEC is saturated (margin = 0) for null dust along k."""
-        k_up = jnp.array([1.0, 1.0, 0.0, 0.0])
-        k_down = ETA @ k_up
+    def test_null_dust_wec_optimizer_nonnegative(self):
+        """Optimizer WEC margin on null dust is nonnegative and matches the
+        closed form at the rapidity cap.
 
-        Phi_sq = 1.0
-        T_ab = Phi_sq * jnp.outer(k_down, k_down)
+        T_ab u^a u^b = Phi^2 (k_a u^a)^2 >= 0 for every observer; boosting
+        along k gives k_a u^a = -e^{-zeta}, so the capped minimum at
+        zeta_max=5 is Phi^2 e^{-10}. This actually exercises the non-Type-I
+        optimizer pathway.
+        """
+        from warpax.energy_conditions.optimization import optimize_wec
 
-        # T_ab k^a k^b = Phi^2 (k_a k^a)^2 = 0
-        nec_val = float(jnp.einsum("a,ab,b->", k_up, T_ab, k_up))
-        np.testing.assert_allclose(nec_val, 0.0, atol=1e-12)
-
-    def test_null_dust_wec_nonnegative(self):
-        """WEC is satisfied for null dust: T_ab u^a u^b >= 0 for any timelike u."""
         k_up = jnp.array([1.0, 1.0, 0.0, 0.0])
         k_down = ETA @ k_up
 
         Phi_sq = 2.0
         T_ab = Phi_sq * jnp.outer(k_down, k_down)
 
-        # Check for several observers
-        for u in [
-            jnp.array([1.0, 0.0, 0.0, 0.0]),  # Eulerian
-            jnp.array([jnp.cosh(1.0), jnp.sinh(1.0), 0.0, 0.0]),  # boosted x
-            jnp.array([jnp.cosh(2.0), 0.0, jnp.sinh(2.0), 0.0]),  # boosted y
-        ]:
-            wec_val = float(jnp.einsum("a,ab,b->", u, T_ab, u))
-            assert wec_val >= -1e-12, (
-                f"WEC violated for null dust with u={u}: {wec_val}"
-            )
+        res = optimize_wec(T_ab, ETA, n_starts=8, zeta_max=5.0)
+        assert float(res.margin) >= 0.0, (
+            f"WEC must hold for null dust; optimizer margin {float(res.margin)}"
+        )
+        assert float(res.margin) == pytest.approx(
+            Phi_sq * float(jnp.exp(-10.0)), rel=1e-6
+        )
 
 
 class TestTypeIIISyntheticBenchmark:
@@ -865,11 +840,9 @@ class TestTypeIIISyntheticBenchmark:
         """At ``lam = 1e-4`` the 2x2 Jordan block still classifies as Type III
         once the classifier tolerance absorbs the eig perturbation."""
         T = self._jordan_2x2_tensor(1e-4)
-        result = classify_hawking_ellis(T, ETA, tol=1e-10)
-        # With tol=1e-10 on a 1e-4-scale Jordan block, eig's ~1e-12 split
-        # is below tol*scale=1e-14 -> could land as Type I. Relax the tol
-        # to 1e-2 (ratio 1e2 of lam); this matches what a practitioner would
-        # choose for small-scale Type III detection.
+        # At the default tol the eig split on this 1e-4-scale Jordan block
+        # falls below tol*scale, so use a relaxed tol = 1e-2 * lam, matching
+        # what a practitioner would choose for small-scale Type III detection.
         result = classify_hawking_ellis(T, ETA, tol=1e-2 * 1e-4)
         assert int(result.he_type) == 3
 
@@ -914,14 +887,8 @@ class TestTypeIIISyntheticBenchmark:
                 f"exceeds 3e-3 * scale = {3e-3 * scale:.2e}"
             )
 
-    def test_type_iii_rho_and_pressures_nan(self):
-        """For non-Type-I points ``rho`` and ``pressures`` must return NaN
-        (the Type-I algebraic formulas do not apply)."""
-        T = self._jordan_2x2_tensor(1.0)
-        result = classify_hawking_ellis(T, ETA, tol=1e-6)
-        assert int(result.he_type) == 3
-        assert bool(jnp.isnan(result.rho))
-        assert bool(jnp.all(jnp.isnan(result.pressures)))
+    # NaN rho/pressures for Type III on this exact tensor is pinned by
+    # TestTypeIIIClassification::test_maximally_degenerate_null_with_relaxed_tol.
 
 
 # g-orthogonal causal-basis fix

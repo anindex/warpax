@@ -21,7 +21,8 @@ def test_null_round_trip_minkowski():
     emitter = jnp.array([0.0, 0.0, 0.0, 0.0], dtype=jnp.float64)
     receiver = jnp.array([0.0, 1.0, 0.0, 0.0], dtype=jnp.float64)
     result = null_round_trip_asymmetry(metric, emitter, receiver)
-    assert jnp.abs(result) < 0.1, f"Expected ~0, got {result}"
+    # Measured exactly 0.0; the Alcubierre signal scale is ~2.75.
+    assert jnp.abs(result) < 1e-6, f"Expected ~0, got {result}"
 
 
 def test_null_round_trip_alias_matches_new_name():
@@ -78,7 +79,8 @@ def test_blueshift_hazard_minkowski():
         tau_max=5.0,
         num_points=50,
     )
-    assert result < 0.1, f"Expected ~0, got {result}"
+    # Omegas are constant to machine precision on exact straight lines.
+    assert result < 1e-8, f"Expected ~0, got {result}"
 
 
 def test_alcubierre_round_trip_future_directed_elapsed_times():

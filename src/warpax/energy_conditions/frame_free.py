@@ -11,8 +11,8 @@ velocities, including v_s >= 1 where ``g_00`` changes sign and the
 coordinate-stationary (Eulerian) congruence ceases to exist.
 
 For Type-I points the returned NEC/WEC/SEC margins are exact and cap-free; the
-DEC margin is the necessary eigenvalue bound ``rho - |p_i|`` (see
-:func:`.eigenvalue_checks.check_dec_typeI_eigenvalue_bound`). For non-Type-I
+DEC margin is the eigenvalue bound ``rho - |p_i|``, necessary and sufficient at
+Type I (see :func:`.eigenvalue_checks.check_dec_typeI_eigenvalue_bound`). For non-Type-I
 points (II/III/IV) no invariant rest frame exists, so the eigenvalue margins are
 NaN by construction -- the physically honest statement, which the caller should
 report as "intrinsically observer-dependent" rather than silently substituting a

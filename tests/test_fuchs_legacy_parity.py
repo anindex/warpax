@@ -29,6 +29,10 @@ def test_legacy_analytical_total_mass_matches_paper_default():
     # At r = R_2 the cumulative mass equals total mass.
     m_outer = float(profiles.cumulative_mass(jnp.float64(20.0)))
     assert abs(m_outer - profiles.total_mass) < 1e-12
+    # Interior pin: at r = 15 the volume factor no longer cancels, so the
+    # cubic profile is checked for real: 2.5*(15^3-10^3)/(20^3-10^3).
+    m_mid = float(profiles.cumulative_mass(jnp.float64(15.0)))
+    assert abs(m_mid - 0.8482142857142857) < 1e-12
 
 
 def test_legacy_shell_profiles_factory_agrees_with_canonical_total_mass():

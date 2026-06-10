@@ -194,22 +194,34 @@ class TestImagRtolSentinel:
         assert rep["n_flips"] == 0
 
     def test_mpmath_gate_catches_small_imag_large_real(self):
-        # Eigenvalues 1 +/- 1e-5j: genuinely complex (Type IV), but the
-        # float64 relative tier (3e-3 * max|Re|) absorbs the split. The
-        # 50-digit cross-check (imag_rtol=0) is the authority and must
-        # report the flip.
-        e = 1e-5
-        M = np.zeros((4, 4))
-        M[0, 0] = M[1, 1] = 1.0
-        M[0, 1], M[1, 0] = -e, e
-        M[2, 2], M[3, 3] = 2.0, 3.0
+        # Eigenvalues s(1 +/- 1e-5j) at s=1e8: genuinely complex (Type IV),
+        # but above the 1e6 scale floor the float64 relative tier
+        # (3e-3 * max|Re|) absorbs the split. The 50-digit cross-check
+        # (imag_rtol=0) is the authority and must report the flip.
         g = np.diag([-1.0, 1.0, 1.0, 1.0])
+        s = 1e8
+        M = np.zeros((4, 4))
+        M[0, 0] = M[1, 1] = s
+        M[0, 1], M[1, 0] = -1e-5 * s, 1e-5 * s
+        M[2, 2], M[3, 3] = 2.0 * s, 3.0 * s
         f64 = classify_hawking_ellis(jnp.asarray(M), ETA)
         rep = verify_classification_at_points(
             M[None, ...], g[None, ...], np.array([int(f64.he_type)])
         )
+        assert int(f64.he_type) != 4  # the relative tier absorbed the split
         assert rep["mpmath_he_types"][0] == 4
-        assert rep["n_flips"] == (1 if int(f64.he_type) != 4 else 0)
+        assert rep["n_flips"] == 1
+
+        # Below the floor the relative tier is off: float64 itself gets the
+        # same spectrum (max|Re|=3) right, so the gate reports no flip.
+        M_small = M / s
+        f64_small = classify_hawking_ellis(jnp.asarray(M_small), ETA)
+        rep_small = verify_classification_at_points(
+            M_small[None, ...], g[None, ...], np.array([int(f64_small.he_type)])
+        )
+        assert int(f64_small.he_type) == 4
+        assert rep_small["mpmath_he_types"][0] == 4
+        assert rep_small["n_flips"] == 0
 
 
 class TestTimelikeTiebreakBoundary:
@@ -261,10 +273,26 @@ class TestDECNecessaryOnly:
         )
 
     def test_dec_margin_merged_with_wec_invariant(self):
-        # rho < 0 with small pressures: WEC more negative than the raw
-        # eigenvalue DEC bound; the published dec_margin must absorb it.
+        # rho = -0.5 with p = 0.1: eigenvalue bounds are wec = -0.5 and
+        # dec = rho - |p| = -0.6, so the DEC bound sits below WEC here.
+        rho, p = -0.5, (0.1, 0.1, 0.1)
+        assert float(check_wec(jnp.array(rho), jnp.array(p))) == pytest.approx(-0.5)
+        assert float(check_dec(jnp.array(rho), jnp.array(p))) == pytest.approx(-0.6)
+
         T_mixed = jnp.diag(jnp.array([0.5, 0.1, 0.1, 0.1]))  # rho=-0.5
         res = verify_point(ETA @ T_mixed, ETA, n_starts=2)
+        assert int(res.he_type) == 1
+        # Type I publishes the eigenvalue WEC margin exactly.
+        assert float(res.wec_margin) == pytest.approx(-0.5)
+        assert float(res.dec_margin) <= float(res.wec_margin) + 1e-12
+
+    def test_dec_wec_merge_on_optimizer_branch(self):
+        # Non-Type-I point (pure flux, Type IV): all margins come from the
+        # optimizer, so this exercises the dec = min(wec, dec) merge on the
+        # branch the Type-I eigenvalue path never reaches.
+        T = jnp.zeros((4, 4)).at[0, 1].set(1.0).at[1, 0].set(1.0)
+        res = verify_point(T, ETA, n_starts=4)
+        assert int(res.he_type) == 4
         assert float(res.dec_margin) <= float(res.wec_margin) + 1e-12
 
     def test_wec_margin_definition(self):

@@ -11,6 +11,7 @@ dedicated tests and a deliberate golden re-capture with reviewed diff.
 from __future__ import annotations
 
 import pathlib
+from collections import Counter
 
 import numpy as np
 import pytest
@@ -24,6 +25,23 @@ _EXACT_SUFFIXES = ("/he_type", "/is_vacuum")
 
 _RTOL = 1e-10
 _ATOL = 1e-12
+
+# Exact per-group key counts of the stored fixture. The harness is fully
+# deterministic (fixed PRNG keys, fixed grids), so a re-capture that drops a
+# block would silently shrink the npz; pinning the counts forces that into a
+# visible diff. An intentional re-capture must update these in the same commit.
+_EXPECTED_GROUP_COUNTS = {
+    "cls": 24,
+    "bugA": 4,
+    "certify": 82,
+    "curv": 9,
+    "verify": 12,
+    "opt": 3,
+    "kin": 3,
+    "kinscalar": 3,
+    "anec": 1,
+    "qi": 1,
+}
 
 
 @pytest.fixture(scope="module")
@@ -43,6 +61,15 @@ def live():
 
 def _is_exact(key: str) -> bool:
     return any(key.endswith(s) for s in _EXACT_SUFFIXES) or key == "bugA/he_type"
+
+
+def test_golden_group_counts(stored):
+    """The stored fixture must contain exactly the pinned per-group key counts
+    (catches a re-capture run while a harness block was raising)."""
+    counts = Counter(k.split("/")[0] for k in stored)
+    assert dict(counts) == _EXPECTED_GROUP_COUNTS, (
+        f"stored golden group counts changed: {dict(counts)}"
+    )
 
 
 def test_no_golden_keys_dropped(stored, live):

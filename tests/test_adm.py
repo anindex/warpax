@@ -289,6 +289,20 @@ def test_alcubierre_g00_can_be_non_negative_at_superluminal(v_s):
             f"At v_s={v_s} we expect g_00 > 0 in the bubble interior "
             f"(f ~ 1); got g_00={g00}."
         )
+    elif v_s < 1.0:
+        # subluminal: g_00 stays negative, ~ v_s^2 - 1 at the center
+        # (eval point sits at y=0.01 so f is slightly below 1; ~1e-8 slack)
+        assert g00 < 0.0, (
+            f"At v_s={v_s} < 1 we expect g_00 < 0 at the center; got {g00}."
+        )
+        assert abs(g00 - (v_s**2 - 1.0)) < 1e-6, (
+            f"At v_s={v_s}, g_00={g00} should be ~ v_s^2 - 1 = {v_s**2 - 1.0}."
+        )
+    else:
+        # luminal: g_00 crosses zero exactly at v_s = 1
+        assert abs(g00) < 1e-6, (
+            f"At v_s=1 we expect g_00 ~ 0 at the center; got {g00}."
+        )
     # Either way, det(g) must stay at -1
     det_g = float(jnp.linalg.det(g_center))
     assert abs(det_g + 1.0) < 1e-10, (

@@ -29,7 +29,8 @@ from _golden_harness import compute_goldens
 
 
 def main() -> int:
-    goldens = compute_goldens()
+    skips: list[str] = []
+    goldens = compute_goldens(skips)
     out_dir = pathlib.Path(__file__).resolve().parent.parent / "tests" / "fixtures"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "parity_goldens.npz"
@@ -37,6 +38,14 @@ def main() -> int:
     print(f"[golden] wrote {len(goldens)} keys -> {out_path}")
     for k in sorted(goldens):
         print(f"  {k}: shape={goldens[k].shape} dtype={goldens[k].dtype}")
+    if skips:
+        # A capture should never legitimately skip a block; the parity test
+        # tolerates missing keys, so a partial capture would go unnoticed.
+        print(f"[golden] ERROR: {len(skips)} block(s) raised during capture:",
+              file=sys.stderr)
+        for msg in skips:
+            print(f"  {msg}", file=sys.stderr)
+        return 1
     return 0
 
 

@@ -58,22 +58,21 @@ def check_dec_typeI_eigenvalue_bound(
     rho: Float[Array, ""],
     pressures: Float[Array, "3"],
 ) -> Float[Array, ""]:
-    """Type-I DEC eigenvalue bound (necessary condition only).
+    """Type-I DEC eigenvalue bound.
 
     For a Type-I stress-energy tensor diagonalised in an orthonormal
     frame as ``diag(rho, p_1, p_2, p_3)``, the eigenvalue form of the
     Dominant Energy Condition requires ``rho >= |p_i|`` for all ``i``.
     Returns ``min(rho - |p1|, rho - |p2|, rho - |p3|)``.
 
-    This check is **necessary but not sufficient** for full DEC: it
-    verifies the eigenvalue bound but not flux causality
-    (``T^a_b u^b`` future-directed timelike or null). Anisotropic
-    Type-I matter with ``rho > |p_i|`` per axis can still violate the
-    full causality / future-directedness pillar (e.g. principal-axis
-    pressures opposite-signed at large magnitude). Use
-    :func:`warpax.energy_conditions.optimization.optimize_dec` for the
-    complete margin over all future-directed timelike observers.
-    Hawking & Ellis §4.3; Visser (1995) §12.4.
+    For Type-I matter this bound is **necessary and sufficient** for
+    full DEC: ``rho >= |p_i|`` already implies the flux
+    ``j^a = -T^a_b u^b`` is future-directed causal for every timelike
+    observer (``g(j,j) = -rho^2 cosh^2(z) + sum p_i^2 sinh^2(z) n_i^2
+    <= -rho^2 <= 0`` under any boost).
+    :func:`warpax.energy_conditions.optimization.optimize_dec` covers
+    non-Type-I tensors and serves as a numerical cross-check here.
+    Hawking & Ellis §4.3; Martin-Moruno & Visser; Visser (1995) §12.4.
     """
     return jnp.min(rho - jnp.abs(pressures))
 
@@ -82,8 +81,8 @@ def check_dec(
     rho: Float[Array, ""],
     pressures: Float[Array, "3"],
 ) -> Float[Array, ""]:
-    """Alias for :func:`check_dec_typeI_eigenvalue_bound`. See that
-    function for the necessary-only caveat."""
+    """Alias for :func:`check_dec_typeI_eigenvalue_bound` (necessary
+    and sufficient for Type-I DEC)."""
     return check_dec_typeI_eigenvalue_bound(rho, pressures)
 
 

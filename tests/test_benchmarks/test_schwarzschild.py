@@ -79,3 +79,15 @@ class TestSchwarzschild:
         g = m(sample_coords)
         for i in range(1, 4):
             assert g[i, i] > 0.0
+
+    def test_schwarzschild_closed_form_values(self):
+        """Exact isotropic values at r_iso=2, M=1.
+
+        ratio = M/(2 r_iso) = 0.25, so g_00 = -(0.75/1.25)^2 = -0.36
+        and g_ii = 1.25^4 = 2.44140625.
+        """
+        m = SchwarzschildMetric(M=1.0)
+        g = m(jnp.array([0.0, 2.0, 0.0, 0.0]))
+        assert jnp.isclose(g[0, 0], -0.36, atol=1e-14)
+        for i in range(1, 4):
+            assert jnp.isclose(g[i, i], 2.44140625, atol=1e-14)

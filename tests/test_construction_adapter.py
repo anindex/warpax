@@ -16,10 +16,12 @@ from warpax.geometry.metric import MetricSpecification
 class TestRegistry:
     def test_registry_has_all_constructions(self):
         reg = construction_registry()
-        for name in ("Alcubierre", "Rodal", "Fuchs", "WarpShell",
-                     "S-shell", "T-shell"):
+        expected = ("Alcubierre", "Rodal", "Fuchs", "WarpShell",
+                    "Garattini", "S-shell", "T-shell")
+        for name in expected:
             assert name in reg
             assert isinstance(reg[name], ConstructionSpec)
+        assert len(reg) == len(expected)
 
     def test_each_spec_builds_a_metric(self):
         reg = construction_registry()

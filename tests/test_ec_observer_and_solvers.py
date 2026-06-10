@@ -25,7 +25,11 @@ from warpax.energy_conditions.observer import (
     timelike_from_rapidity,
     unbounded_param,
 )
-from warpax.energy_conditions.optimization import _make_initial_conditions_3d
+from warpax.energy_conditions.optimization import (
+    _inject_neighbor_start,
+    _make_initial_conditions_3d,
+    _observer_to_boost_vector,
+)
 from warpax.energy_conditions.verifier import _eulerian_ec_point
 import jax
 import jax.numpy as jnp
@@ -194,31 +198,13 @@ class TestTimelikeFromRapidity:
         )
         np.testing.assert_allclose(u, flat_tetrad[0], atol=1e-14)
 
-    def test_boosted_observer_unit_norm(self, flat_tetrad):
-        """zeta=1.0, various (theta, phi): g_{ab} u^a u^b = -1."""
-        zeta = jnp.float64(1.0)
-        for theta_val in [0.3, 0.7, 1.2, 2.5]:
-            for phi_val in [0.0, 1.0, 3.14, 5.0]:
-                theta = jnp.float64(theta_val)
-                phi = jnp.float64(phi_val)
-                u = timelike_from_rapidity(zeta, theta, phi, flat_tetrad)
-                norm = jnp.einsum("a,ab,b->", u, ETA, u)
-                np.testing.assert_allclose(norm, -1.0, atol=1e-14)
-
-    def test_high_rapidity_unit_norm(self, flat_tetrad):
-        """zeta=5.0 (Lorentz factor ~74): still unit norm."""
-        zeta = jnp.float64(5.0)
-        theta = jnp.float64(0.5)
-        phi = jnp.float64(0.3)
-        u = timelike_from_rapidity(zeta, theta, phi, flat_tetrad)
-        norm = jnp.einsum("a,ab,b->", u, ETA, u)
-        np.testing.assert_allclose(norm, -1.0, atol=1e-14)
-
-    def test_angular_coverage(self, flat_tetrad):
-        """Sweep theta/phi: all produce unit timelike vectors."""
-        thetas = [0.0, jnp.pi / 4, jnp.pi / 2, 3 * jnp.pi / 4, jnp.pi]
-        phis = [0.0, jnp.pi / 2, jnp.pi, 3 * jnp.pi / 2]
-        zeta = jnp.float64(1.5)
+    @pytest.mark.parametrize("zeta_val", [1.0, 1.5, 5.0])
+    def test_boosted_observer_unit_norm(self, flat_tetrad, zeta_val):
+        """Sweep (zeta, theta, phi) incl. poles and Lorentz factor ~74:
+        g_{ab} u^a u^b = -1."""
+        zeta = jnp.float64(zeta_val)
+        thetas = [0.0, 0.3, 0.7, jnp.pi / 4, 1.2, jnp.pi / 2, 2.5, 3 * jnp.pi / 4, jnp.pi]
+        phis = [0.0, 1.0, jnp.pi / 2, 3.14, jnp.pi, 3 * jnp.pi / 2, 5.0]
         for theta_val in thetas:
             for phi_val in phis:
                 theta = jnp.float64(theta_val)
@@ -859,20 +845,15 @@ class TestWallRestrictedStatsEdgeCases:
         assert stats.nec_violated == 4  # indices 1, 2, 4, 5
 
 
-def _degenerate_lorentzian() -> jnp.ndarray:
-    """g_{ab} with g^{00} == 0 (degenerate light slicing)."""
-    g = jnp.diag(jnp.array([0.0, 1.0, 1.0, 1.0]))
-    return g
-
-
-def _almost_lorentzian(eps: float = 1e-40) -> jnp.ndarray:
-    """g_{ab} with -g^{00} ~ eps (rounded-to-zero radicand)."""
-    return jnp.diag(jnp.array([-eps, 1.0, 1.0, 1.0]))
+def _spacelike_normal_metric() -> jnp.ndarray:
+    """g_{ab} whose slice normal is spacelike (-g^{00} < 0): CTC/numerical
+    noise input. Without the lapse guard, alpha = 1/sqrt(-g^{00}) is NaN."""
+    return jnp.diag(jnp.array([1e-2, 1.0, 1.0, 1.0]))
 
 
 class TestEulerianMarginsLapseGuard:
-    def test_almost_null_slicing_no_nan(self):
-        g = _almost_lorentzian()
+    def test_spacelike_normal_no_nan(self):
+        g = _spacelike_normal_metric()
         g_inv = jnp.linalg.inv(g)
         T = jnp.zeros((4, 4))
         out = _eulerian_ec_point(T, g, g_inv)
@@ -881,15 +862,15 @@ class TestEulerianMarginsLapseGuard:
 
 
 class TestObserverTetradLapseGuard:
-    def test_almost_null_slicing_no_nan(self):
-        g = _almost_lorentzian()
+    def test_spacelike_normal_no_nan(self):
+        g = _spacelike_normal_metric()
         tetrad = compute_orthonormal_tetrad(g)
         assert jnp.all(jnp.isfinite(tetrad))
 
 
 class TestKinematicScalarsLapseGuard:
-    def test_almost_null_slicing_no_nan(self):
-        almost_g = _almost_lorentzian()
+    def test_spacelike_normal_no_nan(self):
+        almost_g = _spacelike_normal_metric()
 
         def constant_metric(coords):
             return almost_g
@@ -954,7 +935,9 @@ class TestStartsFibonacciPool:
             strategy="hard_bound",
             starts="fibonacci+bfgs_top_k",
         )
-        assert r.margin is not None
+        assert jnp.isfinite(r.margin)
+        # Every observer gives -1 - 0.7*sinh^2(zeta) for this T.
+        assert float(r.margin) <= -1.0
 
     def test_golden_fixture_metadata_and_determinism(self):
         """Golden header fields present; fibonacci+bfgs_top_k is seed-deterministic."""
@@ -990,6 +973,9 @@ class TestStartsFibonacciPool:
         assert jnp.array_equal(r1.margin, r2.margin)
         assert jnp.array_equal(r1.worst_observer, r2.worst_observer)
         assert jnp.isfinite(r1.margin)
+        # Pin against the stored snapshot so optimizer drift is caught.
+        npt.assert_allclose(r1.margin, d["margin"], rtol=1e-10)
+        npt.assert_allclose(r1.worst_observer, d["worst_observer"], rtol=1e-8)
 
 
 if __name__ == "__main__":
@@ -1023,20 +1009,43 @@ class TestSpatialNeighborWarmStart:
         assert jnp.array_equal(r_default_nec.margin, r_explicit_nec.margin)
 
     def test_spatial_neighbor_can_use_neighbor_observer(self):
-        """spatial_neighbor with a supplied neighbor can differ from cold."""
+        """spatial_neighbor swaps the tail of the start pool for the neighbor."""
         T, g, key = self._bench_inputs()
         r_cold = optimize_wec(T, g, warm_start="cold", key=key)
         neighbor = r_cold.worst_observer
-        key2 = jax.random.PRNGKey(43)
+        # Smoke check of the public path on a real optimizer output.
         r_neighbor = optimize_wec(
             T, g, warm_start="spatial_neighbor",
-            neighbor_observer=neighbor, key=key2,
+            neighbor_observer=neighbor, key=jax.random.PRNGKey(43),
         )
-        assert r_neighbor.margin is not None
-        # Pool composition changes when neighbor seed is injected.
-        assert not jnp.array_equal(r_cold.worst_params, r_neighbor.worst_params) or (
-            r_neighbor.margin <= r_cold.margin
+        assert jnp.isfinite(r_neighbor.margin)
+
+        # Injection mechanics: last n_swap rows become the neighbor seed,
+        # the rest of the pool is untouched.
+        n_starts = 16
+        zeta_max = 5.0
+        pool = _make_initial_conditions_3d(n_starts, zeta_max, jax.random.PRNGKey(0))
+        tetrad = compute_orthonormal_tetrad(g)
+        out = _inject_neighbor_start(
+            pool, neighbor, tetrad, g, zeta_max, 1.0 / 16.0, "spatial_neighbor",
         )
+        n_swap = max(1, round(n_starts / 16))
+        w_neighbor = _observer_to_boost_vector(neighbor, tetrad, g, zeta_max)
+        npt.assert_allclose(
+            np.asarray(out[-n_swap:]),
+            np.broadcast_to(np.asarray(w_neighbor), (n_swap, 3)),
+        )
+        assert jnp.array_equal(out[:-n_swap], pool[:-n_swap])
+
+        # cold mode and a missing neighbor both leave the pool unchanged.
+        out_cold = _inject_neighbor_start(
+            pool, neighbor, tetrad, g, zeta_max, 1.0 / 16.0, "cold",
+        )
+        assert jnp.array_equal(out_cold, pool)
+        out_no_neighbor = _inject_neighbor_start(
+            pool, None, tetrad, g, zeta_max, 1.0 / 16.0, "spatial_neighbor",
+        )
+        assert jnp.array_equal(out_no_neighbor, pool)
 
     def test_invalid_warm_start_raises(self):
         """warm_start='bad' raises ValueError with verbatim message."""
@@ -1051,17 +1060,17 @@ class TestSpatialNeighborWarmStart:
             optimize_dec(T, g, warm_start="")
 
     def test_neighbor_fraction_validates(self):
-        """neighbor_fraction must satisfy 0 < f <= 1; other values raise."""
-        T, g, _ = self._bench_inputs()
+        """neighbor_fraction must satisfy 0 < f <= 1; rejects outside,
+        accepts boundary and default."""
+        T, g, key = self._bench_inputs()
         for bad in [-0.5, 0.0, 1.5, 2.0]:
             with pytest.raises(ValueError, match="neighbor_fraction must satisfy"):
                 optimize_wec(T, g, neighbor_fraction=bad)
-
-    def test_default_neighbor_fraction_accepted(self):
-        """Default neighbor_fraction=1/16 is explicitly accepted."""
-        T, g, key = self._bench_inputs()
-        r = optimize_wec(T, g, neighbor_fraction=1.0 / 16.0, key=key)
-        assert r.margin is not None
+        for ok in [1.0 / 16.0, 1.0]:
+            r = optimize_wec(T, g, neighbor_fraction=ok, key=key)
+            assert jnp.isfinite(r.margin)
+            # T_ab u^a u^b = -1 at the Eulerian observer, worse under boost.
+            assert float(r.margin) <= -1.0
 
 
 if __name__ == "__main__":

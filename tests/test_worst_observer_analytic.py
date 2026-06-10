@@ -75,9 +75,9 @@ def test_matches_optimizer_on_isotropic_violator():
     T_mixed = jnp.diag(jnp.array([-rho, p, p, p]))  # T^a_b in Minkowski
     T_ab = MINK @ T_mixed  # lower index back to T_{ab}
     res = optimize_wec(T_ab, MINK, n_starts=8, zeta_max=5.0)
-    # Optimizer margin must be negative (WEC violated) and bounded by the
-    # closed-form value at zeta_max (the capped extremum).
+    # Optimizer margin must be negative (WEC violated) and must agree with
+    # the closed-form value at zeta_max (the capped extremum).
     closed_at_cap = float(boosted_energy_density(jnp.array(rho), jnp.array(p), jnp.array(5.0)))
     assert float(res.margin) < 0
-    # optimizer (capped at zeta_max) cannot beat the closed-form minimum at the cap
-    assert float(res.margin) >= closed_at_cap - 1e-6
+    # optimizer (capped at zeta_max) must reach the closed-form minimum at the cap
+    assert float(res.margin) == pytest.approx(closed_at_cap, rel=1e-6)

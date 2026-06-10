@@ -31,6 +31,9 @@ _SCRIPTS = os.path.join(os.path.dirname(__file__), "..", "scripts")
 
 
 def _load_script(name):
+    # scripts import siblings (_json_io); keep this file standalone-runnable
+    if _SCRIPTS not in sys.path:
+        sys.path.insert(0, _SCRIPTS)
     path = os.path.join(_SCRIPTS, name)
     spec = importlib.util.spec_from_file_location(name[:-3], path)
     mod = importlib.util.module_from_spec(spec)

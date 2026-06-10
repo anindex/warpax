@@ -41,13 +41,15 @@ class TestDarmois:
         # Far outside bubble => Minkowski; discontinuity near machine epsilon.
         assert float(result.first_form_discontinuity) < 1e-6
         assert float(result.second_form_discontinuity) < 1e-6
+        # NamedTuple unpack order matches the named attributes.
+        ff, sf, phys = result
+        assert float(ff) == float(result.first_form_discontinuity)
+        assert float(sf) == float(result.second_form_discontinuity)
+        assert bool(phys) == bool(result.physical)
 
     def test_warpshell_matter_shell_boundary(self):
-        """WarpShell at its matter-shell boundary ``R_1`` - record actual
-        behavior as a regression pin.
-
-        The exact discontinuity depends on whether WarpShell uses
-        regularization; we pin finiteness rather than a specific value.
+        """WarpShell at its matter-shell boundary ``R_1`` - golden snapshot
+        of the actual discontinuity values (measured, regression pin).
         """
         metric = WarpShellMetric()
         R_1 = metric.R_1
@@ -60,9 +62,19 @@ class TestDarmois:
             probe_coords_inside=inner,
             probe_coords_outside=outer,
         )
-        assert jnp.isfinite(result.first_form_discontinuity)
-        assert jnp.isfinite(result.second_form_discontinuity)
-        assert bool(result.physical) in (True, False)
+        np.testing.assert_allclose(
+            float(result.first_form_discontinuity), 0.11036642755306081, rtol=1e-6
+        )
+        np.testing.assert_allclose(
+            float(result.second_form_discontinuity), 0.278833872139782, rtol=1e-6
+        )
+        # Genuine matter shell: the jump exceeds tolerance, so not physical.
+        assert bool(result.physical) is False
+
+        # S_ab is nonzero here, so symmetry is actually informative.
+        S_ab = surface_stress_energy(metric, boundary_fn, inner, outer)
+        assert float(jnp.abs(S_ab).max()) > 1e-3
+        assert jnp.allclose(S_ab, S_ab.T, atol=1e-14)
 
     def test_alcubierre_smooth_at_default_boundary(self):
         """Default probes (0.9, 1.1 - inside / outside unit-radius wall)
@@ -89,23 +101,6 @@ class TestDarmois:
         assert float(r1.second_form_discontinuity) == float(r2.second_form_discontinuity)
         assert bool(r1.physical) == bool(r2.physical)
 
-    def test_darmois_result_is_namedtuple(self):
-        """`DarmoisResult` exposes named attributes."""
-        boundary_fn = lambda c: c[1] - 3.0
-        inner = jnp.array([0.0, 2.95, 0.0, 0.0])
-        outer = jnp.array([0.0, 3.05, 0.0, 0.0])
-        result = darmois(
-            AlcubierreMetric(),
-            boundary_fn,
-            probe_coords_inside=inner,
-            probe_coords_outside=outer,
-        )
-        ff, sf, phys = result
-        assert float(ff) == float(result.first_form_discontinuity)
-        assert float(sf) == float(result.second_form_discontinuity)
-        assert bool(phys) == bool(result.physical)
-
-
 jax.config.update("jax_enable_x64", True)
 
 
@@ -116,27 +111,8 @@ def test_surface_stress_energy_vacuum():
     inside = jnp.array([0.0, 4.99, 0.0, 0.0], dtype=jnp.float64)
     outside = jnp.array([0.0, 5.01, 0.0, 0.0], dtype=jnp.float64)
     S_ab = surface_stress_energy(metric, boundary_fn, inside, outside)
-    assert jnp.allclose(S_ab, 0.0, atol=1e-8)
-
-
-def test_surface_stress_energy_shape():
-    """Surface stress-energy should return a 4x4 matrix (full tensor)."""
-    metric = MinkowskiMetric()
-    boundary_fn = lambda coords: coords[1] - 5.0
-    inside = jnp.array([0.0, 4.99, 0.0, 0.0], dtype=jnp.float64)
-    outside = jnp.array([0.0, 5.01, 0.0, 0.0], dtype=jnp.float64)
-    S_ab = surface_stress_energy(metric, boundary_fn, inside, outside)
     assert S_ab.shape == (4, 4)
-
-
-def test_surface_stress_energy_symmetry():
-    """S_{ab} should be symmetric for smooth metrics."""
-    metric = MinkowskiMetric()
-    boundary_fn = lambda coords: coords[1] - 5.0
-    inside = jnp.array([0.0, 4.99, 0.0, 0.0], dtype=jnp.float64)
-    outside = jnp.array([0.0, 5.01, 0.0, 0.0], dtype=jnp.float64)
-    S_ab = surface_stress_energy(metric, boundary_fn, inside, outside)
-    assert jnp.allclose(S_ab, S_ab.T, atol=1e-14)
+    assert jnp.allclose(S_ab, 0.0, atol=1e-8)
 
 
 def _surface_density_analytical(M: float, R: float) -> float:

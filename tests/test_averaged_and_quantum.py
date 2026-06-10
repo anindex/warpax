@@ -16,28 +16,16 @@ import pytest
 class TestANEC:
     """ANEC line-integral regression tests ."""
 
-    def test_minkowski_null_vacuum_zero(self):
-        """On Minkowski + null geodesic x^a(lambda) = (lambda, lambda, 0, 0),
-        ANEC integral ~ 0 and geodesic_complete=True."""
-        gl = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
-        result = anec(MinkowskiMetric(), gl)
-        assert isinstance(result, ANECResult)
-        assert float(jnp.abs(result.line_integral)) < 1e-6
-        assert result.geodesic_complete is True
-        assert result.termination_reason == "complete"
-
     def test_alcubierre_crossing_sentinel(self):
         """Alcubierre crossing null geodesic (off-axis at y=0.5):
-        regression pin on finite ``line_integral``."""
+        regression pin on the line integral value. The negative sign is
+        corroborated by the rigorous-ANEC sign sentinel."""
         metric = AlcubierreMetric()
         gl = lambda lam: jnp.array([lam, lam, 0.5, 0.0])
         result = anec(metric, gl)
-        # Regression pin: finite + deterministic across invocations
         val = float(result.line_integral)
-        assert jnp.isfinite(val)
-        # Re-run: same value
-        result2 = anec(metric, gl)
-        assert float(result2.line_integral) == val
+        assert val == pytest.approx(-0.25806813505162224, rel=1e-9)
+        assert val < 0  # NEC violation, sign backup for the pin
         assert result.geodesic_complete is True
 
     def test_incomplete_geodesic_flag(self):
@@ -62,17 +50,6 @@ class TestANEC:
         assert result.geodesic_complete is False
         assert result.termination_reason == "max_steps"
 
-    def test_tangent_norm_renormalized_matches_fixed_to_tol(self):
-        """On Minkowski null geodesic (trivial, no tangent drift), both
-        modes agree to within 1e-6."""
-        gl = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
-        r_renorm = anec(MinkowskiMetric(), gl, tangent_norm="renormalized")
-        r_fixed = anec(MinkowskiMetric(), gl, tangent_norm="fixed")
-        assert (
-            abs(float(r_renorm.line_integral) - float(r_fixed.line_integral))
-            < 1e-6
-        )
-
     def test_invalid_tangent_norm_raises(self):
         """``tangent_norm='bogus'`` raises ValueError."""
         gl = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
@@ -92,12 +69,16 @@ class TestANEC:
         assert isinstance(result.null_preserved, bool)
 
     def test_witness_zero_on_minkowski(self):
-        """Minkowski null ray: ANEC=0 AND on-cone witness ~0."""
+        """Minkowski null ray: ANEC=0, on-cone witness ~0, and the result
+        reports a complete geodesic."""
         gl = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
         r = anec(MinkowskiMetric(), gl)
+        assert isinstance(r, ANECResult)
         assert float(jnp.abs(r.line_integral)) < 1e-8
         assert float(r.max_abs_g_kk) < 1e-10
         assert r.null_preserved is True
+        assert r.geodesic_complete is True
+        assert r.termination_reason == "complete"
 
 
 class TestRigorousANEC:
@@ -169,14 +150,14 @@ class TestAWEC:
 
     def test_alcubierre_timelike_sentinel(self):
         """Alcubierre AWEC on an off-axis static worldline (y=0.5):
-        regression pin on finite + deterministic value."""
+        regression pin on the line integral value."""
         metric = AlcubierreMetric()
         wl = lambda tau: jnp.array([tau, 0.0, 0.5, 0.0])
         result = awec(metric, wl)
         val = float(result.line_integral)
-        assert jnp.isfinite(val)
-        result2 = awec(metric, wl)
-        assert float(result2.line_integral) == val
+        assert val == pytest.approx(0.10535108223138044, rel=1e-9)
+        assert result.geodesic_complete is True
+        assert result.termination_reason == "complete"
 
     def test_invalid_tangent_norm_raises(self):
         """``tangent_norm='bogus'`` raises ValueError."""

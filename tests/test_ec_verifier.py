@@ -77,11 +77,6 @@ class TestWECViolationVerifyPoint:
         r = verify_point(self.T_bad, ETA, n_starts=4)
         assert float(r.wec_margin) < 0
 
-    def test_worst_observer_returned(self):
-        r = verify_point(self.T_bad, ETA, n_starts=4)
-        assert r.worst_observer.shape == (4,)
-        assert r.worst_params.shape == (3,)
-
 
 # 3. Eulerian vs observer-robust comparison (CORE PAPER ARGUMENT)
 
@@ -143,6 +138,28 @@ class TestEulerianVsObserverRobust:
 # 4. Small Alcubierre grid (5x5x5)
 
 
+@pytest.fixture(scope="module")
+def alcubierre_grid_data():
+    """Curvature grid for the Alcubierre metric (5x5x5), shared module-wide."""
+    metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
+    grid = GridSpec(
+        bounds=[(-2.0, 2.0), (-2.0, 2.0), (-2.0, 2.0)],
+        shape=(5, 5, 5),
+    )
+    result = evaluate_curvature_grid(metric, grid, compute_invariants=False)
+    return result, grid
+
+
+@pytest.fixture(scope="module")
+def alcubierre_ec(alcubierre_grid_data):
+    """Observer-robust verify_grid result on the shared Alcubierre grid."""
+    result, _ = alcubierre_grid_data
+    return verify_grid(
+        result.stress_energy, result.metric, result.metric_inv,
+        n_starts=4,
+    )
+
+
 class TestAlcubierreGrid:
     """End-to-end grid verification on Alcubierre metric.
 
@@ -150,72 +167,35 @@ class TestAlcubierreGrid:
     in the bubble wall region (Alcubierre 1994).
     """
 
-    @pytest.fixture(scope="class")
-    def alcubierre_grid_data(self):
-        """Compute curvature grid for Alcubierre metric (5x5x5)."""
-        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
-        grid = GridSpec(
-            bounds=[(-2.0, 2.0), (-2.0, 2.0), (-2.0, 2.0)],
-            shape=(5, 5, 5),
-        )
-        result = evaluate_curvature_grid(metric, grid, compute_invariants=False)
-        return result, grid
-
-    def test_grid_ec_runs(self, alcubierre_grid_data):
+    def test_grid_ec_runs(self, alcubierre_ec):
         """verify_grid completes without error on Alcubierre data."""
-        result, grid = alcubierre_grid_data
-        T_field = result.stress_energy   # (5, 5, 5, 4, 4)
-        g_field = result.metric          # (5, 5, 5, 4, 4)
-        g_inv_field = result.metric_inv  # (5, 5, 5, 4, 4)
+        assert isinstance(alcubierre_ec, ECGridResult)
+        assert alcubierre_ec.he_types.shape == (5, 5, 5)
+        assert alcubierre_ec.wec_margins.shape == (5, 5, 5)
 
-        ec = verify_grid(T_field, g_field, g_inv_field, n_starts=4)
-        assert isinstance(ec, ECGridResult)
-        assert ec.he_types.shape == (5, 5, 5)
-        assert ec.wec_margins.shape == (5, 5, 5)
-
-    def test_some_type_i_points(self, alcubierre_grid_data):
+    def test_some_type_i_points(self, alcubierre_ec):
         """Some interior points should classify as Type I."""
-        result, grid = alcubierre_grid_data
-        ec = verify_grid(
-            result.stress_energy, result.metric, result.metric_inv,
-            n_starts=4,
-        )
-        n_type_i = jnp.sum(ec.he_types == 1.0)
+        n_type_i = jnp.sum(alcubierre_ec.he_types == 1.0)
         assert int(n_type_i) > 0, "Expected some Type I points in Alcubierre grid"
 
-    def test_nec_violation_detected(self, alcubierre_grid_data):
+    def test_nec_violation_detected(self, alcubierre_ec):
         """NEC violations in the bubble wall region (Alcubierre 1994)."""
-        result, grid = alcubierre_grid_data
-        ec = verify_grid(
-            result.stress_energy, result.metric, result.metric_inv,
-            n_starts=4,
-        )
         # Use nanmin: center point (r_s=0) may produce NaN from coordinate singularity
-        assert float(jnp.nanmin(ec.nec_margins)) < 0, (
-            f"Expected NEC violation but min margin = {jnp.nanmin(ec.nec_margins)}"
+        assert float(jnp.nanmin(alcubierre_ec.nec_margins)) < 0, (
+            f"Expected NEC violation but min margin = {jnp.nanmin(alcubierre_ec.nec_margins)}"
         )
 
-    def test_wec_violation_detected(self, alcubierre_grid_data):
+    def test_wec_violation_detected(self, alcubierre_ec):
         """WEC violations in the bubble wall region (Alcubierre 1994)."""
-        result, grid = alcubierre_grid_data
-        ec = verify_grid(
-            result.stress_energy, result.metric, result.metric_inv,
-            n_starts=4,
-        )
         # Use nanmin: center point (r_s=0) may produce NaN from coordinate singularity
-        assert float(jnp.nanmin(ec.wec_margins)) < 0, (
-            f"Expected WEC violation but min margin = {jnp.nanmin(ec.wec_margins)}"
+        assert float(jnp.nanmin(alcubierre_ec.wec_margins)) < 0, (
+            f"Expected WEC violation but min margin = {jnp.nanmin(alcubierre_ec.wec_margins)}"
         )
 
-    def test_summary_fraction_violated(self, alcubierre_grid_data):
+    def test_summary_fraction_violated(self, alcubierre_ec):
         """Summary statistics report fraction_violated > 0 for WEC/NEC."""
-        result, grid = alcubierre_grid_data
-        ec = verify_grid(
-            result.stress_energy, result.metric, result.metric_inv,
-            n_starts=4,
-        )
-        assert float(ec.nec_summary.fraction_violated) > 0
-        assert float(ec.wec_summary.fraction_violated) > 0
+        assert float(alcubierre_ec.nec_summary.fraction_violated) > 0
+        assert float(alcubierre_ec.wec_summary.fraction_violated) > 0
 
 
 # 4b. verify_point / verify_grid with solver='generalized'
@@ -231,17 +211,6 @@ class TestGeneralizedSolverIntegration:
         r = verify_point(self.T_dust, ETA, n_starts=4, solver='generalized')
         assert int(r.he_type) == 1
         assert float(r.wec_margin) >= 0
-
-    @pytest.fixture(scope="class")
-    def alcubierre_grid_data(self):
-        """Compute curvature grid for Alcubierre metric (5x5x5)."""
-        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
-        grid = GridSpec(
-            bounds=[(-2.0, 2.0), (-2.0, 2.0), (-2.0, 2.0)],
-            shape=(5, 5, 5),
-        )
-        result = evaluate_curvature_grid(metric, grid, compute_invariants=False)
-        return result, grid
 
     @pytest.mark.slow
     def test_verify_grid_generalized_small(self, alcubierre_grid_data):
@@ -261,18 +230,8 @@ class TestGeneralizedSolverIntegration:
 class TestEulerianGridComparison:
     """Run verify_grid with compute_eulerian=True on Alcubierre data."""
 
-    @pytest.fixture(scope="class")
-    def alcubierre_grid_data(self):
-        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
-        grid = GridSpec(
-            bounds=[(-2.0, 2.0), (-2.0, 2.0), (-2.0, 2.0)],
-            shape=(5, 5, 5),
-        )
-        result = evaluate_curvature_grid(metric, grid, compute_invariants=False)
-        return result, grid
-
-    def test_eulerian_grid_runs(self, alcubierre_grid_data):
-        """verify_grid with compute_eulerian=True completes."""
+    def test_eulerian_grid_runs(self, alcubierre_grid_data, alcubierre_ec):
+        """compute_eulerian=True merges margins as min(robust, eulerian)."""
         result, grid = alcubierre_grid_data
         ec = verify_grid(
             result.stress_energy, result.metric, result.metric_inv,
@@ -280,6 +239,27 @@ class TestEulerianGridComparison:
             compute_eulerian=True,
         )
         assert isinstance(ec, ECGridResult)
+        assert ec.nec_margins.shape == (5, 5, 5)
+
+        # Both runs share the default PRNGKey(42), so the robust parts match
+        # and the merge is exactly min(robust, eulerian) pointwise.
+        flat_T = result.stress_energy.reshape(-1, 4, 4)
+        flat_g = result.metric.reshape(-1, 4, 4)
+        flat_gi = result.metric_inv.reshape(-1, 4, 4)
+        eulerian = jax.vmap(compute_eulerian_ec)(flat_T, flat_g, flat_gi)
+        for name in ("nec", "wec"):
+            robust = getattr(alcubierre_ec, f"{name}_margins").reshape(-1)
+            merged = getattr(ec, f"{name}_margins").reshape(-1)
+            expected = jnp.minimum(robust, eulerian[name])
+            finite = jnp.isfinite(merged) & jnp.isfinite(expected)
+            # merging can only lower the margins
+            assert bool(jnp.all(merged[finite] <= robust[finite] + 1e-12)), name
+            assert bool(jnp.allclose(merged[finite], expected[finite], atol=1e-12)), name
+        # the flag must actually do something: some NEC points get lowered
+        nec_robust = alcubierre_ec.nec_margins.reshape(-1)
+        nec_merged = ec.nec_margins.reshape(-1)
+        finite = jnp.isfinite(nec_merged) & jnp.isfinite(nec_robust)
+        assert int(jnp.sum(nec_merged[finite] < nec_robust[finite] - 1e-12)) > 0
 
 
 # 6. Summary statistics correctness
@@ -287,21 +267,6 @@ class TestEulerianGridComparison:
 
 class TestSummaryStatistics:
     """Verify summary statistics are finite and reasonable."""
-
-    def test_summary_types(self):
-        """Summary fields are ECSummary NamedTuples."""
-        T_field = jnp.zeros((3, 3, 3, 4, 4))
-        g_field = jnp.broadcast_to(ETA, (3, 3, 3, 4, 4)).copy()
-
-        # Use a simple diagonal T for quick test
-        T_dust = jnp.diag(jnp.array([1.0, 0.0, 0.0, 0.0]))
-        T_field = jnp.broadcast_to(T_dust, (3, 3, 3, 4, 4)).copy()
-
-        ec = verify_grid(T_field, g_field, n_starts=4)
-        assert isinstance(ec.nec_summary, ECSummary)
-        assert isinstance(ec.wec_summary, ECSummary)
-        assert isinstance(ec.sec_summary, ECSummary)
-        assert isinstance(ec.dec_summary, ECSummary)
 
     def test_dust_no_violations(self):
         """For all-dust grid, fraction_violated should be 0."""
@@ -314,13 +279,14 @@ class TestSummaryStatistics:
         assert float(ec.nec_summary.fraction_violated) == 0.0
 
     def test_summary_finite(self):
-        """All summary fields are finite."""
+        """All summary fields are ECSummary NamedTuples with finite values."""
         T_dust = jnp.diag(jnp.array([1.0, 0.0, 0.0, 0.0]))
         T_field = jnp.broadcast_to(T_dust, (3, 3, 3, 4, 4)).copy()
         g_field = jnp.broadcast_to(ETA, (3, 3, 3, 4, 4)).copy()
 
         ec = verify_grid(T_field, g_field, n_starts=4)
         for summary in [ec.nec_summary, ec.wec_summary, ec.sec_summary, ec.dec_summary]:
+            assert isinstance(summary, ECSummary)
             assert jnp.isfinite(summary.fraction_violated)
             assert jnp.isfinite(summary.max_violation)
             assert jnp.isfinite(summary.min_margin)
@@ -337,6 +303,7 @@ class TestWorstObserver:
     def test_worst_observer_is_timelike(self):
         """g_{ab} u^a u^b = -1 for worst observer."""
         r = verify_point(self.T_bad, ETA, n_starts=8)
+        assert r.worst_observer.shape == (4,)
         norm_sq = float(jnp.einsum("a,ab,b->", r.worst_observer, ETA, r.worst_observer))
         assert norm_sq == pytest.approx(-1.0, abs=1e-4), (
             f"g_ab u^a u^b = {norm_sq}, expected -1"
@@ -374,8 +341,9 @@ class TestANECIntegrand:
         T = jnp.diag(jnp.array([-0.5, -0.5, 0.0, 0.0]))
         k = jnp.array([1.0, 1.0, 0.0, 0.0])
         val = anec_integrand(T, k)
-        expected = float(jnp.einsum("a,ab,b->", k, T, k))
-        assert float(val) == pytest.approx(expected, abs=1e-12)
+        # by hand: T_00 + T_11 = -0.5 - 0.5 = -1
+        assert float(val) == pytest.approx(-1.0, abs=1e-12)
+        assert float(val) < 0
 
     def test_scalar_output(self):
         """Output is a scalar."""
@@ -484,7 +452,11 @@ class TestDECFutureDirectedness:
         includes both causality and future-directedness by checking on a
         known tensor.
         """
-        from warpax.energy_conditions.optimization import _dec_objective
+        from warpax.energy_conditions.optimization import (
+            _dec_flux_subobjective,
+            _dec_future_subobjective,
+            _dec_objective,
+        )
         from warpax.energy_conditions.observer import (
             compute_orthonormal_tetrad,
         )
@@ -526,9 +498,18 @@ class TestDECFutureDirectedness:
         assert float(obj) < 0, (
             f"DEC objective at Eulerian = {obj}, expected < 0 for past-directed flux"
         )
+        assert float(obj) == pytest.approx(-1.0)
+
+        # At the Eulerian observer future_margin == wec_margin == rho
+        # algebraically, so the composite alone cannot isolate the
+        # future-directedness term. Pin the sub-objectives directly:
+        # j = (-1, 0, 0, 0) gives future = -1 (past-directed) and
+        # flux causality = +1 (timelike).
+        assert float(_dec_future_subobjective(w, args)) == pytest.approx(-1.0)
+        assert float(_dec_flux_subobjective(w, args)) == pytest.approx(1.0)
 
     def test_dec_future_vs_causality(self):
-        """Verify the DEC objective returns min(causality, future-directedness)."""
+        """Verify the DEC objective returns min(wec, causality, future-directedness)."""
         from warpax.energy_conditions.optimization import _dec_objective
         from warpax.energy_conditions.observer import compute_orthonormal_tetrad
 
@@ -545,10 +526,13 @@ class TestDECFutureDirectedness:
         obj = _dec_objective(w, args)
 
         # For dust at Eulerian: j = (1, 0, 0, 0)
+        # wec = T_{ab} u^a u^b = 1
         # causality = -g_{ab} j^a j^b = -(-1) = 1
         # future = -(j_a n^a) = -(g_{0b} j^b * n^0) = -(-1*1*1) = 1
-        # min(1, 1) = 1
-        assert float(obj) > 0, f"DEC objective for dust = {obj}, expected > 0"
+        # min(1, 1, 1) = 1
+        assert float(obj) == pytest.approx(1.0, abs=1e-12), (
+            f"DEC objective for dust = {obj}, expected exactly 1.0"
+        )
 
     def test_eulerian_dec_catches_past_directed(self):
         """Eulerian DEC also detects past-directed flux."""

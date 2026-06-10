@@ -36,8 +36,8 @@ class TestGarattiniBasic:
 
     def test_jit(self):
         m = garattini_default()
-        gj = jax.jit(m.__call__)(jnp.array([0.0, 0.7, 0.1, 0.0]))
-        assert bool(jnp.all(jnp.isfinite(gj)))
+        pt = jnp.array([0.0, 0.7, 0.1, 0.0])
+        assert bool(jnp.allclose(m(pt), jax.jit(m.__call__)(pt), atol=1e-15))
 
 
 class TestGarattiniFaithfulSymbolic:

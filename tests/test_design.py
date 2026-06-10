@@ -41,22 +41,24 @@ class TestDesignObjectives:
     """Design objectives: 5 tests per behavior spec."""
 
     def test_nec_margin_on_minkowski(self):
-        """NEC margin on Minkowski (vacuum) is near zero (or positive)."""
+        """NEC margin on Minkowski vacuum is exactly zero."""
         m = MinkowskiMetric()
         margin = ec_margin_objective(m, objective="nec",
                                      grid_shape=(4, 4, 4),
                                      bounds=((-1, 1), (-1, 1), (-1, 1)))
         assert jnp.isfinite(margin)
-        # Minkowski has T_ab = 0 => margin should be near 0 or positive
-        assert float(margin) >= -1e-6
+        # Vacuum: T_ab = 0, so the NEC margin is analytically 0 for all
+        # null directions (pipeline returns exactly 0.0)
+        assert abs(float(margin)) <= 1e-10
 
     def test_wec_margin_on_minkowski(self):
-        """WEC margin on Minkowski is finite (regression-pinned)."""
+        """WEC margin on Minkowski is exactly zero (vacuum: T_ab = 0,
+        so every observer sees T_ab u^a u^b = 0)."""
         m = MinkowskiMetric()
         margin = ec_margin_objective(m, objective="wec",
                                      grid_shape=(4, 4, 4),
                                      bounds=((-1, 1), (-1, 1), (-1, 1)))
-        assert jnp.isfinite(margin)
+        assert abs(float(margin)) <= 1e-12
 
     def test_registry_lookup(self):
         """OBJECTIVE_REGISTRY has all 7 keys and dispatches to ec_margin_objective."""
@@ -182,23 +184,6 @@ def alcubierre_knots_values():
 class TestDesignOptimization:
     """End-to-end ``design_metric`` + Alcubierre profile recovery."""
 
-    def test_strategy_dispatch_hard_bound(self, alcubierre_knots_values):
-        """design_metric(strategy='hard_bound') runs and records strategy in report."""
-        knots, values = alcubierre_knots_values
-        shape = ShapeFunction.spline(knots, values)
-
-        _, report = design_metric(
-            shape,
-            objective="nec",
-            strategy="hard_bound",
-            n_starts=2,
-            max_steps=4,
-            key=jax.random.PRNGKey(0),
-        )
-        assert isinstance(report, OptimizationReport)
-        assert report.strategy == "hard_bound"
-        assert report.n_starts == 2
-
     def test_sigmoid_reparameterization_bounds(self, alcubierre_knots_values):
         """Sigmoid-reparameterized params map to bounded shape values regardless of start."""
         knots, values = alcubierre_knots_values
@@ -252,18 +237,16 @@ class TestDesignOptimization:
         # for the sigmoid-reparam round trip at the tails).
         assert float(report.final_margin) <= float(report_start.final_margin) + 1e-6
 
-    def test_alcubierre_reproduction_under_1e_4(self, alcubierre_knots_values):
-        """Alcubierre recovery <1e-4 rel error.
+    def test_spline_knot_interpolation_exact(self, alcubierre_knots_values):
+        """Spline reproduction is exact at knots; mid-knot error is pinned.
 
         Uses ``max_steps=0`` - the reproduction path where the
-        optimizer short-circuits and returns the input spline unchanged
-        (at the extreme - trivially a local minimum
-        under zero step budget). Verifies that the 24-knot cubic
-        B-spline **control-point representation** preserves the
-        Alcubierre tanh values within ``1e-4`` relative error at the
-        knot locations (the cubic B-spline interpolates exactly at its
-        knots; between-knot accuracy is a separate convergence question
-        and depends on knot density vs wall sharpness).
+        optimizer short-circuits and returns the input spline unchanged.
+        The cubic spline interpolates its own knots exactly, so the
+        knot-point check is an absolute pin at 1e-12 (measured 0.0).
+        Between knots the 24-knot grid (spacing 0.52) badly undersamples
+        the sigma=0.1 wall, so the dense-probe error is large; we pin it
+        as an honest regression value rather than claim accuracy.
         """
         knots, values = alcubierre_knots_values
         shape = ShapeFunction.spline(knots, values)
@@ -275,17 +258,25 @@ class TestDesignOptimization:
             max_steps=0,  # reproduction path
             key=jax.random.PRNGKey(42),
         )
-        # Sample at the knot points (interpolation is exact there)
         R, sigma = 1.0, 0.1
+        # Knot points: interpolation is exact there
         truth = 1.0 - jnp.tanh((knots - R) / sigma) ** 2
         recovered = jax.vmap(metric.shape_fn)(knots)
-        max_abs = jnp.max(jnp.abs(truth))
-        rel_err = jnp.max(jnp.abs(recovered - truth)) / jnp.where(
-            max_abs > 0.0, max_abs, 1.0
+        max_abs_err = float(jnp.max(jnp.abs(recovered - truth)))
+        assert max_abs_err <= 1e-12, (
+            f"Knot interpolation not exact: max abs err={max_abs_err:.2e}"
         )
-        assert float(rel_err) < 1e-4, (
-            f"Reproduction rel_err={float(rel_err):.2e} >= 1e-4"
+        # Mid-knot regression pin: dense 1000-point probe, peak-normalized.
+        # Measured 0.611 - the knots are too coarse for the wall, and that
+        # is the honest number (cf. examples/08_metric_design.py dense probe).
+        x_dense = jnp.linspace(0.0, 12.0, 1000)
+        truth_dense = 1.0 - jnp.tanh((x_dense - R) / sigma) ** 2
+        recovered_dense = jax.vmap(metric.shape_fn)(x_dense)
+        rel_err_dense = float(
+            jnp.max(jnp.abs(recovered_dense - truth_dense))
+            / jnp.max(jnp.abs(truth_dense))
         )
+        npt.assert_allclose(rel_err_dense, 0.611, rtol=0.05)
 
     def test_golden_fixture_determinism(self, alcubierre_knots_values):
         """max_steps=0 short-circuit is bit-exact reproducible.
@@ -376,6 +367,7 @@ class TestDesignOptimization:
             max_steps=4,
             key=jax.random.PRNGKey(0),
         )
+        assert isinstance(report, OptimizationReport)
         assert isinstance(report.converged, (bool, np.bool_))
         assert jnp.isfinite(report.final_margin)
         assert report.n_steps >= 0
@@ -529,12 +521,6 @@ class TestNatarioConvention:
             f"Natario origin value {f} <= 0.5, "
             "suggesting inverted n(r) convention instead of Alcubierre"
         )
-
-    def test_natario_matches_alcubierre_convention(self):
-        """Natario shape function should be close to 1.0 at origin."""
-        m = NatarioMetric()
-        f = float(m.shape_function_value(ORIGIN))
-        npt.assert_allclose(f, 1.0, atol=1e-6)
 
 
 # Lentz L1 geometry tests

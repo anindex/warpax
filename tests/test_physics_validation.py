@@ -59,8 +59,13 @@ class TestSchwarzschildMultiRadius:
     metric = SchwarzschildMetric(M=1.0)
 
     @pytest.mark.parametrize("r_iso", SCHWARZSCHILD_RADII)
-    def test_ricci_zero(self, r_iso: float) -> None:
-        """Schwarzschild is a vacuum solution: R_{ab} = 0, R = 0 at all radii."""
+    def test_vacuum_chain_zero(self, r_iso: float) -> None:
+        """Vacuum solution: R_{ab}, R, G_{ab}, T_{ab} all zero at all radii.
+
+        One chain evaluation per radius covers all four quantities;
+        G and T are linear in Ricci so recomputing them separately
+        added nothing.
+        """
         coords = jnp.array([0.0, r_iso, 0.0, 0.0])
         result = compute_curvature_chain(self.metric, coords)
         npt.assert_allclose(
@@ -70,6 +75,14 @@ class TestSchwarzschildMultiRadius:
         npt.assert_allclose(
             float(result.ricci_scalar), 0.0, atol=1e-10,
             err_msg=f"Ricci scalar nonzero at r_iso={r_iso}",
+        )
+        npt.assert_allclose(
+            np.array(result.einstein), 0.0, atol=1e-10,
+            err_msg=f"Einstein tensor nonzero at r_iso={r_iso}",
+        )
+        npt.assert_allclose(
+            np.array(result.stress_energy), 0.0, atol=1e-10,
+            err_msg=f"Stress-energy tensor nonzero at r_iso={r_iso}",
         )
 
     @pytest.mark.parametrize("r_iso", SCHWARZSCHILD_RADII)
@@ -85,26 +98,6 @@ class TestSchwarzschildMultiRadius:
         npt.assert_allclose(
             float(K), K_expected, rtol=1e-8,
             err_msg=f"Kretschmann mismatch at r_iso={r_iso} (r_schw={r_schw:.6f})",
-        )
-
-    @pytest.mark.parametrize("r_iso", SCHWARZSCHILD_RADII)
-    def test_einstein_zero(self, r_iso: float) -> None:
-        """G_{ab} = 0 for vacuum."""
-        coords = jnp.array([0.0, r_iso, 0.0, 0.0])
-        result = compute_curvature_chain(self.metric, coords)
-        npt.assert_allclose(
-            np.array(result.einstein), 0.0, atol=1e-10,
-            err_msg=f"Einstein tensor nonzero at r_iso={r_iso}",
-        )
-
-    @pytest.mark.parametrize("r_iso", SCHWARZSCHILD_RADII)
-    def test_stress_energy_zero(self, r_iso: float) -> None:
-        """T_{ab} = 0 for vacuum (G = 8pi T)."""
-        coords = jnp.array([0.0, r_iso, 0.0, 0.0])
-        result = compute_curvature_chain(self.metric, coords)
-        npt.assert_allclose(
-            np.array(result.stress_energy), 0.0, atol=1e-10,
-            err_msg=f"Stress-energy tensor nonzero at r_iso={r_iso}",
         )
 
 
@@ -367,8 +360,12 @@ class TestStressEnergySymmetry:
     the Riemann pair-interchange symmetry. Floating-point reduction order
     determined by XLA can perturb this slightly.
 
+    stress_energy_tensor() explicitly symmetrizes T, so asserting on T
+    would be vacuous; the bound is checked on the pre-symmetrization
+    Einstein tensor instead.
+
     This suite bounds the relative antisymmetric drift per metric at
-    ``|T - T^T|_max / |T|_max < 1e-13`` over a 10x10x10 coordinate slab;
+    ``|G - G^T|_max / |G|_max < 1e-13`` over a 10x10x10 coordinate slab;
     a regression that breaks the bound would surface a reduction-order
     change in the curvature chain and is worth investigating before
     accepting the diff.
@@ -399,16 +396,17 @@ class TestStressEnergySymmetry:
 
         coords = self._slab_coords(bounds, self.GRID_N)
 
-        def stress_at(c):
-            return compute_curvature_chain(metric, c).stress_energy
+        def einstein_at(c):
+            # pre-symmetrization tensor; stress_energy is forced symmetric
+            return compute_curvature_chain(metric, c).einstein
 
-        T = jax.vmap(stress_at)(coords)
-        asym = jnp.max(jnp.abs(T - jnp.swapaxes(T, -1, -2)))
-        scale = jnp.max(jnp.abs(T)) + jnp.finfo(T.dtype).tiny
+        G = jax.vmap(einstein_at)(coords)
+        asym = jnp.max(jnp.abs(G - jnp.swapaxes(G, -1, -2)))
+        scale = jnp.max(jnp.abs(G)) + jnp.finfo(G.dtype).tiny
         rel = asym / scale
         assert float(rel) < self.REL_TOL, (
-            f"stress-energy antisymmetric drift above tolerance: "
-            f"|T-T^T|_max = {asym:.2e}, |T|_max = {scale:.2e}, "
+            f"Einstein antisymmetric drift above tolerance: "
+            f"|G-G^T|_max = {asym:.2e}, |G|_max = {scale:.2e}, "
             f"rel = {rel:.2e} (tol {self.REL_TOL:.1e})"
         )
 
@@ -441,8 +439,11 @@ class TestStressEnergySymmetry:
     def test_vdb_stress_energy_symmetric(self):
         from warpax.metrics import VanDenBroeckMetric
 
+        # compact bubble so the slab crosses the walls; default R=350
+        # leaves G = 0 identically on a (-2, 2) slab
         self._assert_symmetric_over_slab(
-            VanDenBroeckMetric(v_s=0.5), bounds=(-2.0, 2.0)
+            VanDenBroeckMetric(v_s=0.5, R=1.0, sigma=8.0, R_tilde=0.5, sigma_B=8.0),
+            bounds=(-2.0, 2.0),
         )
 
     def test_warpshell_stress_energy_symmetric(self):
@@ -521,27 +522,13 @@ class TestNatarioZeroExpansion:
                 atol=1e-10,
                 err_msg=f"Natario theta != 0 at coords {coords}",
             )
-
-    def test_natario_vorticity_zero(self):
-        """Eulerian vorticity omega^2 = 0 across a 50^3 grid.
-
-        Eulerian congruence is hypersurface-orthogonal: omega = 0
-        by Frobenius theorem.
-        """
-        metric = NatarioMetric(v_s=0.1, R=1.0, sigma=8.0)
-        grid = GridSpec(
-            bounds=[(-3.0, 3.0), (-3.0, 3.0), (-3.0, 3.0)],
-            shape=(50, 50, 50),
-        )
-        theta_grid, sigma_sq_grid, omega_sq_grid = compute_kinematic_scalars_grid(
-            metric, grid, t=0.0, batch_size=5000
-        )
-        npt.assert_allclose(
-            np.asarray(omega_sq_grid),
-            0.0,
-            atol=1e-10,
-            err_msg="Eulerian vorticity should be identically zero",
-        )
+            # covers the omega output slot (zero for Eulerian observers)
+            npt.assert_allclose(
+                float(omega_sq),
+                0.0,
+                atol=1e-10,
+                err_msg=f"Eulerian vorticity != 0 at coords {coords}",
+            )
 
 
 # Rodal globally Hawking-Ellis Type I
@@ -1259,8 +1246,8 @@ class TestSchwarzschildADMMassFuchs:
     The documented behavior (CODEBASE.md) is that the surface integrand
     has the wrong large-r asymptote for thick-shell constructions, so the
     integral drifts away from the Komar / volume mass as r grows. This
-    test pins the qualitative trend so a future fix doesn't regress
-    silently.
+    test pins the trend quantitatively (linear-in-r drift plus a golden
+    snapshot) so a future fix doesn't regress silently.
     """
 
     @pytest.mark.slow
@@ -1277,6 +1264,18 @@ class TestSchwarzschildADMMassFuchs:
         assert all(np.isfinite(m) for m in masses), masses
         # All ADM probes return positive mass on this Type-I shell
         assert all(m > 0 for m in masses), masses
+        # Documented wrong asymptote: integral grows linearly in r outside R_2
+        assert masses[0] < masses[1] < masses[2], masses
+        npt.assert_allclose(
+            masses[2] / masses[1], 100.0 / 50.0, rtol=1e-6,
+            err_msg=f"large-r linear drift broken: {masses}",
+        )
+        # Golden snapshot (CPU float64); a fixed integrand must update these
+        npt.assert_allclose(
+            masses,
+            [2.9763560775557134, 5.0338710480931175, 10.067742096186235],
+            rtol=1e-6,
+        )
 
 
 class TestInterpolationOrderRegression:

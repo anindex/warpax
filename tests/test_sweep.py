@@ -174,35 +174,22 @@ class TestDensityScaling:
 
 class TestEvaluatePoint:
 
-    def test_returns_nonzero_transport(self):
-        """T-shell evaluation produces nonzero transport for nonzero density."""
-        from warpax.optimization.sweep import _evaluate_point
-
-        result = _evaluate_point(
-            ansatz="tshell",
-            R_1=10.0,
-            R_2=20.0,
-            rho_0=1e-4,
-            n_density=4,
-            n_velocity=4,
-            n_grid=256,
-            n_probes=3,
-            n_ec_starts=2,
-        )
-        assert result["transport"] > 0
-        assert result["mass"] > 0
-        assert np.isfinite(result["constraint_residual"])
-        assert np.isfinite(result["tidal"])
-        assert isinstance(result["ec_feasible"], bool)
-
     def test_higher_density_higher_transport(self):
-        """Transport increases with density (more shift from momentum constraint)."""
+        """Transport increases with density, and a single evaluation returns
+        sane fields (nonzero transport/mass, finite residual/tidal)."""
         from warpax.optimization.sweep import _evaluate_point
 
         r_low = _evaluate_point(
             ansatz="tshell", R_1=10.0, R_2=20.0, rho_0=5e-5,
             n_density=4, n_velocity=4, n_grid=256, n_probes=3, n_ec_starts=2,
         )
+        # Sanity of a single point (folded from test_returns_nonzero_transport)
+        assert r_low["transport"] > 0
+        assert r_low["mass"] > 0
+        assert np.isfinite(r_low["constraint_residual"])
+        assert np.isfinite(r_low["tidal"])
+        assert isinstance(r_low["ec_feasible"], bool)
+
         r_high = _evaluate_point(
             ansatz="tshell", R_1=10.0, R_2=20.0, rho_0=2e-4,
             n_density=4, n_velocity=4, n_grid=256, n_probes=3, n_ec_starts=2,

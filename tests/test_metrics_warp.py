@@ -163,7 +163,7 @@ class TestLentz:
             "Diamond and spherical should produce different shifts at diagonal."
         )
 
-    def test_lentz_warpfactory_comparison(self):
+    def test_lentz_regression_baseline(self):
         """Regression baseline for Lentz Eulerian energy density.
 
         Computes T_ab n^a n^b at representative points and compares against
@@ -919,14 +919,23 @@ class TestWarpShell:
         assert g.shape == (4, 4)
         # At r=0, deep inside, forced to identity by r < 1e-10 guard
         assert jnp.allclose(g[1:, 1:], jnp.eye(3), atol=1e-14)
+        # S_warp(0)=1 and lapse=1 exactly, so g_01 = -v_s, g_00 = -(1 - v_s^2)
+        assert jnp.isclose(g[0, 1], -m.v_s, atol=1e-12)
+        assert jnp.isclose(g[0, 0], -(1.0 - m.v_s**2), atol=1e-12)
 
     def test_warpshell_far_field(self):
-        """Evaluate far from bubble (r >> R_2), verify approaches Minkowski."""
+        """Outside the shell (r > R_2), metric is Minkowski.
+
+        Checks both just outside the shell (r=50) and deep far field (r=1000).
+        """
         m = WarpShellMetric()  # R_2=20
-        far_coords = jnp.array([0.0, 1000.0, 0.0, 0.0])
-        g = m(far_coords)
         minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, minkowski, atol=1e-6)
+        for r in (50.0, 1000.0):
+            g = m(jnp.array([0.0, r, 0.0, 0.0]))
+            assert jnp.allclose(g, minkowski, atol=1e-6), (
+                f"Exterior metric at r={r} should be Minkowski. "
+                f"Got g_00={g[0, 0]}, diag_spatial={jnp.diag(g[1:, 1:])}"
+            )
 
     def test_warpshell_jit(self):
         """jax.jit compilation works."""
@@ -1038,16 +1047,6 @@ class TestWarpShell:
         )
         assert alpha > 0.0, "Lapse must be positive"
 
-    def test_warpshell_exterior_minkowski(self):
-        """At r >> R_2, metric approaches Minkowski."""
-        m = WarpShellMetric()  # R_2=20
-        coords = jnp.array([0.0, 50.0, 0.0, 0.0])  # r=50 >> R_2=20
-        g = m(coords)
-        minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, minkowski, atol=1e-6), (
-            f"Exterior metric should be Minkowski. Got g_00={g[0,0]}, diag_spatial={jnp.diag(g[1:,1:])}"
-        )
-
     def test_warpshell_spatial_metric_symmetric(self):
         """At 5+ points in the shell region, verify gamma_ij == gamma_ji.
 
@@ -1114,52 +1113,29 @@ class TestWarpShell:
                 f"Got {eigvals}"
             )
 
-    def test_warpshell_warpfactory_comparison(self):
-        """Regression baseline for WarpShell Eulerian energy density (C2 default).
+    def test_warpshell_vacuum_shell_energy_density(self):
+        """WarpShell Eulerian energy density vanishes everywhere (C2 default).
 
-        Computes T_ab n^a n^b at representative points and compares against
-        stored regression baselines. This serves as a regression test to
-        detect any changes in the WarpShell metric or curvature pipeline.
+        With smooth_width=1.2 the shell indicator is exactly 1 throughout
+        [R_1, R_2], so the metric is locally Schwarzschild at r=12, 15, 18.
+        Schwarzschild is a vacuum solution, so T_ab n^a n^b must be zero up
+        to machine epsilon there (measured ~1e-20). Interior and exterior
+        are exactly flat.
 
-        Regression baseline NOT a published WarpFactory comparison.
         Parameter set: v_s=0.02, R_1=10, R_2=20, R_b=1, r_s_param=5.
         Uses default transition_order=2 (C2 quintic smoothstep).
-
-        Note: With smooth_width=1.2, the shell indicator is exactly 1
-        throughout [R_1, R_2], so the metric is locally Schwarzschild at
-        r=12,15,18. Schwarzschild is a vacuum solution (zero stress-energy),
-        hence shell-interior energy densities are near machine epsilon.
         """
         m = WarpShellMetric(v_s=0.02, R_1=10.0, R_2=20.0, R_b=1.0, r_s_param=5.0)
 
-        # Reference values computed with C2 quintic (transition_order=2)
-        # Interior/exterior: exactly 0 (flat space)
-        # Shell interior (r=12,15,18): near machine epsilon (~1e-19 to 1e-21)
-        test_cases = {
-            "interior": {
-                "coords": jnp.array([0.0, 5.0, 0.0, 0.0]),
-                "rho_euler": 0.0,  # Flat interior
-            },
-            "shell_inner": {
-                "coords": jnp.array([0.0, 12.0, 0.0, 0.0]),
-                "rho_euler": -1.1159659080075407e-19,
-            },
-            "shell_mid": {
-                "coords": jnp.array([0.0, 15.0, 0.0, 0.0]),
-                "rho_euler": -3.0572595439959903e-20,
-            },
-            "shell_outer": {
-                "coords": jnp.array([0.0, 18.0, 0.0, 0.0]),
-                "rho_euler": 3.4456208415896368e-21,
-            },
-            "exterior": {
-                "coords": jnp.array([0.0, 50.0, 0.0, 0.0]),
-                "rho_euler": 0.0,  # Flat exterior
-            },
+        points = {
+            "interior": jnp.array([0.0, 5.0, 0.0, 0.0]),
+            "shell_inner": jnp.array([0.0, 12.0, 0.0, 0.0]),
+            "shell_mid": jnp.array([0.0, 15.0, 0.0, 0.0]),
+            "shell_outer": jnp.array([0.0, 18.0, 0.0, 0.0]),
+            "exterior": jnp.array([0.0, 50.0, 0.0, 0.0]),
         }
 
-        for name, case in test_cases.items():
-            coords = case["coords"]
+        for name, coords in points.items():
             result = compute_curvature_chain(m, coords)
 
             # Eulerian energy density: T_ab n^a n^b
@@ -1175,9 +1151,9 @@ class TestWarpShell:
             T = result.stress_energy
             rho_euler = jnp.einsum("a,ab,b->", n_up, T, n_up)
 
-            assert jnp.allclose(rho_euler, case["rho_euler"], atol=1e-8), (
+            assert abs(rho_euler) < 1e-15, (
                 f"WarpShell {name}: rho_euler = {rho_euler:.16e}, "
-                f"expected {case['rho_euler']:.16e}"
+                "expected ~0 (locally Schwarzschild shell is vacuum)"
             )
 
     # ------------------------------------------------------------------
@@ -1298,43 +1274,24 @@ class TestWarpShell:
     # ------------------------------------------------------------------
 
     def test_warpshell_c1_regression(self):
-        """C1 regression: WarpShellMetric(transition_order=1) reproduces legacy baselines.
+        """C1 regression: pin the transition_order=1 code path.
 
-        Uses the same parameter set and test points as the original C1
-        regression test to confirm that the refactored code path produces
-        identical results (within atol=1e-14).
+        Two parts:
+        1. Eulerian energy density stays near zero (|rho| < 1e-14) at five
+           radial points -- a near-zero smoke test of the C1 curvature
+           pipeline, not a baseline lock (shell is locally Schwarzschild
+           vacuum, so rho sits at machine epsilon ~1e-20).
+        2. Pins that actually distinguish C1 from C2 in the transition
+           zone at r=9.2: the cubic and quintic smoothsteps differ at
+           O(1e-2) there (C2 lapse is 0.9319294656761363).
         """
         m = WarpShellMetric(
             v_s=0.02, R_1=10.0, R_2=20.0, R_b=1.0, r_s_param=5.0,
             transition_order=1,
         )
 
-        # C1 regression baselines (from original test before C2 upgrade)
-        test_cases = {
-            "interior": {
-                "coords": jnp.array([0.0, 5.0, 0.0, 0.0]),
-                "rho_euler": 0.0,
-            },
-            "shell_inner": {
-                "coords": jnp.array([0.0, 12.0, 0.0, 0.0]),
-                "rho_euler": -6.5486234734598095e-20,
-            },
-            "shell_mid": {
-                "coords": jnp.array([0.0, 15.0, 0.0, 0.0]),
-                "rho_euler": -1.6848014716480068e-20,
-            },
-            "shell_outer": {
-                "coords": jnp.array([0.0, 18.0, 0.0, 0.0]),
-                "rho_euler": 1.0580467215165777e-20,
-            },
-            "exterior": {
-                "coords": jnp.array([0.0, 50.0, 0.0, 0.0]),
-                "rho_euler": 0.0,
-            },
-        }
-
-        for name, case in test_cases.items():
-            coords = case["coords"]
+        for r in (5.0, 12.0, 15.0, 18.0, 50.0):
+            coords = jnp.array([0.0, r, 0.0, 0.0])
             result = compute_curvature_chain(m, coords)
 
             alpha = m.lapse(coords)
@@ -1348,10 +1305,23 @@ class TestWarpShell:
             T = result.stress_energy
             rho_euler = jnp.einsum("a,ab,b->", n_up, T, n_up)
 
-            assert jnp.allclose(rho_euler, case["rho_euler"], atol=1e-14), (
-                f"C1 regression {name}: rho_euler = {rho_euler:.16e}, "
-                f"expected {case['rho_euler']:.16e}"
+            assert abs(rho_euler) < 1e-14, (
+                f"C1 regression r={r}: rho_euler = {rho_euler:.16e}, expected ~0"
             )
+
+        # C1-distinguishing pins, measured from the current pipeline.
+        # Transition zone is [R_1 - smooth_width, R_1] = [8.8, 10].
+        seam = jnp.array([0.0, 9.2, 0.0, 0.0])
+        lapse_c1 = m.lapse(seam)
+        assert jnp.isclose(lapse_c1, 0.9159128693646388, atol=1e-12), (
+            f"C1 lapse at r=9.2 = {lapse_c1:.16e}, "
+            "expected 0.9159128693646388 (C2 gives 0.9319294656761363)"
+        )
+        riemann_c1 = compute_curvature_chain(m, seam).riemann
+        assert jnp.isclose(riemann_c1[0, 1, 0, 1], 0.20735301228665254, atol=1e-9), (
+            f"C1 Riemann[0,1,0,1] at r=9.2 = {riemann_c1[0, 1, 0, 1]:.16e}, "
+            "expected 0.20735301228665254 (C2 gives 0.7242653636732740)"
+        )
 
     # ------------------------------------------------------------------
     # C2 transition_order field tests

@@ -4,6 +4,7 @@ Covers Bernstein basis, multi-objective loss, EC constraints, and optimizer.
 """
 from __future__ import annotations
 
+import numpy as np
 import pytest
 import jax
 import jax.numpy as jnp
@@ -32,12 +33,15 @@ class TestBernsteinBasis:
             assert abs(float(bernstein_basis(n, jnp.asarray(1.0))[-1]) - 1.0) < 1e-12
 
     def test_eval_consistency(self):
-        """bernstein_eval matches manual basis * coeffs sum."""
+        """bernstein_eval matches manual basis * coeffs sum and a hand value."""
         from warpax.optimization import bernstein_basis, bernstein_eval
 
         coeffs = jnp.array([0.0, 0.5, 1.0, 0.5, 0.0])
         t = jnp.asarray(0.3)
         assert abs(float(jnp.sum(coeffs * bernstein_basis(4, t)) - bernstein_eval(coeffs, t))) < 1e-14
+        # Independent pin: 0.5*4t(1-t)^3 + 6t^2(1-t)^2 + 0.5*4t^3(1-t) at t=0.3
+        # is exactly 2541/5000 = 0.5082.
+        assert abs(float(bernstein_eval(coeffs, t)) - 0.5082) < 1e-14
 
     def test_jax_differentiable(self):
         """jax.grad flows through bernstein_eval."""
@@ -98,6 +102,20 @@ class TestPackUnpack:
         assert coeffs.velocity_coeffs.shape == (6,)
         assert float(coeffs.density_coeffs[0]) == 0.0
         assert float(coeffs.density_coeffs[-1]) == 0.0
+        assert float(coeffs.velocity_coeffs[0]) == 0.0
+        assert float(coeffs.velocity_coeffs[-1]) == 0.0
+
+        # Value round-trips: velocity interior passes through untransformed,
+        # v_0 is read back verbatim.
+        np.testing.assert_array_equal(
+            np.asarray(coeffs.velocity_coeffs[1:-1]),
+            np.array([0.2, 0.8, 0.5, 0.1]),
+        )
+        assert coeffs.v_0 == pytest.approx(0.1)
+        # rho(r) = softplus(rho_scale_raw) * softplus(theta) reparameterization.
+        assert float(coeffs.density_coeffs[1]) == pytest.approx(
+            float(jax.nn.softplus(1e-4) * jax.nn.softplus(0.1)), rel=1e-12,
+        )
 
     def test_default_theta_valid(self):
         """default_theta produces non-negative density coefficients."""
@@ -227,6 +245,21 @@ class TestECConstraints:
         assert len(captured) == 2
         assert not jnp.array_equal(captured[0], captured[1]), (
             "ec_feasibility_check consumed identical PRNG keys at two probe points"
+        )
+
+        # evaluate_loss reaches _ec_margins_at_point through the same module
+        # and must thread per-point keys too.
+        from warpax.optimization import default_theta, evaluate_loss
+
+        captured.clear()
+        evaluate_loss(
+            default_theta(), ansatz="sshell",
+            n_probes=2, n_grid=256, n_ec_starts=2,
+        )
+        assert len(captured) == 2
+        assert captured[0] is not None and captured[1] is not None
+        assert not jnp.array_equal(captured[0], captured[1]), (
+            "evaluate_loss consumed identical PRNG keys at two probe points"
         )
 
 

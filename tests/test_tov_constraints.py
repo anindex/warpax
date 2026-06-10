@@ -45,6 +45,42 @@ def test_tov_residual_with_gravity():
     assert jnp.isclose(result, expected, atol=1e-6)
 
 
+def test_tov_residual_pressure_gradient_equilibrium():
+    """Non-constant p_r: dp_r/dr balanced by gravity gives zero residual.
+
+    The constant-p_r tests above never exercise the jax.grad(p_r) term;
+    this one does. At r=2: p_r = 0.3, dp_r/dr = -0.1, so equilibrium
+    needs Phi' = 0.1 / (rho + p_r) = 0.1 / 1.3.
+    """
+    r = jnp.array(2.0)
+    rho = lambda rr: jnp.array(1.0)
+    p_r = lambda rr: 0.5 - 0.1 * rr
+    p_t = lambda rr: 0.5 - 0.1 * rr  # isotropic, anisotropy term drops
+    Phi_prime = jnp.array(0.1 / (1.0 + 0.3))
+    result = tov_residual(r, rho, p_r, p_t, Phi_prime)
+    assert jnp.isclose(result, 0.0, atol=1e-14)
+
+
+def test_tov_residual_pressure_gradient_only():
+    """Non-constant p_r with Phi' = 0 and p_t = p_r: residual is exactly dp_r/dr."""
+    r = jnp.array(2.0)
+    rho = lambda rr: jnp.array(1.0)
+    p_r = lambda rr: 0.5 - 0.1 * rr
+    p_t = lambda rr: 0.5 - 0.1 * rr
+    result = tov_residual(r, rho, p_r, p_t, jnp.array(0.0))
+    assert jnp.isclose(result, -0.1, atol=1e-14)
+
+
+def test_tov_residual_from_metric_vacuum_zero():
+    """Minkowski + vacuum profiles: Phi' = 0 and all terms vanish exactly."""
+    from warpax.benchmarks import MinkowskiMetric
+    from warpax.tov.residuals import tov_residual_from_metric
+
+    zero = lambda rr: jnp.array(0.0)
+    result = tov_residual_from_metric(MinkowskiMetric(), jnp.array(2.0), zero, zero, zero)
+    assert jnp.isclose(result, 0.0, atol=1e-14)
+
+
 jax.config.update("jax_enable_x64", True)
 
 from warpax.benchmarks.minkowski import MinkowskiMetric

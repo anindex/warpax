@@ -51,6 +51,7 @@ def evaluate_loss(
     n_ec_starts: int = 4,
     skip_ec: bool = False,
     fast: bool = False,
+    key=None,
 ) -> tuple[Float[Array, ""], LossComponents]:
     """Evaluate multi-objective loss for a parameter vector.
 
@@ -69,6 +70,9 @@ def evaluate_loss(
         transport + mass are computed. Use for the inner
         optimization loop when constraint residuals are not
         needed (the constraint solver already enforces them).
+    key : seeds the EC multistart randomness; None keeps the
+        deterministic default PRNGKey(42). Each probe point gets a
+        distinct fold_in (PRNG key reuse bug fix).
     """
     if weights is None:
         weights = LossWeights()
@@ -119,11 +123,16 @@ def evaluate_loss(
     else:
         from .ec_constraints import _ec_margins_at_point, _probe_T_g
 
+        if key is None:
+            key = jax.random.PRNGKey(42)
         T_batch, g_batch = _probe_T_g(metric, r_probes)
         conditions = ("nec", "wec", "dec")
         ec_penalties = []
         for i in range(n_probes):
-            margins = _ec_margins_at_point(T_batch[i], g_batch[i], conditions, n_ec_starts)
+            point_key = jax.random.fold_in(key, i)
+            margins = _ec_margins_at_point(
+                T_batch[i], g_batch[i], conditions, n_ec_starts, point_key
+            )
             ec_penalties.append(
                 jax.nn.softplus(-margins["nec"]) ** 2
                 + jax.nn.softplus(-margins["wec"]) ** 2

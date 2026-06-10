@@ -58,12 +58,8 @@ class TestLoadCactusSlice:
         g = np.asarray(m(coords))
         expected = np.diag([-1.0, 1.0, 1.0, 1.0])
         np.testing.assert_allclose(g, expected, atol=1e-10)
-
-    def test_lorentzian_signature_det_negative(self):
-        m = load_cactus_slice(FIXTURE_PATH)
-        coords = jnp.array([0.0, 0.0, 0.0, 0.0])
-        g = m(coords)
-        assert float(jnp.linalg.det(g)) < 0.0
+        # Lorentzian signature comes along for free.
+        assert float(np.linalg.det(g)) < 0.0
 
     def test_nonexistent_file_raises(self):
         with pytest.raises(FileNotFoundError, match="not found"):
@@ -138,15 +134,6 @@ class TestLoadEinField:
     def test_import_load_einfield_symbol(self):
         """The symbol must import even without orbax/flax installed."""
         from warpax.io import load_einfield as _lf  # noqa: F401
-
-    def test_missing_extras_raises_import_error(self, tmp_path):
-        """Calling the loader without orbax-checkpoint installed raises ImportError."""
-        orbax = pytest.importorskip("orbax.checkpoint", reason="No orbax-checkpoint")
-        # If orbax IS installed, skip this specific test - there's nothing to assert.
-        pytest.skip(
-            "orbax-checkpoint present; missing-extra path tested only in "
-            "unit-of-one (extras-not-installed) CI matrix."
-        )
 
     def test_nonexistent_checkpoint_raises(self, tmp_path):
         """Missing path raises FileNotFoundError even when extras absent."""
@@ -231,12 +218,10 @@ class TestLoadWarpFactory:
         with pytest.raises(FileNotFoundError, match="not found"):
             load_warpfactory("nonexistent-file.mat")
 
-    def test_schema_version_detection(self):
-        """Loader successfully reads the v7-format fixture via scipy path."""
-        # If the fixture is v7 (non-HDF5), scipy path is used. Smoke test.
+    def test_v7_scipy_path_loads_unit_lapse(self):
+        """The v7 (non-HDF5) fixture goes through the scipy path; Alcubierre
+        has unit lapse by construction, so alpha(origin) must be exactly 1."""
         m = load_warpfactory(WARPFACTORY_FIXTURE_PATH)
-        # Spot-check: alpha at origin should be within [0, 1] (Alcubierre
-        # has unit lapse by construction).
         coords = jnp.array([0.0, 0.0, 0.0, 0.0])
         alpha_val = float(m.lapse(coords))
-        assert 0.0 <= alpha_val <= 1.5
+        np.testing.assert_allclose(alpha_val, 1.0, atol=1e-12)

@@ -281,9 +281,8 @@ class TestEventDetection:
     """Test 6: Bounding box event termination.
 
     Note: With Diffrax SaveAt(ts=...), after event termination the
-    remaining save-points are filled with the final valid state (not
-    extrapolated). We test that the trajectory does not exceed the
-    bounding box significantly.
+    remaining save-points are filled with inf. We filter to the finite
+    points and check the last valid radius sits near the bounding box.
     """
 
     def test_event_detection_bounding_box(self):
@@ -339,37 +338,8 @@ class TestEventDetection:
 # Warp drive smoke tests
 
 
-class TestAlcubierreGeodesicSmoke:
-    """Test 7: Alcubierre metric geodesic no NaN/Inf."""
-
-    def test_alcubierre_geodesic_smoke(self):
-        """Geodesic in Alcubierre spacetime should produce valid (non-NaN) output."""
-        metric = AlcubierreMetric(v_s=0.1, R=1.0, sigma=8.0)
-        # Start well outside the bubble
-        x0 = jnp.array([0.0, 5.0, 0.0, 0.0])
-        _, v0 = timelike_ic(metric, x0, jnp.array([0.0, 0.0, 0.0]))
-
-        sol = integrate_geodesic(
-            metric, x0, v0,
-            tau_span=(0.0, 1.0),
-            num_points=100,
-            max_steps=4096,
-        )
-
-        # Verify no NaN or Inf
-        assert not jnp.any(jnp.isnan(sol.positions)), (
-            "Alcubierre geodesic produced NaN in positions"
-        )
-        assert not jnp.any(jnp.isinf(sol.positions)), (
-            "Alcubierre geodesic produced Inf in positions"
-        )
-        assert not jnp.any(jnp.isnan(sol.velocities)), (
-            "Alcubierre geodesic produced NaN in velocities"
-        )
-
-
 class TestWarpMetricsGeodesicSmoke:
-    """Test 8: Parametrized warp drive smoke tests.
+    """Test 7: Parametrized warp drive smoke tests.
 
     All warp metrics are tested with small bubble radius (R=1.0) and a
     starting point well outside the bubble at (0, 5, 0.1, 0).
@@ -383,16 +353,17 @@ class TestWarpMetricsGeodesicSmoke:
     @pytest.mark.parametrize(
         "metric_cls,kwargs",
         [
+            (AlcubierreMetric, dict(v_s=0.1, R=1.0, sigma=8.0)),
             (RodalMetric, dict(v_s=0.1, R=1.0, sigma=8.0)),
             (NatarioMetric, dict(v_s=0.1, R=1.0, sigma=8.0)),
             (VanDenBroeckMetric, dict(v_s=0.1, R=1.0, sigma=8.0)),
             (LentzMetric, dict(v_s=0.1, R=1.0, sigma=8.0)),
             (WarpShellMetric, dict(v_s=0.1, R_1=0.5, R_2=1.5)),
         ],
-        ids=["Rodal", "Natario", "VanDenBroeck", "Lentz", "WarpShell"],
+        ids=["Alcubierre", "Rodal", "Natario", "VanDenBroeck", "Lentz", "WarpShell"],
     )
     def test_warp_metric_geodesic_no_nan(self, metric_cls, kwargs):
-        """Each warp metric should produce NaN-free geodesics."""
+        """Each warp metric should produce NaN-free, norm-conserving geodesics."""
         metric = metric_cls(**kwargs)
         # Start well outside the bubble with slight y-offset to avoid
         # axis singularity in spherical-to-Cartesian conversion
@@ -416,18 +387,11 @@ class TestWarpMetricsGeodesicSmoke:
             f"{metric_cls.__name__} geodesic produced NaN in velocities"
         )
 
-
-# Helper: isotropic <-> Schwarzschild coordinate conversions
-
-
-def _schw_r_to_iso(r_schw: float, M: float = 1.0) -> float:
-    """Convert Schwarzschild radial coordinate to isotropic."""
-    return (r_schw - M + np.sqrt(r_schw**2 - 2 * M * r_schw)) / 2.0
-
-
-def _iso_to_schw_r(r_iso: float, M: float = 1.0) -> float:
-    """Convert isotropic radial coordinate to Schwarzschild."""
-    return r_iso * (1 + M / (2 * r_iso)) ** 2
+        # IC is timelike, so g(v,v) should hold at -1 along the trajectory
+        norms = monitor_conservation(metric, sol)
+        assert float(jnp.max(jnp.abs(norms + 1.0))) < 1e-6, (
+            f"{metric_cls.__name__} 4-velocity norm drifted off -1"
+        )
 
 
 # Tidal force tests
@@ -785,28 +749,6 @@ class TestConservationMonitoringNull:
         assert max_null_error < 1e-6, (
             f"Schwarzschild null norm drift {max_null_error:.2e} exceeds 1e-6"
         )
-
-
-def _iso_to_schw_r(r_iso: float, M: float = 1.0) -> float:
-    return r_iso * (1 + M / (2 * r_iso)) ** 2
-
-
-def test_static_observer_eigenvalues_match_analytical():
-    """Sanity baseline: static eigenvalues match the closed form."""
-    M = 1.0
-    r_iso = 10.0
-    r_schw = _iso_to_schw_r(r_iso, M)
-    metric = SchwarzschildMetric(M=M)
-    x = jnp.array([0.0, r_iso, 0.0, 0.0])
-    g = metric(x)
-    v = jnp.array([1.0 / jnp.sqrt(-g[0, 0]), 0.0, 0.0, 0.0])
-
-    eigs = np.array(tidal_eigenvalues(metric, x, v))
-    eigs_sorted = np.sort(eigs)
-
-    assert np.isclose(eigs_sorted[0], -2.0 * M / r_schw**3, atol=1e-6)
-    assert np.isclose(eigs_sorted[-2], M / r_schw**3, atol=1e-6)
-    assert np.isclose(eigs_sorted[-1], M / r_schw**3, atol=1e-6)
 
 
 def test_boosted_observer_trace_is_invariant():

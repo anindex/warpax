@@ -54,12 +54,10 @@ class _RotationShift(ADMMetric):
 
 
 class TestEstimator:
-    def test_zero_vorticity_zero_imag(self):
-        assert imaginary_part_estimate(0.0, kappa=0.06) == 0.0
-
-    def test_monotone_in_omega(self):
-        k = 0.06
-        vals = [imaginary_part_estimate(w, k) for w in (0.0, 0.1, 0.2, 0.4)]
+    def test_estimator_sanity(self):
+        # f = kappa*omega: zero at zero vorticity, monotone in omega
+        vals = [imaginary_part_estimate(w, kappa=0.06) for w in (0.0, 0.1, 0.2, 0.4)]
+        assert vals[0] == 0.0
         assert all(b > a for a, b in zip(vals, vals[1:]))
 
     def test_fit_recovers_kappa(self):

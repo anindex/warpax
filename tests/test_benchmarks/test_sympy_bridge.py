@@ -40,27 +40,21 @@ class TestMinkowskiSympyBridge:
         for coords in TEST_POINTS:
             g_jax = m(coords)
             g_bridge = bridge_fn(coords)
+            assert g_bridge.dtype == jnp.float64
             assert jnp.allclose(g_jax, g_bridge, atol=1e-14), (
                 f"Minkowski mismatch at {coords}: max diff = "
                 f"{jnp.max(jnp.abs(g_jax - g_bridge))}"
             )
 
-    def test_minkowski_sympy_bridge_float64(self):
-        """Bridge function returns float64 arrays."""
-        m = MinkowskiMetric()
-        bridge_fn = sympy_metric_to_jax(m.symbolic())
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g = bridge_fn(coords)
-        assert g.dtype == jnp.float64
-
     def test_minkowski_sympy_bridge_jit(self):
-        """Bridge function output is JIT-compatible."""
+        """Bridge function output is JIT-compatible and matches eager."""
         m = MinkowskiMetric()
         bridge_fn = sympy_metric_to_jax(m.symbolic())
         coords = jnp.array([0.0, 1.0, 2.0, 3.0])
         g = jax.jit(bridge_fn)(coords)
         assert g.shape == (4, 4)
         assert g.dtype == jnp.float64
+        assert jnp.allclose(g, bridge_fn(coords), atol=1e-15)
 
 
 # Schwarzschild bridge tests
@@ -91,25 +85,20 @@ class TestSchwarzschildSympyBridge:
         for coords in TEST_POINTS:
             g_jax = m(coords)
             g_bridge = bridge_fn(coords)
+            assert g_bridge.dtype == jnp.float64
             assert jnp.allclose(g_jax, g_bridge, atol=1e-14), (
                 f"Schwarzschild mismatch at {coords}: max diff = "
                 f"{jnp.max(jnp.abs(g_jax - g_bridge))}"
             )
 
-    def test_schwarzschild_sympy_bridge_float64(self):
-        """Bridge function returns float64 arrays."""
-        bridge_fn = self._get_bridge_fn(1.0)
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g = bridge_fn(coords)
-        assert g.dtype == jnp.float64
-
     def test_schwarzschild_sympy_bridge_jit(self):
-        """Bridge function output is JIT-compatible."""
+        """Bridge function output is JIT-compatible and matches eager."""
         bridge_fn = self._get_bridge_fn(1.0)
         coords = jnp.array([0.0, 1.0, 2.0, 3.0])
         g = jax.jit(bridge_fn)(coords)
         assert g.shape == (4, 4)
         assert g.dtype == jnp.float64
+        assert jnp.allclose(g, bridge_fn(coords), atol=1e-15)
 
 
 # Alcubierre bridge tests
@@ -155,22 +144,17 @@ class TestAlcubierreSympyBridge:
         for coords in TEST_POINTS:
             g_jax = m(coords)
             g_bridge = bridge_fn(coords)
+            assert g_bridge.dtype == jnp.float64
             assert jnp.allclose(g_jax, g_bridge, atol=1e-14), (
                 f"Alcubierre mismatch at {coords}: max diff = "
                 f"{jnp.max(jnp.abs(g_jax - g_bridge))}"
             )
 
-    def test_alcubierre_sympy_bridge_float64(self):
-        """Bridge function returns float64 arrays."""
-        bridge_fn = self._get_bridge_fn(0.5, 1.0, 8.0)
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g = bridge_fn(coords)
-        assert g.dtype == jnp.float64
-
     def test_alcubierre_sympy_bridge_jit(self):
-        """Bridge function output is JIT-compatible."""
+        """Bridge function output is JIT-compatible and matches eager."""
         bridge_fn = self._get_bridge_fn(0.5, 1.0, 8.0)
         coords = jnp.array([0.0, 1.0, 2.0, 3.0])
         g = jax.jit(bridge_fn)(coords)
         assert g.shape == (4, 4)
         assert g.dtype == jnp.float64
+        assert jnp.allclose(g, bridge_fn(coords), atol=1e-15)

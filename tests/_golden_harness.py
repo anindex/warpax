@@ -60,25 +60,33 @@ def _classification_grid(metric, bounds, shape) -> dict[str, np.ndarray]:
 
 
 def _large_norm_typeI_tensor() -> tuple[jnp.ndarray, jnp.ndarray]:
-    """Synthetic Type-I tensor at ||T|| ~ 1e11 with two near-equal causal
-    characters - the degenerate case Bug A (timelike-index tiebreak) targets.
+    """Plain large-norm (||T|| ~ 1e11) Type-I snapshot input.
+
+    Causal characters are exactly (-1, +1, +1, +1) - maximally separated -
+    so this does NOT exercise the Bug A timelike-index tiebreak (that bias
+    path only matters for near-degenerate causal characters). It just pins
+    Type-I classification output at large scale.
     """
     eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-    # Mixed tensor T^a_b diag with a large scale and a tiny split between the
-    # timelike eigenvalue and a spatial one to stress the argmin tiebreak.
     scale = 1.0e11
     t_mixed = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]) * scale)
     return t_mixed, eta
 
 
-def compute_goldens() -> dict[str, np.ndarray]:
+def compute_goldens(skips: list[str] | None = None) -> dict[str, np.ndarray]:
     """Compute every golden quantity. Keys use ``group/label/field`` paths.
 
     Returns a flat dict[str, np.ndarray]; scalars are stored as 0-d arrays.
     Each block is independently guarded so one failure does not abort the
-    rest (a missing key simply will not be compared).
+    rest (a missing key simply will not be compared). Pass ``skips`` to
+    collect the skip messages - the capture script uses this to hard-fail.
     """
     out: dict[str, np.ndarray] = {}
+
+    def _skip(msg: str) -> None:
+        print(f"[golden] skip {msg}")
+        if skips is not None:
+            skips.append(msg)
 
     # --- 1. Classification grids (parity-critical for Bug A, Perf 1) ---
     try:
@@ -90,7 +98,7 @@ def compute_goldens() -> dict[str, np.ndarray]:
         for k, v in ws.items():
             out[f"cls/warpshell_v0.5/{k}"] = v
     except Exception as e:  # noqa: BLE001
-        print(f"[golden] skip warpshell classification: {e}")
+        _skip(f"warpshell classification: {e}")
 
     for label, metric in (
         ("rodal_v0.5", RodalMetric(v_s=0.5)),
@@ -102,9 +110,9 @@ def compute_goldens() -> dict[str, np.ndarray]:
             for k, v in d.items():
                 out[f"cls/{label}/{k}"] = v
         except Exception as e:  # noqa: BLE001
-            print(f"[golden] skip {label} classification: {e}")
+            _skip(f"{label} classification: {e}")
 
-    # --- Bug A synthetic large-||T|| degenerate Type-I ---
+    # --- Synthetic large-||T|| Type-I (keys keep the historical bugA/ prefix) ---
     try:
         t_mixed, g = _large_norm_typeI_tensor()
         r = classify_hawking_ellis(t_mixed, g)
@@ -113,7 +121,7 @@ def compute_goldens() -> dict[str, np.ndarray]:
         out["bugA/pressures"] = _np(r.pressures)
         out["bugA/eigenvalues"] = _np(r.eigenvalues)
     except Exception as e:  # noqa: BLE001
-        print(f"[golden] skip bugA synthetic: {e}")
+        _skip(f"bugA synthetic: {e}")
 
     # --- 2. certify() summaries (the actual paper numbers) ---
     certify_metrics = {
@@ -149,7 +157,7 @@ def compute_goldens() -> dict[str, np.ndarray]:
                         elif isinstance(mv, (int, float)):
                             out[f"certify/{label}/miss_{mk}"] = _np(float(mv))
             except Exception as e:  # noqa: BLE001
-                print(f"[golden] skip certify {label}: {e}")
+                _skip(f"certify {label}: {e}")
 
     # --- 3. curvature chain (Perf 3: gamma threading must be bit-exact) ---
     curv_points = {
@@ -164,7 +172,7 @@ def compute_goldens() -> dict[str, np.ndarray]:
             out[f"curv/{label}/einstein"] = _np(c.einstein)
             out[f"curv/{label}/stress_energy"] = _np(c.stress_energy)
         except Exception as e:  # noqa: BLE001
-            print(f"[golden] skip curvature {label}: {e}")
+            _skip(f"curvature {label}: {e}")
 
     # --- 4. verify_grid margins (Perf 2 de-serialization parity) ---
     for label, metric in (
@@ -186,7 +194,7 @@ def compute_goldens() -> dict[str, np.ndarray]:
             out[f"verify/{label}/nec_min"] = _np(vg.nec_summary.min_margin)
             out[f"verify/{label}/dec_min"] = _np(vg.dec_summary.min_margin)
         except Exception as e:  # noqa: BLE001
-            print(f"[golden] skip verify_grid {label}: {e}")
+            _skip(f"verify_grid {label}: {e}")
 
     # --- 5. optimize_point sec/dec (Perf 7 g_inv threading parity) ---
     try:
@@ -201,7 +209,7 @@ def compute_goldens() -> dict[str, np.ndarray]:
         out["opt/alcubierre_wall/sec_margin"] = _np(opt["sec"].margin)
         out["opt/alcubierre_wall/dec_margin"] = _np(opt["dec"].margin)
     except Exception as e:  # noqa: BLE001
-        print(f"[golden] skip optimize_point: {e}")
+        _skip(f"optimize_point: {e}")
 
     # --- 6. shift kinematics + kinematic scalars (Perf 4 filter_jit parity) ---
     try:
@@ -216,7 +224,7 @@ def compute_goldens() -> dict[str, np.ndarray]:
         out["kinscalar/alcubierre/sigma_sq"] = _np(ks)
         out["kinscalar/alcubierre/omega_sq"] = _np(ko)
     except Exception as e:  # noqa: BLE001
-        print(f"[golden] skip kinematics: {e}")
+        _skip(f"kinematics: {e}")
 
     # --- 7. ANEC + Ford-Roman (Perf 4 filter_jit; ANEC pre-symplectic baseline) ---
     try:
@@ -230,6 +238,6 @@ def compute_goldens() -> dict[str, np.ndarray]:
         wl = lambda tau: jnp.array([tau, 0.0, 0.5, 0.0])  # noqa: E731
         out["qi/alcubierre/margin"] = _np(ford_roman(metric, wl, tau0=1.0).margin)
     except Exception as e:  # noqa: BLE001
-        print(f"[golden] skip anec/qi: {e}")
+        _skip(f"anec/qi: {e}")
 
     return out

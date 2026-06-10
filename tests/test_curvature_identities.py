@@ -82,6 +82,7 @@ SCHWARZSCHILD_POINTS = [
     jnp.array([0.0, 5.0, 0.0, 0.0]),
     jnp.array([0.0, 10.0, 0.0, 0.0]),
     jnp.array([0.0, 50.0, 0.0, 0.0]),
+    jnp.array([0.0, 3.0, 4.0, 0.0]),  # off-axis, same point as the SymPy tests
 ]
 
 ALCUBIERRE_POINTS = [

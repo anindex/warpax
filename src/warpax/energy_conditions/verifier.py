@@ -323,9 +323,10 @@ def verify_point(
 
     he_type_int = int(he_type)
     if he_type_int == 1:
-        # Type I: algebraic NEC/WEC/SEC margins are exact. The algebraic
-        # DEC proxy ``rho - max|p_i|`` is necessary only for flux
-        # causality, so combine with the optimizer for tightness.
+        # Type I: algebraic NEC/WEC/SEC margins are exact. The DEC
+        # eigenvalue bound ``rho - max|p_i|`` is necessary and sufficient
+        # for Type-I DEC (Hawking & Ellis 4.3); taking min with the
+        # optimizer is numerical belt-and-suspenders, not a sufficiency gap.
         nec_eig, wec_eig, sec_eig, dec_eig = check_all(rho, pressures)
         nec_margin = nec_eig
         wec_margin = wec_eig

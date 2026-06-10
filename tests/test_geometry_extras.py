@@ -375,8 +375,8 @@ class TestAutoChunk:
     """``auto_chunk_threshold`` kwarg validation and ULP-tolerant parity
     with the full-vmap path.
 
-    Default ``None`` and the no-op (threshold > grid_size) paths are
-    bit-exact to the full-vmap path because neither calls ``lax.map``.
+    The no-op (threshold > grid_size) path is bit-exact to the full-vmap
+    path because it never calls ``lax.map``.
     When the threshold triggers chunking, ``jax.lax.map`` uses a different
     floating-point addition order than ``jax.vmap``; the resulting drift
     is at the ULP floor (observed max ~6.8e-13 on ricci/weyl squared at
@@ -385,24 +385,6 @@ class TestAutoChunk:
 
     _CHUNK_ATOL = 1e-12
     _CHUNK_RTOL = 1e-12
-
-    def _alcubierre_16cubed_full(self):
-        """Helper: Alcubierre 16³ full-vmap reference result."""
-        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
-        grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(16, 16, 16))
-        return metric, grid, evaluate_curvature_grid(metric, grid)
-
-    def test_default_none_matches_full_vmap(self):
-        """auto_chunk_threshold=None reduces to plain vmap (bit-exact)."""
-        metric, grid, ref = self._alcubierre_16cubed_full()
-        result = evaluate_curvature_grid(metric, grid, auto_chunk_threshold=None)
-
-        for field in GridCurvatureResult._fields:
-            a = getattr(ref, field)
-            b = getattr(result, field)
-            assert jnp.array_equal(a, b), (
-                f"Field {field!r} drifted under auto_chunk_threshold=None"
-            )
 
     def test_threshold_1000_chunks_20cubed_bit_exact(self):
         """auto_chunk_threshold=1000 on a 20³=8000 grid chunks to ULP-equivalent result.

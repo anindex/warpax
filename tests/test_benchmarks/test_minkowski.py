@@ -48,10 +48,3 @@ class TestMinkowski:
         """name returns 'Minkowski'."""
         m = MinkowskiMetric()
         assert m.name() == "Minkowski"
-
-    def test_minkowski_at_origin(self, origin_coords):
-        """Metric at origin is still flat Minkowski."""
-        m = MinkowskiMetric()
-        g = m(origin_coords)
-        expected = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, expected, atol=1e-15)

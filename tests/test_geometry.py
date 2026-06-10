@@ -11,11 +11,7 @@ from warpax.geometry.geometry import (
     CurvatureResult,
     christoffel_symbols,
     compute_curvature_chain,
-    einstein_tensor,
-    ricci_scalar,
-    ricci_tensor,
     riemann_tensor,
-    stress_energy_tensor,
 )
 from warpax.geometry.metric import SymbolicMetric
 from warpax.geometry.metric import adm_to_full_metric
@@ -117,45 +113,12 @@ class TestMinkowski:
     coords = jnp.array([0.0, 1.0, 2.0, 3.0])
 
     def test_christoffel_zero(self):
+        # eager-path probe; the full chain below goes through filter_jit
         gamma = christoffel_symbols(self.metric, self.coords)
         npt.assert_allclose(gamma, 0.0, atol=1e-15)
 
-    def test_riemann_zero(self):
-        R = riemann_tensor(self.metric, self.coords)
-        npt.assert_allclose(R, 0.0, atol=1e-15)
-
-    def test_ricci_zero(self):
-        R_abcd = riemann_tensor(self.metric, self.coords)
-        Ric = ricci_tensor(R_abcd)
-        npt.assert_allclose(Ric, 0.0, atol=1e-15)
-
-    def test_ricci_scalar_zero(self):
-        R_abcd = riemann_tensor(self.metric, self.coords)
-        Ric = ricci_tensor(R_abcd)
-        g_inv = jnp.linalg.inv(self.metric(self.coords))
-        R_sc = ricci_scalar(g_inv, Ric)
-        npt.assert_allclose(R_sc, 0.0, atol=1e-15)
-
-    def test_einstein_zero(self):
-        R_abcd = riemann_tensor(self.metric, self.coords)
-        Ric = ricci_tensor(R_abcd)
-        g = self.metric(self.coords)
-        g_inv = jnp.linalg.inv(g)
-        R_sc = ricci_scalar(g_inv, Ric)
-        G = einstein_tensor(Ric, R_sc, g)
-        npt.assert_allclose(G, 0.0, atol=1e-15)
-
-    def test_stress_energy_zero(self):
-        R_abcd = riemann_tensor(self.metric, self.coords)
-        Ric = ricci_tensor(R_abcd)
-        g = self.metric(self.coords)
-        g_inv = jnp.linalg.inv(g)
-        R_sc = ricci_scalar(g_inv, Ric)
-        G = einstein_tensor(Ric, R_sc, g)
-        T = stress_energy_tensor(G)
-        npt.assert_allclose(T, 0.0, atol=1e-15)
-
     def test_full_chain_zero(self):
+        # single flatness sentinel: every tensor in the chain must vanish
         result = compute_curvature_chain(self.metric, self.coords)
         npt.assert_allclose(result.christoffel, 0.0, atol=1e-15)
         npt.assert_allclose(result.riemann, 0.0, atol=1e-15)
@@ -246,6 +209,7 @@ class TestSchwarzschildRiemann:
 
     def test_riemann_sympy_match(self):
         """All 256 Riemann components match SymPy ground truth."""
+        # antisymmetry at this point lives in test_curvature_identities.py
         metric = SchwarzschildMetric(M=1.0)
         R_ad = riemann_tensor(metric, self.jax_coords)
         npt.assert_allclose(
@@ -253,19 +217,6 @@ class TestSchwarzschildRiemann:
             self.riemann_sympy,
             atol=1e-12,
             err_msg="Autodiff Riemann tensor does not match SymPy",
-        )
-
-    def test_riemann_antisymmetry(self):
-        """R^l_{mnr} == -R^l_{mrn} (antisymmetry in last two indices)."""
-        metric = SchwarzschildMetric(M=1.0)
-        R = riemann_tensor(metric, self.jax_coords)
-        # Swap last two indices (axes 2 and 3)
-        R_swapped = jnp.swapaxes(R, 2, 3)
-        npt.assert_allclose(
-            np.array(R),
-            -np.array(R_swapped),
-            atol=1e-14,
-            err_msg="Riemann tensor not antisymmetric in last two indices",
         )
 
 
@@ -292,61 +243,6 @@ class TestSchwarzschildFullChain:
             dtype=np.float64,
         )
         request.cls.gamma_sympy = gamma_num
-
-    def test_ricci_sympy_match(self):
-        """Schwarzschild Ricci tensor is zero (vacuum)."""
-        R_abcd = riemann_tensor(self.metric, self.jax_coords)
-        Ric = ricci_tensor(R_abcd)
-        npt.assert_allclose(
-            np.array(Ric),
-            0.0,
-            atol=1e-10,
-            err_msg="Schwarzschild Ricci tensor not zero",
-        )
-
-    def test_ricci_scalar_zero(self):
-        """Schwarzschild Ricci scalar is zero (vacuum)."""
-        R_abcd = riemann_tensor(self.metric, self.jax_coords)
-        Ric = ricci_tensor(R_abcd)
-        g_inv = jnp.linalg.inv(self.metric(self.jax_coords))
-        R_sc = ricci_scalar(g_inv, Ric)
-        npt.assert_allclose(
-            float(R_sc),
-            0.0,
-            atol=1e-10,
-            err_msg="Schwarzschild Ricci scalar not zero",
-        )
-
-    def test_einstein_zero(self):
-        """Schwarzschild Einstein tensor is zero (vacuum)."""
-        R_abcd = riemann_tensor(self.metric, self.jax_coords)
-        Ric = ricci_tensor(R_abcd)
-        g = self.metric(self.jax_coords)
-        g_inv = jnp.linalg.inv(g)
-        R_sc = ricci_scalar(g_inv, Ric)
-        G = einstein_tensor(Ric, R_sc, g)
-        npt.assert_allclose(
-            np.array(G),
-            0.0,
-            atol=1e-10,
-            err_msg="Schwarzschild Einstein tensor not zero",
-        )
-
-    def test_stress_energy_zero(self):
-        """Schwarzschild stress-energy tensor is zero (vacuum)."""
-        R_abcd = riemann_tensor(self.metric, self.jax_coords)
-        Ric = ricci_tensor(R_abcd)
-        g = self.metric(self.jax_coords)
-        g_inv = jnp.linalg.inv(g)
-        R_sc = ricci_scalar(g_inv, Ric)
-        G = einstein_tensor(Ric, R_sc, g)
-        T = stress_energy_tensor(G)
-        npt.assert_allclose(
-            np.array(T),
-            0.0,
-            atol=1e-10,
-            err_msg="Schwarzschild stress-energy tensor not zero",
-        )
 
     def test_full_chain_vacuum(self):
         """Full curvature chain: metric shape correct, Christoffel matches SymPy,
