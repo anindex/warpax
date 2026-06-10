@@ -693,13 +693,15 @@ class TestScaleAwareImaginaryTolerance:
         )
 
     def test_imag_rtol_threshold_boundary(self):
-        """Pin the 3e-3 relative-imaginary threshold from both sides at unit
-        scale: |Im|/|lambda| = 4e-3 (> threshold) is Type IV, 2e-3 (< threshold)
-        is Type I. Guards against silently widening the float64 blind spot
-        (which the 50-digit mpmath gate exists to cover) or loosening it into
-        spurious Type IV. Eigenvalues of the (1,2) block are 1 +/- i*imag."""
-        def _classify(imag):
-            T_mixed = jnp.array([
+        """Pin the relative-imaginary tier from both sides.
+
+        The 3e-3 relative tier engages only above the 1e6 scale floor
+        (it absorbs float64 eigensolver noise on large ill-conditioned
+        ||T||); below the floor a genuinely complex pair is Type IV at
+        any relative split (50-digit certified). Eigenvalues of the
+        (1,2) block are scale * (1 +/- i*imag)."""
+        def _classify(imag, scale=1.0):
+            T_mixed = scale * jnp.array([
                 [-1.0, 0.0,   0.0,  0.0],
                 [ 0.0, 1.0, -imag,  0.0],
                 [ 0.0, imag,  1.0,  0.0],
@@ -707,8 +709,17 @@ class TestScaleAwareImaginaryTolerance:
             ])
             return int(classify_hawking_ellis(T_mixed, ETA).he_type)
 
-        assert _classify(4e-3) == 4, "|Im/Re|=4e-3 (> 3e-3) must be Type IV"
-        assert _classify(2e-3) == 1, "|Im/Re|=2e-3 (< 3e-3) must be Type I"
+        # Unit scale: relative tier off; any |Im| above tol*scale is IV.
+        assert _classify(4e-3) == 4, "unit scale, |Im/Re|=4e-3 must be Type IV"
+        assert _classify(2e-3) == 4, "unit scale, |Im/Re|=2e-3 must be Type IV"
+        # Above the scale floor: the 3e-3 tier absorbs sub-threshold
+        # splits (solver-noise regime) and passes super-threshold ones.
+        assert _classify(4e-3, scale=1e11) == 4, (
+            "large scale, |Im/Re|=4e-3 (> 3e-3) must be Type IV"
+        )
+        assert _classify(2e-3, scale=1e11) == 1, (
+            "large scale, |Im/Re|=2e-3 (< 3e-3) is absorbed as Type I"
+        )
 
     def test_eigenvalues_imag_field_present(self):
         """ClassificationResult has eigenvalues_imag field."""

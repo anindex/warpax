@@ -358,10 +358,26 @@ def verify_point(
     )
 
 
-def _compute_summary(margins: Float[Array, "N"], atol: float = 1e-10) -> ECSummary:
-    """Compute per-condition summary statistics over flattened margins."""
+def _compute_summary(
+    margins: Float[Array, "N"],
+    atol: float = 1e-10,
+    *,
+    scale: Float[Array, "N"] | None = None,
+    rtol: float = 1e-12,
+) -> ECSummary:
+    """Compute per-condition summary statistics over flattened margins.
+
+    Violated means ``margin < -(atol + rtol * scale)``, with ``scale``
+    the per-point ``max|lambda|``. The relative term keeps the gate
+    above the eigensolver noise floor (~eps * ||T||); without it,
+    marginal points at large ||T|| (WarpShell reaches 1e35) pick up
+    coin-flip "violated" labels from roundoff. rtol=1e-12 sits well
+    above the noise (~1e-15 relative) and well below any physical
+    margin we report.
+    """
     n = margins.shape[0]
-    violated = margins < -atol
+    threshold = atol if scale is None else atol + rtol * scale
+    violated = margins < -threshold
     frac = jnp.sum(violated.astype(jnp.float64)) / n
     violation_magnitudes = jnp.where(violated, jnp.abs(margins), 0.0)
     max_viol = jnp.max(violation_magnitudes)
@@ -517,10 +533,15 @@ def verify_grid(
         sec_margins = jnp.minimum(sec_margins, eulerian_results["sec"])
         dec_margins = jnp.minimum(dec_margins, eulerian_results["dec"])
 
-    nec_summary = _compute_summary(nec_margins)
-    wec_summary = _compute_summary(wec_margins)
-    sec_summary = _compute_summary(sec_margins)
-    dec_summary = _compute_summary(dec_margins)
+    # Per-point eigenvalue scale for the violation gate (_compute_summary).
+    eig_scale = jnp.maximum(
+        jnp.max(jnp.abs(eigenvalues), axis=-1),
+        jnp.max(jnp.abs(cls_results.eigenvalues_imag), axis=-1),
+    )
+    nec_summary = _compute_summary(nec_margins, scale=eig_scale)
+    wec_summary = _compute_summary(wec_margins, scale=eig_scale)
+    sec_summary = _compute_summary(sec_margins, scale=eig_scale)
+    dec_summary = _compute_summary(dec_margins, scale=eig_scale)
 
     n_type_i = int(jnp.sum(he_types == 1.0))
     n_type_ii = int(jnp.sum(he_types == 2.0))

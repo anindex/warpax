@@ -488,12 +488,11 @@ class TestClassifierNearDegenerateInputs:
         assert int(result.he_type) == 1
 
     def test_type_i_iv_boundary_below_threshold(self):
-        """Complex conjugate eigenvalue pair with |Im|/|Re| = 0.002 < 3e-3.
+        """At unit scale a genuine complex pair is Type IV at any split.
 
-        Real Jordan block [[lam, -eps], [eps, lam]] has eigenvalues lam +/- i*eps.
-        With lam=1.0 and eps=0.002, the relative imaginary ratio is 0.002,
-        below the default imag_rtol=0.003, so the classifier must treat the
-        spectrum as effectively real and return Type I.
+        The relative imag tier only engages above the 1e6 scale floor,
+        so lam=1, eps=0.002 (a real complex pair, 50-digit certified)
+        is Type IV -- the pre-floor classifier absorbed it as Type I.
         """
         lam = 1.0
         eps = 0.002 * lam
@@ -508,7 +507,7 @@ class TestClassifierNearDegenerateInputs:
             .set(lam)
         )
         result = classify_hawking_ellis(T, ETA)
-        assert int(result.he_type) == 1
+        assert int(result.he_type) == 4
 
     def test_type_i_iv_boundary_above_threshold(self):
         """Complex conjugate eigenvalue pair with |Im|/|Re| = 0.005 > 3e-3.
@@ -537,13 +536,12 @@ class TestClassifierNearDegenerateInputs:
         assert int(result.he_type) == 1
 
     def test_large_scale_eigenvalues_with_tiny_imaginary(self):
-        """Scale ~1e6 with |Im|/|Re| = 0.001 < 3e-3 must still classify as Type I.
+        """Above the scale floor, |Im|/|Re| = 0.001 < 3e-3 is Type I.
 
-        The classifier's unclamped relative criterion catches split-
-        degenerate pairs at large norm where the absolute criterion
-        ``tol * scale`` alone would misclassify the point as Type IV.
+        The relative tier absorbs split-degenerate pairs at large norm,
+        where the absolute criterion alone would report spurious Type IV.
         """
-        lam = 1e6
+        lam = 1e9
         eps = 0.001 * lam
         block = jnp.array([[lam, -eps], [eps, lam]])
         T = (

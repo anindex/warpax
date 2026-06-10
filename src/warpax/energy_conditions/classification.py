@@ -29,6 +29,11 @@ _VALID_SOLVERS = frozenset({"standard", "generalized", "auto"})
 _AUTO_MAX_EIGENVALUE = 1e25
 _AUTO_IMAG_RTOL = 0.05
 
+# The relative imag tier only makes sense where eig noise is large
+# (WarpShell, |Re|~1e11). Below this floor it would eat genuine weak
+# Type-IV physics (e.g. the Alcubierre tail, |Im|~1e-8 at ||T||~1e-6).
+_IMAG_RTOL_SCALE_FLOOR = 1e6
+
 
 def _standard_solver_unreliable_scalar(
     he_type: float,
@@ -229,23 +234,23 @@ def classify_hawking_ellis(
     # the imaginary-part and degeneracy checks scale-relative.
     scale = jnp.maximum(jnp.max(jnp.abs(evals_real)), 1.0)
 
-    # Two complementary "real spectrum" tests, combined with logical OR:
-    #   (a) absolute: |Im| < tol * scale -- catches uniformly tiny |Im|.
-    #   (b) relative: |Im| < imag_rtol * max|Re| (unclamped) -- catches
-    #       split-degenerate pairs at large ||T||, e.g. WarpShell where
-    #       |Re| ~ 1e11 and |Im| ~ 1e8 (relative 0.1 %). The unclamped
-    #       scale prevents reclassifying small-eigenvalue points where
-    #       |Im| genuinely exceeds |Re|.
+    # Two "real spectrum" tests, OR-combined:
+    #   (a) absolute: |Im| < tol * scale.
+    #   (b) relative: |Im| < imag_rtol * max|Re|, for split-degenerate
+    #       pairs at large ||T|| (WarpShell: |Re|~1e11, |Im| noise ~1e8).
+    #       Only engages above the scale floor -- at small ||T|| a tiny
+    #       |Im| is real physics, not solver noise.
     imag_parts = jnp.abs(evals_imag)
     unclamped_scale = jnp.maximum(jnp.max(jnp.abs(evals_real)), jnp.sqrt(tol))
-    all_real = jnp.all(imag_parts < tol * scale) | jnp.all(
-        imag_parts < imag_rtol * unclamped_scale
+    tier_b = jnp.all(imag_parts < imag_rtol * unclamped_scale) & (
+        unclamped_scale > _IMAG_RTOL_SCALE_FLOOR
     )
+    all_real = jnp.all(imag_parts < tol * scale) | tier_b
 
-    # Near-vacuum bypass: eigenvectors are numerical noise, causal
-    # character is unreliable. Force Type I (margins ~0). Kept tight
-    # (``tol``, not ``sqrt(tol)``) so larger eigenvalues fall through.
-    near_vacuum = jnp.max(jnp.abs(evals_real)) < tol
+    # Near-vacuum bypass: eigenvectors are noise there, so force Type I.
+    # Gate on the modulus |lambda|, not |Re|: a pure momentum flux has
+    # eigenvalues +/- iq (genuine Type IV) and must not pass as vacuum.
+    near_vacuum = jnp.max(jnp.abs(eigenvalues)) < tol
 
     # Causal character g_{ab} v^a v^b per eigenvector, with a relative
     # sign threshold (floored at 1.0 to keep Minkowski behavior).

@@ -1301,8 +1301,28 @@ class TestMpmathEigenvalues:
 class TestMpmathClassifier:
     """Pin the 50-digit classifier verdicts and contrast with float64."""
 
-    def test_type_iv_that_float64_misclassifies(self) -> None:
+    def test_weak_type_iv_now_correct_at_unit_scale(self) -> None:
+        # Pre-fix: the relative imaginary tier absorbed this genuinely
+        # complex pair (1 +/- 2e-5 i) as Type I at unit scale. With the
+        # scale floor on the tier, float64 now agrees with the 50-digit
+        # verdict here.
         T = _type_iv_block_diag(imag=2.0e-5)
+
+        float64_result = classify_hawking_ellis(T, MINKOWSKI)
+        assert int(float64_result.he_type) == 4
+
+        mp_result = classify_hawking_ellis_mpmath(
+            np.asarray(T), np.asarray(MINKOWSKI), precision=50
+        )
+        assert mp_result["he_type"] == 4
+        assert mp_result["max_imag_abs"] > 1.0e-6
+
+    def test_type_iv_that_float64_misclassifies(self) -> None:
+        # The float64 blind spot now exists only above the relative
+        # tier's scale floor (where it absorbs eigensolver noise by
+        # design); the 50-digit gate remains the authority there.
+        scale = 1.0e11
+        T = scale * _type_iv_block_diag(imag=2.0e-5)
 
         float64_result = classify_hawking_ellis(T, MINKOWSKI)
         assert int(float64_result.he_type) == 1
@@ -1311,7 +1331,7 @@ class TestMpmathClassifier:
             np.asarray(T), np.asarray(MINKOWSKI), precision=50
         )
         assert mp_result["he_type"] == 4
-        assert mp_result["max_imag_abs"] > 1.0e-6
+        assert mp_result["max_imag_abs"] > 1.0e-6 * scale
 
     def test_perfect_fluid_mpmath_agrees_with_float64(self) -> None:
         T = _perfect_fluid(rho=1.0, p=0.3)

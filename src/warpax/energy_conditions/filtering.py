@@ -138,6 +138,7 @@ def compute_wall_restricted_stats(
     atol: float = 1e-10,
     eulerian_margins: dict[str, Float[Array, "..."]] | None = None,
     volume_weights: Float[Array, "..."] | None = None,
+    rtol: float = 1e-12,
 ) -> WallRestrictedStats:
     """Compute Type breakdown and EC statistics within a masked region.
 
@@ -149,7 +150,10 @@ def compute_wall_restricted_stats(
         Boolean mask with shape ``(*grid_shape,)``. True selects points
         to include in statistics.
     atol : float
-        Absolute tolerance for violation detection (margin < -atol).
+        Violation tolerance: a point is violated when
+        ``margin < -(atol + rtol * max|lambda|)``. The relative term
+        keeps the gate above eigensolver noise at large ||T||
+        (see ``verifier._compute_summary``).
     eulerian_margins : dict[str, Float[Array, "..."]] | None
         If provided, dict with keys ``"nec"``, ``"wec"``, ``"sec"``,
         ``"dec"`` mapping to Eulerian margin arrays. Used to compute
@@ -204,10 +208,14 @@ def compute_wall_restricted_stats(
         "dec": ec_result.dec_margins,
     }
 
+    # Per-point eigenvalue scale for the violation gate.
+    eig_scale = jnp.max(jnp.abs(ec_result.eigenvalues), axis=-1).ravel()
+    threshold = atol + rtol * eig_scale
+
     violated_counts: dict[str, int] = {}
     violated_fracs: dict[str, float] = {}
     for cond, margins in conditions.items():
-        viol = (margins.ravel() < -atol) & mask_flat
+        viol = (margins.ravel() < -threshold) & mask_flat
         violated_counts[cond] = int(jnp.sum(viol))
         violated_fracs[cond] = float(jnp.sum(weight * viol)) / w_safe
 
@@ -222,7 +230,7 @@ def compute_wall_restricted_stats(
         for cond, robust_margins in conditions.items():
             eul = eulerian_margins[cond].ravel()
             rob = robust_margins.ravel()
-            robust_violated = (rob < -atol) & mask_flat
+            robust_violated = (rob < -threshold) & mask_flat
             w_rob_violated = float(jnp.sum(weight * robust_violated))
             if w_rob_violated > 0.0:
                 missed = (eul >= 0.0) & robust_violated

@@ -139,12 +139,15 @@ def compute_goldens() -> dict[str, np.ndarray]:
                 )
                 if res.single_frame_miss is not None:
                     for mk, mv in res.single_frame_miss.items():
-                        if isinstance(mv, (int, float)) or (
-                            mv is not None and np.ndim(mv) == 0
-                        ):
-                            out[f"certify/{label}/miss_{mk}"] = _np(
-                                float(mv) if mv is not None else np.nan
-                            )
+                        # Per-condition entries are dicts; pin miss_rate.
+                        if isinstance(mv, dict):
+                            rate = mv.get("miss_rate")
+                            if rate is not None:
+                                out[f"certify/{label}/miss_{mk}"] = _np(
+                                    float(rate)
+                                )
+                        elif isinstance(mv, (int, float)):
+                            out[f"certify/{label}/miss_{mk}"] = _np(float(mv))
             except Exception as e:  # noqa: BLE001
                 print(f"[golden] skip certify {label}: {e}")
 
@@ -219,7 +222,11 @@ def compute_goldens() -> dict[str, np.ndarray]:
     try:
         metric = AlcubierreMetric(v_s=0.5)
         ray = lambda lam: jnp.array([lam, lam, 0.5, 0.0])  # noqa: E731
-        out["anec/alcubierre/line_integral"] = _np(anec(metric, ray).line_integral)
+        # Pin the legacy tangent norm explicitly: the stored golden was
+        # captured before the anec() default switched to 'null_projected'.
+        out["anec/alcubierre/line_integral"] = _np(
+            anec(metric, ray, tangent_norm="renormalized").line_integral
+        )
         wl = lambda tau: jnp.array([tau, 0.0, 0.5, 0.0])  # noqa: E731
         out["qi/alcubierre/margin"] = _np(ford_roman(metric, wl, tau0=1.0).margin)
     except Exception as e:  # noqa: BLE001

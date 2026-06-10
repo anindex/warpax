@@ -131,10 +131,22 @@ def classify_hawking_ellis_mpmath(
         unclamped_scale = max(max_real_abs, tol**0.5)
 
         all_abs = all(abs(i) < tol * scale for i in evals_imag)
-        all_rel = all(abs(i) < imag_rtol * unclamped_scale for i in evals_imag)
+        # Relative tier only above the scale floor, as in float64.
+        from .classification import _IMAG_RTOL_SCALE_FLOOR
+
+        all_rel = (
+            all(abs(i) < imag_rtol * unclamped_scale for i in evals_imag)
+            and unclamped_scale > _IMAG_RTOL_SCALE_FLOOR
+        )
         all_real = all_abs or all_rel
 
-        near_vacuum = max_real_abs < tol
+        # Vacuum gate uses the modulus (matches float64): a purely
+        # imaginary spectrum is Type IV, not vacuum.
+        max_mod_abs = max(
+            float(mpmath.sqrt(r * r + i * i))
+            for r, i in zip(evals_real, evals_imag)
+        )
+        near_vacuum = max_mod_abs < tol
 
         # Degeneracy count on real parts (matches float64 logic).
         sorted_re = sorted(evals_real)
