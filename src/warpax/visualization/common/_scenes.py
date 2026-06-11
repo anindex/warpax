@@ -1,6 +1,6 @@
-"""Showcase scene builders and post-render overlay helpers.
+"""Scene builders and post-render overlay helpers.
 
-Scene builders produce lists of FrameData for the three signature animations:
+Scene builders produce lists of FrameData for the three animations:
 - ``scene_bubble_collapse``: Alcubierre v_s ramps down to near-flat spacetime.
 - ``scene_velocity_ramp``: EC violations intensify as v_s sweeps 0.1 to 0.99.
 - ``scene_observer_sweep``: Per-rapidity EC margins on fixed Alcubierre geometry.

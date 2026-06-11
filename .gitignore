@@ -60,8 +60,6 @@ figures/*.png
 output/
 output/**
 
-# Locally generated EinFields checkpoints (regenerable via tests/fixtures/einfields/generate_minkowski_ckpt.py)
-tests/fixtures/einfields/*.ckpt
 .context/
 
 # Reproduction cache - large binary artifacts. The MANIFEST + json/tex

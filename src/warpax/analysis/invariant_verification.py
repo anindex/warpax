@@ -1,14 +1,10 @@
 r"""Independent all-observer verification of warp-drive positive-energy claims (Contribution 2).
 
-The warp-drive literature increasingly reports "positive-energy" or
-"global Hawking-Ellis Type I" constructions (Lentz 2021; Bobrick-Martire 2021;
-Fell-Heisenberg 2021; Rodal arXiv:2512.18008, 2025). These claims are typically
-established in the EULERIAN (ADM normal) frame and at a single velocity. Santiago,
-Schuster & Visser (PRD 105, 064038) showed this is insufficient: the weak/null
-energy conditions require ALL timelike/null observers, not the comoving Eulerian
-one. This module operationalises that principle. From the eigenstructure of
-``T^a_b`` alone (frame-independent; see :mod:`..energy_conditions.frame_free`) it
-reports:
+Published positive-energy claims are typically established in the Eulerian
+(ADM normal) frame at a single velocity; the weak/null energy conditions
+require all timelike/null observers (Santiago, Schuster & Visser, PRD 105,
+064038). From the eigenstructure of ``T^a_b`` alone (frame-independent; see
+:mod:`..energy_conditions.frame_free`) this module reports:
 
   - the *single-frame miss*: the fraction of all-observer EC violations that the
     Eulerian frame fails to see (Eulerian margin >= 0 yet the spacetime violates
@@ -19,10 +15,8 @@ reports:
   - peak proper-energy-deficit reduction factors between metrics, to independently
     check published claims (e.g. Rodal's ~38x vs Alcubierre).
 
-Tone of the verification (by design): a single-frame, single-velocity claim may be
-correct *as stated*; the all-observer reality across velocities can still differ.
-The miss fraction is a property of the single-frame DIAGNOSTIC, not a refutation
-of any author's algebra.
+The miss fraction is a property of the single-frame diagnostic, not a
+refutation of any author's algebra.
 
 The Eulerian comparison uses :func:`..energy_conditions.compute_eulerian_ec`,
 whose ADM normal is only timelike for ``v_s < 1``; the verification is therefore run at

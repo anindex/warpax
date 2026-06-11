@@ -45,11 +45,8 @@ def _gaussian_smooth(
     Boundary handling uses the ``reflect`` convention (mirror padding),
     which preserves the integral and avoids boundary artifacts.
 
-    The Gaussian kernel is the unique rotationally symmetric kernel that
-    minimises the product of spatial and frequency spreads (Heisenberg
-    uncertainty). Compared to the moving average used in [Fuchs2024],
-    it eliminates spectral sidelobes while producing equivalent
-    boundary regularization when the kernel widths are matched as:
+    Substitutes the moving average used in [Fuchs2024] (see module
+    docstring); kernel widths matched as:
 
         sigma_gauss = span_MA / sqrt(12)
 
@@ -77,7 +74,6 @@ def _gaussian_smooth(
         jnp.flip(values[-k_radius - 1:-1]),
     ])
 
-    # 1D convolution via jnp.convolve (mode='valid')
     result = jnp.convolve(padded, kernel, mode="valid")
     return result[:n]
 
@@ -91,9 +87,8 @@ def _moving_average_smooth(
 
     The original Fuchs construction uses MATLAB's ``smooth()`` (an unweighted
     moving average over a span of grid points). We expose it here for an
-    exact-kernel reproduction of the published pipeline, complementing the
-    Gaussian path. The span is matched to the Gaussian width through the
-    variance relation ``sigma_gauss = span / sqrt(12)``, i.e.
+    exact-kernel reproduction of the published pipeline. The span is matched
+    to the Gaussian width as
 
         span = sigma * sqrt(12),
 
@@ -305,9 +300,6 @@ class FuchsConstructionResult(NamedTuple):
     m_grid : cumulative mass m(r).
     rho_smoothed : Gaussian-smoothed density profile.
     P_smoothed : Gaussian-smoothed isotropic pressure.
-    rho_true : true anisotropic density from EFE.
-    P_r_true : true radial pressure from EFE (for reporting).
-    P_t_true : true tangential pressure from EFE (for reporting).
     total_mass : total shell mass.
     """
     r_grid: Float[Array, "N"]

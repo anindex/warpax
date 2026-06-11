@@ -51,6 +51,3 @@ custom `ADMMetric` subclass and produces a publication-style comparison figure.
   for the full subclassing recipe.
 - After **09** or **10**: [Reproducing the warp-shell admissibility paper](../how-to/reproduce_warpshell_paper.md)
   for the figure-by-figure mapping back to the published results.
-
-The full canonical list (runtime estimates, install extras, suggested order)
-lives in `examples/README.md` at the repository root.

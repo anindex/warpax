@@ -72,7 +72,7 @@ def evaluate_loss(
         needed (the constraint solver already enforces them).
     key : seeds the EC multistart randomness; None keeps the
         deterministic default PRNGKey(42). Each probe point gets a
-        distinct fold_in (PRNG key reuse bug fix).
+        distinct fold_in.
     """
     if weights is None:
         weights = LossWeights()

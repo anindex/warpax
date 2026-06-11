@@ -45,7 +45,7 @@ invariants, grid evaluation. All tensors are JAX arrays with jaxtyping annotatio
 
 ### `energy_conditions`
 Frame-independent, all-velocity certification from the eigenstructure of `T^a_b`
-(`frame_free.py`, public `warpax.certify`) — never builds the Eulerian normal, so
+(`frame_free.py`, public `warpax.certify`); it never builds the Eulerian normal, so
 it is valid at all warp speeds including `v_s >= 1`. Two-tier verification strategy:
 
 1. **Hawking-Ellis classification** (`solver='auto'` by default) determines the
@@ -86,7 +86,7 @@ Higher-level analysis utilities:
 - Eulerian vs robust EC comparison tables
 - Richardson extrapolation convergence analysis
 - Kinematic scalars: expansion θ, shear σ², vorticity ω² (`shift_kinematics.py`)
-- Vorticity → Type-IV mechanism `f = κ ω` (`vorticity_type_analytic.py`)
+- Vorticity -> Type-IV mechanism `f = κ ω` (`vorticity_type_analytic.py`)
 - Cross-construction all-observer verification with a wall-resolution gate
   (`construction_adapter.py`)
 - Curvature-invariant and NEC-severity `v_s` scaling laws and the boost-invariant
@@ -141,9 +141,6 @@ sweep over (compactness, thickness) with `SweepResult` serialization.
   candidates; BFGS refines each to the true worst-case observer.
 
 ## Dependency pins
-
-The current pins are validated against upstream guidance; no migration
-work is required.
 
 - **JAX 0.10.x** - `pmap` is in maintenance mode upstream and is not used
   by warpax. Multi-device fan-out, when needed, will go through

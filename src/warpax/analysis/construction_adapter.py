@@ -148,7 +148,7 @@ def wall_cells(spec: ConstructionSpec, speed: float | None = None,
         c = jnp.array([0.0, float(x), 0.0, 0.0])
         fvals.append(float(metric.shape_function_value(c)))
     f = np.array(fvals)
-    fn = (f - f.min()) / (np.ptp(f) + 1e-30)  # normalise to [0,1]
+    fn = (f - f.min()) / (np.ptp(f) + 1e-30)  # normalize to [0,1]
     in_band = (fn > 0.05) & (fn < 0.95)
     return float(np.sum(in_band))
 

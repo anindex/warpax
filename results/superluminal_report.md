@@ -46,10 +46,10 @@ This holds at ALL velocities because neither the lapse nor the spatial metric de
 
 ## Scope Claim Evidence
 
-The restriction to subluminal velocities (v_s < 1) is justified on both physical and computational grounds:
+The Eulerian-frame comparison is restricted to subluminal velocities (v_s < 1) on both physical and computational grounds:
 
 1. **Physical:** When v_s * f(r) > 1, the g_00 component flips sign. Coordinate-stationary observers become spacelike in this region. While the Eulerian normal n^a remains timelike (alpha = 1), the physical interpretation of energy conditions measured by these observers becomes ambiguous in a region where the metric signature locally resembles Euclidean space in the (t, x) sector.
 
-2. **Computational:** The curvature chain and EC pipeline remain numerically functional at all tested velocities (no NaN, finite margins). However, the EC margins in the g_00 > 0 region reflect mathematical quantities without clear physical meaning, making observer-robust verification unreliable as a diagnostic tool.
+2. **Computational:** The curvature chain and EC pipeline remain numerically functional at all tested velocities (no NaN, finite margins). However, the Eulerian EC margins in the g_00 > 0 region reflect quantities measured by observers that are no longer timelike, so the single-frame comparison loses physical meaning there.
 
-3. **Scope boundary:** warpax restricts to v_s < 1 where Lorentzian signature is globally preserved and EC verification has unambiguous physical interpretation. Superluminal analysis requires fundamentally different mathematical tools (causal structure analysis, horizon formation criteria) that are beyond warpax's current scope.
+3. **Scope boundary:** the Eulerian comparison applies for v_s < 1, where the ADM normal congruence is timelike. At v_s >= 1 the frame-independent Hawking-Ellis eigenvalue certifier (energy_conditions.frame_free) takes over; see validate_superluminal_classification.py.

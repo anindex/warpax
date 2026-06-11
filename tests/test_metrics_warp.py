@@ -167,8 +167,8 @@ class TestLentz:
         """Regression baseline for Lentz Eulerian energy density.
 
         Computes T_ab n^a n^b at representative points and compares against
-        stored regression baselines. This serves as a regression test to
-        detect any changes in the Lentz metric or curvature pipeline.
+        stored baselines to detect changes in the Lentz metric or
+        curvature pipeline.
 
         Regression baseline NOT a published WarpFactory comparison.
         Parameter set: v_s=0.1, R=100, sigma=8.

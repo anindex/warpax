@@ -8,11 +8,6 @@ final ``min(WEC, DEC)`` because DEC implies WEC.
 
 Eulerian-frame margins are exposed separately by
 :func:`compute_eulerian_ec` for clean single-frame comparisons.
-
-:func:`verify_point` uses host-side control flow on the Hawking-Ellis
-type, so it is not JIT-compilable on the outer call. :func:`verify_grid`
-handles vectorization by splitting the eigenvalue and optimizer branches
-and merging with ``jnp.where``; the inner kernels are still vmapped.
 """
 from __future__ import annotations
 
@@ -56,16 +51,11 @@ def _classify_grid_batch(
 
     # auto: standard everywhere, generalized pencil only on unreliable points.
     #
-    # We deliberately do NOT vmap a lax.cond here: under vmap, lax.cond becomes
-    # a select that evaluates BOTH branches for every point, which would run the
-    # (slow, sequential pure_callback) generalized pencil on the entire grid.
-    # Instead, batch the generalized solve over just the unreliable subset and
-    # scatter the results back with a single vectorized ``.at[idx].set`` -- this
-    # removes the historical Python per-point loop and its N device->host
-    # gathers while keeping the generalized solve restricted to the points that
-    # need it. Byte-identical to the old host loop (same standard classification
-    # at imag_rtol=3e-3, same _standard_solver_unreliable_mask decision at
-    # imag_rtol=0.05, same per-point generalized classify on the covariant T).
+    # Do NOT vmap a lax.cond here: under vmap, lax.cond becomes a select that
+    # evaluates BOTH branches for every point, which would run the (slow,
+    # sequential pure_callback) generalized pencil on the entire grid. Instead,
+    # batch the generalized solve over just the unreliable subset and scatter
+    # the results back with a single vectorized ``.at[idx].set``.
     cls_std = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
     unreliable = np.asarray(
         _standard_solver_unreliable_mask(
@@ -207,9 +197,7 @@ def _run_grid_optimization(
         idx_dev = jnp.asarray(idx)
 
         def _scatter(full, partial, indices):
-            # Single vectorized scatter (full[indices[j]] = partial[j]) instead
-            # of a Python loop of N full-array .at[i].set copies. Same result,
-            # O(N) -> one fused op.
+            # Single vectorized scatter: full[indices[j]] = partial[j].
             return full.at[idx_dev].set(partial)
 
         nec_opt, wec_opt, sec_opt, dec_opt, worst_obs, worst_par = out[:6]

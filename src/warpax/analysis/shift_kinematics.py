@@ -1,8 +1,7 @@
 """Kinematic decomposition of the ADM shift vector field.
 
 Splits the spatial gradient of the shift one-form ``beta_i = g_{0i}`` on a
-constant-time slice into its irreducible parts, exactly as the velocity-field
-of a fluid is split into expansion, shear and vorticity:
+constant-time slice into its irreducible parts:
 
     D_i beta_j = (1/3) theta_beta gamma_{ij} + sigma^beta_{ij} + omega^beta_{ij}
 
@@ -17,13 +16,12 @@ The vorticity part is the exterior derivative of the shift one-form,
 so it is exact from first metric derivatives and invariant under spatial
 coordinate changes.
 
-This is the geometric quantity that decides the Hawking-Ellis algebraic type of
-the warp-drive wall. An irrotational shift (``omega^2_beta = 0``, e.g. the Rodal
-drive) admits a scalar potential and yields Type I matter, the sufficient
-direction proved by Santiago, Schuster and Visser and realised by Rodal. A
-shift with nonzero vorticity drives the wall to Type IV. The zero-expansion
-Natario drive (``theta_beta = 0`` yet ``omega^2_beta > 0``) isolates vorticity from
-expansion as the operative obstruction.
+The shift vorticity decides the Hawking-Ellis algebraic type of the warp-drive
+wall: an irrotational shift (``omega^2_beta = 0``, e.g. the Rodal drive) yields
+Type I matter, the sufficient direction proved by Santiago, Schuster and
+Visser; nonzero vorticity drives the wall to Type IV. The zero-expansion
+Natario drive (``theta_beta = 0`` yet ``omega^2_beta > 0``) isolates vorticity
+from expansion as the operative obstruction.
 
 See ``kinematic_scalars`` for the analogous decomposition of the Eulerian
 *congruence* (whose vorticity vanishes identically by hypersurface

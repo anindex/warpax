@@ -13,8 +13,6 @@ Invoked via the shell wrapper::
 
 which pins ``JAX_PLATFORMS=cpu`` and writes the artifact to
 ``results/hlo/alcubierre_curvature_chain.hlo``.
-
-The script is read-only with respect to any ``warpax/src/`` source file.
 """
 
 from __future__ import annotations

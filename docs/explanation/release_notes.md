@@ -1,9 +1,9 @@
 # Release notes
 
-How `warpax` arrived at v1.0.0. Per-release line items live in
+How `warpax` got here. Per-release line items live in
 [`CHANGELOG.md`](https://github.com/anindex/warpax/blob/main/CHANGELOG.md).
 
-## Unreleased (post-1.0)
+## v1.1.0 (2026-06)
 
 The frame-independent certification core: `warpax.certify` decides the
 all-observer energy conditions from the eigenstructure of `T^a_b` at all warp

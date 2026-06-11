@@ -126,8 +126,6 @@ class TestTypeIIClassification:
         """Construct T^a_b with a null eigenvector in Minkowski.
 
         Use a Jordan-block-like structure that has a null eigenvector.
-        T^a_b = diag(0, 0, 0, 0) + epsilon * (null outer product) gives
-        a degenerate tensor. For a cleaner construction:
 
         Take T^a_b with a null eigenvector k = (1, 1, 0, 0):
         k is null: eta_{ab} k^a k^b = -1 + 1 = 0.
@@ -137,29 +135,10 @@ class TestTypeIIClassification:
         # A 4x4 matrix with eigenvalues {0, 0, 1, 2} where the two zeros
         # share a Jordan block. The eigenvectors of the zero eigenvalue
         # include a null vector in Minkowski.
-        # Simpler approach: build a matrix with null eigenvector explicitly.
-        #
-        # T^a_b = lambda * delta^a_b + mu * k^a l_b
-        # where k = (1,1,0,0) is null, l_b = eta_{ba} l^a with l = (1,-1,0,0)
-        # also null. Then T k = lambda k (eigenvector), and if T has non-trivial
-        # Jordan structure we get Type II.
-        #
-        # Let's use a direct construction where (1,1,0,0) is a null eigenvector
-        # with eigenvalue 0, and the other eigenvalues are distinct and real.
         k = jnp.array([1.0, 1.0, 0.0, 0.0])  # null in Minkowski
         # l_b = eta_{ab} k^a = (-1, 1, 0, 0)
         l = ETA @ k  # = [-1, 1, 0, 0]
 
-        # T^a_b = diag(1, 1, 2, 3) + eps * k^a l_b (Jordan perturbation)
-        # This has eigenvalues close to {1, 1, 2, 3} but the eigenvector
-        # structure is perturbed. The null vector k is an approximate eigenvector.
-        #
-        # Actually, for exact classification, construct T directly with known
-        # eigenvectors including a null one.
-        # T^a_b that has a null eigenvector:
-        # Use T = 0 * |k><eta k| + 1 * |e2><e2| + 2 * |e3><e3| + 0 * ...
-        # The challenge is getting exactly one null eigenvector.
-        #
         # Simplest Type II construction: a matrix that has eigenvalue 0 with
         # geometric multiplicity 1 but algebraic multiplicity 2, plus its
         # eigenvalue-0 eigenvector being null.
@@ -826,7 +805,7 @@ class TestTypeIIISyntheticBenchmark:
             [0.0,  0.5, 1.0, 0.0],
             [0.0,  0.0, 0.0, 1.0],
         ]) / jnp.sqrt(2.0)
-        # Renormalise the last row so P stays invertible at float64 precision.
+        # Renormalize the last row so P stays invertible at float64 precision.
         P = P.at[3, 3].set(1.0)
         J = jnp.array([
             [lam, 1.0, 0.0, 0.0],
@@ -846,19 +825,10 @@ class TestTypeIIISyntheticBenchmark:
         result = classify_hawking_ellis(T, ETA, tol=1e-2 * 1e-4)
         assert int(result.he_type) == 3
 
-    @pytest.mark.xfail(
-        strict=False,
-        reason=(
-            "Known-fragile float64 edge case: at lam=1e6 jnp.linalg.eig splits "
-            "the degenerate 2x2 Jordan block by O(1e-8), which the Type-III "
-            "detector (n_unique==1) cannot robustly distinguish from Type I. "
-            "Type III has no known classical source, so this synthetic case "
-            "does not affect any physical certification."
-        ),
-    )
     def test_type_iii_at_large_scale(self):
-        """At ``lam = 1e6`` the default relative tol (``imag_rtol=3e-3``)
-        must still treat the Jordan-block split as real."""
+        """At ``lam = 1e6`` eig splits the Jordan pair by O(1e-6) and its
+        eigenvectors collapse onto the null direction with causal character
+        O(split); the collapsed-pair null test must absorb both."""
         T = self._jordan_2x2_tensor(1e6)
         result = classify_hawking_ellis(T, ETA, tol=1e-6)
         assert int(result.he_type) == 3

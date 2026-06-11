@@ -1,7 +1,6 @@
 """Single source of truth mapping paper_numbers.tex macros to results/*.json.
 
-Used by both ``emit_paper_numbers.py`` (regenerate) and
-``audit_paper_numbers.py`` (verify no drift). Each auto-sourced macro carries a
+Used by ``emit_paper_numbers.py``. Each auto-sourced macro carries a
 callable that recomputes its value from the cached analysis outputs; macros with
 multi-file / derived provenance are listed as manually maintained with their
 source file for review (they are checked for existence, not recomputed).

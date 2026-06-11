@@ -64,7 +64,7 @@ class ANECResult(NamedTuple):
         => NEC-violating integrated.
     geodesic_complete : bool
         True iff the Diffrax integrator completed without early
-        termination .
+        termination.
     termination_reason : str
         Human-readable reason: ``'complete'`` on success; otherwise a
         Diffrax failure mode (e.g. ``'max_steps'``, ``'nonfinite'``,
@@ -228,7 +228,7 @@ def anec(
           tangent so that ``g_{ab} k^a k^b = 0`` exactly, via a
           Lagrange-style quadratic solve. Identity for already-null
           tangents; corrects integrator drift off the null cone.
-        - ``'renormalized'``: legacy historical option; preserves
+        - ``'renormalized'``: legacy option; preserves
           direction up to a numerical floor and is the identity for null
           tangents (see :func:`_tangent_renormalized_null`). Does NOT
           project onto the null cone.

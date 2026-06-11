@@ -73,7 +73,7 @@ def worst_observer_typeI(
         Eigenvectors as COLUMNS (``eigenvectors[:, k]`` is the k-th).
     g_ab : Float[Array, "4 4"]
         Covariant metric, used to (a) identify the timelike eigenvector and
-        (b) normalise the boost frame. No Eulerian normal is used, so this is
+        (b) normalize the boost frame. No Eulerian normal is used, so this is
         valid at ``v_s >= 1``.
     condition : {"nec", "wec", "sec", "dec"}
         Which condition's worst axis to return. NEC/WEC/SEC use the
@@ -131,7 +131,7 @@ def worst_observer_typeI(
     )
     asymptotic_sign = jnp.sign(rho_plus_p)
 
-    # Normalised boost frame (no Eulerian normal): e_0 timelike, e_i* spacelike.
+    # Normalized boost frame (no Eulerian normal): e_0 timelike, e_i* spacelike.
     v0 = eigenvectors[:, timelike_idx]
     vi = eigenvectors[:, worst_axis]
     n0 = jnp.sqrt(jnp.maximum(-causal[timelike_idx], atol))

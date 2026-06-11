@@ -186,7 +186,7 @@ def compute_wall_restricted_stats(
     n_iv = int(jnp.sum((he_flat == 4.0) & mask_flat))
 
     # Weighting used for fractions/rates: per-point volume when provided,
-    # else uniform (recovers raw point-fraction behaviour exactly).
+    # else uniform (recovers raw point-fraction behavior exactly).
     if volume_weights is not None:
         weight = volume_weights.ravel().astype(float) * mask_flat
     else:

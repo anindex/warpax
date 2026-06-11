@@ -66,7 +66,7 @@ For a full grid-level view of regions where the Eulerian frame misses violations
 python examples/07_custom_warp_metric.py
 ```
 
-This rewrites the pipeline end-to-end on a 16^3 grid of a custom Gaussian
+This runs the pipeline end-to-end on a 16^3 grid of a custom Gaussian
 warp bubble (about 22 seconds on a laptop CPU) and emits a 3-panel
 PDF comparison at `examples/output/gaussian_warp_comparison.pdf`.
 

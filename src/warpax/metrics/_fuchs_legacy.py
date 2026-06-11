@@ -117,7 +117,7 @@ def _constant_density_shell_profiles(
     #   P(r) = rho * [sqrt(1-2m(r)/r) - sqrt(1-2M/R_2)] /
     #          [sqrt(1-2M/R_2) - sqrt(1-2m(r)/r)]
     # This is a simplified form; the full paper uses numerical integration.
-    # We use a simpler approximation: linear falloff with P(R_2) = 0.
+    # We use a simpler approximation: quadratic falloff with P(R_2) = 0.
     def radial_pressure(r: Float[Array, ""]) -> Float[Array, ""]:
         in_shell = (r >= R_1) & (r <= R_2)
         m_r = cumulative_mass(r)
@@ -243,7 +243,7 @@ def fuchs_input_stress_energy(
     u_up = jnp.array([1.0 / alpha, 0.0, 0.0, 0.0])
     u_down = g @ u_up
 
-    # Radial unit spacelike vector, orthogonalised against u
+    # Radial unit spacelike vector, orthogonalized against u
     r_safe = jnp.maximum(r, 1e-30)
     e_r = jnp.array([0.0, x_rel / r_safe, y / r_safe, z / r_safe])
     e_r_dot_u = jnp.dot(g @ e_r, u_up)

@@ -6,7 +6,7 @@ Demonstrates the geodesic integration pipeline:
 2. Integrate the geodesic trajectory through the warp bubble.
 3. Monitor 4-velocity norm conservation (should stay near -1).
 4. Compute tidal eigenvalues along the trajectory.
-5. Visualise tidal evolution with ``plot_tidal_evolution``.
+5. Visualize tidal evolution with ``plot_tidal_evolution``.
 
 The particle starts far ahead of the bubble and the bubble sweeps past it.
 Tidal forces should spike at the bubble wall and vanish inside and outside.
@@ -99,7 +99,7 @@ print(f"\nPeak tidal force at τ = {tau_np[peak_idx]:.2f}")
 print(f"  x-position at peak: {float(sol.positions[peak_idx, 1]):.3f}")
 print(f"  eigenvalues: {tidal_np[peak_idx]}")
 
-# 6. Visualise tidal evolution
+# 6. Visualize tidal evolution
 os.makedirs("examples/output", exist_ok=True)
 save_path = "examples/output/tidal_evolution_alcubierre.pdf"
 print(f"\nSaving tidal evolution plot -> {save_path}")

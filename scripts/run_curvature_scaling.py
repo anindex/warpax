@@ -11,7 +11,7 @@ to ``X = A v_s^q`` over the subluminal branch.
 Two boost-invariant sectors emerge: the source-free Weyl (tidal) curvature and
 the Ricci (matter) curvature scale as separate, universal powers of ``v_s``
 across the family, showing that the exotic content is intrinsic geometry, not a
-coordinate artefact, and that it grows smoothly through and beyond the luminal
+coordinate artifact, and that it grows smoothly through and beyond the luminal
 transition.
 
 Sentinels: the Minkowski invariants vanish; Schwarzschild reproduces the closed

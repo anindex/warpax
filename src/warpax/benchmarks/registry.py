@@ -44,7 +44,7 @@ class MetricRegistry:
 
     Usage::
 
-        registry = MetricRegistry
+        registry = MetricRegistry()
         metric, gt = registry.get("Minkowski")
         print(gt["kretschmann"]) # 0.0
     """

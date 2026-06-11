@@ -2,8 +2,7 @@
 
 `minkowski.ckpt/` - hand-synth Orbax checkpoint that makes the fixture's
 forward pass output `eta_{ab}` (Minkowski) at any input. Used by
-`tests/test_io_einfields.py` to exercise `warpax.io.load_einfield`
-(, ).
+`tests/test_io.py` to exercise `warpax.io.load_einfield`.
 
 ## Schema
 
@@ -22,14 +21,13 @@ pip install 'warpax[einfields]'
 python tests/fixtures/einfields/generate_minkowski_ckpt.py
 ```
 
-The generator writes `minkowski.ckpt/` (an Orbax-populated directory).
-The committed `.gitkeep` marker keeps the path under version control
-when the extras are not installed (e.g., standard CI runs).
+The generator writes `minkowski.ckpt/` (an Orbax-populated directory,
+~28 KB), which is committed so the round-trip test runs wherever the
+`einfields` extra is installed.
 
 ## flax version drift
 
-Per / ARCH-2 mitigation: if Flax's NNX topology API drifts,
-loader tests honest-skip via `pytest.importorskip('flax')` +
+If Flax's NNX topology API drifts, loader tests honest-skip via `pytest.importorskip('flax')` +
 `pytest.importorskip('orbax.checkpoint')` + explicit `pytest.skip` on
 topology-rebuild failure. CI coverage is honest - skip when env is
 stale, not silently pass.

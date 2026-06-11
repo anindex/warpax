@@ -78,8 +78,7 @@ def _interpolate_vector(
     """Interpolate a 3-vector field via a single batched ``map_coordinates``.
 
     Stacks the 3 spatial-component grids into a leading channel axis and
-    issues one call to :func:`map_coordinates`, replacing 3 sequential
-    calls with one batched evaluation.
+    issues one batched call to :func:`map_coordinates`.
     """
     order = _order_for_method(method)
     idx = _coords_to_indices(coords, grid_spec)[:, None]  # (4, 1)

@@ -105,11 +105,7 @@ class ShapeFunctionMetric(ADMMetric):
         checks with ``bool(jnp.all(...))``, which raises
         ``TracerBoolConversionError`` on traced inputs.
 
-        Bug fix (design/optimizer BFGS silent no-op): constructing
-        ``ShapeFunctionMetric`` inside ``optx.minimise``'s traced loss
-        raised ``TracerBoolConversionError``, which the optimizer's
-        multistart ``try/except`` swallowed - degrading BFGS to a
-        no-op. Validation still runs eagerly at concrete entry points.
+        Validation still runs eagerly at concrete entry points.
         """
         dynamic_leaves = jax.tree_util.tree_leaves((self.shape_fn, self.v_s))
         if any(isinstance(leaf, jax.core.Tracer) for leaf in dynamic_leaves):

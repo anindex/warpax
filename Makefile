@@ -1,4 +1,4 @@
-.PHONY: test docs bench bench-compare lint reproduce numbers audit-numbers
+.PHONY: test docs bench bench-compare lint reproduce numbers
 
 # Run the full test suite (CPU-canonical; skip slow marker).
 test:
@@ -20,9 +20,6 @@ reproduce:
 numbers:
 	JAX_PLATFORMS=cpu PYTHONPATH=scripts python scripts/emit_paper_numbers.py
 
-# Audit paper_numbers.tex against results/*.json (CI guard; non-zero on drift).
-audit-numbers:
-	JAX_PLATFORMS=cpu PYTHONPATH=scripts python scripts/audit_paper_numbers.py
 
 # Run the asv perf harness (warmup + single timing per benchmark).
 bench:

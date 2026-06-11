@@ -20,7 +20,7 @@ rigorous, geodesic-integrated ANEC possible for strong-shift warp bubbles (see
 ``H`` is *non-separable* (the kinetic term depends on ``x`` through
 ``g^{ab}(x)``), so plain leapfrog does not apply. We use the explicit
 extended-phase-space scheme of Tao (PRE 94, 043303, 2016; arXiv:1609.02212),
-realised with JAX autodiff in the spirit of the FANTASY integrator
+realized with JAX autodiff in the spirit of the FANTASY integrator
 (Christian & Chan, ApJ 2021; arXiv:2010.02237): two copies ``(x, p)`` and
 ``(\\bar x, \\bar p)`` are evolved by the exactly-integrable mixed Hamiltonians
 ``H_A = H(x, \\bar p)`` and ``H_B = H(\\bar x, p)`` plus an ``\\omega``-binding
@@ -32,8 +32,8 @@ References
 ----------
 - Tao, "Explicit symplectic approximation of nonseparable Hamiltonians,"
   PRE 94, 043303 (2016).
-- Christian & Chan, "FANTASY: A geodesic integrator with automatic
-  differentiation," ApJ 919, 41 (2021).
+- Christian & Chan, "FANTASY: User-friendly Symplectic Geodesic Integrator
+  for Arbitrary Metrics with Automatic Differentiation," ApJ 909, 67 (2021).
 """
 from __future__ import annotations
 

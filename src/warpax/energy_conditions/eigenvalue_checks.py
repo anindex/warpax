@@ -1,4 +1,4 @@
-"""Vectorised eigenvalue-based energy condition checks for Type I stress-energy (JAX).
+"""Vectorized eigenvalue-based energy condition checks for Type I stress-energy (JAX).
 
 For Type I tensors with eigenvalues {-rho, p1, p2, p3}:
 
@@ -15,8 +15,7 @@ it measures proximity to the eigenvalue inequality boundary rather than
 a physical extremum over the observer manifold.
 
 The threshold for labeling a violation is ``margin < -atol``
-(configurable, default 1e-10), following the convention that
-violations are labeled only when the margin falls below ``-atol``.
+(configurable, default 1e-10).
 
 All functions are pointwise on ``(rho, pressures)`` and intended to be
 lifted to grids via ``jax.vmap``.
@@ -60,7 +59,7 @@ def check_dec_typeI_eigenvalue_bound(
 ) -> Float[Array, ""]:
     """Type-I DEC eigenvalue bound.
 
-    For a Type-I stress-energy tensor diagonalised in an orthonormal
+    For a Type-I stress-energy tensor diagonalized in an orthonormal
     frame as ``diag(rho, p_1, p_2, p_3)``, the eigenvalue form of the
     Dominant Energy Condition requires ``rho >= |p_i|`` for all ``i``.
     Returns ``min(rho - |p1|, rho - |p2|, rho - |p3|)``.

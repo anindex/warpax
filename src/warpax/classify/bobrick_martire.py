@@ -11,7 +11,7 @@ Class taxonomy (per §3):
   is supported on a smooth bubble wall (Alcubierre, Rodal, Natario,
   Van den Broeck, Lentz).
 - **Class III** -- matter-shell / junction-structured metrics with
-  stress-energy localised inside a finite shell ``R_1..R_2``
+  stress-energy localized inside a finite shell ``R_1..R_2``
   (WarpShell).
 
 Dispatch is the multi-probe cascade ``stationary ->

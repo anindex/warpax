@@ -1,7 +1,7 @@
 
 """Batch render all Manim showcase scenes to MP4 and optimized GIF.
 
-Renders all 8 WarpAx Manim scenes (4 x 3D, 4 x 2D heatmap) at the
+Renders all 7 WarpAx Manim scenes (3 x 3D, 4 x 2D heatmap) at the
 specified quality, then optionally converts each MP4 to a 720p GIF
 using the FFmpeg two-pass palette workflow.
 
@@ -46,7 +46,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MANIM_DIR = PROJECT_ROOT / "src" / "warpax" / "visualization" / "manim"
 
-# All 8 scenes: (module_path_relative_to_project, class_name, description)
+# All 7 scenes: (module_path_relative_to_project, class_name, description)
 SCENES = [
     # 3D scenes
     ("src/warpax/visualization/manim/_bubble_collapse.py", "BubbleCollapse", "Bubble collapse animation"),

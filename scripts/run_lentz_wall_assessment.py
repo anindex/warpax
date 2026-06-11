@@ -122,7 +122,6 @@ def radial_cut_assessment():
     results = []
     t0 = time.time()
     for i, r in enumerate(r_values):
-        # y=0.01 offset avoids the L1 kink at y=z=0 
         coords = jnp.array([0.0, float(r), 0.01, 0.0])
         curv = compute_curvature_chain(metric, coords)
 

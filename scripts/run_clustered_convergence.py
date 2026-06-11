@@ -101,7 +101,7 @@ def run_single(
     coords = build_coord_batch(grid_spec, t=0.0)
     mask = shape_function_mask(metric, coords, grid_spec.shape, f_low=F_LOW, f_high=F_HIGH)
     # Proper per-cell volume weights on clustered grids; None (uniform) recovers
-    # raw point-fraction behaviour exactly.
+    # raw point-fraction behavior exactly.
     vol_w = grid_spec.volume_weights_array
     wall = compute_wall_restricted_stats(
         ec, mask, eulerian_margins=eulerian_margins, volume_weights=vol_w,

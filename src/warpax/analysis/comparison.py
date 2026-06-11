@@ -253,7 +253,6 @@ def build_comparison_table(
 
             rows.append(row)
 
-    # Save to JSON
     output_path = results_path / "comparison_table.json"
     os.makedirs(str(results_path), exist_ok=True)
     with open(str(output_path), "w") as f:

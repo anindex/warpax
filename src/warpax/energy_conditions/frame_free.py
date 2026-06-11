@@ -14,14 +14,9 @@ For Type-I points the returned NEC/WEC/SEC margins are exact and cap-free; the
 DEC margin is the eigenvalue bound ``rho - |p_i|``, necessary and sufficient at
 Type I (see :func:`.eigenvalue_checks.check_dec_typeI_eigenvalue_bound`). For non-Type-I
 points (II/III/IV) no invariant rest frame exists, so the eigenvalue margins are
-NaN by construction -- the physically honest statement, which the caller should
-report as "intrinsically observer-dependent" rather than silently substituting a
-frame-dependent optimizer value.
-
-This module deliberately does the MINIMUM: it reuses the validated
-:func:`._classify_grid_batch` (with its standard/generalized/auto pencil
-fallback) and :func:`.eigenvalue_checks.check_all`, adding only the flatten/
-reshape plumbing and the type census. It introduces no new physics primitives.
+NaN by construction; callers should report these as "intrinsically
+observer-dependent" rather than silently substituting a frame-dependent
+optimizer value.
 """
 from __future__ import annotations
 

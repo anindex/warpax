@@ -15,7 +15,7 @@ the wall region (where the transition and any Type-IV live):
 
   1. Solver agreement: float64 standard ``jnp.linalg.eig`` vs LAPACK ``zggev``
      generalized pencil (solver="generalized") vs 50-digit ``mpmath`` on a
-     sampled subset of wall points (Type-IV-prioritised).
+     sampled subset of wall points (Type-IV-prioritized).
   2. Refinement stability: the wall Type-IV volume fraction across
      N in {30,50,70} via ``f_miss_stability`` (discontinuous-quantity test).
   3. Tolerance insensitivity: the wall Type-IV fraction across
@@ -170,7 +170,7 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
 
     # --- solver agreement on a wall subset (standard vs generalized) ----
     wall_idx = np.where(wall_flat)[0]
-    # prioritise Type-IV-flagged points, then fill with a deterministic sample
+    # prioritize Type-IV-flagged points, then fill with a deterministic sample
     iv_idx = wall_idx[he_std[wall_idx] == 4.0]
     other_idx = wall_idx[he_std[wall_idx] != 4.0]
     take_iv = iv_idx[: gen_cap // 2]

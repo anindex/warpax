@@ -1445,7 +1445,7 @@ class TestCondV:
 
     - test_well_conditioned_flags_certain: clean perfect-fluid -> cond(V) small,
       uncertain=False.
-    - test_jordan_defective_flags_uncertain: near-Jordan synthesised input ->
+    - test_jordan_defective_flags_uncertain: near-Jordan synthesized input ->
       cond(V) ~ inf (or 10^10+), uncertain=True.
 
     Threshold: cond(V) > 10**(precision/2) per Demmel 1997 Thm 4.4 (Bauer-Fike).
@@ -1477,7 +1477,7 @@ class TestCondV:
             assert k in result, f"existing key {k!r} dropped from return dict"
 
     def test_jordan_defective_flags_uncertain(self) -> None:
-        """Exact Jordan synthesised T -> uncertain=True (cond_V exceeds 10^25).
+        """Exact Jordan synthesized T -> uncertain=True (cond_V exceeds 10^25).
 
         The top-left 2x2 is an exact Jordan block: eigenvalue 1.0 with
         algebraic multiplicity 2 and a SINGLE eigenvector (the (1,0) entry

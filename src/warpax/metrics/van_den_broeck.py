@@ -3,7 +3,7 @@
 The Van Den Broeck metric (arXiv:gr-qc/9905084) modifies the Alcubierre metric
 by introducing a conformal factor B(r_s) on the spatial metric. This expands
 the internal volume of the warp bubble while keeping the external surface area
-small, dramatically reducing the total negative energy requirement.
+small.
 
 Line element:
     ds^2 = -dt^2 + B^2(r_s) * [(dx - v_s f(r_s) dt)^2 + dy^2 + dz^2]

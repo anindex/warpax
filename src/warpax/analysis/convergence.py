@@ -1,14 +1,12 @@
 """Richardson extrapolation for grid convergence validation.
 
 Given a quantity Q computed at multiple grid resolutions, estimates the
-true (continuum) value and the observed convergence order. This is
-essential for validating that energy condition results are numerically
-converged and not grid artifacts.
+true (continuum) value and the observed convergence order.
 
 Only smooth quantities are suitable for Richardson extrapolation (e.g.
 minimum margin, L2 norm of violation field, integrated violation).
 Discontinuous quantities like "percentage of points violated" are NOT
-suitable (discontinuous quantities break Richardson extrapolation assumptions).
+suitable.
 
 Uses plain Python/numpy math (not JAX) since these are post-processing
 summary statistics.

@@ -44,22 +44,22 @@ example. The plotting code itself is shipped with the paper source tree.
 | Fig. 3b (T-shell hero) | `tshell_default` + T-shell phase sweep (`examples/10_phase_diagram.py --full`) |
 | Fig. 4 (null-energy contraction along coordinate ray) | `scripts/run_anec_profiles.py`; off-axis null ray at $y=10^{-3}$ |
 | Fig. 5 (EC scaling) | T-shell DEC margin vs $v_0$ for two profile families |
-| Table I (8-proposal grid) | `scripts/verify_proposals.py` → `results/proposals_verification_report.json` |
+| Table I (8-proposal grid) | `scripts/verify_proposals.py` -> `results/proposals_verification_report.json` |
 | Table II (3-shell summary) | `scripts/verify_fuchs.py` + S/T-shell construction outputs |
 
 ## Quantitative claims
 
 | Claim | Source |
 |---|---|
-| Fuchs constraint residual $\epsilon_{\mathcal{H}} \approx 4\times10^{-3}$ (canonical), $0.165$ (pre-smoothing) | `scripts/verify_fuchs.py` → `results/fuchs_verification_report.json` |
-| Fuchs source-consistency mismatch $\sim 640\times$ | `scripts/verify_fuchs.py` → `source_consistency.max_relative_residual` |
-| 0/13 interior, 22/25 exterior tail violations under observer-robust certification | `scripts/verify_fuchs.py` → `ec_summary` |
+| Fuchs constraint residual $\epsilon_{\mathcal{H}} \approx 4\times10^{-3}$ (canonical), $0.165$ (pre-smoothing) | `scripts/verify_fuchs.py` -> `results/fuchs_verification_report.json` |
+| Fuchs source-consistency mismatch $\sim 640\times$ | `scripts/verify_fuchs.py` -> `source_consistency.max_relative_residual` |
+| 0/13 interior, 22/25 exterior tail violations under observer-robust certification | `scripts/verify_fuchs.py` -> `ec_summary` |
 | S/T-shell constraint residual $\epsilon_{\mathcal{H}} \approx 5\times10^{-3}$ | `examples/09_admissibility_diagnostics.py` for either shell |
 | 0/600 phase-diagram admissibility | `examples/10_phase_diagram.py --full` (T-shell) and `scripts/run_sshell_sweep.py` (S-shell) |
 | Grid convergence at $n_{\rm grid} \in \{256, 512, 1024\}$ | `scripts/run_convergence.py` |
 | Null-ray ANEC line integrals (Fuchs $+5.0\times10^{-4}$, S-shell $+6.5\times10^{-4}$, T-shell $+3.8\times10^{-3}$) | `scripts/run_anec_profiles.py` |
 | Geodesic-integrated ANEC cross-check ($|g_{ab}k^ak^b| < 10^{-6}$) | `scripts/run_anec_geodesic_check.py` |
-| Cross-proposal verification (Rodal $9/50$ NEC, $46/50$ DEC; Lentz $1/50$ NEC, $2/50$ DEC) | `scripts/verify_proposals.py` → `results/proposals_verification_report.json` |
+| Cross-proposal verification (Rodal $9/50$ NEC, $46/50$ DEC; Lentz $1/50$ NEC, $2/50$ DEC) | `scripts/verify_proposals.py` -> `results/proposals_verification_report.json` |
 
 ## One-shot reproduction
 

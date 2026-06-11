@@ -292,12 +292,11 @@ def generate_kinematic_figures(figures_dir: str, results_dir: str) -> int:
 
 
 def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int:
-    """Generate the 'money shot': missed WEC violations vs velocity for Rodal.
+    """Generate the missed WEC violations vs velocity figure for Rodal.
 
     2x2 grid showing missed WEC violations for Rodal at
     v_s = 0.1, 0.5, 0.9, 0.99. Rodal shows ~15% WEC missed by Eulerian
-    analysis, making it the most visually striking demonstration of
-    observer-dependent violations.
+    analysis.
 
     Returns the number of figures generated.
     """

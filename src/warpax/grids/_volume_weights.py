@@ -1,4 +1,4 @@
-"""Non-uniform grid volume-weight helpers (mitigation).
+"""Non-uniform grid volume-weight helpers.
 
 :func:`warpax.energy_conditions.compute_wall_restricted_stats` and other
 integration-based diagnostics must multiply each cell's integrand by its

@@ -1,4 +1,4 @@
-"""2-level AMR wall-refined grid .
+"""2-level AMR wall-refined grid.
 
 Returns a :class:`RefinedGrid` NamedTuple containing:
 
@@ -7,17 +7,12 @@ Returns a :class:`RefinedGrid` NamedTuple containing:
 - ``mask``: boolean array (coarse shape) selecting which base cells are
   covered by the fine patch
 
-Scope (per :file:`):
+Scope: 2-level only (coarse + fine pair); dynamic tree-based AMR deferred.
 
-- 2-level only (coarse + fine pair).
-- True dynamic tree-based AMR  deferred.
-
-Composition: Downstream consumers (``verify_grid``, ``curvature_chain``)
-evaluate ``.base`` and ``.fine`` independently, then blend via ``.mask``
-(coarse cells in mask override base result with upsampled fine result).
-The blending glue lives in the existing
-``energy_conditions.verifier`` path - this module only generates the
-coarse/fine pair.
+Downstream consumers (``verify_grid``, ``curvature_chain``) evaluate
+``.base`` and ``.fine`` independently, then blend via ``.mask`` (masked
+coarse cells take the upsampled fine result); the blending lives in
+``energy_conditions.verifier``. This module only generates the pair.
 """
 from __future__ import annotations
 

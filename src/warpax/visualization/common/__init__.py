@@ -4,7 +4,7 @@ Provides FrameData, freeze functions, scene builders, physics profiles,
 color/theme utilities, and overlay helpers that Manim and matplotlib
 backends can import without backend-specific dependencies.
 
-All modules are pure Python/NumPy/Equinox no Manim required.
+All modules are pure Python/NumPy/Equinox; no Manim required.
 """
 from __future__ import annotations
 

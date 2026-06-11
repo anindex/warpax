@@ -265,9 +265,29 @@ def classify_hawking_ellis(
     gaps = jnp.abs(jnp.diff(sorted_evals))
     n_unique = 1 + jnp.sum(gaps > tol * scale)
 
+    # Defective (Jordan) degeneracy: eig splits the pair by O(sqrt(eps*||T||))
+    # and returns two nearly parallel eigenvectors whose causal character is
+    # O(split) rather than 0, so a genuinely null eigenvector fails the tol
+    # test at large ||T||. Detect the collapse by eigenvector parallelism
+    # (a diagonalizable degeneracy keeps well-separated eigenvectors, so a
+    # Lambda-like T = lam*delta is untouched) and, only then, admit causal
+    # characters up to a few times the observed split as null. Gated on
+    # n_unique == 1, so it never fires when tol resolves the split.
+    unit_evecs = evecs_real / jnp.maximum(
+        jnp.linalg.norm(evecs_real, axis=0, keepdims=True), 1e-300
+    )
+    gram_offdiag = jnp.abs(unit_evecs.T @ unit_evecs) - jnp.eye(4)
+    evecs_collapsed = jnp.max(gram_offdiag) > 1.0 - 1e-6
+    split_null_tol = jnp.maximum(tol, 4.0 * jnp.max(gaps) / g_quad_scale)
+    n_null_split = jnp.sum(jnp.abs(relative_g_quad) <= split_null_tol)
+
     is_type_iv = ~all_real & ~near_vacuum
-    is_type_i = (all_real & (n_timelike >= 1) & (n_null == 0)) | near_vacuum
-    is_type_iii = all_real & ~near_vacuum & (n_null >= 1) & (n_unique == 1)
+    is_type_iii = all_real & ~near_vacuum & (n_unique == 1) & (
+        (n_null >= 1) | (evecs_collapsed & (n_null_split >= 1))
+    )
+    is_type_i = (
+        all_real & (n_timelike >= 1) & (n_null == 0) & ~is_type_iii
+    ) | near_vacuum
 
     he_type = jnp.where(
         is_type_iv,

@@ -372,7 +372,7 @@ def blend_fields(
         (1.0 - t) * clim_a[1] + t * clim_b[1],
     )
 
-    # Build a modified copy FrameData is an eqx.Module (frozen),
+    # Build a modified copy; FrameData is an eqx.Module (frozen),
     # so we reconstruct with updated dicts.
     from warpax.visualization.common._frame_data import FrameData as FD
 

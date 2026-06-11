@@ -9,7 +9,7 @@ Notes:
 - Scalar fields stored as ``dict[str, np.ndarray]`` for extensibility.
 - HE type stored as integer-valued float64 array (key ``"he_type"``).
 - Rendering hints (colormaps, clim, isosurface values) computed at freeze time.
-- No serialization FrameData is ephemeral (recomputed each run).
+- No serialization; FrameData is ephemeral (recomputed each run).
 - All evaluation is eager (no lazy computation).
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ class FrameData(eqx.Module):
     """Frozen snapshot of JAX computation results for visualization rendering.
 
     All array fields are NumPy (not JAX) arrays. This is the boundary
-    between JAX computation and visualization rendering no JAX tracing
+    between JAX computation and visualization rendering; no JAX tracing
     occurs downstream of FrameData construction.
 
     Parameters

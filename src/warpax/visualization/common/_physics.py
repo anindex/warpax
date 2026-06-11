@@ -1,9 +1,5 @@
 """Time-dependent physics: velocity profiles and frame sequence builder.
 
-Provides velocity profile callables for warp drive animations and a
-frame sequence builder that produces lists of FrameData from velocity
-sweeps or time-varying v_s(t).
-
 All velocity profiles use NumPy (not JAX) since they are evaluated
 outside the JAX trace boundary. The frame sequence builder uses
 ``eqx.tree_at`` to swap ``v_s`` without triggering JIT recompilation.

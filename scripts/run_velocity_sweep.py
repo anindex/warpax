@@ -12,7 +12,7 @@ superluminal and record, on wall-clustered grids, the wall-restricted
 This delivers the local all-observer energy-condition problem studied in a
 tetrad/eigenvalue framework across subluminal, luminal, AND superluminal
 regimes. The Type-IV
-labels here are certified physical (not numerical artefact) by the companion
+labels here are certified physical (not numerical artifact) by the companion
 gate ``validate_superluminal_classification.py`` (3-solver + 50-digit mpmath
 agreement); this production sweep therefore uses the fast standard eig solver.
 

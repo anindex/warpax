@@ -1,10 +1,13 @@
 """Analysis library for Eulerian vs robust energy condition comparison.
 
-Provides four submodules:
+Submodules:
 - **comparison**: Eulerian vs robust EC comparison with missed-flag logic
+- **construction_adapter**: uniform adapter feeding published constructions through the certifier
 - **convergence**: Richardson extrapolation for grid convergence validation
+- **invariant_verification**: single-frame miss statistics and invariant exotic content
 - **kinematic_scalars**: Expansion, shear, vorticity for the Eulerian congruence
 - **shift_kinematics**: Expansion, shear, vorticity of the ADM shift vector field
+- **vorticity_type_analytic**: f = kappa*omega fit of the Type-IV imaginary part
 """
 from __future__ import annotations
 

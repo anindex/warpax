@@ -1,21 +1,11 @@
 """Smooth transition functions for warp drive metric construction.
 
-Provides parameterized smoothstep functions with configurable continuity
-order. The C1 cubic (3t^2 - 2t^3) and C2 quintic (6t^5 - 15t^4 + 10t^3)
-variants are the standard Hermite interpolants from computer graphics.
+The C1 cubic (3t^2 - 2t^3) and C2 quintic (6t^5 - 15t^4 + 10t^3)
+smoothsteps are the standard Hermite interpolants; boundary conditions
+and derivatives are documented on each function.
 
-C1 cubic:
-    f(0)=0, f(1)=1, f'(0)=f'(1)=0
-    f''(0)=6, f''(1)=-6 (NOT zero C1 only)
-
-C2 quintic:
-    f(0)=0, f(1)=1, f'(0)=f'(1)=0, f''(0)=f''(1)=0
-    First derivative: 30t^4 - 60t^3 + 30t^2 = 30t^2(t-1)^2
-    Second derivative: 120t^3 - 180t^2 + 60t = 60t(2t-1)(t-1)
-
-These functions are used by WarpShell's transition helpers
-(_shell_indicator, _warpshell_transition) and can be reused by any
-metric that needs smooth boundary transitions.
+Used by WarpShell's transition helpers (_shell_indicator,
+_warpshell_transition).
 """
 
 from __future__ import annotations

@@ -357,7 +357,7 @@ def _make_arrow_field(
             if np.linalg.norm(end - start) < 0.01:
                 continue
 
-            # Colour by local NEC margin
+            # Color by local NEC margin
             color = _nec_to_hex(float(nec_margin_2d[i, j]))
 
             # Opacity: stronger arrows more opaque
@@ -385,9 +385,9 @@ class BoostArrows(Scene):
     direction and magnitude of the worst-case observer boost at each
     grid point.
 
-    **Key insight communicated:** Arrows align with the propagation
-    direction near the bubble wall, explaining why the robust margin
-    finds deeper violations than the Eulerian observer.
+    Arrows align with the propagation direction near the bubble wall,
+    explaining why the robust margin finds deeper violations than the
+    Eulerian observer.
 
     Arrows are colored by local NEC margin (RdYlGn: red = violated,
     green = satisfied) so one can see at a glance *where* violations

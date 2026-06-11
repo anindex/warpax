@@ -1,4 +1,4 @@
-"""FFmpeg two-pass palettegen/paletteuse helper for MP4 → optimized GIF conversion."""
+"""FFmpeg two-pass palettegen/paletteuse helper for MP4 -> optimized GIF conversion."""
 from __future__ import annotations
 
 import logging

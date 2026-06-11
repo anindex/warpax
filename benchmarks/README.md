@@ -2,7 +2,7 @@
 
 This top-level `benchmarks/` directory hosts the
 [airspeed velocity (`asv`)](https://asv.readthedocs.io) regression harness.
-It tracks commit-to-commit performance deltas across the 9 benchmarks
+It tracks commit-to-commit performance deltas across the 13 benchmarks
 defined below.
 
 ## Naming collision
@@ -17,10 +17,9 @@ There are **two unrelated things named "benchmarks"** in this repo:
 The `warpax.benchmarks` module is pinned by the v0.1.0 public API
 surface so renaming it would break downstream consumers. The top-level
 `benchmarks/` directory follows the SciPy / NumPy / Astropy convention
-for asv harnesses. The two co-exist; the naming collision is intentional
-and documented here.
+for asv harnesses.
 
-## The 9 benchmarks
+## The 13 benchmarks
 
 | # | File | Class | Coverage |
 |---|------|-------|----------|
@@ -33,6 +32,10 @@ and documented here.
 | 7 | `bench_geodesic.py` | `GeodesicIntegration` | Central worldline τ ∈ [0, 10] |
 | 8 | `bench_geodesic.py` | `JacobiDeviation` | Co-integrated tidal deviation |
 | 9 | `bench_classifier_grid.py` | `ClassifierGrid32` | Float64 Hawking-Ellis on 32³ |
+| 10 | `bench_classifier_grid.py` | `ClassifierGrid32Generalized` | Generalized-pencil classifier on 32³ |
+| 11 | `bench_ec_four_way_alcubierre.py` | `ECFourWayAlcubierre` | 4-way WEC comparison, single point |
+| 12 | `bench_auto_chunk.py` | `AutoChunkMemoryEnvelope` | Full-vmap vs chunked memory envelope |
+| 13 | `bench_jit_cache.py` | `JITCacheColdVsWarm` | Persistent JIT cache cold vs warm |
 
 ## How to run
 

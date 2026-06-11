@@ -142,14 +142,8 @@ def main():
 
             print(f"  Testing {n_test} missed points...")
 
-            # Load stress-energy and metric data
-            # We need to reconstruct T_ab and g_ab from the grid
-            # Since we don't store them in the .npz, we'll use the
-            # margins to verify and the grid to reconstruct
-            #
-            # Actually - we need the actual T_ab and g_ab tensors.
-            # The cached .npz only has margins. We need to recompute
-            # from the metric. Let's load and reconstruct.
+            # The cached .npz stores only margins; recompute T_ab and g_ab
+            # from the metric at the missed points.
 
             # Grid params
             grid_bounds = data["grid_bounds"]

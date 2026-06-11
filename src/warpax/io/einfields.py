@@ -8,12 +8,6 @@ curvature + energy-condition pipeline.
 If Flax or Orbax is missing, the loader raises :class:`ImportError` with
 an install hint. Tests use :func:`pytest.importorskip` when the optional
 ``einfields`` extra is not installed.
-
-Scope: this module supplies the loader contract and is an honest skip
-when the EinFields stack is missing. The fixture generator
-(``tests/fixtures/einfields/generate_minkowski_ckpt.py``) is runnable when
-``warpax[einfields]`` is installed; CI runs without the extra and skips
-the fixture + loader tests gracefully.
 """
 from __future__ import annotations
 

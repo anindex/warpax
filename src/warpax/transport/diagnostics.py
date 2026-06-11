@@ -2,16 +2,14 @@
 
 Three observables for admissibility assessment:
 
-1. delta_t_coord -- null round-trip *coordinate-time* asymmetry. This is
-   gauge-dependent (it lives in the chosen time slicing). It is
-   invariant under constant time shifts t -> t + const but not under
-   general re-slicings t -> t + phi(x).
+1. delta_t_coord -- null round-trip *coordinate-time* asymmetry;
+   gauge-dependent (it lives in the chosen time slicing).
 2. A_geo         -- geodesic deviation diagnostic (gauge-invariant).
 3. B             -- blueshift hazard functional (gauge-invariant for
    a chosen observer worldline).
 
-All use the existing warpax.geodesics infrastructure (Diffrax integration,
-Jacobi deviation, blueshift observables).
+Built on warpax.geodesics (Diffrax integration, Jacobi deviation,
+blueshift observables).
 """
 from __future__ import annotations
 
@@ -136,7 +134,6 @@ def null_coord_time_asymmetry(
     return delta_dt_coord
 
 
-# alias: null_round_trip_asymmetry
 null_round_trip_asymmetry = null_coord_time_asymmetry
 
 
@@ -235,7 +232,5 @@ def blueshift_hazard(
         )
         return jnp.max(log_shifts)
 
-    # vmap the independent per-direction integrations (was a Python loop of
-    # sequential Diffrax solves). The outer max over directions is unchanged.
     max_log_shift = jnp.max(jax.vmap(_hazard_one)(directions))
     return max_log_shift

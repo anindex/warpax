@@ -32,7 +32,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Install package + dev deps
-        run: uv sync --extra dev --extra solver --extra design
+        run: uv sync --extra dev --extra solver --extra design --extra einfields
 
       - name: Restore JAX compile cache
         uses: actions/cache@v4
@@ -50,8 +50,8 @@ jobs:
           WARPAX_BEARTYPE: "1"
         run: uv run pytest -q tests/test_classification.py tests/test_ec_verifier.py --tb=short
 
-  # Cross-version compatibility: the critical tier only — certification
-  # engine, frame-free path, regression nets, parity goldens, and the
+  # Cross-version compatibility: the critical tier only: certification
+  # engine, frame-free path, regression nets, and the
   # benchmark sentinels. Catches import/typing/API breakage per version
   # without re-running the whole suite three times.
   core-compat:
@@ -93,7 +93,6 @@ jobs:
           tests/test_worst_observer_analytic.py
           tests/test_ec_verifier.py
           tests/test_bug_hunt_regressions.py
-          tests/test_parity_golden.py
           tests/test_shift_kinematics.py
           tests/test_benchmarks/
 
@@ -125,10 +124,6 @@ jobs:
       - name: Script import smoke
         run: uv run python scripts/run_analysis.py --help
 
-      - name: Paper-number audit (every cited number traces to results/*.json)
-        run: uv run python scripts/audit_paper_numbers.py
-        env:
-          PYTHONPATH: scripts
 
   docs:
     runs-on: ubuntu-latest

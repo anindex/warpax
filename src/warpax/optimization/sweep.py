@@ -62,12 +62,9 @@ class SweepResult(NamedTuple):
         ``(k // Nt, k % Nt)``. ``None`` marks a not-yet-evaluated cell
         (partial checkpoints written while a parallel sweep is running).
 
-        Bug fix (checkpoint corruption in parallel mode): checkpoints
-        previously serialized a None-compacted list, so parallel
-        completion order scrambled list positions and ``to_grids``
-        placed points in the wrong cells. The list is now kept at full
-        length with explicit ``None`` holes (``null`` in the JSON
-        sidecar) so position always encodes the grid cell.
+        The list is kept at full length with explicit ``None`` holes
+        (``null`` in the JSON sidecar) so position always encodes the
+        grid cell.
     compactness_values : 1D array of sampled compactness values.
     thickness_values : 1D array of sampled thickness ratios.
     """
@@ -302,8 +299,8 @@ def sweep_transport(
     progress : show tqdm progress bar.
     save_path : save intermediate results to this path.
     parallel : optional thread-pool worker count for grid-point evaluation.
-        ``None`` (default) keeps the existing serial loop, identical
-        behavior and numerics. Setting an integer >= 2 dispatches grid
+        ``None`` (default) runs the serial loop. Setting an integer
+        >= 2 dispatches grid
         points via :class:`concurrent.futures.ThreadPoolExecutor`; each
         thread calls into JIT'd JAX kernels which release the GIL, so
         Python dispatch overhead overlaps across points. Honors the
@@ -386,9 +383,9 @@ def sweep_transport(
         if pbar is not None:
             pbar.update(1)
         if save_path is not None and (idx + 1) % max(1, total // 10) == 0:
-            # Bug fix (checkpoint corruption in parallel mode): checkpoint
-            # the FULL-length list (None holes included). Compacting it
-            # scrambled grid-cell placement under parallel completion order.
+            # Checkpoint the FULL-length list (None holes included);
+            # compacting it scrambles grid-cell placement under parallel
+            # completion order.
             partial = SweepResult(
                 points=list(points),
                 compactness_values=c_vals,

@@ -70,10 +70,7 @@ def _ec_margins_at_point(
 ) -> dict[str, Float[Array, ""]]:
     """Per-point dict of EC margins; traced once, cached across probes.
 
-    Bug fix (PRNG key reuse): the optimizers were previously called with
-    no ``key``, so every probe point and every condition fell back to
-    ``PRNGKey(42)`` - identical random multistarts everywhere. Callers
-    now thread a per-point key; each condition gets a distinct
+    Callers thread a per-point key; each condition gets a distinct
     ``fold_in`` of it. ``key=None`` falls back to ``PRNGKey(42)``
     (legacy callers), still with per-condition decorrelation.
     """
@@ -96,14 +93,14 @@ def ec_penalty(
 ) -> Float[Array, ""]:
     """Soft EC penalty: ``sum_i sum_c softplus(-margin_{i,c})^2``.
 
-    Vectorises the curvature chain across probes and JIT-caches the
+    Vectorizes the curvature chain across probes and JIT-caches the
     per-point margin evaluation, so repeated invocations during
     optimization re-use the compiled trace instead of re-tracing.
 
     ``key`` seeds the per-point multistart randomness; ``None`` keeps
     the deterministic default ``PRNGKey(42)``. Each probe point gets a
     distinct ``fold_in(key, i)`` so multistarts decorrelate across
-    points (PRNG key reuse bug fix).
+    points.
     """
     if key is None:
         key = jax.random.PRNGKey(42)
@@ -134,7 +131,7 @@ def ec_feasibility_check(
 
     ``key`` seeds the per-point multistart randomness; ``None`` keeps
     the deterministic default ``PRNGKey(42)``. Each probe point gets a
-    distinct ``fold_in(key, i)`` (PRNG key reuse bug fix).
+    distinct ``fold_in(key, i)``.
     """
     if key is None:
         key = jax.random.PRNGKey(42)

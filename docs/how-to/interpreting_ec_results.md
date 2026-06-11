@@ -163,8 +163,7 @@ Run these checks before reporting a warpax result:
 2. **Convergence tier.** Three tiers are flagged in the paper:
    **Richardson** (2+ resolutions with extrapolation), **Stability-only**
    (minimum margin stable under refinement), **Weakest** (single
-   resolution, no convergence evidence). See
-   `results/metric_metadata.json` `convergence_support` field.
+   resolution, no convergence evidence).
 3. **Hawking-Ellis Type distribution.** If more than ~1% Type-II or
    Type-III at interior grid points, investigate; this usually signals a
    numerical artifact at a transition zone rather than a physical
@@ -188,10 +187,7 @@ Two metrics in the paper carry special caveats:
   thin-shell; curvature scales are extreme (max Kretschmann ~1e34).
   Results are physically valid for the regularized implementation but
   should be read as a stress-test of the EC pipeline, not as a claim
-  about an idealized thin-shell spacetime. The `intrinsic_caveat`
-  field in `results/metric_metadata.json` marks WarpShell with the
-  `stress_test` disposition and this is carried through to the
-  LaTeX table footnotes automatically.
+  about an idealized thin-shell spacetime.
 
 ## See also
 

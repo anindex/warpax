@@ -2,10 +2,10 @@
 
 warpax ships an [airspeed velocity (`asv`)](https://asv.readthedocs.io)
 regression-benchmark harness at the top-level `benchmarks/` directory.
-The harness tracks commit-to-commit performance deltas across ten
+The harness tracks commit-to-commit performance deltas across 13
 benchmarks covering curvature grid evaluation, energy-condition
-optimizer multistart, geodesic integration, float64 Hawking-Ellis
-classification, and mpmath verification throughput.
+verification, geodesic integration, Hawking-Ellis classification,
+JIT-cache warmup, and chunked-memory envelopes.
 
 ## Naming distinction
 
@@ -21,7 +21,7 @@ in this repo:
 The top-level directory follows the SciPy / NumPy / Astropy convention
 for asv harnesses. The module keeps its original name. See
 [`benchmarks/README.md`](https://github.com/anindex/warpax/blob/main/benchmarks/README.md)
-for a full table of the ten benchmarks and their coverage.
+for a full table of the benchmarks and their coverage.
 
 ## Run instructions
 
@@ -40,11 +40,9 @@ real noise without masking real drift.
 ## JAX platform
 
 `JAX_PLATFORMS=cpu` is set at the top of every `bench_*.py` module
-for CPU-canonical reproduction. The `cuda13` matrix axis is
-documented in `benchmarks/README.md`.
+for CPU-canonical reproduction; CUDA benchmarking is deferred.
 
 ## Scope
 
-- 10 benchmark classes (curvature × 2, EC × 4, geodesic × 2,
-  classifier × 1, mpmath × 1).
-- Per-commit delta reporting via `asv compare`; 20% noise budget set.
+- 13 benchmark classes (curvature × 2, EC × 5, geodesic × 2,
+  classifier × 2, JIT cache × 1, memory × 1).

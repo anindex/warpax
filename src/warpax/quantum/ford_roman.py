@@ -2,19 +2,18 @@
 
 Citations:
 
-- Fewster, C. J. (2012). "Quantum Inequalities: recent developments,"
-  eq. (2.1).
-- Pretto, A. et al. (2024). "Quantum Inequalities and Sampling
-  Prescriptions." *Phys. Rev. D* 110, 024023 (Lorentzian sampling
-  justification).
+- Ford, L. H. & Roman, T. A. (1995). *Phys. Rev. D* 51, 4277.
+- Pfenning, M. J. & Ford, L. H. (1997). gr-qc/9702026, eq. (9).
+- Fewster, C. J. (2012). "Lectures on quantum energy inequalities,"
+  arXiv:1208.5399.
 
-Definitions (massless scalar field, 4D):
+Definitions (massless scalar field, 4D, flat-space form):
 
 .. math::
 
-    \\int \\rho_T(\\tau) f(\\tau)^2 \\, d\\tau \\ge - \\frac{C}{\\tau_0^4}
+    \\int \\rho_T(\\tau) f(\\tau) \\, d\\tau \\ge - \\frac{C}{\\tau_0^4}
 
-with ``C = 3 / (32 pi^2)`` and the Lorentzian sampling kernel
+with ``C = 3 / (32 pi^2)`` and the normalized Lorentzian sampling kernel
 ``f(\\tau) = (\\tau_0 / \\pi) / (\\tau^2 + \\tau_0^2)``.
 """
 from __future__ import annotations
@@ -32,7 +31,7 @@ from ..geometry.metric import MetricSpecification
 
 
 # Ford-Roman constant for the massless scalar field, 4D
-# (Fewster 2012 eq. 2.1).
+# (Ford & Roman 1995; Pfenning & Ford 1997 eq. 9).
 FORD_ROMAN_CONSTANT_C: float = 3.0 / (32.0 * jnp.pi ** 2)
 
 
@@ -43,7 +42,7 @@ class QIResult(NamedTuple):
     ----------
     margin : Float[Array, ""]
         Signed QI margin:
-        ``integral(rho * f^2 d_tau) - (- C / tau0^4)``.
+        ``integral(rho * f d_tau) - (- C / tau0^4)``.
         Positive => QI satisfied along the worldline.
     bound : Float[Array, ""]
         The Ford-Roman bound value ``- C / tau0^4``.
@@ -60,7 +59,7 @@ class QIResult(NamedTuple):
 def _lorentzian_kernel(
     tau: Float[Array, "N"], tau0: float
 ) -> Float[Array, "N"]:
-    """Lorentzian temporal sampling kernel (Pretto 2024).
+    """Normalized Lorentzian temporal sampling kernel.
 
     :math:`f(\\tau) = (\\tau_0 / \\pi) / (\\tau^2 + \\tau_0^2)`.
     """
@@ -78,7 +77,7 @@ def _rho_at_tau(
     T_ab = curv.stress_energy  # covariant (lower indices)
     g = curv.metric
 
-    # 4-velocity from worldline derivative; renormalise to g(u,u) = -1
+    # 4-velocity from worldline derivative; renormalize to g(u,u) = -1
     u_raw = jax.jacfwd(worldline)(tau)
     u_sq = jnp.einsum("a,ab,b->", u_raw, g, u_raw)
     scale = jnp.sqrt(jnp.abs(u_sq) + 1e-30)
@@ -108,7 +107,7 @@ def ford_roman(
         Characteristic sampling width (inverse sampling frequency).
     sampling : str
         Temporal sampling kernel; only ``'lorentzian'`` is supported
-        (per Pretto 2024).
+        (the kernel of the original Ford-Roman bound).
     n_samples : int
         Number of proper-time samples for the QI line integral.
         Default ``256`` - span ``[-10 tau0, +10 tau0]`` captures ~99% of
@@ -135,9 +134,7 @@ def ford_roman(
     f_vals = _lorentzian_kernel(tau, tau0)
 
     rho_vals = jax.vmap(lambda t: _rho_at_tau(metric, worldline, t))(tau)
-    integrand = rho_vals * f_vals ** 2
-    # Trapezoidal rule has O(h^2) error vs. rectangular's O(h) and matches
-    # the convergence rate of the underlying integrand sampling.
+    integrand = rho_vals * f_vals
     integral = jnp.trapezoid(integrand, dx=dtau)
 
     C = jnp.asarray(FORD_ROMAN_CONSTANT_C)

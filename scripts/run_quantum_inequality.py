@@ -1,21 +1,21 @@
 """Ford--Roman quantum-inequality diagnostic for the retained warp metrics.
 
-At a fixed spatial point in the bubble wall a coordinate-static (Eulerian)
-observer sees the warp bubble sweep past, so the sampled energy density
+At a fixed spatial point in the bubble wall a coordinate-static observer
+sees the warp bubble sweep past, so the sampled energy density
 ``rho(tau)`` is a temporary negative pulse -- precisely the situation the
 Ford--Roman quantum inequality constrains. For each retained metric we locate
 the most-negative static-observer energy density in the wall, then evaluate the
 flat-space Ford--Roman inequality
 
-    integral = \\int rho(tau) f(tau)^2 dtau  >=  -C / tau_0^4 ,
-    C = 3 / (32 pi^2),  f Lorentzian of width tau_0,
+    \\int rho(tau) f(tau) dtau  >=  -C / tau_0^4 ,
+    C = 3 / (32 pi^2),  f the normalized Lorentzian of width tau_0,
 
 along that worldline as a function of the sampling time ``tau_0``, and report
 the threshold ``tau_0^th`` beyond which the inequality is violated.
 
 This is applied as a *flat-space sampling diagnostic* along a curved-spacetime
 worldline; a fully rigorous curved-space quantum inequality would carry
-curvature corrections. The Eulerian (coordinate-static) observer exists only
+curvature corrections. The coordinate-static worldline is timelike only
 for ``v_s < 1``, matching the subluminal scope of the single-frame comparison.
 
 Also emits the combined "averaged and quantum diagnostics" table and figure,

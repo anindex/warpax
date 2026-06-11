@@ -47,7 +47,7 @@ class AWECResult(NamedTuple):
         => WEC-violating integrated.
     geodesic_complete : bool
         True iff the Diffrax integrator completed without early
-        termination .
+        termination.
     termination_reason : str
         Human-readable reason: ``'complete'`` on success; otherwise a
         Diffrax failure mode (e.g. ``'max_steps'``, ``'nonfinite'``,
@@ -176,9 +176,7 @@ def awec(
         lambda c, u: _awec_integrand_at_point(metric, c, u, tangent_norm)
     )(positions, velocities)
 
-    # Trapezoidal integration over the affine parameter; matches the
-    # docstring "AWEC = integral_R T_ab u^a u^b dlam" and is robust to
-    # non-uniform lam spacing returned by the sampler.
+    # trapezoid over affine parameter (non-uniform lam OK)
     line_integral = jnp.trapezoid(integrand, lam)
 
     geodesic_complete = result_code == RESULT_SUCCESS

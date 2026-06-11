@@ -1,6 +1,6 @@
 """objectives - EC-margin integrals + averaged + quantum.
 
-Three objective flavours for the optimizer:
+Three objective flavors for the optimizer:
 
 - :func:`ec_margin_objective(metric, objective='nec'|'wec'|'sec'|'dec')`:
   pointwise worst-observer EC margin on a probe grid; returns the
@@ -73,7 +73,7 @@ def ec_margin_objective(
     n_starts
         Number of BFGS starting points per probe point. Default ``4``
         (reduced from the paper-default ``16`` to keep the design loop
-        cheap; optimizer in can override).
+        cheap; callers can override).
 
     Returns
     -------

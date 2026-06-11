@@ -92,7 +92,7 @@ METRIC_COLORS: dict[str, str] = {
     "Van den Broeck": COLORS[2],  # green
     "Rodal":          COLORS[3],  # reddish purple
     "WarpShell":      COLORS[5],  # sky blue
-    "Schwarzschild":  "#555555",  # neutral grey (vacuum control)
+    "Schwarzschild":  "#555555",  # neutral gray (vacuum control)
     "Lentz":          COLORS[1],  # vermilion (appendix / excluded)
 }
 

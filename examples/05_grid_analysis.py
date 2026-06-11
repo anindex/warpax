@@ -10,9 +10,6 @@ Produces:
   examples/output/alcubierre_grid_comparison.pdf
 - Summary statistics showing the fraction of grid points where Eulerian
   analysis fails to detect energy condition violations
-
-This is the key result of the paper: observer-robust analysis is essential
-because Eulerian-only analysis can miss a significant fraction of violations.
 """
 
 import os

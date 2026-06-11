@@ -13,12 +13,12 @@ the checkpoint at ``tests/fixtures/einfields/minkowski.ckpt``.
     pip install 'warpax[einfields]'
     python tests/fixtures/einfields/generate_minkowski_ckpt.py
 
-The committed ``.gitkeep`` directory placeholder keeps the path under version
-control when the Orbax-populated checkpoint content is absent (CI where
-``warpax[einfields]`` is not installed).
+The generated checkpoint (~28 KB) is committed, so this only needs re-running
+if the Orbax checkpoint format drifts.
 """
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -34,18 +34,22 @@ def main() -> None:
         ) from err
 
     out_dir = Path(__file__).parent / "minkowski.ckpt"
-    # Clean any prior content.
-    if out_dir.exists() and out_dir.is_dir():
-        for child in out_dir.glob("*"):
-            if child.is_file():
-                child.unlink()
-    out_dir.mkdir(parents=True, exist_ok=True)
+    # Clean any prior content, including a stale orbax tmp dir from an
+    # interrupted save.
+    for stale in (out_dir, out_dir.with_suffix(".ckpt.orbax-checkpoint-tmp")):
+        if stale.is_dir():
+            shutil.rmtree(stale)
 
     eta = np.diag([-1.0, 1.0, 1.0, 1.0]).astype(np.float64)
     state = {"eta_metric": eta}
 
+    # The save is asynchronous under the hood; wait for it to finalize
+    # before the interpreter shuts down, or the checkpoint is left as an
+    # unfinalized tmp dir.
     checkpointer = ocp.StandardCheckpointer()
     checkpointer.save(out_dir.absolute(), state, force=True)
+    checkpointer.wait_until_finished()
+    checkpointer.close()
     print(f"Wrote Minkowski fixture to {out_dir}")
 
 

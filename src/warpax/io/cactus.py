@@ -85,12 +85,6 @@ def _assemble_adm_from_zyx(
     # Shift: Einstein Toolkit ADMBase betax/betay/betaz are CONTRAVARIANT
     # beta^i - exactly the upper-index convention warpax stores. No index
     # raising is needed.
-    #
-    # Bug fix (ET shift convention): the loader previously treated the ET
-    # arrays as covariant beta_i and raised them with gamma^{ij}, silently
-    # corrupting the shift (and hence g_{0i} = gamma_{ij} beta^j and
-    # g_00 = -(alpha^2 - gamma_{ij} beta^i beta^j)) for any non-flat
-    # spatial metric.
     beta_upper_3d = np.stack(
         [
             data["betax"].transpose(perm),

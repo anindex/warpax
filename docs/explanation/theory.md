@@ -93,7 +93,7 @@ violations hide.
 fixed by a single quantity: the vorticity of the ADM shift. An irrotational shift
 (Rodal) gives a globally Type-I drive whose all-observer energy conditions are
 decided exactly by the eigenvalues; a shift with nonzero vorticity drives the wall
-to Type IV. The zero-expansion Natario drive — vortical but expansion-free — is
+to Type IV. The zero-expansion Natario drive, vortical but expansion-free, is
 Type-IV walled, isolating vorticity rather than expansion as the obstruction. In a
 controlled pure-rotation limit the imaginary part of the Type-IV eigenvalue pair is
 linear in the vorticity, `f = κ ω` (`R² = 1`). The same vorticity sets how fast the

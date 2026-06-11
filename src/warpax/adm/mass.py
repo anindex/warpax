@@ -184,7 +184,7 @@ def adm_mass_richardson(
 
     # Richardson extrapolation: M(r) ~ M_inf + C/r^n.
     # Assumes leading-order O(1/r) falloff (n=1) for the linear
-    # extrapolation; the realised convergence order is reported back so
+    # extrapolation; the realized convergence order is reported back so
     # callers can sanity-check the assumption.
     expected_order = 1.0
     valid: bool = False

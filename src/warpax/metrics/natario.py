@@ -1,9 +1,7 @@
 """Natario zero-expansion warp drive metric.
 
-The Natario metric (arXiv:gr-qc/0110086) demonstrates that spatial expansion
-and contraction are NOT essential features of warp drive operation. The trace
-of the extrinsic curvature K = div(beta) = 0 everywhere by construction,
-meaning there is no volume change of spatial slices.
+The trace of the extrinsic curvature K = div(beta) = 0 everywhere by
+construction (arXiv:gr-qc/0110086): no volume change of spatial slices.
 
 ADM components:
     alpha = 1 (unit lapse)

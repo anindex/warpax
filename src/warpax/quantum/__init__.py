@@ -3,7 +3,7 @@
 Contains:
 
 - ``ford_roman(metric, worldline, tau0, sampling='lorentzian')`` --
-  Ford-Roman QI per Fewster 2012 eq. 2.1 with constant
+  Ford-Roman QI per Pfenning & Ford 1997 eq. (9), with constant
   ``C = 3 / (32 pi^2)`` for the massless scalar field.
 """
 from __future__ import annotations

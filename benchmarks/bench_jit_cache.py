@@ -9,7 +9,7 @@ platform (canonical reproduction).
 
 Note
 ----
-This benchmark targets the acceptance claim ("≥ 30% cold→warm
+This benchmark targets the acceptance claim ("≥ 30% cold->warm
 reduction"). Ratios are reported through the asv time harness; analysis
 lives in
 """

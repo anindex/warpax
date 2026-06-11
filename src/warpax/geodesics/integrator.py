@@ -1,10 +1,6 @@
-"""Core geodesic ODE integration via Diffrax.
+"""Geodesic ODE integration via Diffrax (JAX-native adaptive solver).
 
-Integrates the geodesic equation as a first-order ODE system using Diffrax
-(JAX-native adaptive solver). The state vector y = [x^mu (4,), v^mu (4,)]
-has shape (8,), where x are spacetime coordinates and v are 4-velocities.
-
-The geodesic equation:
+The state vector y = [x^mu (4,), v^mu (4,)] has shape (8,):
     dx^mu / dtau = v^mu
     dv^mu / dtau = -Gamma^mu_{alpha beta} v^alpha v^beta
 

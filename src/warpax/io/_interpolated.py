@@ -6,7 +6,6 @@ Shared base class for the three external-metric loaders:
 - :func:`warpax.io.load_einfield` 
 - :func:`warpax.io.load_cactus_slice` 
 
-Option C architecture per
 Private module; consumers should import from :mod:`warpax.io`.
 """
 from __future__ import annotations
@@ -37,7 +36,7 @@ class InterpolatedADMMetric(ADMMetric):
     gamma_grid : Float[Array, "Nt Nx Ny Nz 3 3"]
         Spatial metric on the same grid.
     grid_spec : GridSpec
-        4D bounds + shape (static; JIT cache key per ).
+        4D bounds + shape (static; JIT cache key).
     name : str, default "interpolated"
         Human-readable name (typically derived from source filename by loader).
     interp_method : {"linear", "cubic"}, default ``"linear"``

@@ -1,7 +1,7 @@
 """WarpShell physical warp drive metric.
 
-Bobrick-Martire / Fell-Heisenberg constant-velocity construction
-(arXiv:2102.06824, arXiv:2405.02709) realised via the WarpFactory
+Bobrick-Martire / Fell-Heisenberg construction
+(arXiv:2102.06824, arXiv:2104.06488) realized via the WarpFactory
 "Bobrick-Martire Modified Time" simplification (arXiv:2404.03095 §3.3).
 The shell is the only metric in the suite with non-unit lapse and
 non-flat spatial metric simultaneously.

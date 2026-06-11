@@ -153,7 +153,6 @@ def _make_initial_conditions_3d(n_starts, zeta_max, key):
     """
     parts = []
 
-    # Always include Eulerian (w = 0)
     parts.append(jnp.zeros((1, 3)))
     remaining = n_starts - 1
 
@@ -454,7 +453,6 @@ def _solve_multistart_3d(objective_fn, args, n_starts, zeta_max, rtol, atol,
         w0_batch
     )
 
-    # Select best (minimum objective value)
     best_idx = jnp.argmin(obj_vals)
     best_obj = obj_vals[best_idx]
     best_raw = raw_opt[best_idx]
@@ -932,7 +930,7 @@ def optimize_dec(
         ``margin`` is the minimum across the three DEC sub-conditions
         evaluated at the worst-case observer; positive iff DEC holds
         at the point. ``worst_observer`` is the timelike four-velocity
-        that realises the minimum.
+        that realizes the minimum.
     """
     _validate_warm_start(warm_start)
     _validate_neighbor_fraction(neighbor_fraction)
@@ -1127,7 +1125,6 @@ def optimize_wec_adaptive(
         best_zeta = result.worst_params[0]
         boundary_val = zeta_max * (1.0 - boundary_threshold)
 
-        # Check if best zeta is near boundary
         near_boundary = float(best_zeta) > boundary_val
 
         if not near_boundary:

@@ -24,7 +24,9 @@ class TestANEC:
         gl = lambda lam: jnp.array([lam, lam, 0.5, 0.0])
         result = anec(metric, gl)
         val = float(result.line_integral)
-        assert val == pytest.approx(-0.25806813505162224, rel=1e-9)
+        # rel=1e-6: adaptive-step ODE results drift across platforms/BLAS;
+        # bit-level parity is pinned by the golden net on the capture platform.
+        assert val == pytest.approx(-0.25806813505162224, rel=1e-6)
         assert val < 0  # NEC violation, sign backup for the pin
         assert result.geodesic_complete is True
 
@@ -155,7 +157,8 @@ class TestAWEC:
         wl = lambda tau: jnp.array([tau, 0.0, 0.5, 0.0])
         result = awec(metric, wl)
         val = float(result.line_integral)
-        assert val == pytest.approx(0.10535108223138044, rel=1e-9)
+        # rel=1e-6: cross-platform ODE drift (see ANEC pin above).
+        assert val == pytest.approx(0.10535108223138044, rel=1e-6)
         assert result.geodesic_complete is True
         assert result.termination_reason == "complete"
 

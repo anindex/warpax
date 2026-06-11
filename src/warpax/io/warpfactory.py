@@ -3,7 +3,7 @@
 Parses a WarpFactory (``github.com/NerdsWithAttitudes/WarpFactory``) MATLAB
 export into an :class:`InterpolatedADMMetric`. Schema-tolerant: v7.3
 HDF5-backed ``.mat`` via :mod:`mat73`; older v7 / v6 / v4 via
-:func:`scipy.io.loadmat` (mitigation).
+:func:`scipy.io.loadmat`.
 
 Expected schema (after ``metricGet_Alcubierre`` + ``save('...', '-v7.3')``):
 

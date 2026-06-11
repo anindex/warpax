@@ -1,8 +1,8 @@
 
 """Generate showcase animations for warp drive physics.
 
-Produces four signature animations demonstrating key physics
-results.
+Produces three animations: bubble collapse, velocity ramp, and
+observer sweep.
 
 Usage
 -----

@@ -112,7 +112,7 @@ Documented in [docs/how-to/reproduce_warpshell_paper.md](../docs/how-to/reproduc
 | `run_lentz_distance_comparison.py` | Lentz L1 vs L2 distance |
 | `run_error_budget.py` | Numerical error budget |
 | `run_criterion_e_verification.py` | Criterion E verification |
-| `constraint_residual_verification.py` | ADM constraint residuals → `results/` |
+| `constraint_residual_verification.py` | ADM constraint residuals -> `results/` |
 | `fuchs_kernel_comparison.py` | Fuchs kernel comparison |
 | `verify_rodal.py` | Standalone Rodal verification |
 | `summarize_results.py` | Manual results inspection |

@@ -32,8 +32,8 @@ _DIVERGING_FIELDS: frozenset[str] = MARGIN_FIELDS | frozenset(
 def is_diverging(field: str) -> bool:
     """Return True if *field* uses a diverging (zero-centered) colormap.
 
-    Diverging fields include EC margins, energy density, Ricci scalar,
-    and energy density rho.
+    Diverging fields: EC margins plus ``rho``, ``energy_density``,
+    and ``ricci_scalar``.
     """
     return field in _DIVERGING_FIELDS
 

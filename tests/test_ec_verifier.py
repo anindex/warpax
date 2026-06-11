@@ -95,12 +95,8 @@ class TestEulerianVsObserverRobust:
     Boosted in x: T_{ab} u^a u^b = rho*cosh^2 + 2q*cosh*sinh + p*sinh^2
     The minimum can be negative when q is large enough.
 
-    With rho=0.5, q=-0.4, p=0.3:
-    f(z) = 0.5*cosh^2(z) - 0.8*cosh(z)*sinh(z) + 0.3*sinh^2(z)
-    f'(z) = (0.5+0.3)*sinh(2z)/2 - 0.8*cosh(2z) = 0.8*sinh(2z)/2 - 0.8*cosh(2z)
-    Minimum when: tanh(2z) = 2, which has no solution, but the function does
-    decrease below rho for large enough z when rho + p < 2|q|.
-    Here rho+p = 0.8, 2|q| = 0.8, so borderline. Use larger q.
+    The boosted density falls below rho for large enough z when
+    rho + p < 2|q|.
     """
 
     # rho=0.5, q=-0.6, p=0.3: rho+p=0.8, 2|q|=1.2 > 0.8 -> violation exists
@@ -399,32 +395,10 @@ class TestDECFutureDirectedness:
     j^a = (rho, 0, 0, 0), which is future-directed when rho > 0.
     To make j past-directed, we need j^0 < 0. For the Eulerian observer
     u = (1, 0, 0, 0): j^a = -T^a_b u^b = -T^a_0 = (rho, -T^1_0, ...).
-
-    Strategy: use T_ab with off-diagonal components that make j^0 < 0
-    for some boosted observer while keeping the flux causal.
-    Simpler: T_ab = diag(-(-rho), p, p, p) with rho < 0 makes the Eulerian
-    flux j = (rho, 0, 0, 0) past-directed (j^0 = rho < 0) while timelike
-    (j^a j_a = -rho^2 < 0).
-    But this also violates WEC (rho < 0), so DEC would catch it anyway.
-
-    Better: construct T^a_b non-diagonal so j is past-directed for one
-    observer but causal. Use mixed tensor directly.
     """
 
     def test_past_directed_flux_detected(self):
         """DEC catches past-directed but causal flux.
-
-        Construct T_ab in Minkowski so that:
-        - WEC satisfied (rho > 0 for all observers in range)
-        - Flux is timelike (causal) but PAST-directed for the Eulerian observer
-
-        T_ab with large T_{01} component creates past-directed flux for
-        boosted observers.
-
-        Actually, the simplest approach: build T_ab where the Eulerian
-        j = -T^a_b n^b has j.n > 0 (past-directed in our convention).
-        T_ab = diag(-rho, p, p, p) with rho > 0 always gives future-directed
-        flux. We need off-diagonal terms.
 
         For Eulerian n^a = (1,0,0,0) in Minkowski:
         j^a = -eta^{ac} T_{cb} n^b = -eta^{ac} T_{c0}
@@ -448,9 +422,8 @@ class TestDECFutureDirectedness:
         (DEC eigenvalue check: rho >= |p_i| fails), BUT also verify the
         optimizer catches the past-directed flux aspect.
 
-        Simpler approach: just verify that the DEC optimizer objective now
-        includes both causality and future-directedness by checking on a
-        known tensor.
+        Verify that the DEC optimizer objective includes both causality
+        and future-directedness by checking on a known tensor.
         """
         from warpax.energy_conditions.optimization import (
             _dec_flux_subobjective,
@@ -462,17 +435,8 @@ class TestDECFutureDirectedness:
         )
 
         # Construct T_ab in Minkowski where Eulerian flux is past-directed:
-        # T_ab = diag(rho, p, p, p) in covariant form, with rho = -1.0
-        # This gives j^0 = -1 (past-directed, since -j^0 = 1 > 0... wait)
-        #
-        # Let me recalculate carefully in Minkowski:
-        # T_{ab} with T_{00} = -1, T_{11}=T_{22}=T_{33}=0.5 (past-directed rho)
-        # g^{ab} = eta^{ab} = diag(-1,1,1,1)
-        # T^a_b = g^{ac} T_{cb}
-        # T^0_0 = g^{00} T_{00} = (-1)(-1) = 1
-        # Actually no. T_{00} = -1 means in covariant form. Let me think about
-        # what rho means. rho = T_{ab} n^a n^b = T_{00} * 1 * 1 = T_{00}.
-        # So T_{00} = -1 means rho = -1 < 0 -> WEC violated.
+        # T_{ab} with T_{00} = -1, T_{11}=T_{22}=T_{33}=0.5
+        # rho = T_{ab} n^a n^b = T_{00} = -1 < 0 -> WEC violated.
         # j^0 = -T^0_b n^b = -T^0_0 = -(g^{00} T_{00}) = -(-1)(-1) = -1
         # So j^0 = -1 < 0, j_0 = g_{00} j^0 = (-1)(-1) = 1
         # j.n = j_a n^a = j_0 * 1 = 1 > 0 -> past-directed

@@ -12,9 +12,8 @@
 spacetimes *frame-independently*, from the eigenstructure of the mixed
 stress-energy tensor $T^a{}_b$, with exact curvature from JAX forward-mode
 autodiff. The Hawking--Ellis eigenvalue test it is built on never constructs the
-Eulerian normal, so it is well-defined at *all* warp speeds — including
-$v_s \ge 1$, through and beyond the luminal transition, where coordinate-stationary
-(Eulerian) tools break down. At a Type-I point an eigenvalue inequality decides
+Eulerian normal, so it is well-defined at *all* warp speeds, including
+$v_s \ge 1$, where coordinate-stationary (Eulerian) tools break down. At a Type-I point an eigenvalue inequality decides
 each energy condition exactly and for every observer; a Type-IV point has no rest
 frame and violates every condition unconditionally. A multistart BFGS observer
 optimizer over the timelike manifold is retained as a one-sided diagnostic at the
@@ -27,13 +26,13 @@ WarpFactory), it returns the observer-independent truth.
 
 ## Highlights
 
-- Frame-independent, all-observer, all-velocity energy-condition certification (including superluminal $v_s \ge 1$) from the eigenstructure of $T^a{}_b$ — the eigenvalue test never builds the Eulerian normal.
+- Frame-independent, all-observer, all-velocity energy-condition certification (including superluminal $v_s \ge 1$) from the eigenstructure of $T^a{}_b$; the eigenvalue test never builds the Eulerian normal.
 - Hawking--Ellis classification (Type I--IV) with explicit Type-IV detection, certified physical by a three-solver (`eig`, LAPACK `zggev` pencil) and 50-digit `mpmath` cross-check.
 - Closed-form Type-I worst observer ($\sinh^2\zeta_{\rm th} = \rho/|\rho+p_i|$), validated against the BFGS optimizer.
-- Shift-vorticity analysis: the vorticity of the ADM shift controls the Hawking--Ellis type of the bubble wall — the imaginary part of the Type-IV eigenvalue pair is linear in the vorticity, $f = \kappa\,\omega$ with slope $\kappa \approx 0.06$ (established in a controlled pure-rotation limit), so the Type-I $\to$ Type-IV transition itself is linear in the shift vorticity. Across the full metrics the measured $f$ exceeds the pure-rotation prediction by factors that grow with the wall's shear-to-vorticity ratio: shear amplifies the imaginary pair that vorticity opens, but does not open one itself (the irrotational Rodal shift carries same-order shear with $f = 0$).
+- Shift-vorticity analysis: the vorticity of the ADM shift controls the Hawking--Ellis type of the bubble wall. The imaginary part of the Type-IV eigenvalue pair is linear in the vorticity, $f = \kappa\,\omega$ ($\kappa \approx 0.06$, exact in a controlled pure-rotation limit); shear amplifies the pair that vorticity opens but cannot open one itself.
 - Rigorous geodesic-integrated ANEC via a structure-preserving symplectic null integrator (conserves $g(k,k)$ to ~machine precision where adaptive RK drifts off the cone), reported with an on-cone witness $\max|g(k,k)|$; plus a Ford--Roman quantum-inequality diagnostic.
-- Cross-construction all-observer verification (Fuchs, WarpShell, Garattini--Zatrimaylov de Sitter, Rodal, Alcubierre) with a wall-resolution gate, and a boost-invariant exoticity ranking with universal $v_s$ scaling laws. Even the de Sitter bubble — certified at its matched $v_s = H R$ averaged-condition regime — is Type-IV walled, with the Eulerian frame missing ~63% of the wall weak-energy violations.
-- Universal $v_s$ scaling of the wall curvature invariants (Kretschmann, Weyl-squared, Ricci-squared), split by shift vorticity — the vortical walls grow as $v_s^2$, the irrotational Rodal wall as $v_s^4$; and the Santiago--Schuster--Visser no-go made quantitative, $\min(\rho+p_i) = -C\,v_s^2$.
+- Cross-construction all-observer verification (Fuchs, WarpShell, Garattini--Zatrimaylov de Sitter, Rodal, Alcubierre) with a wall-resolution gate, and a boost-invariant exoticity ranking with universal $v_s$ scaling laws. Even the de Sitter bubble, certified at its matched $v_s = H R$ regime, is Type-IV walled; the Eulerian frame misses ~63% of its wall weak-energy violations.
+- Universal $v_s$ scaling of the wall curvature invariants (Kretschmann, Weyl-squared, Ricci-squared), split by shift vorticity: vortical walls grow as $v_s^2$, the irrotational Rodal wall as $v_s^4$. The Santiago--Schuster--Visser no-go becomes quantitative, $\min(\rho+p_i) = -C\,v_s^2$.
 - Exact curvature via forward-mode JAX autodiff (no finite-difference stencils); multistart BFGS retained as a one-sided diagnostic at non-Type-I points.
 - Ten warp/shell metrics: nine in `warpax.metrics` (Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, Garattini--Zatrimaylov), plus Alcubierre in `warpax.benchmarks` alongside the Minkowski and Schwarzschild references.
 - Hamiltonian + momentum constraint residuals, anisotropic TOV, ADM mass with falloff, Israel junctions, invariant transport diagnostics.
@@ -47,7 +46,7 @@ cite the paper it belongs to:
 | | Certification paper ([arXiv:2602.18023](https://arxiv.org/abs/2602.18023)) | Companion note ([arXiv:2605.25417](https://arxiv.org/abs/2605.25417)) |
 |---|---|---|
 | **Question** | Which observers see energy-condition violations, at which warp speeds? | Can source-first shells satisfy the energy conditions at all? |
-| **Results** | Frame-free all-velocity certifier; velocity-resolved type map; shift-vorticity → type control ($f=\kappa\omega$); closed-form worst observer; exoticity ranking + $v_s$ scaling laws | S-/T-shell constructions from the Einstein constraints; five-criterion admissibility standard; boundary-cost analysis |
+| **Results** | Frame-free all-velocity certifier; velocity-resolved type map; shift-vorticity -> type control ($f=\kappa\omega$); closed-form worst observer; exoticity ranking + $v_s$ scaling laws | S-/T-shell constructions from the Einstein constraints; five-criterion admissibility standard; boundary-cost analysis |
 | **Modules** | `energy_conditions`, `geometry`, `averaged`, `quantum`, `analysis`, `geodesics`, `transport`; metrics Alcubierre / Natário / Van den Broeck / Rodal / Lentz / WarpShell / Garattini | `constraints` (S-/T-shell solvers), `tov`, `adm`, `junction`, `design`, `optimization`; `metrics/sshell.py`, `metrics/tshell.py` |
 | **Examples** | 01–07 | 08–10 |
 
@@ -79,12 +78,12 @@ On matched, wall-resolved grids, the Rodal irrotational geometry is globally
 Hawking--Ellis Type I at every speed from $v_s = 0.1$ to $2.5$, while the
 Alcubierre/Natario/Van den Broeck bubble walls are Type-IV dominated (no rest
 frame, no invariant energy density) at every speed. The split is controlled by a
-single geometric quantity — the vorticity of the ADM shift: the irrotational drive
+single geometric quantity, the vorticity of the ADM shift: the irrotational drive
 is the unique globally Type-I geometry, while a rotational shift drives the wall to
 Type IV. For Rodal's globally Type-I drive the Eulerian frame does not register
 ~72% of the wall weak-energy and ~73% of the wall dominant-energy violations seen
-by boosted observers — an exact
-eigenvalue statement, not an optimizer artefact. A rigorous geodesic-integrated
+by boosted observers, an exact
+eigenvalue statement rather than an optimizer artifact. A rigorous geodesic-integrated
 ANEC (symplectic integrator with an on-cone witness) and a Ford--Roman comparison
 preserve the ordering: every drive violates, and the irrotational Rodal geometry is
 the mildest by one to two orders of magnitude.
@@ -93,11 +92,11 @@ the mildest by one to two orders of magnitude.
 
 A boost-invariant ranking (NEC severity, Type-IV fraction, rigorous ANEC minimum)
 places the irrotational Rodal drive about a factor of seventy below the bubble-wall
-drives — driven by its vanishing Type-IV fraction and tiny averaged-null energy,
+drives, driven by its vanishing Type-IV fraction and tiny averaged-null energy,
 not by a milder pointwise NEC. Two universal $v_s$ laws follow: the wall NEC deficit
 $\min(\rho+p_i) = -C\,v_s^2$ makes the Santiago--Schuster--Visser no-go quantitative
 (measured, not asserted), and the wall curvature splits by the same vorticity
-that sets the type — the vortical walls grow as $v_s^2$, the irrotational Rodal wall
+that sets the type: vortical walls grow as $v_s^2$, the irrotational Rodal wall
 as $v_s^4$ ($R^2 \ge 0.996$).
 
 ### Observer-robust vs Eulerian
@@ -283,6 +282,13 @@ If you found this work useful, please consider citing:
   title={Observer-robust energy condition verification for warp drive spacetimes},
   author={Le, An T},
   journal={arXiv preprint arXiv:2602.18023},
+  year={2026}
+}
+
+@article{le2026boundary,
+  title={On the boundary cost of source-consistent warp shells},
+  author={Le, An T},
+  journal={arXiv preprint arXiv:2605.25417},
   year={2026}
 }
 ```

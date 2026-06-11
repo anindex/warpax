@@ -1,4 +1,4 @@
-"""Image utilities for Manim 2D scenes: FrameData slice → RGBA + contour extraction."""
+"""Image utilities for Manim 2D scenes: FrameData slice -> RGBA + contour extraction."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
