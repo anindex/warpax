@@ -6,6 +6,26 @@ history is summarized in `docs/explanation/release_notes.md`.
 
 ---
 
+## [1.1.1] - 2026-06-20
+
+Reproduction artifacts and docs for the source-shell paper (arXiv:2605.25417).
+No API changes.
+
+- `run_tshell_typeIV_gate.py`: measures the T-shell Type-IV onset on the genuine
+  outer edge ($r \ge R_2$) only -- the inner vacuum is a uniform-shift gauge
+  artifact and is excluded. The opened imaginary eigenvalue is linear in the
+  tilt (outer-edge log-log slope $1.01 \pm 0.01$), and the standard,
+  generalized-pencil, and 50-digit solvers all confirm Type IV. Writes
+  `results/tshell_typeIV_gate.json`.
+- `run_anec_impact_scan.py`: the source-shell ANEC sign is robust across impact
+  parameter $b \in [10^{-3}, 5]$ and resolution; the on-cone witness drops below
+  $10^{-4}$ only at the finest grid (up to $\sim 2\times10^{-4}$ on coarse grids).
+  Writes `results/anec/source_first_impact_scan.json`.
+- Saved constraint-residual and S-/T-shell phase-diagram artifacts under `results/`.
+- Docs: new `boundary_cost.md`; updated `reproduce_warpshell_paper.md`.
+
+---
+
 ## [1.1.0] - 2026-06-10
 
 ### Frame-independent certification

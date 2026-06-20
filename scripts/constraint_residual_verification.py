@@ -51,6 +51,21 @@ def _peak_mean(vals):
     }
 
 
+def _deep_stats(vals, frac):
+    """Peak/mean over the boundary-excluded subset r in [R_1+frac*dR, R_2-frac*dR].
+
+    The source-consistency residual blows up at the source--vacuum endpoints
+    (source -> 0). This isolates the genuine deep-interior value.
+    """
+    dR = R_2 - R_1
+    lo, hi = R_1 + frac * dR, R_2 - frac * dR
+    mask = (R_PROBES >= lo) & (R_PROBES <= hi)
+    sub = _peak_mean(np.asarray(vals, dtype=float)[mask])
+    sub["window"] = [float(lo), float(hi)]
+    sub["n_probes"] = int(mask.sum())
+    return sub
+
+
 def _interp1d(r, r_grid, vals):
     import interpax
     rc = jnp.clip(r, r_grid[0], r_grid[-1])
@@ -115,6 +130,9 @@ def verify_sshell():
         "vacuum_eps_H": _peak_mean(vac_H), "vacuum_eps_M": _peak_mean(vac_M),
         "source_eps_H": _peak_mean(src_H), "source_eps_M": _peak_mean(src_M),
         "source_consistency_rel": _peak_mean(sc),
+        "source_consistency_per_probe": [float(x) for x in sc],
+        "source_consistency_deep_2pct": _deep_stats(sc, 0.02),
+        "source_consistency_deep_smoothstep": _deep_stats(sc, 0.05),
     }
 
 
@@ -160,6 +178,9 @@ def verify_tshell():
         "vacuum_eps_H": _peak_mean(vac_H), "vacuum_eps_M": _peak_mean(vac_M),
         "source_eps_H": _peak_mean(src_H), "source_eps_M": _peak_mean(src_M),
         "source_consistency_rel": _peak_mean(sc),
+        "source_consistency_per_probe": [float(x) for x in sc],
+        "source_consistency_deep_2pct": _deep_stats(sc, 0.02),
+        "source_consistency_deep_smoothstep": _deep_stats(sc, 0.05),
     }
 
 
@@ -199,6 +220,9 @@ def verify_fuchs():
         "vacuum_eps_H": _peak_mean(vac_H), "vacuum_eps_M": _peak_mean(vac_M),
         "source_eps_H": _peak_mean(src_H), "source_eps_M": _peak_mean(src_M),
         "source_consistency_rel": _peak_mean(sc),
+        "source_consistency_per_probe": [float(x) for x in sc],
+        "source_consistency_deep_2pct": _deep_stats(sc, 0.02),
+        "source_consistency_deep_smoothstep": _deep_stats(sc, 0.05),
     }
 
 
@@ -231,6 +255,8 @@ def main():
     # Compact table
     def pk(d):
         return "nan" if d["peak"] is None else f"{d['peak']:.3e}"
+    def mn(d):
+        return "nan" if d["mean"] is None else f"{d['mean']:.3e}"
     print("\n=== PEAK VALUES (in-shell r in [10,20]) ===")
     print(f"{'metric':<8} {'vac_eps_H':>11} {'src_eps_H':>11} {'srcConsist':>11} "
           f"{'vac_eps_M':>11} {'src_eps_M':>11}")
@@ -239,6 +265,13 @@ def main():
         print(f"{m:<8} {pk(d['vacuum_eps_H']):>11} {pk(d['source_eps_H']):>11} "
               f"{pk(d['source_consistency_rel']):>11} {pk(d['vacuum_eps_M']):>11} "
               f"{pk(d['source_eps_M']):>11}")
+    print("\n=== SOURCE-CONSISTENCY: full vs deep interior (peak / mean) ===")
+    print(f"{'metric':<8} {'full_peak':>11} {'full_mean':>11} "
+          f"{'deep2%_peak':>11} {'deep2%_mean':>11} {'core_peak':>11} {'core_mean':>11}")
+    for m in ("sshell", "tshell", "fuchs"):
+        d = out[m]
+        f_, d2, dc = d['source_consistency_rel'], d['source_consistency_deep_2pct'], d['source_consistency_deep_smoothstep']
+        print(f"{m:<8} {pk(f_):>11} {mn(f_):>11} {pk(d2):>11} {mn(d2):>11} {pk(dc):>11} {mn(dc):>11}")
 
 
 if __name__ == "__main__":

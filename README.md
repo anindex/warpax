@@ -128,15 +128,18 @@ See [`examples/07_custom_warp_metric.py`](examples/07_custom_warp_metric.py).
 | A. Regularity | $C^2$ metric continuity (thick) or Israel conditions (thin) |
 | B. Constraints | Hamiltonian + momentum residuals $\epsilon_{\mathcal{H}}$, $\epsilon_{\mathcal{M}}$ |
 | C. Matter model | Identifiable source (anisotropic fluid, elastic shell) |
-| D. EC margins | Observer-robust NEC/WEC/DEC via Hawking--Ellis + BFGS |
+| D. EC margins | Frame-free NEC/WEC/DEC from Hawking--Ellis eigenvalue slacks (exact, cap-free at Type-I; valid at all $v_s$) |
 | E. Global | Positive ADM mass, asymptotic falloff, tidal forces, invariant transport |
 
-Fuchs constant-velocity shell: $\epsilon_{\mathcal{H}} = 0.165$; 12 of 13
-shell-interior points violate ECs under observer-robust certification. The
-source-first T-shell drops $\epsilon_{\mathcal{H}}$ to ~$5\times10^{-3}$ (33x
-improvement) with positive EC margins in the deep interior. The admissibility
-standard and these shell results belong to the companion note (see
-[Two papers, one toolkit](#two-papers-one-toolkit)).
+Fuchs constant-velocity shell: source-aware $\epsilon_{\mathcal{H}} \approx
+3\times10^{-8}$; the bulk shell interior is Type-I and EC-compliant (0 of 13
+probes violate), while the smoothing tail turns Type-IV. The source-first S-/
+T-shells likewise pass criteria A--C and E with positive interior margins; the
+binding cost is a cap-free Type-I dominant-energy deficit at the inner shell edge
+($\approx -4.4\times10^{-4}$), localized at the smooth source--vacuum transition,
+and the tilted T-shell's shift vorticity drives a Type-IV onset at its
+low-density edge. These shell results belong to the companion note; see
+[The boundary cost of source consistency](docs/explanation/boundary_cost.md).
 
 ## Examples
 
@@ -226,6 +229,10 @@ Use `--keep-cache` to skip cache deletion and only recompute missing results.
 For the per-figure, per-claim mapping that backs the warp-shell admissibility
 paper (*On the boundary cost of source-consistent warp shells*), see the dedicated how-to guide:
 [**Reproducing the warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md).
+
+The outer-edge ($r \ge R_2$) Type-IV gate (log-log slope $1.01 \pm 0.01$) and
+the ANEC impact-parameter scan are reproduced by
+`scripts/run_tshell_typeIV_gate.py` and `scripts/run_anec_impact_scan.py`.
 
 ## Documentation
 

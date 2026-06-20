@@ -63,8 +63,9 @@ output/**
 .context/
 
 # Reproduction cache - large binary artifacts. The MANIFEST + json/tex
-# summaries stay tracked; npz are regenerated via reproduce_all.sh.
-results/*.npz
+# summaries stay tracked; npz and pdf are regenerated via reproduce_all.sh.
+results/**/*.npz
+results/**/*.pdf
 
 # uv lock file (deterministic deps are in requirements-lock.txt)
 uv.lock

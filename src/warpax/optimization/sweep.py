@@ -23,7 +23,7 @@ from jaxtyping import Array, Float
 
 from .basis import default_theta, unpack_theta
 from .basis import coeffs_to_profiles_sshell, coeffs_to_profiles_tshell
-from .ec_constraints import ec_feasibility_check
+from .ec_constraints import ec_feasibility_check, ec_feasibility_frame_free
 from ..transport.diagnostics import null_round_trip_asymmetry
 
 
@@ -244,9 +244,13 @@ def _evaluate_point(
         metric, jnp.array([0.0, R_1 * 0.5, 0.0, 0.0]),
     ))
 
-    # EC certification (shell interior only)
-    r_cert = jnp.linspace(R_1, R_2, n_probes)
-    ec_feas = ec_feasibility_check(metric, r_cert, n_starts=n_ec_starts)
+    # EC certification: frame-free Hawking--Ellis verdict (cap-free Type-I
+    # slacks + Type-IV detection), no observer search. Probes span the full
+    # matter support including the smoothstep tails outside [R_1, R_2] where
+    # the tilted shift drives the low-density edge Type-IV (criterion D).
+    w = 0.05 * (R_2 - R_1)
+    r_cert = jnp.linspace(R_1, R_2 + 3.0 * w, n_probes)
+    ec_feas = ec_feasibility_frame_free(metric, r_cert)
 
     return {
         "rho_max": rho_0,
@@ -283,7 +287,7 @@ def sweep_transport(
       1. Compute R_1, rho_0 from compactness and thickness.
       2. Build the metric with default Bernstein profiles.
       3. Read transport (max|beta^x|), constraint residuals, tidal force.
-      4. Certify EC admissibility with n_starts multi-start.
+      4. Certify EC admissibility with the frame-free Hawking-Ellis certifier.
 
     Parameters
     ----------

@@ -50,7 +50,10 @@ ORDER = 4
 # g(k,k) < 1e-6 certifies the tangent as null to 6 digits; the ANEC integrand
 # T_ab k^a k^b is O(0.01-1), so this off-cone budget is negligible. Smooth-wall
 # drives clear it comfortably; the Natário oscillatory wall does not and takes
-# the projection-corrected fallback (reported and flagged).
+# the projection-corrected fallback (reported and flagged). This is the
+# integrator null-preservation threshold and Minkowski sentinel gate; it is
+# distinct from the paper's reported on-cone acceptance tolerance of 1e-4 for the
+# warp-metric witnesses (cf. run_anec_geodesic_check.py, run_anec_impact_scan.py).
 NULL_TOL = 1e-6
 # Impact parameters: dense near the wall (r_s ~ R_b = 1).
 B_SCAN = np.linspace(1.0e-3, 2.5, 30)

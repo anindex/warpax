@@ -85,4 +85,5 @@ nav:
   - Explanation:
       - explanation/ARCHITECTURE.md
       - explanation/theory.md
+      - explanation/boundary_cost.md
       - explanation/release_notes.md

@@ -1,0 +1,472 @@
+{
+  "config": {
+    "x0": -30.0,
+    "span": 60.0,
+    "impacts": [
+      0.001,
+      0.5,
+      1.0,
+      2.0,
+      5.0
+    ],
+    "resolutions": [
+      8192,
+      16384,
+      32768
+    ],
+    "tangent_norm": "fixed",
+    "note": "Only the SIGN of the line integral is invariant; magnitudes are parametrization-dependent."
+  },
+  "Fuchs": {
+    "rows": [
+      {
+        "impact": 0.001,
+        "n_steps": 8192,
+        "line_integral": 0.001931814985043202,
+        "witness": 7.919961849145098e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.001,
+        "n_steps": 16384,
+        "line_integral": 0.0019318080690197274,
+        "witness": 8.146574996817608e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.001,
+        "n_steps": 32768,
+        "line_integral": 0.0019318020262622242,
+        "witness": 2.11210647583674e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 8192,
+        "line_integral": 0.0019325700723578651,
+        "witness": 0.00011946638338572223,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 16384,
+        "line_integral": 0.0019326259220667468,
+        "witness": 3.659598653258415e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 32768,
+        "line_integral": 0.0019326347148886196,
+        "witness": 3.172402690041828e-05,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 8192,
+        "line_integral": 0.0019351511168076627,
+        "witness": 0.00018215378334923696,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 16384,
+        "line_integral": 0.0019350621096351076,
+        "witness": 6.31337956438279e-05,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 32768,
+        "line_integral": 0.0019351082397042949,
+        "witness": 4.487670410284547e-05,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 8192,
+        "line_integral": 0.0019451718125521808,
+        "witness": 0.00012530237987754794,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 16384,
+        "line_integral": 0.0019450870034185496,
+        "witness": 9.286665032066338e-05,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 32768,
+        "line_integral": 0.0019451332313082925,
+        "witness": 3.1033750881967416e-05,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 8192,
+        "line_integral": 0.0020219543343592498,
+        "witness": 8.683891279482437e-05,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 16384,
+        "line_integral": 0.0020219933630907534,
+        "witness": 6.715291891515088e-05,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 32768,
+        "line_integral": 0.002021943318859079,
+        "witness": 1.836111148673325e-05,
+        "sign": 1
+      }
+    ],
+    "sign_robust_positive": true,
+    "min_witness": 1.836111148673325e-05,
+    "max_witness": 0.00018215378334923696,
+    "line_integral_finest_b1e-3": 0.0019318020262622242
+  },
+  "S-shell": {
+    "rows": [
+      {
+        "impact": 0.001,
+        "n_steps": 8192,
+        "line_integral": 0.002945336869145332,
+        "witness": 0.00016918054258686964,
+        "sign": 1
+      },
+      {
+        "impact": 0.001,
+        "n_steps": 16384,
+        "line_integral": 0.002945282555529931,
+        "witness": 4.513271459686418e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.001,
+        "n_steps": 32768,
+        "line_integral": 0.0029452989495614727,
+        "witness": 2.2340945997472315e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 8192,
+        "line_integral": 0.002946154315595167,
+        "witness": 0.00016641469512492497,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 16384,
+        "line_integral": 0.0029461392938706092,
+        "witness": 4.918595097935809e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 32768,
+        "line_integral": 0.002946258168899817,
+        "witness": 1.9178340867385765e-05,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 8192,
+        "line_integral": 0.0029501302534387093,
+        "witness": 7.846510905947494e-05,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 16384,
+        "line_integral": 0.0029501783105349913,
+        "witness": 0.00013442214945736286,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 32768,
+        "line_integral": 0.002950180384337808,
+        "witness": 3.600887776906029e-05,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 8192,
+        "line_integral": 0.002965836390654415,
+        "witness": 0.00010396800998993487,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 16384,
+        "line_integral": 0.002965706500318008,
+        "witness": 5.71851582162035e-05,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 32768,
+        "line_integral": 0.00296573169698302,
+        "witness": 4.3273019412713594e-05,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 8192,
+        "line_integral": 0.0030649412907407026,
+        "witness": 0.00016435338664870289,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 16384,
+        "line_integral": 0.0030648702855686303,
+        "witness": 7.957086271828751e-05,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 32768,
+        "line_integral": 0.003064878505308558,
+        "witness": 4.07787814281611e-05,
+        "sign": 1
+      }
+    ],
+    "sign_robust_positive": true,
+    "min_witness": 1.9178340867385765e-05,
+    "max_witness": 0.00016918054258686964,
+    "line_integral_finest_b1e-3": 0.0029452989495614727
+  },
+  "T-shell": {
+    "rows": [
+      {
+        "impact": 0.001,
+        "n_steps": 8192,
+        "line_integral": 0.004579869334820665,
+        "witness": 8.920384435736966e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.001,
+        "n_steps": 16384,
+        "line_integral": 0.0045940574578267595,
+        "witness": 4.949259053400507e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.001,
+        "n_steps": 32768,
+        "line_integral": 0.0046012923058256355,
+        "witness": 3.901487664725374e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 8192,
+        "line_integral": 0.0034893021454629725,
+        "witness": 0.00017380085275604917,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 16384,
+        "line_integral": 0.0034894296949626105,
+        "witness": 4.850324160937521e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 32768,
+        "line_integral": 0.0034893933962725134,
+        "witness": 1.8815611118438635e-05,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 8192,
+        "line_integral": 0.003380867005689651,
+        "witness": 0.00013991117743569862,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 16384,
+        "line_integral": 0.003380408712966626,
+        "witness": 7.798167276049832e-05,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 32768,
+        "line_integral": 0.003380581323734963,
+        "witness": 3.62302034957315e-05,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 8192,
+        "line_integral": 0.003283365294429748,
+        "witness": 0.00010073490828116205,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 16384,
+        "line_integral": 0.003283390748510337,
+        "witness": 6.0979007992100214e-05,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 32768,
+        "line_integral": 0.0032833559523553863,
+        "witness": 4.512161689639678e-05,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 8192,
+        "line_integral": 0.0032278750938628115,
+        "witness": 7.0253867343246e-05,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 16384,
+        "line_integral": 0.003227763107589642,
+        "witness": 0.00013950126876611152,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 32768,
+        "line_integral": 0.0032277823877041698,
+        "witness": 4.2805474747587834e-05,
+        "sign": 1
+      }
+    ],
+    "sign_robust_positive": true,
+    "min_witness": 1.8815611118438635e-05,
+    "max_witness": 0.00017380085275604917,
+    "line_integral_finest_b1e-3": 0.0046012923058256355
+  },
+  "T-shell_v0.2": {
+    "rows": [
+      {
+        "impact": 0.001,
+        "n_steps": 8192,
+        "line_integral": 0.005302449545906129,
+        "witness": 0.0001598710462339774,
+        "sign": 1
+      },
+      {
+        "impact": 0.001,
+        "n_steps": 16384,
+        "line_integral": 0.005371981272461109,
+        "witness": 8.53523840471836e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.001,
+        "n_steps": 32768,
+        "line_integral": 0.005413755761681104,
+        "witness": 3.752075119787955e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 8192,
+        "line_integral": 0.004240130697899169,
+        "witness": 0.0002983743111147716,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 16384,
+        "line_integral": 0.004240322747552542,
+        "witness": 4.8611982342123443e-05,
+        "sign": 1
+      },
+      {
+        "impact": 0.5,
+        "n_steps": 32768,
+        "line_integral": 0.004240227990009193,
+        "witness": 3.119463005494398e-05,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 8192,
+        "line_integral": 0.00400832392393182,
+        "witness": 7.339491818287811e-05,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 16384,
+        "line_integral": 0.004008466837713217,
+        "witness": 0.00013815521963178408,
+        "sign": 1
+      },
+      {
+        "impact": 1.0,
+        "n_steps": 32768,
+        "line_integral": 0.004008529750283336,
+        "witness": 3.663809420230891e-05,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 8192,
+        "line_integral": 0.0037884552979380514,
+        "witness": 0.0001585131708239173,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 16384,
+        "line_integral": 0.003788569771731759,
+        "witness": 8.225524509414023e-05,
+        "sign": 1
+      },
+      {
+        "impact": 2.0,
+        "n_steps": 32768,
+        "line_integral": 0.0037885536119484707,
+        "witness": 3.987814219405827e-05,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 8192,
+        "line_integral": 0.00357860826143998,
+        "witness": 7.202931898578628e-05,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 16384,
+        "line_integral": 0.003587015379562245,
+        "witness": 0.00013475313654463705,
+        "sign": 1
+      },
+      {
+        "impact": 5.0,
+        "n_steps": 32768,
+        "line_integral": 0.003588751397778578,
+        "witness": 3.214711425361051e-05,
+        "sign": 1
+      }
+    ],
+    "sign_robust_positive": true,
+    "min_witness": 3.119463005494398e-05,
+    "max_witness": 0.0002983743111147716,
+    "line_integral_finest_b1e-3": 0.005413755761681104
+  }
+}

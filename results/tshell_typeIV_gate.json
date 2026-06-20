@@ -1,0 +1,63 @@
+{
+  "config": {
+    "R1": 10.0,
+    "R2": 20.0,
+    "v0_grid": [
+      0.01,
+      0.05,
+      0.1,
+      0.2
+    ],
+    "outer_edge_range": [
+      20.0,
+      26.0
+    ],
+    "note": "max|Im eig| over r>=R2 (outer edge), inner vacuum r<R1 excluded"
+  },
+  "linear_fit": {
+    "slope": 1.0115403210856855,
+    "slope_stderr": 0.006367957778396921,
+    "r2": 0.9999207444787269,
+    "rows": [
+      {
+        "v0": 0.01,
+        "max_abs_imag": 1.8618730270810904e-07,
+        "r_argmax": 20.504201680672267
+      },
+      {
+        "v0": 0.05,
+        "max_abs_imag": 9.338509880478871e-07,
+        "r_argmax": 20.504201680672267
+      },
+      {
+        "v0": 0.1,
+        "max_abs_imag": 1.8795236610486749e-06,
+        "r_argmax": 20.504201680672267
+      },
+      {
+        "v0": 0.2,
+        "max_abs_imag": 3.879267572923713e-06,
+        "r_argmax": 20.45378151260504
+      }
+    ]
+  },
+  "three_solver_gate": {
+    "r": 20.504201680672267,
+    "solvers": {
+      "standard": {
+        "he_type": 4,
+        "max_abs_imag": 1.8795236610486747e-06
+      },
+      "generalized": {
+        "he_type": 4,
+        "max_abs_imag": 1.8795236610486749e-06
+      }
+    },
+    "mpmath_50digit": {
+      "dps": 50,
+      "max_abs_imag": 1.8795236610486747e-06,
+      "n_complex_eigs": 2
+    },
+    "all_three_confirm_typeIV": true
+  }
+}
