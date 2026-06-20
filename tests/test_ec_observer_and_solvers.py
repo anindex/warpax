@@ -973,9 +973,12 @@ class TestStartsFibonacciPool:
         assert jnp.array_equal(r1.margin, r2.margin)
         assert jnp.array_equal(r1.worst_observer, r2.worst_observer)
         assert jnp.isfinite(r1.margin)
-        # Pin against the stored snapshot so optimizer drift is caught.
+        # Pin against the stored snapshot so optimizer drift is caught. The margin
+        # is the physics quantity and stays tight; the worst-observer boost is a
+        # BFGS argmin that drifts ~1e-8 across BLAS/dependency versions, so it gets
+        # the looser cross-version tolerance.
         npt.assert_allclose(r1.margin, d["margin"], rtol=1e-10)
-        npt.assert_allclose(r1.worst_observer, d["worst_observer"], rtol=1e-8)
+        npt.assert_allclose(r1.worst_observer, d["worst_observer"], rtol=1e-6)
 
 
 if __name__ == "__main__":

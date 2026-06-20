@@ -23,7 +23,7 @@ from jaxtyping import Array, Float
 
 from .basis import default_theta, unpack_theta
 from .basis import coeffs_to_profiles_sshell, coeffs_to_profiles_tshell
-from .ec_constraints import ec_feasibility_check, ec_feasibility_frame_free
+from .ec_constraints import ec_feasibility_frame_free
 from ..transport.diagnostics import null_round_trip_asymmetry
 
 
@@ -312,7 +312,7 @@ def sweep_transport(
         Note: vmap/lax.map over the (compactness, thickness) grid is
         not currently feasible because ``_evaluate_point`` carries
         Python control flow (try/except on geodesic failures, branch
-        on ansatz string, ec_feasibility_check returns a Python dict).
+        on ansatz string, ec_feasibility_frame_free returns a Python dict).
 
     """
     if parallel is None:
