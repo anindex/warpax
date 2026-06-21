@@ -46,7 +46,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import NamedTuple
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 
