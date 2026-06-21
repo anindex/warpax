@@ -3,6 +3,13 @@
 How `warpax` got here. Per-release line items live in
 [`CHANGELOG.md`](https://github.com/anindex/warpax/blob/main/CHANGELOG.md).
 
+## v1.2.0 (2026-06)
+
+Adds `warpax.bondi`: the Bondi four-momentum radiated to null infinity and the
+Newman--Penrose peeling structure, read directly from the curvature
+(`radiated_momentum_flux`, `peeling_slopes`, `weyl_scalars`, `psi4_at`), with a
+gravitational-news ($\Psi_4$) proxy. The existing API is unchanged.
+
 ## v1.1.0 (2026-06)
 
 The frame-independent certification core: `warpax.certify` decides the

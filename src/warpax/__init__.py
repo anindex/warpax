@@ -33,7 +33,7 @@ if os.environ.get("WARPAX_BEARTYPE") == "1":
         conf=BeartypeConf(warning_cls_on_decorator_exception=UserWarning),
     )
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 __author__ = "An T. Le"
 __email__ = "an@robot-learning.de"
 

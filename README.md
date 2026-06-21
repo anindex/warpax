@@ -8,17 +8,14 @@
 
 [**Observer-robust energy condition verification for warp drive spacetimes.**](https://arxiv.org/abs/2602.18023)
 
-`warpax` certifies the all-observer energy-condition structure of warp-drive
-spacetimes *frame-independently*, from the eigenstructure of the mixed
-stress-energy tensor $T^a{}_b$, with exact curvature from JAX forward-mode
-autodiff. The Hawking--Ellis eigenvalue test it is built on never constructs the
-Eulerian normal, so it is well-defined at *all* warp speeds, including
-$v_s \ge 1$, where coordinate-stationary (Eulerian) tools break down. At a Type-I point an eigenvalue inequality decides
-each energy condition exactly and for every observer; a Type-IV point has no rest
-frame and violates every condition unconditionally. A multistart BFGS observer
-optimizer over the timelike manifold is retained as a one-sided diagnostic at the
-residual non-Type-I points. Unlike single-frame Eulerian checks (as used in
-WarpFactory), it returns the observer-independent truth.
+`warpax` certifies the energy-condition structure of warp-drive spacetimes for
+*every* observer at once, from the eigenstructure of the mixed stress-energy tensor
+$T^a{}_b$, with exact curvature from JAX forward-mode autodiff. Because the
+Hawking--Ellis eigenvalue test never builds the Eulerian normal, it stays well-defined
+at all warp speeds, including superluminal $v_s \ge 1$ where single-frame (Eulerian)
+tools such as WarpFactory break down. The verdict is observer-independent: a Type-I
+point is decided exactly for every observer, while a Type-IV point has no rest frame
+and violates every condition unconditionally.
 
 ![Alcubierre Bubble Collapse](./figures/bubble_collapse.gif)
 
@@ -26,17 +23,14 @@ WarpFactory), it returns the observer-independent truth.
 
 ## Highlights
 
-- Frame-independent, all-observer, all-velocity energy-condition certification (including superluminal $v_s \ge 1$) from the eigenstructure of $T^a{}_b$; the eigenvalue test never builds the Eulerian normal.
-- Hawking--Ellis classification (Type I--IV) with explicit Type-IV detection, certified physical by a three-solver (`eig`, LAPACK `zggev` pencil) and 50-digit `mpmath` cross-check.
-- Closed-form Type-I worst observer ($\sinh^2\zeta_{\rm th} = \rho/|\rho+p_i|$), validated against the BFGS optimizer.
-- Shift-vorticity analysis: the vorticity of the ADM shift controls the Hawking--Ellis type of the bubble wall. The imaginary part of the Type-IV eigenvalue pair is linear in the vorticity, $f = \kappa\,\omega$ ($\kappa \approx 0.06$, exact in a controlled pure-rotation limit); shear amplifies the pair that vorticity opens but cannot open one itself.
-- Rigorous geodesic-integrated ANEC via a structure-preserving symplectic null integrator (conserves $g(k,k)$ to ~machine precision where adaptive RK drifts off the cone), reported with an on-cone witness $\max|g(k,k)|$; plus a Ford--Roman quantum-inequality diagnostic.
-- Cross-construction all-observer verification (Fuchs, WarpShell, Garattini--Zatrimaylov de Sitter, Rodal, Alcubierre) with a wall-resolution gate, and a boost-invariant exoticity ranking with universal $v_s$ scaling laws. Even the de Sitter bubble, certified at its matched $v_s = H R$ regime, is Type-IV walled; the Eulerian frame misses ~63% of its wall weak-energy violations.
-- Universal $v_s$ scaling of the wall curvature invariants (Kretschmann, Weyl-squared, Ricci-squared), split by shift vorticity: vortical walls grow as $v_s^2$, the irrotational Rodal wall as $v_s^4$. The Santiago--Schuster--Visser no-go becomes quantitative, $\min(\rho+p_i) = -C\,v_s^2$.
-- Exact curvature via forward-mode JAX autodiff (no finite-difference stencils); multistart BFGS retained as a one-sided diagnostic at non-Type-I points.
-- Ten warp/shell metrics: nine in `warpax.metrics` (Natario, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, Garattini--Zatrimaylov), plus Alcubierre in `warpax.benchmarks` alongside the Minkowski and Schwarzschild references.
-- Hamiltonian + momentum constraint residuals, anisotropic TOV, ADM mass with falloff, Israel junctions, invariant transport diagnostics.
-- Source-first shells: Bernstein-parameterized profiles with constraint-derived metric potentials (S-shell, T-shell); 2D design sweep over (compactness, thickness) with EC certification and phase-diagram plots (companion-paper material, see below).
+- Frame-independent, all-observer energy-condition certification at every warp speed (including superluminal $v_s \ge 1$), from the eigenstructure of $T^a{}_b$ -- no Eulerian normal, no single-frame blind spots.
+- Hawking--Ellis classification (Type I--IV) with explicit Type-IV detection, cross-checked by three eigensolvers and a 50-digit `mpmath` reference.
+- Closed-form Type-I worst observer, with a multistart BFGS optimizer kept as a one-sided diagnostic at the residual non-Type-I points.
+- Shift-vorticity control of the wall type: the vorticity of the ADM shift sets the Hawking--Ellis type, with universal $v_s$ scaling laws for the wall NEC deficit and curvature.
+- Rigorous geodesic-integrated ANEC via a symplectic null integrator (with an on-cone witness), plus a Ford--Roman quantum-inequality diagnostic.
+- Bondi four-momentum radiated-flux and Newman--Penrose peeling at null infinity (`warpax.bondi`).
+- Exact curvature via forward-mode JAX autodiff -- no finite-difference stencils.
+- Ten warp/shell metrics, constraint residuals, anisotropic TOV, ADM mass with falloff, Israel junctions, transport diagnostics, and source-first S-/T-shell construction with a five-criterion admissibility standard.
 
 ## Two papers, one toolkit
 

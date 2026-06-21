@@ -6,6 +6,21 @@ history is summarized in `docs/explanation/release_notes.md`.
 
 ---
 
+## [1.2.0] - 2026-06-21
+
+New `warpax.bondi` submodule: Bondi four-momentum radiated-flux and Newman--Penrose
+peeling extraction at null infinity, read directly from the curvature.
+
+- `radiated_momentum_flux`: the four-momentum radiated to null infinity, sampled on a
+  family of cones and Richardson-extrapolated in radius, with a gravitational-news
+  ($\Psi_4$) proxy.
+- `peeling_slopes`, `weyl_scalars`: the Newman--Penrose Weyl scalars and their asymptotic
+  peeling falloff $\Psi_n \sim r^{-(5-n)}$.
+- `psi4_at`: the outgoing $\Psi_4$ on an asymptotic Minkowski null tetrad.
+- Tests: `tests/test_bondi.py`, `tests/test_peeling.py`.
+
+---
+
 ## [1.1.1] - 2026-06-20
 
 Reproduction artifacts and docs for the source-shell paper (arXiv:2605.25417).
