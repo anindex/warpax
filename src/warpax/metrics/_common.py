@@ -13,7 +13,7 @@ def alcubierre_shape(
 
     f(r) = [tanh(sigma*(r+R)) - tanh(sigma*(r-R))] / [2*tanh(sigma*R)]
 
-    f(0) ~ 1, f(inf) ~ 0.
+    f(0) = 1 exactly, f -> 0 as r -> inf.
 
     Parameters
     ----------
@@ -22,7 +22,8 @@ def alcubierre_shape(
     R : float
         Bubble radius.
     sigma : float
-        Wall thickness parameter (inverse thickness).
+        Wall steepness parameter: larger sigma => thinner wall
+        (inverse wall thickness).
 
     Returns
     -------

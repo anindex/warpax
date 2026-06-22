@@ -1,7 +1,7 @@
-"""Boost-invariant exoticity ranking and v_s scaling laws (K9).
+"""Boost-invariant exoticity ranking and v_s scaling laws.
 
 Aggregates the frame-independent invariants already computed by the velocity
-sweep (K1) and the rigorous ANEC (K6b) into a single citable ranking across
+sweep and the rigorous ANEC into a single citable ranking across
 all retained drives, and extracts universal ``v_s`` scaling laws.
 
 Axes (all boost-invariant):

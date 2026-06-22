@@ -1,4 +1,4 @@
-"""Tests for frame-independent, all-velocity EC certification (Contribution 3 engine)."""
+"""Tests for frame-independent, all-velocity EC certification."""
 from __future__ import annotations
 
 import jax

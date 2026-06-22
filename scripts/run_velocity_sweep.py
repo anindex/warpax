@@ -1,4 +1,4 @@
-"""Contribution 1: velocity-resolved Hawking-Ellis type & all-observer EC structure
+"""Velocity-resolved Hawking-Ellis type & all-observer EC structure
 across the luminal transition.
 
 Frame-independently (from the eigenstructure of T^a_b only -- no Eulerian normal,

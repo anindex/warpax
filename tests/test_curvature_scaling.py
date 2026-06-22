@@ -1,4 +1,4 @@
-"""Curvature-invariant v_s scaling (K11): sentinels and fit recovery.
+"""Curvature-invariant v_s scaling: sentinels and fit recovery.
 
 Sentinels guard the physics: Minkowski has vanishing curvature invariants, and
 the Schwarzschild Kretschmann scalar reproduces the closed form

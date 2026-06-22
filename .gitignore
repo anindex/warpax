@@ -53,7 +53,10 @@ figures/*.pdf
 figures/*.gif
 figures/*.png
 !figures/.gitkeep
-!figures/bubble_collapse.gif
+!figures/wall_velocity_sweep.gif
+!figures/eulerian_kinematics.gif
+!figures/kretschmann_invariant.gif
+!figures/eulerian_vs_worstcase_nec.gif
 !figures/gaussian_warp_grid_comparison.png
 
 # Local scratch directory for ad-hoc scripts (not the tracked results/ cache)

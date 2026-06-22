@@ -1,4 +1,4 @@
-"""Tests for the Contribution 2 invariant all-observer verification."""
+"""Tests for the invariant all-observer verification."""
 from __future__ import annotations
 
 import jax

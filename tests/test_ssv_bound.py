@@ -1,4 +1,4 @@
-"""SSV lower-bound saturation (K12): fit recovery and subluminal filtering."""
+"""SSV lower-bound saturation: fit recovery and subluminal filtering."""
 from __future__ import annotations
 
 import importlib.util

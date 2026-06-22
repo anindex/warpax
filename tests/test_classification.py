@@ -260,7 +260,7 @@ class TestStandardSolverBitExact:
     """invariant: solver='standard' preserves v0.2.0 byte-exactly.
 
     Without this test, any accidental reordering of internal operations
-    in classify_hawking_ellis could silently drift the 794-test baseline.
+    in classify_hawking_ellis could silently drift the pinned output.
     """
 
     def test_default_is_standard(self):

@@ -1489,8 +1489,7 @@ class TestCondV:
         ``sigma_min(V) ~ 10**(-precision)`` and ``cond_V ~ 10**precision``
         - comfortably above the half-digit threshold ``10**(precision/2)``.
 
-        Note: the plan author's original fixture used a ``(1,0)`` perturbation
-        of ``1e-20`` expecting ``cond_V > 10**25``; empirically that yields
+        Note: a ``(1,0)`` perturbation of ``1e-20`` yields only
         ``cond_V ~ 10**10`` (sqrt of the perturbation), BELOW the half-digit
         threshold at ``precision=50``. An exact Jordan block is the
         physically-meaningful fixture for the Bauer-Fike diagnostic.

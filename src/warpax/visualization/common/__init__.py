@@ -6,6 +6,7 @@ backends can import without backend-specific dependencies.
 
 All modules are pure Python/NumPy/Equinox; no Manim required.
 """
+
 from __future__ import annotations
 
 # Data bridge
@@ -14,6 +15,7 @@ from ._frame_data import FrameData
 # JAX-to-NumPy conversion
 from ._conversion import (
     eulerian_energy_density_grid,
+    eulerian_wec_fields,
     freeze_curvature,
     freeze_ec,
 )
@@ -28,7 +30,7 @@ from ._themes import PAPER_THEME, PRESENTATION_THEME, RenderTheme, get_theme
 from ._physics import (
     build_ec_frame_sequence,
     build_frame_sequence,
-    collapse_profile,
+    rampdown_profile,
     constant_velocity,
     linear_ramp,
     make_velocity_sweep,
@@ -39,9 +41,9 @@ from ._physics import (
 from ._scenes import (
     add_text_overlay,
     add_watermark,
-    scene_bubble_collapse,
     scene_observer_sweep,
     scene_velocity_ramp,
+    scene_velocity_rampdown,
 )
 
 __all__ = [
@@ -49,6 +51,7 @@ __all__ = [
     "FrameData",
     # Conversion
     "eulerian_energy_density_grid",
+    "eulerian_wec_fields",
     "freeze_curvature",
     "freeze_ec",
     # Color
@@ -64,7 +67,7 @@ __all__ = [
     # Physics profiles
     "linear_ramp",
     "sigmoid_ramp",
-    "collapse_profile",
+    "rampdown_profile",
     "constant_velocity",
     "make_velocity_sweep",
     "build_frame_sequence",
@@ -72,7 +75,7 @@ __all__ = [
     # Scenes and overlays
     "add_text_overlay",
     "add_watermark",
-    "scene_bubble_collapse",
+    "scene_velocity_rampdown",
     "scene_velocity_ramp",
     "scene_observer_sweep",
 ]

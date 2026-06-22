@@ -4,6 +4,7 @@ In ThreeDScene, ``DecimalNumber.set_value`` recreates internal submobjects that
 lose fixed-in-frame registration. Scene updaters use ``become`` instead so
 geometry is replaced in-place and registration is preserved.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -12,6 +13,7 @@ import numpy as np
 from manim import (
     DOWN,
     RIGHT,
+    UP,
     DL,
     DR,
     UL,
@@ -20,7 +22,11 @@ from manim import (
     YELLOW,
     Dot,
     FadeOut,
+    Group,
+    ImageMobject,
+    Line,
     MathTex,
+    Text,
     ThreeDAxes,
     Variable,
     VGroup,
@@ -45,6 +51,30 @@ COLORS_3B1B: dict[str, str] = {
 }
 
 
+def cap_recursion_for_3d_render(limit: int = 600) -> None:
+    """Cap the Python recursion limit before a 3D Cairo render.
+
+    Manim's 3D Cairo render path recurses deeply (camera projection /
+    fill-by-value over many sub-surfaces). Under Python 3.14's C-stack
+    accounting the default limit (1000) lets that recursion overflow the
+    default 8 MB main-thread stack and segfault inside a numpy C call
+    (``get_view_from_index``) instead of raising a catchable ``RecursionError``.
+
+    The render's genuine recursion depth is < 250, so capping at *limit* keeps a
+    wide safety margin while ensuring the runaway path recovers before the C
+    stack is exhausted. Process-global but only invoked from a render, so it
+    does not perturb library callers. No-op if the limit is already lower.
+
+    The render scripts additionally raise the OS stack (see
+    ``scripts/render_all_scenes.py``); this guard makes a bare
+    ``manim render <file> <Scene>`` safe on its own.
+    """
+    import sys
+
+    if sys.getrecursionlimit() > limit:
+        sys.setrecursionlimit(limit)
+
+
 def play_title_card(
     scene: ThreeDScene,
     metric_name: str,
@@ -58,7 +88,7 @@ def play_title_card(
     scene : ThreeDScene
         The active Manim scene.
     metric_name : str
-        Display name (e.g. ``"Alcubierre Bubble Collapse"``).
+        Display name (e.g. ``"Alcubierre Velocity Sweep"``).
     params_dict : dict[str, str]
         Parameter key-value pairs shown as subtitle.
     run_time : float
@@ -260,7 +290,11 @@ def compute_auto_exaggeration(
         # Update extent from coordinates
         x_1d = f.x[:, 0, 0]
         extent = float(x_1d[-1] - x_1d[0])
-    return 0.3 * extent / max(max_warp, 1e-15)
+    # Guard near-flat fields: the naive 0.3*extent/eps would explode the
+    # surface off-axis. A flat field gets a neutral factor instead.
+    if max_warp <= 1e-9 * max(extent, 1.0):
+        return 1.0
+    return 0.3 * extent / max_warp
 
 
 _METRIC_EQUATIONS: dict[str, str] = {
@@ -285,6 +319,82 @@ def format_metric_equation(metric_name: str) -> MathTex:
     """
     tex_str = _METRIC_EQUATIONS.get(metric_name, r"\text{" + metric_name + r"}")
     return MathTex(tex_str, font_size=36, color=WHITE)
+
+
+def make_colorbar_legend(
+    cmap_name: str,
+    vmin: float,
+    vmax: float,
+    linthresh: float,
+    title: str,
+    *,
+    bar_width: float = 1.7,
+    bar_height: float = 0.16,
+) -> Group:
+    """Quantitative colorbar: the real colormap as a gradient + numeric ticks.
+
+    Replaces the hand-typed 5-swatch "-"/"+" strips. The bar IS
+    the colormap (sampled uniformly in norm space) and the tick labels state the
+    actual value->colour mapping at the SymLog-significant points (vmin,
+    +/-linthresh, 0, vmax), so a reader can recover magnitudes despite the
+    symmetric-log compression. Returns a ``Group`` (mixes an ImageMobject bar
+    with VMobject ticks); position it with ``.to_corner(...)``.
+    """
+    from warpax.visualization.manim._image_utils import (
+        colorbar_gradient,
+        colorbar_tick_fractions,
+    )
+
+    bar = ImageMobject(colorbar_gradient(cmap_name))
+    bar.height = bar_height
+    bar.width = bar_width
+
+    def _fmt(v: float) -> str:
+        if abs(v) < 1e-30:
+            return "0"
+        a = abs(v)
+        return f"{v:.2g}" if 1e-2 <= a < 1e3 else f"{v:.0e}"
+
+    marks = VGroup()
+    for value, frac in colorbar_tick_fractions(vmin, vmax, linthresh):
+        x = (frac - 0.5) * bar_width
+        tick = Line(
+            [x, -bar_height / 2, 0],
+            [x, -bar_height / 2 - 0.05, 0],
+            stroke_width=1.2,
+            color=WHITE,
+        )
+        lbl = MathTex(_fmt(value), font_size=16, color=WHITE)
+        lbl.next_to(tick, DOWN, buff=0.03)
+        marks.add(VGroup(tick, lbl))
+
+    title_mob = Text(title, font_size=15, color=WHITE, weight="LIGHT")
+    title_mob.next_to(bar, UP, buff=0.06)
+
+    return Group(title_mob, bar, marks)
+
+
+def make_conventions_caption(extra: str = "") -> Text:
+    """Compact GR-conventions footer for a publication-grade figure.
+
+    States the unit/signature/slice conventions a relativist needs to read the
+    figure unambiguously: geometric units, metric signature, the rendered
+    spatial slice, and that each frame is a static metric (a parameter sweep,
+    not a time evolution). Caller positions it (e.g. ``cap.to_edge(DOWN)``).
+
+    Parameters
+    ----------
+    extra : str
+        Optional trailing clause appended after a separator.
+    """
+    base = (
+        "G = c = 1   ·   signature (−,+,+,+)   ·   T_ab = G_ab/(8π)   ·   "
+        "z = 0 slice   ·   static metric per frame   ·   [ρ, T_ab] = 1/length²"
+    )
+    text = base if not extra else f"{base}   ·   {extra}"
+    cap = Text(text, font_size=13, color=WHITE, weight="LIGHT")
+    cap.set_opacity(0.6)
+    return cap
 
 
 def make_violation_indicator(
@@ -330,70 +440,3 @@ def make_violation_indicator(
     group = VGroup(dot, label).arrange(RIGHT, buff=0.15)
 
     return group
-
-
-def blend_fields(
-    frame: FrameData,
-    field_a: str,
-    field_b: str,
-    t: float,
-) -> FrameData:
-    """Blend two scalar fields from a FrameData object.
-
-    Parameters
-    ----------
-    frame : FrameData
-        Source frame containing at least *field_a*.
-    field_a : str
-        Name of the first field (t=0 extreme).
-    field_b : str
-        Name of the second field (t=1 extreme).
-    t : float
-        Blend factor: 0.0 = pure field_a, 1.0 = pure field_b.
-
-    Returns
-    -------
-    FrameData
-        Shallow copy with an additional ``"_blended"`` field and blended
-        ``clim`` entry. If *field_b* is not present, returns *frame*
-        unmodified.
-    """
-    if field_b not in frame.scalar_fields:
-        return frame
-
-    arr_a = frame.scalar_fields[field_a]
-    arr_b = frame.scalar_fields[field_b]
-    blended = (1.0 - t) * arr_a + t * arr_b
-
-    clim_a = frame.clim.get(field_a, (0.0, 1.0))
-    clim_b = frame.clim.get(field_b, (0.0, 1.0))
-    blended_clim = (
-        (1.0 - t) * clim_a[0] + t * clim_b[0],
-        (1.0 - t) * clim_a[1] + t * clim_b[1],
-    )
-
-    # Build a modified copy; FrameData is an eqx.Module (frozen),
-    # so we reconstruct with updated dicts.
-    from warpax.visualization.common._frame_data import FrameData as FD
-
-    new_fields = dict(frame.scalar_fields)
-    new_fields["_blended"] = blended
-
-    new_clim = dict(frame.clim)
-    new_clim["_blended"] = blended_clim
-
-    new_colormaps = dict(frame.colormaps)
-    new_colormaps["_blended"] = "RdBu_r"
-
-    return FD(
-        x=frame.x,
-        y=frame.y,
-        z=frame.z,
-        scalar_fields=new_fields,
-        metric_name=frame.metric_name,
-        v_s=frame.v_s,
-        grid_shape=frame.grid_shape,
-        t=frame.t,
-        colormaps=new_colormaps,
-        clim=new_clim,
-    )

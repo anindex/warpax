@@ -6,6 +6,20 @@ history is summarized in `docs/explanation/release_notes.md`.
 
 ---
 
+## [1.3.0] - 2026-06-22
+
+Visualization rework: Manim scenes renamed to physically accurate names,
+colormaps matched to each field's sign, and a reliable headless 3D render path.
+
+- Scenes renamed for physical precision (e.g. `BubbleSweep` ->
+  `WallAndVelocitySweep`, `VelocityRamp` -> `VelocitySweep`, `ObserverSweep` ->
+  `BoostRapiditySweep`, `ExpansionShear` -> `EulerianKinematics2D`).
+- One-sided colormaps for the non-positive fields ($\rho_{\rm Eul}$, NEC/WEC
+  margins); a signed scale for the sign-indefinite Kretschmann invariant $K$.
+- 3D scenes render through the OpenGL/EGL path, avoiding the Cairo 3D crash.
+
+---
+
 ## [1.2.0] - 2026-06-21
 
 New `warpax.bondi` submodule: Bondi four-momentum radiated-flux and Newman--Penrose
@@ -119,8 +133,6 @@ No API changes.
   with a geometry-fixed coefficient $C>0$, making the no-go theorem a measured
   rather than asserted statement (`run_ssv_bound.py`).
 
-Various bug fixes and improvements were applied in this version.
-
 ---
 
 ## [1.0.0] - 2026-05-26
@@ -169,5 +181,6 @@ shell construction, autodiff curvature analysis, and a metric-design API.
 
 ---
 
+[1.3.0]: https://github.com/anindex/warpax/releases/tag/v1.3.0
 [1.1.0]: https://github.com/anindex/warpax/releases/tag/v1.1.0
 [1.0.0]: https://github.com/anindex/warpax/releases/tag/v1.0.0

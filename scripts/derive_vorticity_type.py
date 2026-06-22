@@ -1,4 +1,4 @@
-"""Vorticity -> Type-IV mechanism: f = kappa * omega (K10).
+"""Vorticity -> Type-IV mechanism: f = kappa * omega.
 
 Establishes, numerically and in a controlled limit, that the imaginary part of
 the Hawking-Ellis Type-IV eigenvalue pair of ``T^a_b`` is *linear in the shift

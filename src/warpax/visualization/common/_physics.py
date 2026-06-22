@@ -11,6 +11,24 @@ from typing import Callable
 import numpy as np
 
 
+def _shape_function_grid(metric, grid_spec, t):
+    """Evaluate the shape function f(r_s) on the grid, or None if undefined.
+
+    Lets scenes contour the *real* ``f = 0.5`` bubble wall instead of a
+    hard-coded circular fallback. Metrics without ``shape_function_value``
+    (no closed-form wall) return ``None``.
+    """
+    if not hasattr(metric, "shape_function_value"):
+        return None
+    import jax
+
+    from warpax.geometry.grid import build_coord_batch
+
+    coords_flat = build_coord_batch(grid_spec, t=t)
+    f_flat = jax.vmap(metric.shape_function_value)(coords_flat)
+    return np.asarray(f_flat).reshape(grid_spec.shape)
+
+
 def linear_ramp(
     t: float,
     v_start: float = 0.1,
@@ -73,13 +91,13 @@ def sigmoid_ramp(
     return float(np.clip(val, lo, hi))
 
 
-def collapse_profile(
+def rampdown_profile(
     t: float,
     v_max: float = 0.5,
     t_start: float = 0.0,
     t_end: float = 1.0,
 ) -> float:
-    """Collapse profile: v_s ramps DOWN from v_max to 0.
+    """Velocity turn-off profile: v_s ramps down from v_max to 0.
 
     Parameters
     ----------
@@ -222,6 +240,11 @@ def build_frame_sequence(
     if v_s_values is not None:
         if t_values is None:
             t_values = [0.0] * len(v_s_values)
+        elif len(t_values) != len(v_s_values):
+            raise ValueError(
+                "v_s_values and t_values length mismatch: "
+                f"{len(v_s_values)} != {len(t_values)}."
+            )
         schedule = list(zip(v_s_values, t_values))
     else:
         schedule = [(v_s_fn(float(t)), float(t)) for t in t_values]
@@ -265,6 +288,7 @@ def build_ec_frame_sequence(
     v_s_values: list[float] | None = None,
     t_values: list[float] | None = None,
     observer_params=None,
+    nec_observer_params=None,
     batch_size: int | None = None,
     progress: bool = True,
 ) -> list:
@@ -287,8 +311,14 @@ def build_ec_frame_sequence(
     t_values : list[float], optional
         Time values per frame.
     observer_params : jax.Array or None
-        Observer parameters (K, 3) for sweep. If None, uses default
-        ``make_rapidity_observers`` (36 observers).
+        Timelike observer parameters (K, 3) for the WEC sweep. If None,
+        uses ``make_rapidity_observers`` (36 observers).
+    nec_observer_params : jax.Array or None
+        Null direction parameters (K, 3) for the NEC sweep. If None, uses a
+        dense angular sampler (``make_angular_observers``, 312 directions).
+        The NEC null contraction is rapidity-independent, so sampling only a
+        few axis-aligned directions (as the rapidity observers do) produces
+        spurious "satisfied" pixels; a dense null sphere is required.
     batch_size : int or None
         Chunk size for grid evaluation.
     progress : bool
@@ -303,6 +333,7 @@ def build_ec_frame_sequence(
     import jax.numpy as jnp
 
     from warpax.energy_conditions.sweep import (
+        make_angular_observers,
         make_rapidity_observers,
         sweep_nec_margins,
         sweep_wec_margins,
@@ -324,12 +355,22 @@ def build_ec_frame_sequence(
 
     # Default observer parameters
     if observer_params is None:
-        observer_params = make_rapidity_observers()
+        observer_params = make_rapidity_observers()  # WEC: timelike rapidity sweep
+    if nec_observer_params is None:
+        # NEC is rapidity-independent, so the 3 axis-aligned rapidity
+        # directions are far too coarse (they leave spurious positive
+        # "satisfied" margins). Sample the null sphere densely instead.
+        nec_observer_params = make_angular_observers(n_theta=13, n_phi=24)
 
     # Build frame schedule
     if v_s_values is not None:
         if t_values is None:
             t_values = [0.0] * len(v_s_values)
+        elif len(t_values) != len(v_s_values):
+            raise ValueError(
+                "v_s_values and t_values length mismatch: "
+                f"{len(v_s_values)} != {len(t_values)}."
+            )
         schedule = list(zip(v_s_values, t_values))
     else:
         schedule = [(v_s_fn(float(t)), float(t)) for t in t_values]
@@ -349,8 +390,8 @@ def build_ec_frame_sequence(
     y_np = np.asarray(Y)
     z_np = np.asarray(Z)
 
-    # NEC params: (theta, phi) columns
-    nec_params = observer_params[:, 1:]
+    # NEC params: (theta, phi) columns from the dense angular sampler
+    nec_params = nec_observer_params[:, 1:]
 
     frames = []
     metric_name = metric.name()
@@ -378,6 +419,7 @@ def build_ec_frame_sequence(
             result.stress_energy, result.metric_inv
         )
         T_00_covariant = np.asarray(result.stress_energy[..., 0, 0])
+        f_grid = _shape_function_grid(metric_t, grid_spec, t)
 
         scalar_fields = {
             "ricci_scalar": np.asarray(result.ricci_scalar),
@@ -400,6 +442,9 @@ def build_ec_frame_sequence(
             "wec_margin_sweep": "RdBu_r",
             "nec_margin_sweep": "RdBu_r",
         }
+        if f_grid is not None:
+            scalar_fields["shape_function"] = f_grid
+            colormaps["shape_function"] = "viridis"
 
         diverging = {
             "ricci_scalar", "energy_density", "T_00_covariant",

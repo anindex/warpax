@@ -1,4 +1,4 @@
-"""Contribution 2: independent all-observer verification of warp-drive positive-energy claims.
+"""Independent all-observer verification of warp-drive positive-energy claims.
 
 At matched family parameters (R=1, sigma=8) on wall-clustered grids, and using
 ONLY the frame-independent eigenstructure of T^a_b, we report -- wall-restricted

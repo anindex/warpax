@@ -1,4 +1,4 @@
-r"""Independent all-observer verification of warp-drive positive-energy claims (Contribution 2).
+r"""Independent all-observer verification of warp-drive positive-energy claims.
 
 Published positive-energy claims are typically established in the Eulerian
 (ADM normal) frame at a single velocity; the weak/null energy conditions
@@ -21,7 +21,7 @@ refutation of any author's algebra.
 The Eulerian comparison uses :func:`..energy_conditions.compute_eulerian_ec`,
 whose ADM normal is only timelike for ``v_s < 1``; the verification is therefore run at
 subluminal velocities (the regime in which positive-energy claims are stated).
-The invariant quantities themselves remain valid at all velocities (Contribution 1).
+The invariant quantities themselves remain valid at all velocities.
 """
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 """Scene builders and post-render overlay helpers.
 
 Scene builders produce lists of FrameData for the three animations:
-- ``scene_bubble_collapse``: Alcubierre v_s ramps down to near-flat spacetime.
+- ``scene_velocity_rampdown``: Alcubierre v_s ramps down to near-flat spacetime.
 - ``scene_velocity_ramp``: EC violations intensify as v_s sweeps 0.1 to 0.99.
 - ``scene_observer_sweep``: Per-rapidity EC margins on fixed Alcubierre geometry.
 
@@ -9,6 +9,7 @@ Overlay helpers burn text and watermarks onto RGBA screenshot arrays:
 - ``add_text_overlay``: Title + parameter value text at configurable position.
 - ``add_watermark``: Subtle semi-transparent branding in bottom-right corner.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -50,10 +51,12 @@ def add_text_overlay(
     # Use PIL default font always available, no external font files
     try:
         from PIL import ImageFont
+
         font = ImageFont.load_default(size=font_size)
     except TypeError:
         # Older Pillow without size parameter
         from PIL import ImageFont
+
         font = ImageFont.load_default()
 
     # Measure text bounding box
@@ -72,8 +75,7 @@ def add_text_overlay(
         xy = (w - text_w - margin, h - text_h - margin)
     else:
         raise ValueError(
-            f"Unknown position {position!r}. "
-            "Use 'upper_left', 'upper_right', or 'lower_right'."
+            f"Unknown position {position!r}. Use 'upper_left', 'upper_right', or 'lower_right'."
         )
 
     draw.text(xy, text, fill=font_color, font=font)
@@ -111,9 +113,11 @@ def add_watermark(
     # Small font for subtle watermark
     try:
         from PIL import ImageFont
+
         font = ImageFont.load_default(size=14)
     except TypeError:
         from PIL import ImageFont
+
         font = ImageFont.load_default()
 
     bbox = draw.textbbox((0, 0), text, font=font)
@@ -131,14 +135,14 @@ def add_watermark(
     return np.array(composited)
 
 
-def scene_bubble_collapse(
+def scene_velocity_rampdown(
     grid_spec,
     *,
     n_frames: int = 90,
     v_max: float = 0.5,
     v_min: float = 0.01,
 ) -> list:
-    """Build frame sequence for Alcubierre bubble collapse.
+    """Build frame sequence for Alcubierre bubble velocity ramp-down.
 
     The warp bubble velocity ramps down from *v_max* toward flat spacetime,
     with curvature diminishing as v_s approaches zero.
@@ -161,15 +165,12 @@ def scene_bubble_collapse(
     """
     from warpax.benchmarks import AlcubierreMetric
 
-    from ._physics import build_frame_sequence, collapse_profile
+    from ._physics import build_frame_sequence, rampdown_profile
 
     metric = AlcubierreMetric(v_s=v_max)
 
     t_values = list(np.linspace(0.0, 1.0, n_frames))
-    v_values = [
-        max(collapse_profile(t, v_max=v_max), v_min)
-        for t in t_values
-    ]
+    v_values = [max(rampdown_profile(t, v_max=v_max), v_min) for t in t_values]
 
     return build_frame_sequence(
         metric,
@@ -264,23 +265,26 @@ def scene_observer_sweep(
     from warpax.energy_conditions.sweep import sweep_nec_margins, sweep_wec_margins
     from warpax.geometry.grid import evaluate_curvature_grid
 
-    from ._conversion import _symmetric_clim, eulerian_energy_density_grid
+    from ._conversion import (
+        _oneside_neg_clim,
+        _symmetric_clim,
+        eulerian_energy_density_grid,
+    )
     from ._frame_data import FrameData
 
     metric = AlcubierreMetric(v_s=v_s)
 
     # Evaluate geometry ONCE
     result = evaluate_curvature_grid(
-        metric, grid_spec,
+        metric,
+        grid_spec,
         compute_invariants=True,
     )
 
     N = int(np.prod(grid_spec.shape))
     T_flat = result.stress_energy.reshape(N, 4, 4)
     g_flat = result.metric.reshape(N, 4, 4)
-    energy_density = eulerian_energy_density_grid(
-        result.stress_energy, result.metric_inv
-    )
+    energy_density = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
     T_00_covariant = np.asarray(result.stress_energy[..., 0, 0])
 
     # Extract grid coordinates as NumPy
@@ -291,9 +295,9 @@ def scene_observer_sweep(
 
     # Fixed boost directions: +x, +y, +z
     all_directions = [
-        (float(np.pi / 2), 0.0),         # +x
+        (float(np.pi / 2), 0.0),  # +x
         (float(np.pi / 2), float(np.pi / 2)),  # +y
-        (0.0, 0.0),                       # +z
+        (0.0, 0.0),  # +z
     ]
     directions = all_directions[:n_directions]
 
@@ -303,6 +307,7 @@ def scene_observer_sweep(
     iterator = enumerate(rapidities)
     try:
         from tqdm.auto import tqdm
+
         iterator = tqdm(list(iterator), desc="Observer sweep", unit="frame")
     except ImportError:
         iterator = list(iterator)
@@ -312,9 +317,7 @@ def scene_observer_sweep(
 
     for i, zeta in iterator:
         # Construct observer params for this single rapidity
-        obs_params = jnp.array([
-            [float(zeta), theta, phi] for theta, phi in directions
-        ])
+        obs_params = jnp.array([[float(zeta), theta, phi] for theta, phi in directions])
 
         # Compute margins for this rapidity
         wec_margins = sweep_wec_margins(T_flat, g_flat, obs_params)  # (N, K)
@@ -332,18 +335,21 @@ def scene_observer_sweep(
             "nec_margin_sweep": worst_nec,
         }
 
+        # NEC/WEC worst-case margins are <= 0 (0 in flat space, negative in the
+        # wall): a one-sided violation-depth ramp is honest; a diverging +/-
+        # scale would imply a positive "satisfied" half the data never reaches.
         colormaps = {
-            "energy_density": "RdBu_r",
+            "energy_density": "nec_depth",
             "T_00_covariant": "RdBu_r",
-            "wec_margin_sweep": "RdBu_r",
-            "nec_margin_sweep": "RdBu_r",
+            "wec_margin_sweep": "nec_depth",
+            "nec_margin_sweep": "nec_depth",
         }
 
         clim = {
-            "energy_density": _symmetric_clim(energy_density),
+            "energy_density": _oneside_neg_clim(energy_density),
             "T_00_covariant": _symmetric_clim(T_00_covariant),
-            "wec_margin_sweep": _symmetric_clim(worst_wec),
-            "nec_margin_sweep": _symmetric_clim(worst_nec),
+            "wec_margin_sweep": _oneside_neg_clim(worst_wec),
+            "nec_margin_sweep": _oneside_neg_clim(worst_nec),
         }
 
         frame = FrameData(

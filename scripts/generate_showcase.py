@@ -1,7 +1,7 @@
 
 """Generate showcase animations for warp drive physics.
 
-Produces three animations: bubble collapse, velocity ramp, and
+Produces three animations: velocity ramp-down, velocity ramp, and
 observer sweep.
 
 Usage
@@ -13,7 +13,7 @@ Quick test (fewer frames, lower resolution):
     python scripts/generate_showcase.py --quick
 
 Single scene:
-    python scripts/generate_showcase.py --scene collapse
+    python scripts/generate_showcase.py --scene rampdown
     python scripts/generate_showcase.py --scene ramp
     python scripts/generate_showcase.py --scene observer
 
@@ -21,7 +21,7 @@ Specific formats only:
     python scripts/generate_showcase.py --formats gif mp4
 
 Combine flags:
-    python scripts/generate_showcase.py --quick --scene collapse --formats gif
+    python scripts/generate_showcase.py --quick --scene rampdown --formats gif
 """
 from __future__ import annotations
 
@@ -30,30 +30,29 @@ import gc
 import os
 import time
 
-# Non-interactive backend (before any other matplotlib import)
-import matplotlib
-matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt
 import numpy as np
+
+# matplotlib is imported lazily inside the renderer (see _render_2d_frame) so
+# that `--help` and import-only use do not pull matplotlib, which needs a
+# writable cache at import time.
 
 from warpax.geometry import GridSpec
 from warpax.visualization.common import (
     add_text_overlay,
     add_watermark,
-    scene_bubble_collapse,
     scene_observer_sweep,
     scene_velocity_ramp,
+    scene_velocity_rampdown,
 )
 
 # Configuration
 
 # Production settings
-PROD_FRAMES = {"collapse": 90, "ramp": 90, "observer": 60}
+PROD_FRAMES = {"rampdown": 90, "ramp": 90, "observer": 60}
 PROD_GRID = 40
 
 # Quick settings
-QUICK_FRAMES = {"collapse": 15, "ramp": 15, "observer": 10}
+QUICK_FRAMES = {"rampdown": 15, "ramp": 15, "observer": 10}
 QUICK_GRID = 20
 
 # Resolution settings
@@ -72,7 +71,7 @@ STATIC_CAMERA = [(6, 6, 4), (0, 0, 0), (0, 0, 1)]
 
 # NOTE: The PyVista-based 3D embedding rendering was removed.
 # Use Manim scenes (scripts/render_all_scenes.py) for animations.
-# The scene builders (scene_bubble_collapse, etc.) from the common
+# The scene builders (scene_velocity_rampdown, etc.) from the common
 # layer still produce FrameData lists usable by any backend.
 
 
@@ -166,6 +165,10 @@ def _render_2d_frame(frame_data, field="energy_density", title=""):
 
     Returns an RGBA numpy array.
     """
+    import matplotlib
+    matplotlib.use("Agg")  # non-interactive backend
+    import matplotlib.pyplot as plt
+
     from warpax.visualization.common._color import resolve_clim, resolve_cmap
 
     color_field = field if field in frame_data.scalar_fields else "energy_density"
@@ -213,19 +216,19 @@ def _render_2d_frame(frame_data, field="energy_density", title=""):
     return frame_img
 
 
-def render_scene_collapse(grid_spec, n_frames, output_dir, formats, quick):
-    """Render bubble collapse scene: Alcubierre v_s ramps down."""
+def render_scene_rampdown(grid_spec, n_frames, output_dir, formats, quick):
+    """Render velocity ramp-down scene: Alcubierre v_s ramps down."""
     print(" Building frames...")
-    frames = scene_bubble_collapse(grid_spec, n_frames=n_frames)
+    frames = scene_velocity_rampdown(grid_spec, n_frames=n_frames)
 
     images = []
     for i, fd in enumerate(frames):
         img = _render_2d_frame(fd, field="energy_density",
-                               title=f"Bubble Collapse  v_s = {fd.v_s:.3f}")
+                               title=f"Velocity Ramp-Down  v_s = {fd.v_s:.3f}")
         images.append(img)
 
     _export_images(
-        images, scene_name="collapse", title="Bubble Collapse",
+        images, scene_name="rampdown", title="Velocity Ramp-Down",
         param_fn=lambda i: f"v_s = {frames[min(i, len(frames)-1)].v_s:.3f}",
         output_dir=output_dir, formats=formats,
     )
@@ -324,7 +327,7 @@ def parse_args():
     )
     parser.add_argument(
         "--scene",
-        choices=["collapse", "ramp", "observer", "all"],
+        choices=["rampdown", "ramp", "observer", "all"],
         default="all",
         help="Which scene to generate (default: all).",
     )
@@ -364,7 +367,7 @@ def main():
     frames_config = QUICK_FRAMES if quick else PROD_FRAMES
 
     scenes = (
-        ["collapse", "ramp", "observer"]
+        ["rampdown", "ramp", "observer"]
         if args.scene == "all"
         else [args.scene]
     )
@@ -374,7 +377,7 @@ def main():
     print(f"Output: {args.output_dir}/")
 
     render_fns = {
-        "collapse": render_scene_collapse,
+        "rampdown": render_scene_rampdown,
         "ramp": render_scene_ramp,
         "observer": render_scene_observer,
     }

@@ -1,4 +1,4 @@
-"""Rigorous geodesic-integrated ANEC via the symplectic integrator (K6b).
+"""Rigorous geodesic-integrated ANEC via the symplectic integrator.
 
 For each retained warp metric (Alcubierre, Natário, Van den Broeck, Rodal) at
 matched family parameters (R_b = 1, sigma = 8, v_s = 0.5) we integrate the
@@ -8,7 +8,7 @@ varying perpendicular impact parameter ``b``, and evaluate the ANEC line
 integral with an on-cone rigor witness ``max|g(k,k)|``.
 
 This upgrades the coordinate null-ray *diagnostic* of ``run_anec_retained.py``
-(K6) to a defensible geodesic-integrated *result*: the witness certifies that
+to a defensible geodesic-integrated *result*: the witness certifies that
 the integrated tangent stayed on the null cone (where the adaptive-RK integrator
 would drift off it for long crossings). Where the witness exceeds tolerance the
 projection-corrected fallback value is recorded and flagged.

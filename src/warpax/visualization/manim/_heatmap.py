@@ -1,16 +1,20 @@
-"""FrameData-to-Manim flat colored surface (equatorial heatmap).
+"""FrameData-to-Manim flat colored slab (equatorial heatmap).
 
-Creates a Manim ``Surface`` where the z-coordinate encodes the scalar
-field value for color mapping via ``set_fill_by_value``, then shifts
-the surface to a desired visual position.
+Creates a Manim ``Surface`` whose vertices are first lifted to ``z = value`` so
+``set_fill_by_value`` can bake per-vertex colors, then (when ``flat=True``)
+collapsed to a genuinely flat plane and positioned at ``z_offset``. The result
+is a color-mapped slab: its colour encodes the scalar, its height
+carries no information (it is not a value relief).
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import numpy as np
 from manim import Surface, ThreeDAxes
-from scipy.interpolate import RegularGridInterpolator
+
+from warpax.visualization.manim._image_utils import bilinear_sampler
 
 if TYPE_CHECKING:
     from warpax.visualization.common._frame_data import FrameData
@@ -28,37 +32,22 @@ def _build_colorscale(
     vmin, vmax : float
         Data limits.
     colormap : str
-        ``"RdBu_r"`` (default diverging), ``"RdYlGn"`` (EC fields:
-        red=violated, green=satisfied), or ``"inferno"`` (sequential).
+        ``"nec_depth"`` (one-sided violation depth), ``"inferno"``
+        (sequential), or the default ``"RdBu_r"`` (diverging).
     """
-    if colormap == "RdYlGn":
-        # Diverging red-yellow-green for energy conditions
-        # Red = violated (negative), Green = satisfied (positive)
-        if vmax <= 0:
-            return [
-                ("#A50026", vmin),
-                ("#D73027", vmin * 0.5),
-                ("#F46D43", vmin * 0.2),
-                ("#FDAE61", (vmin + vmax) / 2),
-                ("#FFFFBF", vmax),
-            ]
-        elif vmin >= 0:
-            return [
-                ("#FFFFBF", vmin),
-                ("#A6D96A", vmax * 0.2),
-                ("#66BD63", vmax * 0.5),
-                ("#1A9850", vmax * 0.75),
-                ("#006837", vmax),
-            ]
-        else:
-            return [
-                ("#A50026", vmin),
-                ("#F46D43", vmin * 0.4),
-                ("#FFFFBF", 0.0),
-                ("#66BD63", vmax * 0.4),
-                ("#006837", vmax),
-            ]
-    elif colormap == "inferno":
+    if colormap == "nec_depth":
+        # One-sided sequential "violation depth": bright blue (deepest, vmin)
+        # -> dark (marginal, vmax=0). Honest for a strictly-non-positive field
+        # (no diverging "satisfied" half that the data never reaches).
+        span = (vmax - vmin) if vmax > vmin else 1.0
+        return [
+            ("#CFE0FF", vmin),
+            ("#7FA0FF", vmin + span * 0.25),
+            ("#3B4CC0", vmin + span * 0.5),
+            ("#27306E", vmin + span * 0.75),
+            ("#15151F", vmax),
+        ]
+    if colormap == "inferno":
         # Sequential dark-to-bright
         span = vmax - vmin
         return [
@@ -105,12 +94,17 @@ def framedata_to_heatmap(
     z_offset: float = 0.0,
     resolution: tuple[int, int] | None = None,
     colormap: str = "RdBu_r",
+    flat: bool = True,
 ) -> Surface:
-    """Convert a FrameData equatorial slice to a flat colored surface (heatmap).
+    """Convert a FrameData equatorial slice to a flat colored slab (heatmap).
 
     The surface is constructed with z = field_value so that
-    ``set_fill_by_value`` can map the scalar data to colors via
-    ``axis=2``. The surface is then visually shifted to ``z_offset``.
+    ``set_fill_by_value`` can map the scalar data to colors via ``axis=2``.
+    When ``flat`` is true (default) the value-relief is then collapsed to a
+    genuinely flat plane positioned at ``z_offset`` -- the colours are already
+    baked, so the slab encodes the scalar by colour alone and its height carries
+    no information. With ``flat=False`` the legacy value-relief is shifted to
+    ``z_offset`` instead.
 
     Parameters
     ----------
@@ -130,7 +124,7 @@ def framedata_to_heatmap(
         ``(min(Nx-1, 32), min(Ny-1, 32))``.
     colormap : str, optional
         Color scale name: ``"RdBu_r"`` (default diverging blue-red),
-        ``"RdYlGn"`` (diverging red-yellow-green for EC fields), or
+        ``"nec_depth"`` (one-sided violation depth for EC fields), or
         ``"inferno"`` (sequential).
 
     Returns
@@ -151,14 +145,9 @@ def framedata_to_heatmap(
     x_1d = x_2d[:, 0]
     y_1d = y_2d[0, :]
 
-    # Build interpolator
-    interp = RegularGridInterpolator(
-        (x_1d, y_1d),
-        color_2d,
-        method="linear",
-        bounds_error=False,
-        fill_value=0.0,
-    )
+    # Pure-numpy bilinear sampler (scipy's RegularGridInterpolator segfaults
+    # under the repeated pointwise calls a 3D movie render makes on Python 3.14)
+    sample = bilinear_sampler(x_1d, y_1d, color_2d)
 
     # Determine resolution
     if resolution is None:
@@ -182,8 +171,7 @@ def framedata_to_heatmap(
     _clip_lo, _clip_hi = vmin, vmax
 
     def param_func(u: float, v: float) -> np.ndarray:
-        z_val = float(interp(np.array([[u, v]])))
-        z_val = max(_clip_lo, min(_clip_hi, z_val))
+        z_val = max(_clip_lo, min(_clip_hi, sample(u, v)))
         return axes.c2p(u, v, z_val)
 
     surface = Surface(
@@ -199,10 +187,19 @@ def framedata_to_heatmap(
 
     surface.set_fill_by_value(axes=axes, colorscale=colorscale, axis=2)
 
-    # Shift to desired visual z-position
-    if z_offset != 0.0:
-        # Compute the shift in scene coordinates: axes.c2p gives us the
-        # offset direction along the z-axis.
+    if flat:
+        # Colours are baked; collapse the value-relief to a genuinely flat slab
+        # so the height no longer (mis)reads as a second encoding of the field.
+        # Set the scene-z of every vertex to the target plane directly -- a
+        # division-free flatten. ``stretch_to_fit_depth`` would divide by the
+        # relief depth, which collapses to ~0 as the field flattens (e.g. the
+        # rampdown tail), yielding inf coordinates that crash the Cairo renderer.
+        target_z = float(axes.c2p(0.0, 0.0, z_offset)[2])
+        surface.apply_function(
+            lambda p: np.array([p[0], p[1], target_z], dtype=float)
+        )
+    elif z_offset != 0.0:
+        # Legacy value-relief: shift along the z-axis in scene coordinates.
         origin = axes.c2p(0, 0, 0)
         target = axes.c2p(0, 0, z_offset)
         shift_vec = np.array(target) - np.array(origin)

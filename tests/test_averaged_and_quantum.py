@@ -84,7 +84,7 @@ class TestANEC:
 
 
 class TestRigorousANEC:
-    """Symplectic geodesic-integrated ANEC with on-cone witness (P0)."""
+    """Symplectic geodesic-integrated ANEC with on-cone witness."""
 
     def test_minkowski_rigorous_zero(self):
         r = anec_rigorous(

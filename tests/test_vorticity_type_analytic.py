@@ -132,7 +132,7 @@ class TestExcessRatio:
             imags.append(float(jnp.max(jnp.abs(cls.eigenvalues_imag))))
         kappa = fit_kappa(np.array(omegas), np.array(imags))["kappa"]
 
-        pt = jnp.array([0.0, 1.0, 0.3, 0.0])  # wall sample used in K10
+        pt = jnp.array([0.0, 1.0, 0.3, 0.0])  # wall sample
         nat = NatarioMetric(v_s=0.5, R=1.0, sigma=8.0)
         _, _, omega_sq = compute_shift_kinematics(nat, pt)
         cur = compute_curvature_chain(nat, pt)

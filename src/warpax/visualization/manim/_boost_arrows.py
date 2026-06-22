@@ -1,7 +1,26 @@
-"""BoostArrows: worst-case boost direction arrow field overlay on NEC margin.
+"""Worst-case direction arrow fields over an energy-condition margin heatmap.
 
-Usage: manim render -ql --format mp4 src/warpax/visualization/manim/_boost_arrows.py BoostArrows
+Two physically-distinct scenes share this module:
+
+- ``WorstCaseNullDirections`` -- the Null Energy Condition. The null contraction
+  ``T_{ab} k^a k^b`` (with ``k`` normalized to the local Eulerian frame,
+  ``k . n_Eul = -1``) is rapidity-independent, so there is no "boost": the arrow
+  shows the worst-case null *direction* and its length encodes the depth of the
+  violation ``|min(0, T_{ab} k^a k^b)|``.
+- ``WorstCaseBoostDirections`` -- the Weak Energy Condition. The worst-case over
+  *unbounded* timelike boosts is -inf wherever the NEC is violated, so a
+  rapidity-capped value would just report the cutoff. Instead the heatmap is the
+  bounded invariant Type-I rest-frame WEC margin ``min(rho, rho+p_i)``, the arrow
+  is the closed-form worst-boost direction ``e_{i*}``, and ``zeta_th`` (the
+  threshold rapidity at which an observer first sees negative energy) is reported.
+
+Usage:
+    manim render -ql --format mp4 \\
+        src/warpax/visualization/manim/_boost_arrows.py WorstCaseNullDirections
+    manim render -ql --format mp4 \\
+        src/warpax/visualization/manim/_boost_arrows.py WorstCaseBoostDirections
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -19,9 +38,9 @@ from manim import (
     DashedVMobject,
     Dot,
     FadeIn,
+    Group,
     ImageMobject,
     MathTex,
-    Rectangle,
     Scene,
     Text,
     VGroup,
@@ -36,7 +55,10 @@ from warpax.visualization.manim._image_utils import (
     extract_zero_contour,
     frame_to_rgba,
 )
-from warpax.visualization.manim._scene_utils import COLORS_3B1B
+from warpax.visualization.manim._scene_utils import (
+    COLORS_3B1B,
+    format_metric_equation,
+)
 
 # Dark-midpoint diverging colormap: blue -> dark gray -> red.
 _DARK_DIVERGE = LinearSegmentedColormap.from_list(
@@ -45,6 +67,7 @@ _DARK_DIVERGE = LinearSegmentedColormap.from_list(
     N=256,
 )
 import matplotlib as _mpl
+
 try:
     _mpl.colormaps.register(_DARK_DIVERGE, name="dark_diverge")
 except ValueError:
@@ -74,174 +97,145 @@ def _contour_to_vmobject(
     return group
 
 
-def _compute_boost_direction_field(
+def _worst_direction_field(
+    quantity: str,
+    *,
     metric_name: str = "Alcubierre",
     v_s: float = 0.5,
     grid_shape: tuple[int, int, int] = (30, 30, 30),
     bounds: list[tuple[float, float]] | None = None,
-    n_rapidity: int = 12,
-    n_directions: int = 6,
+    n_theta: int = 13,
+    n_phi: int = 24,
+    n_rapidity: int = 16,
     zeta_max: float = 5.0,
 ):
-    """Compute worst-case boost direction and magnitude at each grid point.
-
-    Uses the observer sweep approach: evaluates NEC margins for a grid of
-    (rapidity, direction) observer parameters and finds the argmin at each
-    spatial point.
+    """Worst-case direction + strength per grid point, for NEC or WEC.
 
     Parameters
     ----------
-    metric_name : str
-        Metric to analyze (currently only ``"Alcubierre"`` supported).
-    v_s : float
-        Warp bubble velocity.
-    grid_shape : tuple[int, int, int]
-        Grid resolution.
-    bounds : list[tuple[float, float]]
-        Coordinate bounds.
-    n_rapidity : int
-        Number of rapidity samples.
-    n_directions : int
-        Number of angular direction samples.
-    zeta_max : float
-        Maximum rapidity.
+    quantity : {"nec", "wec"}
+        ``"nec"``: worst over the null sphere (theta, phi). The null
+        contraction is rapidity-independent, so the encoded *strength* is the
+        depth of the violation ``|min(0, T_{ab} k^a k^b)|``.
+        ``"wec"``: worst over timelike boosts (zeta, theta, phi). The encoded
+        *strength* is the WEC violation depth ``|min(0, T_{ab} u^a u^b)|`` at
+        the worst boost, and is zero where WEC is satisfied (so no arrow is
+        drawn there). The worst boost saturates at ``zeta_max``, so its
+        ``|sinh(zeta*)|`` carries no spatial information - hence depth is used.
 
     Returns
     -------
     tuple
-        ``(frame, direction_2d, magnitude_2d)`` where:
-
-        - ``frame`` is a FrameData with ``nec_margin_sweep``
-        - ``direction_2d`` is ``(Nx, Ny, 2)`` unit direction vectors
-        - ``magnitude_2d`` is ``(Nx, Ny)`` boost magnitudes ``|sinh(zeta*)|``
+        ``(frame, dir_eq, strength_eq, field_name)`` where ``dir_eq`` is
+        ``(Nx, Ny, 2)`` unit spatial directions on the z-midplane and
+        ``strength_eq`` is ``(Nx, Ny)``.
     """
     import jax.numpy as jnp
 
     from warpax.benchmarks import AlcubierreMetric
-    from warpax.energy_conditions.sweep import sweep_nec_margins
+    from warpax.energy_conditions.sweep import (
+        make_angular_observers,
+        sweep_nec_margins,
+    )
     from warpax.geometry import GridSpec
     from warpax.geometry.grid import evaluate_curvature_grid
     from warpax.visualization.common._conversion import (
-        _symmetric_clim,
+        _oneside_neg_clim,
         eulerian_energy_density_grid,
     )
     from warpax.visualization.common._frame_data import FrameData
+    from warpax.visualization.common._physics import _shape_function_grid
 
     if bounds is None:
         bounds = [(-3, 3), (-3, 3), (-3, 3)]
 
     grid_spec = GridSpec(bounds=bounds, shape=grid_shape)
     metric = AlcubierreMetric(v_s=v_s)
+    result = evaluate_curvature_grid(metric, grid_spec, compute_invariants=True)
 
-    # Evaluate geometry
-    result = evaluate_curvature_grid(
-        metric, grid_spec, compute_invariants=True,
-    )
+    n_points = int(np.prod(grid_shape))
+    T_flat = result.stress_energy.reshape(n_points, 4, 4)
+    g_flat = result.metric.reshape(n_points, 4, 4)
 
-    # Flatten for sweep
-    N = int(np.prod(grid_spec.shape))
-    T_flat = result.stress_energy.reshape(N, 4, 4)
-    g_flat = result.metric.reshape(N, 4, 4)
+    # Dense angular set covering the (hemi)sphere of directions.
+    angular = np.asarray(make_angular_observers(n_theta=n_theta, n_phi=n_phi))
+    thetas, phis = angular[:, 1], angular[:, 2]
+    idx = np.arange(n_points)
 
-    # Build a denser direction set for better angle coverage
-    # (theta, phi) pairs on a hemisphere
-    directions = []
-    n_theta = max(int(np.sqrt(n_directions)), 2)
-    n_phi = max(n_directions // n_theta, 2)
-    for i_t in range(n_theta):
-        theta = float(np.pi / 2 * (i_t / max(n_theta - 1, 1)))
-        for i_p in range(n_phi):
-            phi = float(2 * np.pi * i_p / n_phi)
-            directions.append((theta, phi))
-    # Ensure +x direction is included
-    directions.append((float(np.pi / 2), 0.0))
+    extra_fields: dict[str, np.ndarray] = {}
+    if quantity == "nec":
+        params = jnp.asarray(angular[:, 1:])  # (D, 2) null (theta, phi)
+        margins = np.asarray(sweep_nec_margins(T_flat, g_flat, params))  # (N, D)
+        worst_k = np.argmin(margins, axis=-1)
+        worst_margin = margins[idx, worst_k]
+        wt, wp = thetas[worst_k], phis[worst_k]
+        dir_x = np.sin(wt) * np.cos(wp)
+        dir_y = np.sin(wt) * np.sin(wp)
+        strength = np.abs(np.minimum(worst_margin, 0.0))  # violation depth
+        field_name = "nec_margin_sweep"
+    elif quantity == "wec":
+        # Cap-free WEC: the worst-case energy density over *unbounded* boosts is
+        # -inf wherever NEC is violated, so a rapidity-capped min carries only the
+        # cutoff. The invariant Type-I rest-frame WEC margin would be ideal, but
+        # the Alcubierre wall is overwhelmingly Type IV (no matter rest frame), so
+        # that margin -- and the threshold rapidity zeta_th -- are undefined there.
+        # Plot instead the always-defined Eulerian energy density rho_Eul (the WEC
+        # violation seen by the natural observer); show the closed-form worst-boost
+        # direction only where the matter is genuinely Type I.
+        from warpax.visualization.common._conversion import eulerian_wec_fields
 
-    # Build full observer parameter set: (zeta, theta, phi)
-    zetas = np.linspace(0.1, zeta_max, n_rapidity)  # skip zero rapidity
-    obs_params_list = []
-    for zeta in zetas:
-        for theta, phi in directions:
-            obs_params_list.append([float(zeta), theta, phi])
+        wf = eulerian_wec_fields(result.stress_energy, result.metric, result.metric_inv)
+        rho_eul = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
+        worst_margin = rho_eul.reshape(-1)
+        boost = wf["boost_dir"].reshape(-1, 3)
+        dir_x, dir_y = boost[:, 0], boost[:, 1]
+        # Arrows only where matter is Type I (a well-defined rest frame exists)
+        # and the Eulerian observer already sees a violation.
+        typeI = wf["he_type"].reshape(-1) == 1.0
+        strength = np.where(typeI, np.abs(np.minimum(worst_margin, 0.0)), 0.0)
+        field_name = "energy_density"
+        extra_fields["zeta_th"] = wf["zeta_th"]
+        extra_fields["he_type"] = wf["he_type"]
+    else:
+        raise ValueError(f"quantity must be 'nec' or 'wec', got {quantity!r}")
 
-    obs_params = jnp.array(obs_params_list)
-    nec_params = obs_params[:, 1:]  # (K, 2) for NEC
-
-    # Sweep NEC margins: (N, K)
-    nec_margins = sweep_nec_margins(T_flat, g_flat, nec_params)
-    nec_np = np.asarray(nec_margins)  # (N, K)
-
-    # Find worst observer per point (argmin across K observers)
-    worst_k = np.argmin(nec_np, axis=-1)  # (N,)
-    worst_margin = np.min(nec_np, axis=-1)  # (N,)
-
-    # Extract direction and magnitude for worst observer at each point
-    obs_params_np = np.asarray(obs_params)  # (K, 3)
-
-    # Get (zeta, theta, phi) of worst observer per point
-    worst_zeta = obs_params_np[worst_k, 0]  # (N,)
-    worst_theta = obs_params_np[worst_k, 1]  # (N,)
-    worst_phi = obs_params_np[worst_k, 2]  # (N,)
-
-    # Convert to spatial direction vector (x, y components for equatorial plane)
-    dir_x = np.sin(worst_theta) * np.cos(worst_phi)  # (N,)
-    dir_y = np.sin(worst_theta) * np.sin(worst_phi)  # (N,)
-
-    # Normalize direction in 2D
-    dir_norm = np.sqrt(dir_x**2 + dir_y**2 + 1e-30)
-    dir_x_hat = dir_x / dir_norm
-    dir_y_hat = dir_y / dir_norm
-
-    # Magnitude: |sinh(zeta_*)|
-    magnitude = np.abs(np.sinh(worst_zeta))
-
-    # Reshape to grid
-    direction_2d = np.stack(
-        [
-            dir_x_hat.reshape(grid_shape),
-            dir_y_hat.reshape(grid_shape),
-        ],
-        axis=-1,
-    )  # (Nx, Ny, Nz, 2)
-
-    magnitude_2d_full = magnitude.reshape(grid_shape)  # (Nx, Ny, Nz)
-
-    # Extract equatorial slice
-    mid_z = grid_shape[2] // 2
-    dir_eq = direction_2d[:, :, mid_z, :]  # (Nx, Ny, 2)
-    mag_eq = magnitude_2d_full[:, :, mid_z]  # (Nx, Ny)
+    dnorm = np.sqrt(dir_x**2 + dir_y**2 + 1e-30)
+    dir_x, dir_y = dir_x / dnorm, dir_y / dnorm
 
     worst_margin_grid = worst_margin.reshape(grid_shape)
-    energy_density = eulerian_energy_density_grid(
-        result.stress_energy, result.metric_inv
-    )
-    T_00_covariant = np.asarray(result.stress_energy[..., 0, 0])
+    dir_grid = np.stack([dir_x.reshape(grid_shape), dir_y.reshape(grid_shape)], axis=-1)
+    strength_grid = strength.reshape(grid_shape)
 
-    # Extract coordinates
+    mid_z = grid_shape[2] // 2
+    dir_eq = dir_grid[:, :, mid_z, :]
+    strength_eq = strength_grid[:, :, mid_z]
+
+    energy_density = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
     X, Y, Z = grid_spec.meshgrid
-    x_np = np.asarray(X)
-    y_np = np.asarray(Y)
-    z_np = np.asarray(Z)
-
+    # Both margin fields are <= 0 -> one-sided depth scale (honest, no false
+    # "satisfied" half).
     scalar_fields = {
-        "nec_margin_sweep": worst_margin_grid,
+        field_name: worst_margin_grid,
         "energy_density": energy_density,
-        "T_00_covariant": T_00_covariant,
+        **extra_fields,
     }
-    colormaps = {
-        "nec_margin_sweep": "RdBu_r",
-        "energy_density": "RdBu_r",
-        "T_00_covariant": "RdBu_r",
-    }
+    colormaps = {field_name: "nec_depth", "energy_density": "nec_depth"}
     clim = {
-        "nec_margin_sweep": _symmetric_clim(worst_margin_grid),
-        "energy_density": _symmetric_clim(energy_density),
-        "T_00_covariant": _symmetric_clim(T_00_covariant),
+        field_name: _oneside_neg_clim(worst_margin_grid),
+        "energy_density": _oneside_neg_clim(energy_density),
     }
+
+    f_grid = _shape_function_grid(metric, grid_spec, 0.0)
+    if f_grid is not None:
+        scalar_fields["shape_function"] = f_grid
+        colormaps["shape_function"] = "viridis"
+        fmin, fmax = float(f_grid.min()), float(f_grid.max())
+        clim["shape_function"] = (fmin, fmax if fmax > fmin else fmin + 1.0)
 
     frame = FrameData(
-        x=x_np,
-        y=y_np,
-        z=z_np,
+        x=np.asarray(X),
+        y=np.asarray(Y),
+        z=np.asarray(Z),
         scalar_fields=scalar_fields,
         metric_name=metric_name,
         v_s=v_s,
@@ -250,154 +244,76 @@ def _compute_boost_direction_field(
         colormaps=colormaps,
         clim=clim,
     )
-
-    return frame, dir_eq, mag_eq
+    return frame, dir_eq, strength_eq, field_name
 
 
 def _make_arrow_field(
     direction_2d: np.ndarray,
-    magnitude_2d: np.ndarray,
-    nec_margin_2d: np.ndarray,
-    x_range: tuple[float, float],
-    y_range: tuple[float, float],
+    strength_2d: np.ndarray,
     scene_width: float,
     scene_height: float,
+    *,
+    color: str = YELLOW,
     subsample: int = 4,
-    arrow_scale: float = 0.3,
-    min_magnitude: float = 0.05,
-    max_arrow_length: float = 0.6,
+    max_arrow_length: float = 0.55,
+    min_arrow_length: float = 0.15,
+    min_frac: float = 0.06,
 ) -> VGroup:
-    """Create Manim Arrow mobjects colored by local NEC margin.
+    """Uniform-color arrow field; length and opacity encode local strength.
 
-    Parameters
-    ----------
-    direction_2d : np.ndarray
-        ``(Nx, Ny, 2)`` unit direction vectors.
-    magnitude_2d : np.ndarray
-        ``(Nx, Ny)`` boost magnitudes.
-    nec_margin_2d : np.ndarray
-        ``(Nx, Ny)`` NEC margin values for coloring (negative = violated).
-    x_range, y_range : tuple[float, float]
-        Data coordinate ranges.
-    scene_width, scene_height : float
-        Size of the image in scene coordinates.
-    subsample : int
-        Sample every N-th grid point (default 4).
-    arrow_scale : float
-        Overall scale factor for arrow length.
-    min_magnitude : float
-        Skip arrows with magnitude below this fraction of max.
-    max_arrow_length : float
-        Clamp maximum arrow length in scene units.
-
-    Returns
-    -------
-    VGroup
-        Group of colored Manim Arrow mobjects.
+    Arrow direction is the worst-case (null or boost) spatial direction and
+    length scales with ``strength_2d / max(strength)``. A single accent color
+    is used so the arrows never appear to contradict the heatmap colormap
+    (a separate diverging scale for the margin field).
     """
     Nx, Ny = direction_2d.shape[:2]
-    max_mag = float(np.max(magnitude_2d))
-    if max_mag < 1e-15:
+    max_s = float(np.max(strength_2d))
+    if max_s < 1e-15:
         return VGroup()
 
-    # Normalize magnitudes for display
-    norm_mag = magnitude_2d / max_mag  # [0, 1]
-
-    # NEC margin -> color via RdYlGn 5-stop scale
-    nec_abs_max = max(abs(float(np.nanmin(nec_margin_2d))),
-                      abs(float(np.nanmax(nec_margin_2d))),
-                      1e-15)
-
-    # 5-stop RdYlGn color stops (same as BubbleCollapse heatmap)
-    _RdYlGn_stops = [
-        (-1.0, np.array([0.647, 0.000, 0.149])),   # #A50026
-        (-0.4, np.array([0.957, 0.427, 0.263])),   # #F46D43
-        ( 0.0, np.array([1.000, 1.000, 0.749])),   # #FFFFBF
-        ( 0.4, np.array([0.400, 0.741, 0.388])),   # #66BD63
-        ( 1.0, np.array([0.000, 0.408, 0.216])),   # #006837
-    ]
-
-    def _nec_to_hex(val: float) -> str:
-        """Map a NEC margin value to an RdYlGn hex color."""
-        t = np.clip(val / nec_abs_max, -1.0, 1.0)
-        # Piecewise interpolation through 5 stops
-        for k in range(len(_RdYlGn_stops) - 1):
-            t0, c0 = _RdYlGn_stops[k]
-            t1, c1 = _RdYlGn_stops[k + 1]
-            if t <= t1 or k == len(_RdYlGn_stops) - 2:
-                frac = np.clip((t - t0) / (t1 - t0 + 1e-30), 0.0, 1.0)
-                rgb = (1.0 - frac) * c0 + frac * c1
-                r, g, b = (np.clip(rgb, 0, 1) * 255).astype(int)
-                return f"#{r:02X}{g:02X}{b:02X}"
-        return "#FFFFBF"  # fallback: yellow midpoint
-
     arrows = VGroup()
-
     for i in range(subsample // 2, Nx, subsample):
         for j in range(subsample // 2, Ny, subsample):
-            mag = norm_mag[i, j]
-            if mag < min_magnitude:
+            s = float(strength_2d[i, j]) / max_s
+            if s < min_frac:
                 continue
-
             dx, dy = direction_2d[i, j]
-
-            # Map grid indices to scene coordinates
+            # Canonical orientation: x-index -> horizontal, y-index -> vertical
+            # up (matches frame_to_rgba / extract_zero_contour after B4).
             sx = (i / (Nx - 1) - 0.5) * scene_width
             sy = (j / (Ny - 1) - 0.5) * scene_height
-
-            # Arrow length proportional to normalized magnitude
-            length = min(mag * arrow_scale, max_arrow_length)
-            end_x = sx + dx * length
-            end_y = sy + dy * length
-
-            start = np.array([sx, sy, 0.0])
-            end = np.array([end_x, end_y, 0.0])
-
-            # Skip degenerate arrows
-            if np.linalg.norm(end - start) < 0.01:
-                continue
-
-            # Color by local NEC margin
-            color = _nec_to_hex(float(nec_margin_2d[i, j]))
-
-            # Opacity: stronger arrows more opaque
-            opacity = float(0.5 + 0.5 * mag)
-
-            arrow = Arrow(
-                start, end,
-                buff=0,
-                stroke_width=2.0,
-                tip_length=0.1,
-                color=color,
-                stroke_opacity=opacity,
-                fill_opacity=opacity,
+            length = min(
+                min_arrow_length + s * (max_arrow_length - min_arrow_length),
+                max_arrow_length,
             )
-            arrows.add(arrow)
-
+            start = np.array([sx, sy, 0.0])
+            end = np.array([sx + dx * length, sy + dy * length, 0.0])
+            if np.linalg.norm(end - start) < 0.02:
+                continue
+            arrows.add(
+                Arrow(
+                    start,
+                    end,
+                    buff=0,
+                    stroke_width=2.2,
+                    max_tip_length_to_length_ratio=0.35,
+                    color=color,
+                    stroke_opacity=float(0.45 + 0.55 * s),
+                    fill_opacity=float(0.45 + 0.55 * s),
+                )
+            )
     return arrows
 
 
-class BoostArrows(Scene):
-    """Worst-case boost direction arrow field overlay on NEC margin heatmap.
+class _ArrowFieldScene(Scene):
+    """Shared construction for the NEC null-direction / WEC boost scenes."""
 
-    A 2D ``Scene`` that displays the observer-robust NEC margin as a
-    background heatmap and overlays a subsampled arrow field showing the
-    direction and magnitude of the worst-case observer boost at each
-    grid point.
+    # Overridden by subclasses
+    quantity: str = "nec"
+    title: str = "Worst-Case Direction"
+    ec_label: str = r"\text{NEC}"
+    arrow_desc: str = "worst direction; length = strength"
 
-    Arrows align with the propagation direction near the bubble wall,
-    explaining why the robust margin finds deeper violations than the
-    Eulerian observer.
-
-    Arrows are colored by local NEC margin (RdYlGn: red = violated,
-    green = satisfied) so one can see at a glance *where* violations
-    are worst and *which boost* triggers them.
-
-    Static scene for a single velocity (v_s = 0.5 by default) with a
-    brief fade-in of arrows. Holds for 5 seconds total.
-    """
-
-    # Configurable class attributes
     metric_name: str = "Alcubierre"
     v_s: float = 0.5
     grid_shape: tuple[int, int, int] = (30, 30, 30)
@@ -407,214 +323,291 @@ class BoostArrows(Scene):
     image_width: float = 5.5
 
     def construct(self) -> None:
-        # Background
         self.camera.background_color = COLORS_3B1B["background"]
 
-        frame, dir_eq, mag_eq = _compute_boost_direction_field(
+        frame, dir_eq, strength_eq, field_name = _worst_direction_field(
+            self.quantity,
             metric_name=self.metric_name,
             v_s=self.v_s,
             grid_shape=self.grid_shape,
             bounds=self.bounds,
         )
 
-        clim = compute_symlog_clim([frame], "nec_margin_sweep")
-        rgba = frame_to_rgba(frame, "nec_margin_sweep", clim, cmap_name="dark_diverge")
+        # NEC/WEC worst-case margins are <= 0; use the one-sided sequential
+        # ramp so the colour range encodes violation depth honestly.
+        clim = compute_symlog_clim([frame], field_name, one_sided=True)
+        rgba = frame_to_rgba(frame, field_name, clim, cmap_name="nec_depth")
         heatmap_img = ImageMobject(rgba)
         heatmap_img.height = self.image_height
         heatmap_img.width = self.image_width
-
         self.add(heatmap_img)
 
         mid_z = frame.grid_shape[2] // 2
-        data_2d = frame.scalar_fields["nec_margin_sweep"][:, :, mid_z]
-        nec_margin_eq = data_2d  # keep for arrow coloring
+        data_2d = frame.scalar_fields[field_name][:, :, mid_z]
         x_1d = frame.x[:, 0, 0]
         y_1d = frame.y[0, :, 0]
         x_range = (float(x_1d[0]), float(x_1d[-1]))
         y_range = (float(y_1d[0]), float(y_1d[-1]))
 
-        # Near-zero contour (margin ≈ 0): white dashed line.
-        # The observer-swept NEC margin is everywhere ≤ 0 (worst-case is
-        # always non-positive), so level=0.0 sits exactly on the data
-        # boundary and yields an empty contour. Use a small negative
-        # threshold to mark the onset of significant violation.
-        nec_min = float(np.min(data_2d))
-        nec_threshold = nec_min * 1e-2 if nec_min < 0 else -1e-6
+        # Margin = 0 boundary. For WEC this is a genuine violation boundary;
+        # for NEC the worst-case margin is <= 0 everywhere, so mark the onset
+        # of significant violation with a small negative threshold instead.
+        margin_min = float(np.min(data_2d))
+        if self.quantity == "nec":
+            level = margin_min * 1e-2 if margin_min < 0 else -1e-6
+            boundary_label = r"\text{NEC} \approx 0"
+        else:
+            level = 0.0
+            boundary_label = r"\text{WEC} = 0"
         zero_paths = extract_zero_contour(
-            data_2d, x_range, y_range,
-            level=nec_threshold, scene_width=self.image_width,
+            data_2d,
+            x_range,
+            y_range,
+            level=level,
+            scene_width=self.image_width,
+            scene_height=self.image_height,
         )
-        zero_contour = _contour_to_vmobject(
-            zero_paths, color=WHITE, stroke_width=2.5, dashed=True,
+        self.add(
+            _contour_to_vmobject(
+                zero_paths,
+                color=WHITE,
+                stroke_width=2.5,
+                dashed=True,
+            )
         )
-        self.add(zero_contour)
 
-        # Bubble wall (f = 0.5): cyan solid outline
+        # Real f = 0.5 bubble wall (cyan solid).
         bubble_paths = extract_bubble_contour(
-            frame, scene_width=self.image_width,
+            frame,
+            scene_width=self.image_width,
+            scene_height=self.image_height,
         )
-        bubble_contour = _contour_to_vmobject(
-            bubble_paths, color="#58C4DD", stroke_width=2.5, dashed=False,
+        self.add(
+            _contour_to_vmobject(
+                bubble_paths,
+                color="#58C4DD",
+                stroke_width=2.5,
+                dashed=False,
+            )
         )
-        self.add(bubble_contour)
 
         arrow_field = _make_arrow_field(
-            dir_eq, mag_eq,
-            nec_margin_2d=nec_margin_eq,
-            x_range=x_range,
-            y_range=y_range,
+            dir_eq,
+            strength_eq,
             scene_width=self.image_width,
             scene_height=self.image_height,
             subsample=self.subsample,
-            arrow_scale=0.4,
-            min_magnitude=0.05,
-            max_arrow_length=0.6,
         )
 
-        title_text = Text(
-            "Worst-Case Boost Direction",
-            font_size=28, color=WHITE, weight="LIGHT",
-        )
-        from warpax.visualization.manim._scene_utils import format_metric_equation
+        # Header
+        title_text = Text(self.title, font_size=28, color=WHITE, weight="LIGHT")
         equation = format_metric_equation(self.metric_name)
         equation.scale(0.6)
         header = VGroup(title_text, equation).arrange(DOWN, buff=0.1)
         header.to_edge(UP, buff=0.15)
         self.add(header)
 
-        v_label = MathTex(r"v_s", font_size=30, color=WHITE)
-        v_eq = MathTex(r"=", font_size=30, color=WHITE)
-        v_val = MathTex(f"{self.v_s}", font_size=30, color=YELLOW)
-        v_row = VGroup(v_label, v_eq, v_val).arrange(RIGHT, buff=0.08)
-
-        zeta_label = MathTex(r"\zeta_{\max}", font_size=30, color=WHITE)
-        zeta_eq = MathTex(r"=", font_size=30, color=WHITE)
-        zeta_val = MathTex(r"5", font_size=30, color=YELLOW)
-        zeta_row = VGroup(zeta_label, zeta_eq, zeta_val).arrange(RIGHT, buff=0.08)
-
-        param_block = VGroup(v_row, zeta_row).arrange(
-            DOWN, buff=0.12, aligned_edge=LEFT,
+        # Parameter block
+        v_row = VGroup(
+            MathTex(r"v_s", font_size=30, color=WHITE),
+            MathTex(r"=", font_size=30, color=WHITE),
+            MathTex(f"{self.v_s}", font_size=30, color=YELLOW),
+        ).arrange(RIGHT, buff=0.08)
+        slice_lbl = MathTex(r"z = 0\ \text{plane}", font_size=24, color=WHITE)
+        param_block = VGroup(v_row, slice_lbl).arrange(
+            DOWN,
+            buff=0.12,
+            aligned_edge=LEFT,
         )
         param_block.to_corner(UL, buff=0.35)
-        param_bg = BackgroundRectangle(
-            param_block, fill_color=COLORS_3B1B["background"],
-            fill_opacity=0.8, buff=0.1,
-        )
-        self.add(VGroup(param_bg, param_block))
-
-        # NEC margin heatmap legend (dark-midpoint diverging) --
-        bg_colors = ["#3B4CC0", "#2A3377", "#1A1A2E", "#672015", "#B40426"]
-        bg_strips = VGroup(*[
-            Rectangle(
-                width=0.28, height=0.10,
-                fill_color=c, fill_opacity=0.95,
-                stroke_width=0.3, stroke_color=WHITE,
-            ) for c in bg_colors
-        ]).arrange(RIGHT, buff=0)
-        bg_title = Text(
-            "NEC margin (background)",
-            font_size=16, color=WHITE, weight="LIGHT",
-        )
-        bg_lo = MathTex(r"-", font_size=18, color="#3B4CC0")
-        bg_hi = MathTex(r"+", font_size=18, color="#B40426")
-        bg_bar_row = VGroup(bg_lo, bg_strips, bg_hi).arrange(RIGHT, buff=0.06)
-        bg_legend = VGroup(bg_title, bg_bar_row).arrange(
-            DOWN, buff=0.08, aligned_edge=LEFT,
+        self.add(
+            VGroup(
+                BackgroundRectangle(
+                    param_block,
+                    fill_color=COLORS_3B1B["background"],
+                    fill_opacity=0.8,
+                    buff=0.1,
+                ),
+                param_block,
+            )
         )
 
-        # Arrow color legend (RdYlGn) --
-        arrow_colors = ["#A50026", "#F46D43", "#FFFFBF", "#66BD63", "#006837"]
-        arrow_strips = VGroup(*[
-            Rectangle(
-                width=0.28, height=0.10,
-                fill_color=c, fill_opacity=0.95,
-                stroke_width=0.3, stroke_color=WHITE,
-            ) for c in arrow_colors
-        ]).arrange(RIGHT, buff=0)
-        arrow_title = Text(
-            "Arrow color (NEC at point)",
-            font_size=16, color=WHITE, weight="LIGHT",
+        # Quantitative margin colorbar (one-sided ramp; negative = violation, 0 = marginal).
+        from warpax.visualization.manim._scene_utils import make_colorbar_legend
+
+        margin_title = (
+            "NEC margin (worst null)"
+            if self.quantity == "nec"
+            else "Eulerian energy density ρ_Eul (≤ 0)"
         )
-        arrow_lo = MathTex(
-            r"\text{violated}", font_size=14, color="#A50026",
+        cbar = make_colorbar_legend(
+            "nec_depth",
+            clim[0],
+            clim[1],
+            clim[2],
+            margin_title,
         )
-        arrow_hi = MathTex(
-            r"\text{satisfied}", font_size=14, color="#006837",
+        arrow_legend = VGroup(
+            Text("Arrow (yellow):", font_size=15, color=WHITE, weight="LIGHT"),
+            Text(self.arrow_desc, font_size=13, color=YELLOW, weight="LIGHT"),
+        ).arrange(DOWN, buff=0.06, aligned_edge=LEFT)
+
+        legend_group = Group(cbar, arrow_legend).arrange(
+            DOWN,
+            buff=0.22,
+            aligned_edge=LEFT,
         )
-        arrow_bar_row = VGroup(arrow_lo, arrow_strips, arrow_hi).arrange(
-            RIGHT, buff=0.06,
-        )
-        arrow_legend = VGroup(arrow_title, arrow_bar_row).arrange(
-            DOWN, buff=0.08, aligned_edge=LEFT,
+        legend_group.to_corner(UR, buff=0.35).shift(DOWN * 0.5)
+        self.add(
+            Group(
+                BackgroundRectangle(
+                    legend_group,
+                    fill_color=COLORS_3B1B["background"],
+                    fill_opacity=0.8,
+                    buff=0.1,
+                ),
+                legend_group,
+            )
         )
 
-        legend_group = VGroup(bg_legend, arrow_legend).arrange(
-            DOWN, buff=0.25, aligned_edge=LEFT,
-        )
-        legend_group.to_corner(UR, buff=0.35)
-        legend_bg = BackgroundRectangle(
-            legend_group, fill_color=COLORS_3B1B["background"],
-            fill_opacity=0.8, buff=0.1,
-        )
-        self.add(VGroup(legend_bg, legend_group))
-
-        # Dashed white line sample + label
+        # Contour legend (lower-left)
         dash_sample = DashedVMobject(
             VMobject(color=WHITE, stroke_width=2.0).set_points_as_corners(
                 [np.array([-0.3, 0, 0]), np.array([0.3, 0, 0])]
             ),
             num_dashes=6,
         )
-        dash_label = Text(
-            "NEC ≈ 0 boundary",
-            font_size=14, color=WHITE, weight="LIGHT",
-        )
-        dash_row = VGroup(dash_sample, dash_label).arrange(RIGHT, buff=0.12)
-
-        # Solid cyan line sample + label
+        dash_row = VGroup(
+            dash_sample,
+            MathTex(boundary_label, font_size=16, color=WHITE),
+        ).arrange(RIGHT, buff=0.12)
         solid_sample = VMobject(color="#58C4DD", stroke_width=2.5)
-        solid_sample.set_points_as_corners(
-            [np.array([-0.3, 0, 0]), np.array([0.3, 0, 0])]
-        )
-        solid_label = Text(
-            "Bubble wall (f = 0.5)",
-            font_size=14, color="#58C4DD", weight="LIGHT",
-        )
-        solid_row = VGroup(solid_sample, solid_label).arrange(RIGHT, buff=0.12)
-
-        # Arrow sample
-        arrow_sample = Arrow(
-            np.array([-0.2, 0, 0]), np.array([0.3, 0, 0]),
-            buff=0, stroke_width=2.0, tip_length=0.08,
-            color="#F46D43",
-        )
-        arrow_label = Text(
-            "Boost direction & magnitude",
-            font_size=14, color=WHITE, weight="LIGHT",
-        )
-        arrow_row = VGroup(arrow_sample, arrow_label).arrange(RIGHT, buff=0.12)
-
-        contour_legend = VGroup(dash_row, solid_row, arrow_row).arrange(
-            DOWN, buff=0.1, aligned_edge=LEFT,
+        solid_sample.set_points_as_corners([np.array([-0.3, 0, 0]), np.array([0.3, 0, 0])])
+        solid_row = VGroup(
+            solid_sample,
+            Text("Bubble wall (f = 0.5)", font_size=14, color="#58C4DD", weight="LIGHT"),
+        ).arrange(RIGHT, buff=0.12)
+        contour_legend = VGroup(dash_row, solid_row).arrange(
+            DOWN,
+            buff=0.1,
+            aligned_edge=LEFT,
         )
         contour_legend.to_corner(DOWN + LEFT, buff=0.3)
-        contour_bg = BackgroundRectangle(
-            contour_legend, fill_color=COLORS_3B1B["background"],
-            fill_opacity=0.8, buff=0.1,
+        self.add(
+            VGroup(
+                BackgroundRectangle(
+                    contour_legend,
+                    fill_color=COLORS_3B1B["background"],
+                    fill_opacity=0.8,
+                    buff=0.1,
+                ),
+                contour_legend,
+            )
         )
-        self.add(VGroup(contour_bg, contour_legend))
 
-        nec_min = float(np.min(nec_margin_eq))
-        dot_color = (COLORS_3B1B["violation_red"] if nec_min < 0
-                     else COLORS_3B1B["safe_green"])
-        status_dot = Dot(radius=0.08, color=dot_color)
-        status_text = Text(
-            "NEC violated" if nec_min < 0 else "NEC satisfied",
-            font_size=14, color=dot_color, weight="LIGHT",
-        )
-        status_row = VGroup(status_dot, status_text).arrange(RIGHT, buff=0.1)
+        # Violation status, evaluated on the rendered z = 0 slice.
+        margin_min = float(np.min(data_2d))
+        violated = margin_min < 0
+        dot_color = COLORS_3B1B["violation_red"] if violated else COLORS_3B1B["safe_green"]
+        ec = "NEC" if self.quantity == "nec" else "WEC"
+        status_row = VGroup(
+            Dot(radius=0.08, color=dot_color),
+            Text(
+                f"{ec} {'violated' if violated else 'satisfied'} (z=0 slice)",
+                font_size=14,
+                color=dot_color,
+                weight="LIGHT",
+            ),
+        ).arrange(RIGHT, buff=0.1)
         status_row.next_to(param_block, DOWN, buff=0.2, aligned_edge=LEFT)
         self.add(status_row)
 
+        # The worst boost is unbounded (-> -inf, = NEC), and the
+        # wall matter is overwhelmingly Type IV (no rest frame), so the rest-frame
+        # WEC margin and threshold rapidity zeta_th are undefined there. Report the
+        # Type-IV fraction among the matter (non-vacuum) points only.
+        if self.quantity == "wec" and "he_type" in frame.scalar_fields:
+            _mz = frame.grid_shape[2] // 2
+            he2d = frame.scalar_fields["he_type"][:, :, _mz]
+            rho2d = np.abs(frame.scalar_fields["energy_density"][:, :, _mz])
+            matter = rho2d > 1e-6 * (float(np.nanmax(rho2d)) + 1e-30)
+            t4 = float(np.mean((he2d == 4.0)[matter])) if matter.any() else 0.0
+            wec_note = Text(
+                "ρ_Eul ≤ 0   ·   worst over unbounded boosts → −∞ (≡ NEC)   ·   "
+                f"wall matter ~{t4 * 100:.0f}% Type-IV "
+                "(no rest frame ⇒ rest-frame margin & ζ_th undefined)",
+                font_size=11,
+                color=YELLOW,
+                weight="LIGHT",
+            )
+            wec_note.set_opacity(0.9)
+            if wec_note.width > 7.5:
+                wec_note.scale_to_fit_width(7.5)
+            wec_note.next_to(status_row, DOWN, buff=0.15, aligned_edge=LEFT)
+            self.add(
+                VGroup(
+                    BackgroundRectangle(
+                        wec_note,
+                        fill_color=COLORS_3B1B["background"],
+                        fill_opacity=0.8,
+                        buff=0.08,
+                    ),
+                    wec_note,
+                )
+            )
+
+        from warpax.visualization.manim._scene_utils import (
+            make_conventions_caption,
+        )
+
+        caption = make_conventions_caption()
+        if caption.width > 7.0:
+            caption.scale_to_fit_width(7.0)
+        caption.to_edge(DOWN, buff=0.04)
+        self.add(
+            VGroup(
+                BackgroundRectangle(
+                    caption,
+                    fill_color=COLORS_3B1B["background"],
+                    fill_opacity=0.8,
+                    buff=0.05,
+                ),
+                caption,
+            )
+        )
+
         self.play(FadeIn(arrow_field), run_time=1.5)
         self.wait(5.0)
+
+
+class WorstCaseNullDirections(_ArrowFieldScene):
+    """Worst-case null direction over the NEC margin (NEC is boost-independent).
+
+    Arrow direction = worst null ray; arrow length = depth of the NEC violation.
+    The robust NEC margin is non-positive everywhere for the Alcubierre bubble (0
+    in flat regions, strictly negative in the wall), so violation means strictly
+    negative; the arrows reveal *which* null direction is worst and *where* the
+    violation is deepest. Null rays are normalized to the Eulerian frame
+    (k . n_Eul = -1) so the depth is comparable across the grid.
+    """
+
+    quantity = "nec"
+    title = "Worst-Case Null Direction (NEC)"
+    ec_label = r"\text{NEC}"
+    arrow_desc = "worst null direction; length = |min T k k|"
+
+
+class WorstCaseBoostDirections(_ArrowFieldScene):
+    """Worst-case timelike boost over the bounded WEC margin.
+
+    Heatmap = invariant Type-I rest-frame WEC margin min(rho, rho+p_i) (bounded,
+    cap-free). Arrow direction = closed-form worst-boost direction e_{i*}, drawn
+    only where matter is Type I and WEC is violated. The worst case over
+    *unbounded* boosts is -inf (= NEC), so the rest-frame margin and the
+    threshold rapidity -- not a rapidity-capped value -- carry the physics.
+    """
+
+    quantity = "wec"
+    title = "Worst-Case Boost (WEC)"
+    ec_label = r"\text{WEC}"
+    arrow_desc = "worst boost direction (Type-I points only); length = |ρ_Eul|"

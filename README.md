@@ -17,9 +17,11 @@ tools such as WarpFactory break down. The verdict is observer-independent: a Typ
 point is decided exactly for every observer, while a Type-IV point has no rest frame
 and violates every condition unconditionally.
 
-![Alcubierre Bubble Collapse](./figures/bubble_collapse.gif)
+<p align="center">
+  <img src="./figures/wall_velocity_sweep.gif" width="760" alt="Alcubierre warp bubble: Eulerian energy density embedding and observer-robust NEC-margin slab"/>
+</p>
 
-<p align="center"><em>Geodesic paths through a collapsing Alcubierre warp bubble, computed via warpax's autodiff curvature pipeline.</em></p>
+<p align="center"><em>An Alcubierre warp bubble, straight out of warpax's autodiff curvature pipeline. The wireframe on top is the energy density an Eulerian observer measures &mdash; negative everywhere across the wall, &rho;<sub>Eul</sub> &le; 0. The flat slab underneath is the NEC margin once you minimize over the whole null sphere; it never rises above zero, which is the exotic-matter problem drawn in a single frame. The sweep first sharpens the wall (&sigma;: 1 &rarr; 16), then eases the velocity back down toward flat space. Geometric units, signature (&minus;,+,+,+); and every frame is a frozen metric, a parameter sweep rather than a time evolution.</em></p>
 
 ## Highlights
 
@@ -258,21 +260,47 @@ warpax ships full documentation in [`docs/`](docs/), organized following the [Di
 
 ## Manim visualizations
 
-Animated 3D visualizations of warp bubble dynamics require the optional `manim`
-dependencies:
+Every scene below comes straight from the same autodiff curvature and
+energy-condition code that backs the papers. Everything is in geometric units (G = c = 1, signature
+−,+,+,+) on the z = 0 slice, and each frame is a frozen metric - a parameter sweep, not a time evolution.
+
+<div align="center">
+<table>
+<tr>
+<td width="33%"><img src="./figures/eulerian_kinematics.gif" alt="Expansion theta = -K and shear of the Eulerian congruence"/></td>
+<td width="33%"><img src="./figures/kretschmann_invariant.gif" alt="Kretschmann curvature invariant"/></td>
+<td width="33%"><img src="./figures/eulerian_vs_worstcase_nec.gif" alt="Eulerian vs observer-robust NEC margin"/></td>
+</tr>
+<tr>
+<td align="center"><em><strong>Eulerian kinematics.</strong> Expansion θ = −K - space stretches behind the ship (red) and squeezes in front of it (blue), the kinematics Alcubierre is famous for. Shear σ² rides along as iso-contours, with the f = 0.5 wall traced on top.</em></td>
+<td align="center"><em><strong>Kretschmann invariant.</strong> The curvature scalar K = R<sub>abcd</sub>R<sup>abcd</sup> - the same number for every observer. It is sign-indefinite in Lorentzian signature, so it dips negative, and it spikes hard on the wall.</em></td>
+<td align="center"><em><strong>Observer-robust NEC.</strong> Six axis-aligned Eulerian nulls on the left, the dense worst case over the whole null sphere on the right (k·n<sub>Eul</sub> = −1). The gap between the panels is exactly what observer-robust verification buys you.</em></td>
+</tr>
+</table>
+</div>
+
+The full scene set spans 3D embedding diagrams and 2D heatmaps:
+
+- **WallAndVelocitySweep** / **VelocitySweep** - dual-layer 3D: Eulerian energy density ρ<sub>Eul</sub> embedding above a flat NEC-margin slab, sweeping wall steepness σ then velocity v<sub>s</sub>.
+- **BoostRapiditySweep** - the energy density a boosted observer measures vs rapidity ζ; it deepens as cosh²ζ and diverges to −∞ (the worst case over unbounded boosts is exactly the NEC).
+- **EulerianKinematics2D** - expansion θ = −K, shear σ², vorticity ω² ≡ 0 (hypersurface-orthogonal).
+- **KretschmannInvariant2D** - the observer-independent curvature invariant.
+- **NECMargin2D** / **EulerianVsWorstCaseNEC** - observer-robust null-energy-condition margins.
+- **WorstCaseNullDirections** / **WorstCaseBoostDirections** - worst-case null / timelike-boost direction fields.
 
 ```bash
 # System dependencies (Ubuntu/Debian)
 sudo apt install texlive-latex-extra texlive-fonts-recommended dvipng cm-super ffmpeg
 
-# Python dependencies
+# Python dependencies (Python <= 3.13 recommended for the renderer)
 pip install -e ".[manim]"
 
-# Render all scenes
+# Render all scenes (2D via Cairo, 3D via the GPU OpenGL renderer)
 python scripts/render_all_scenes.py
 ```
 
-Rendered videos and images are written to `media/` (not tracked by git).
+Rendered videos and images are written to `media/` (not tracked by git). The 3D
+scenes render through manim's OpenGL renderer (EGL, headless).
 
 ## Citation
 

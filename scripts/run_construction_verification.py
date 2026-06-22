@@ -1,4 +1,4 @@
-"""Cross-construction all-observer verification of positive-energy warp drives (K8).
+"""Cross-construction all-observer verification of positive-energy warp drives.
 
 Extends the n=1 Rodal verification to a panel of published positive-energy
 constructions -- Fuchs constant-velocity shell (arXiv:2405.02709) and the

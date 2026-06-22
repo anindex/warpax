@@ -1,8 +1,7 @@
-"""Phase-0 feasibility GATE: is Hawking-Ellis classification of T^a_b
+"""Feasibility GATE: is Hawking-Ellis classification of T^a_b
 trustworthy across the luminal transition (v_s -> 1 and beyond)?
 
-This is the load-bearing prerequisite for the velocity-resolved type/EC map
-(Contribution 1). The frame-independent classifier (``classify_hawking_ellis``,
+This is the load-bearing prerequisite for the velocity-resolved type/EC map. The frame-independent classifier (``classify_hawking_ellis``,
 operating on the mixed tensor ``T^a_b``) never uses the Eulerian normal, so it
 *runs* at v_s >= 1 where the ADM lapse ``alpha = 1/sqrt(-g^{00})`` becomes
 ill-defined. The open question is whether the Type-IV labels it returns near

@@ -3,6 +3,14 @@
 How `warpax` got here. Per-release line items live in
 [`CHANGELOG.md`](https://github.com/anindex/warpax/blob/main/CHANGELOG.md).
 
+## v1.3.0 (2026-06)
+
+Visualization rework: the Manim scenes are renamed to physically accurate names
+and their colormaps now match each field's sign -- one-sided depth ramps for the
+non-positive $\rho_{\rm Eul}$ and NEC/WEC margins, a signed scale for the
+sign-indefinite Kretschmann invariant. 3D scenes render through a headless
+OpenGL/EGL path. The analysis API is unchanged.
+
 ## v1.2.0 (2026-06)
 
 Adds `warpax.bondi`: the Bondi four-momentum radiated to null infinity and the

@@ -1,4 +1,4 @@
-"""Universal v_s scaling of the wall curvature invariants (K11).
+"""Universal v_s scaling of the wall curvature invariants.
 
 The matter-sector result (the wall NEC severity ``|min(rho+p_i)|`` follows a
 universal ``v_s^2`` law) has a geometric counterpart: the peak curvature in the

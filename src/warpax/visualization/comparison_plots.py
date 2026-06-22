@@ -476,7 +476,7 @@ def plot_comparison_table(
         ax.axis("off")
         return _save_or_return(fig, save_path)
 
-    # Focus on the two key conditions + DEC for dramatic effect
+    # NEC, WEC, DEC
     conditions = ("nec", "wec", "dec")
     col_labels = ["Metric", r"$v_s$"]
     for cond in conditions:

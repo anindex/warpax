@@ -1,4 +1,5 @@
 """JAX-to-NumPy conversion: freeze curvature and EC results into FrameData."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -64,6 +65,105 @@ def _magnitude_clim(arr: np.ndarray) -> tuple[float, float]:
     return (vmin, vmax)
 
 
+def _oneside_neg_clim(arr: np.ndarray) -> tuple[float, float]:
+    """One-sided color limits ``(vmin, 0)`` for a strictly-non-positive field.
+
+    Honest for fields like the Eulerian energy density and NEC/WEC margins,
+    which are ``<= 0`` everywhere for the Alcubierre bubble (0 in flat regions,
+    negative in the wall): a diverging ``+/-`` scale would imply a positive
+    "satisfied" half that the data never reaches.
+    """
+    finite = arr[np.isfinite(arr)]
+    vmin = float(np.nanmin(finite)) if finite.size else -1.0
+    if vmin >= 0.0:
+        vmin = -1.0
+    return (vmin, 0.0)
+
+
+def _worst_boost_direction_grid(
+    stress_energy: jax.Array,
+    metric: jax.Array,
+    metric_inv: jax.Array | None = None,
+) -> np.ndarray:
+    """Unit spatial worst-WEC-boost direction ``e_{i*}`` per grid point ``(...,3)``.
+
+    The worst timelike boost is along the principal eigenvector of the
+    most-violating principal pressure (closed form, no rapidity cap). Computed at
+    frame-build time via a single batched eigendecomposition; non-Type-I points
+    fall back to a (masked-away) approximate direction.
+    """
+    from warpax.energy_conditions.worst_observer_analytic import worst_observer_typeI
+
+    grid_shape = stress_energy.shape[:-2]
+    flat_T = jnp.reshape(stress_energy, (-1, 4, 4))
+    flat_g = jnp.reshape(metric, (-1, 4, 4))
+    if metric_inv is None:
+        flat_ginv = jax.vmap(jnp.linalg.inv)(flat_g)
+    else:
+        flat_ginv = jnp.reshape(metric_inv, (-1, 4, 4))
+    flat_Tmixed = jnp.einsum("nac,ncb->nab", flat_ginv, flat_T)
+
+    def _dir(T_mixed: jax.Array, g_ab: jax.Array) -> jax.Array:
+        evals, evecs = jnp.linalg.eig(T_mixed)
+        wo = worst_observer_typeI(evals.real, evecs.real, g_ab, condition="wec")
+        return wo["boost_direction"]  # (4,)
+
+    dirs = jax.vmap(_dir)(flat_Tmixed, flat_g)  # (N, 4)
+    return np.asarray(dirs)[:, 1:].reshape(*grid_shape, 3)
+
+
+def eulerian_wec_fields(
+    stress_energy: jax.Array,
+    metric: jax.Array,
+    metric_inv: jax.Array | None = None,
+    *,
+    atol: float = 1e-10,
+) -> dict[str, np.ndarray]:
+    """Bounded, cap-free WEC diagnostics on a grid (no rapidity cutoff).
+
+    The naive "worst-case WEC margin over ``zeta <= zeta_max``" is misleading:
+    wherever the NEC is violated, ``min_u T_{ab} u^a u^b -> -inf`` as the boost
+    rapidity grows, so a finite-cap value encodes only the arbitrary cutoff. This
+    returns the physically well-posed alternatives instead:
+
+    - ``wec_margin_eulerian`` : invariant Type-I WEC slack ``min(rho, rho+p_i)``,
+      the bounded rest-frame margin (``<= 0`` where violated; ``NaN`` for
+      non-Type-I matter, which has no rest frame).
+    - ``zeta_th`` : threshold rapidity, the smallest boost at which *some*
+      observer first measures negative energy. Closed form
+      ``sinh^2(zeta_th) = rho / |rho + p_*|`` for ``rho > 0``; ``0`` where the
+      rest frame already violates; ``+inf`` where WEC holds for all boosts.
+    - ``boost_dir`` : ``(..., 3)`` unit spatial worst-boost direction ``e_{i*}``.
+    - ``he_type`` : Hawking-Ellis algebraic type (1-4).
+    """
+    from warpax.energy_conditions.frame_free import certify_grid_frame_free
+
+    ff = certify_grid_frame_free(stress_energy, metric, metric_inv)
+    rho = np.asarray(ff.rho)
+    rho_plus_p = np.asarray(ff.nec_margins)  # = rho + p_* (most-negative axis)
+    wec = np.asarray(ff.wec_margins)  # = min(rho, rho+p_i)
+    he = np.asarray(ff.he_types)
+
+    violated = rho_plus_p < -atol
+    with np.errstate(invalid="ignore", divide="ignore"):
+        ratio = rho / np.maximum(-rho_plus_p, atol)
+        zeta_th = np.where(
+            violated & (rho > 0.0),
+            np.arcsinh(np.sqrt(np.maximum(ratio, 0.0))),
+            np.where(violated, 0.0, np.inf),
+        )
+    zeta_th = np.where(np.isfinite(rho), zeta_th, np.nan)
+
+    boost_dir = _worst_boost_direction_grid(stress_energy, metric, metric_inv)
+
+    return {
+        "wec_margin_eulerian": wec,
+        "zeta_th": zeta_th,
+        "boost_dir": boost_dir,
+        "he_type": he,
+    }
+
+
 def _extract_coordinates(grid_spec: "GridSpec") -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Extract spatial coordinates from GridSpec as NumPy arrays."""
     X, Y, Z = grid_spec.meshgrid  # each (Nx, Ny, Nz), JAX arrays
@@ -117,9 +217,7 @@ def freeze_curvature(
     """
     x, y, z = _extract_coordinates(grid_spec)
 
-    rho_eul = eulerian_energy_density_grid(
-        grid_result.stress_energy, grid_result.metric_inv
-    )
+    rho_eul = eulerian_energy_density_grid(grid_result.stress_energy, grid_result.metric_inv)
     scalar_fields: dict[str, np.ndarray] = {
         "ricci_scalar": np.asarray(grid_result.ricci_scalar),
         "kretschmann": np.asarray(grid_result.kretschmann),
@@ -216,9 +314,7 @@ def freeze_ec(
         scalar_fields["energy_density"] = eulerian_energy_density_grid(
             curvature_result.stress_energy, curvature_result.metric_inv
         )
-        scalar_fields["T_00_covariant"] = np.asarray(
-            curvature_result.stress_energy[..., 0, 0]
-        )
+        scalar_fields["T_00_covariant"] = np.asarray(curvature_result.stress_energy[..., 0, 0])
 
     # Build colormaps dict
     colormaps: dict[str, str] = {}

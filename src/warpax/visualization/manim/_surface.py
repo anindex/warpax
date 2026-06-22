@@ -4,13 +4,15 @@ Converts an equatorial slice of a FrameData scalar field into a Manim
 ``Surface`` where the z-coordinate encodes the field value (warped
 embedding diagram).
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import numpy as np
 from manim import Surface, ThreeDAxes
-from scipy.interpolate import RegularGridInterpolator
+
+from warpax.visualization.manim._image_utils import bilinear_sampler
 
 if TYPE_CHECKING:
     from warpax.visualization.common._frame_data import FrameData
@@ -62,20 +64,17 @@ def framedata_to_surface(
     x_1d = x_2d[:, 0]
     y_1d = y_2d[0, :]
 
-    # Build interpolator from discrete grid
-    interp = RegularGridInterpolator(
-        (x_1d, y_1d),
-        warp_2d,
-        method="linear",
-        bounds_error=False,
-        fill_value=0.0,
-    )
+    # Pure-numpy bilinear sampler (scipy's RegularGridInterpolator segfaults
+    # under the repeated pointwise calls a 3D movie render makes on Python 3.14)
+    sample = bilinear_sampler(x_1d, y_1d, warp_2d)
 
     # Auto-scale exaggeration if not provided
     max_warp = float(np.max(np.abs(warp_2d)))
     extent = max(float(x_1d[-1] - x_1d[0]), float(y_1d[-1] - y_1d[0]))
     if exaggeration is None:
-        exaggeration = 0.3 * extent / max(max_warp, 1e-15)
+        # Guard near-flat fields: the naive 0.3*extent/eps would explode the
+        # surface off-axis. A flat field gets a neutral factor instead.
+        exaggeration = 0.3 * extent / max_warp if max_warp > 1e-9 * max(extent, 1.0) else 1.0
 
     # Determine resolution
     if resolution is None:
@@ -88,8 +87,7 @@ def framedata_to_surface(
     _exag = exaggeration  # capture for closure
 
     def param_func(u: float, v: float) -> np.ndarray:
-        z_val = float(interp(np.array([[u, v]])))
-        return axes.c2p(u, v, z_val * _exag)
+        return axes.c2p(u, v, sample(u, v) * _exag)
 
     surface = Surface(
         param_func,

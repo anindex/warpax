@@ -75,8 +75,7 @@ class ShapeFunction(eqx.Module):
         order
             Spline polynomial order. ``3`` = cubic (the only value
             currently supported by the underlying ``interpax.interp1d``
-            method name ``'cubic'``). Additional methods (``'akima'``,
-            ``'pchip'``) would be a future FUT extension.
+            method name ``'cubic'``).
 
         Returns
         -------

@@ -1,4 +1,4 @@
-"""Quantitative Santiago-Schuster-Visser lower-bound saturation (K12).
+"""Quantitative Santiago-Schuster-Visser lower-bound saturation.
 
 Santiago, Schuster and Visser proved that any physically reasonable warp drive
 must violate the null energy condition. That theorem is qualitative: the deficit
@@ -11,7 +11,7 @@ leading wall NEC deficit is necessarily quadratic,
 with a strictly positive, geometry-fixed coefficient ``C`` (the SSV theorem
 guarantees ``C > 0`` for any non-trivial shift, hence NEC violation at *every*
 speed). We read the frame-independent wall NEC deficit from the velocity sweep
-(K1) and show, for each drive with a resolved Type-I wall branch, that the
+and show, for each drive with a resolved Type-I wall branch, that the
 computed deficit saturates this form: a fixed-exponent fit has ``R^2`` ~ 1 and a
 small maximum relative deviation across the subluminal range, and the free
 exponent recovers ``q ~ 2``. The coefficient ``C`` is the per-drive fingerprint

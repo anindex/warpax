@@ -1,4 +1,4 @@
-"""Regression tests from the June-2026 adversarial bug hunt, plus fidelity sentinels.
+"""Regression tests pinning confirmed findings, plus fidelity sentinels.
 
 Each test names the confirmed finding it pins:
 

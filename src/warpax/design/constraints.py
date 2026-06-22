@@ -72,8 +72,7 @@ def velocity_constraint(
     """Bubble velocity must satisfy ``|v_s| <= max_v``.
 
     ``margin = max_v - |v_s|``. Default ``max_v=10.0`` in ``c=1``
-    units (superluminal-warp regime is permitted by REQUIREMENTS per
-    paper-scope invariance).
+    units; the superluminal-warp regime is permitted.
 
     Parameters
     ----------

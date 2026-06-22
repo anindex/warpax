@@ -127,7 +127,7 @@ sweep over (compactness, thickness) with `SweepResult` serialization.
   comparison grids, kinematic scalar maps, geodesic observables)
 - **Phase diagrams**: transport heatmap with EC boundary hatching, 2x2
   summary panel (transport / EC margin / constraint residual / tidal)
-- **Manim CE**: Animated 3D scenes (bubble collapse, velocity ramp, EC heatmap
+- **Manim CE**: Animated 3D scenes (Alcubierre parameter sweep, velocity ramp, EC heatmap
   contours, observer sweep)
 
 ## Key design decisions
