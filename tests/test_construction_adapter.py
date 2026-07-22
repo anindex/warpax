@@ -1,4 +1,4 @@
-"""Tests for the cross-construction audit adapter."""
+"""Tests for the cross-construction adapter."""
 from __future__ import annotations
 
 import jax.numpy as jnp

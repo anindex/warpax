@@ -299,7 +299,7 @@ def sweep_transport(
     n_density, n_velocity : Bernstein coefficient counts.
     n_grid : constraint solver resolution.
     n_probes : probe count for EC certification + constraint evaluation.
-    n_ec_starts : BFGS multi-start for EC certification.
+    n_ec_starts : Retained for backward compatibility; unused by the frame-free Hawking-Ellis certifier.
     progress : show tqdm progress bar.
     save_path : save intermediate results to this path.
     parallel : optional thread-pool worker count for grid-point evaluation.

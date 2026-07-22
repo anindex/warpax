@@ -1,4 +1,4 @@
-"""Wall-restricted Type-IV analysis for all 6 warp drive metrics.
+"""Wall-restricted Type-IV analysis for the 4 warp drive metrics (Alcubierre, Rodal, VdB, Natário).
 
 For each warp metric, computes Hawking-Ellis Type breakdown and
 conditional energy-condition miss rates restricted to the physically
@@ -11,13 +11,6 @@ Outputs
 - results/wall_restricted_analysis.json
 - results/wall_restricted_report.md
 - figures/wall_restricted_type_breakdown.pdf
-
-Lentz specifics
---------------------------
-Lentz results are tagged with ``caveat = "unresolved_lower_bound"``
-because a fixed 50^3 grid at ``R = 100`` does not resolve the L1 wall
-(~44x under-resolved). Wall-restricted counts are reported as
-lower-bound estimates; a zero ``wall_n_total`` triggers a warning.
 
 Usage
 -----
@@ -97,7 +90,7 @@ GRID_MAP: dict[str, GridSpec] = {
     "warpshell": GRID_STANDARD,
 }
 
-WARP_METRICS = ["alcubierre", "rodal", "vdb", "natario", "lentz", "warpshell"]
+WARP_METRICS = ["alcubierre", "rodal", "vdb", "natario"]
 
 # Subluminal reference velocity.
 V_S = 0.5
@@ -106,7 +99,7 @@ V_S = 0.5
 F_LOW = 0.1
 F_HIGH = 0.9
 
-# Shared optimizer settings (kept modest to bound total runtime across 6 metrics)
+# Shared optimizer settings (kept modest to bound total runtime across 4 metrics)
 N_STARTS = 8
 BATCH_SIZE_OPT = 64
 BATCH_SIZE_CURV = 256
@@ -490,7 +483,7 @@ def main():
     start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     print("=" * 70)
-    print("Wall-Restricted Type-IV Analysis (all 6 warp metrics)")
+    print("Wall-Restricted Type-IV Analysis (all 4 warp metrics)")
     print(f"Started: {start_time}")
     print(f"Velocity: v_s = {V_S}")
     print(f"Wall region: shape function in [{F_LOW}, {F_HIGH}]")

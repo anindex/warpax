@@ -58,6 +58,7 @@ from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import wall_clustered
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
+from _benchmark_grid import CLUSTER_A
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
@@ -80,7 +81,7 @@ METRIC_ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 INVARIANTS = (
     ("kretschmann", r"$K$"),
     ("weyl_squared", r"$C^2$"),
-    ("ricci_squared", r"$R_{ab}R^{ab}$"),
+    ("ricci_squared", r"$|R_{ab}R^{ab}|$"),
 )
 
 
@@ -93,7 +94,7 @@ def run_point(name, v_s, N):
     """Wall-peak curvature invariants at one (metric, v_s)."""
     shape = (N, N, N)
     metric = _instantiate(name, v_s)
-    grid = wall_clustered(metric, BOUNDS, shape, a=1.2)
+    grid = wall_clustered(metric, BOUNDS, shape, a=CLUSTER_A)
     curv = evaluate_curvature_grid(metric, grid, batch_size=256)
     coords = build_coord_batch(grid, t=0.0)
     mask = np.asarray(
@@ -143,7 +144,7 @@ def write_table(fits, out_path):
         r"\begin{tabular}{@{}l ccc ccc@{}}",
         r"  \toprule",
         r"  & \multicolumn{3}{c}{Weyl $C^2$} "
-        r"& \multicolumn{3}{c}{Ricci $R_{ab}R^{ab}$} \\",
+        r"& \multicolumn{3}{c}{Ricci $|R_{ab}R^{ab}|$} \\",
         r"  \cmidrule(lr){2-4}\cmidrule(lr){5-7}",
         r"  Metric & $q$ & $A$ & $R^2$ & $q$ & $A$ & $R^2$ \\",
         r"  \midrule",
@@ -179,7 +180,7 @@ def make_figure(rows, fits):
     os.makedirs(FIG_DIR, exist_ok=True)
     fig, (ax_w, ax_r) = plt.subplots(1, 2, figsize=(DOUBLE_COL, DOUBLE_COL * 0.44))
     for ax, key, title in ((ax_w, "weyl_squared", "(a) Weyl $C^2$"),
-                           (ax_r, "ricci_squared", "(b) Ricci $R_{ab}R^{ab}$")):
+                           (ax_r, "ricci_squared", "(b) Ricci $|R_{ab}R^{ab}|$")):
         for name in METRIC_ORDER:
             rs = sorted([r for r in rows if r["metric"] == name],
                         key=lambda r: r["v_s"])
@@ -208,7 +209,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--velocities", type=float, nargs="+",
                    default=[0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0, 1.5, 2.0, 2.5])
-    p.add_argument("--N", type=int, default=50)
+    p.add_argument("--N", type=int, default=60)
     p.add_argument("--metrics", type=str, nargs="+", default=METRIC_ORDER)
     p.add_argument("--smoke", action="store_true")
     p.add_argument("--from-cache", action="store_true")

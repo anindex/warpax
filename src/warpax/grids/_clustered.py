@@ -1,16 +1,19 @@
 """Wall-clustered radial grid generator.
 
 Cosh stretching: per-axis uniform parameter ``u \\in [0, 1]`` is mapped to a
-stretched coordinate via
+stretched coordinate by a ``sinh`` slice normalized to ``[0, 1]``,
 
 .. math::
-    x(u) \\;=\\; lo \\,+\\, (hi - lo) \\cdot \\tfrac{1}{2}\\bigl(
-        1 + \\tfrac{\\tanh(a \\cdot (u - u_{\\mathrm{wall}}))}
-                 {\\tanh(a)}\\bigr),
+    x(u) \\;=\\; lo \\,+\\, (hi - lo) \\cdot
+        \\frac{\\sinh(a(u - u_{\\mathrm{wall}})) - \\sinh(-a\\,u_{\\mathrm{wall}})}
+             {\\sinh(a(1 - u_{\\mathrm{wall}})) - \\sinh(-a\\,u_{\\mathrm{wall}})},
 
-where ``a`` controls clustering strength and ``u_wall \\in [0, 1]`` is the
-uniform-parameter location of the wall radius along that axis. Default
-``a = 1.2``; override via the ``a`` kwarg.
+whose derivative ``\\propto \\cosh(a(u-u_{\\mathrm{wall}}))`` is *minimal* at the
+wall parameter and grows toward the tails, so the physical spacing is smallest
+(densest sampling) at the wall. ``a`` controls clustering strength (larger =
+tighter); ``u_wall \\in [0, 1]`` is the uniform-parameter location of the wall
+radius along that axis. (A prior revision used a ``tanh`` slice, whose slope is
+maximal at the wall, so it anti-clustered; ``sinh`` is the intended map.)
 
 The returned :class:`GridSpec` carries ``coord_arrays`` + ``volume_weights``
 as hashable tuples (static eqx fields), so JIT cache keys stay stable.
@@ -34,19 +37,23 @@ def _cosh_stretch(
 ) -> Float[Array, "N"]:
     """Map uniform ``u \\in [0, 1]`` to stretched ``[0, 1]`` clustered at ``u_wall``.
 
-    Uses a piecewise-linear-in-tanh stretch so the endpoints ``u=0`` and
-    ``u=1`` exactly map to ``0`` and ``1``. Points pass through
-    ``(u_wall, u_wall)``: near the wall, the map's derivative is small
-    (clustered spacing); far from the wall, the derivative is larger
-    (sparser spacing).
+    Uses a ``sinh`` slice normalized into ``[0, 1]``: the coordinate map's
+    derivative is ``\\propto \\cosh(a(u - u_{wall}))``, which is *minimal* at
+    ``u = u_wall`` and grows away from it. Since nodes are uniform in ``u``,
+    the resulting physical spacing ``\\Delta x`` is *smallest* at the wall
+    (dense clustering) and larger in the tails (sparse). Larger ``a`` means
+    tighter clustering. Endpoints ``u=0`` and ``u=1`` map exactly to ``0`` and
+    ``1`` for any ``u_wall in (0, 1)`` and ``a > 0``.
+
+    (An earlier revision applied ``tanh`` here, whose slope is *maximal* at the
+    wall, so it anti-clustered, sampling the wall *worse* than a uniform grid and
+    getting worse as ``a`` grew. The ``sinh`` map is the intended "cosh
+    stretching": slope ``= \\cosh``, densest at the wall.)
     """
-    # tanh slice (asymmetric around u_wall) normalized into [0, 1] via
-    # affine transformation: this preserves u=0 -> 0 and u=1 -> 1 for any
-    # u_wall in (0, 1) and stretching factor a > 0.
-    t_u = jnp.tanh(a * (u - u_wall))
-    t_0 = jnp.tanh(a * (0.0 - u_wall))
-    t_1 = jnp.tanh(a * (1.0 - u_wall))
-    return (t_u - t_0) / (t_1 - t_0)
+    s_u = jnp.sinh(a * (u - u_wall))
+    s_0 = jnp.sinh(a * (0.0 - u_wall))
+    s_1 = jnp.sinh(a * (1.0 - u_wall))
+    return (s_u - s_0) / (s_1 - s_0)
 
 
 def _infer_wall_radius(
@@ -56,7 +63,8 @@ def _infer_wall_radius(
 
     Samples ``metric.shape_function_value`` along the positive x-axis and
     returns the radius at which the absolute derivative is largest. Falls
-    back to the midpoint of the first spatial axis when the metric has no
+    back to the midpoint of the first spatial axis plus a unit offset (1.0)
+    when the metric has no
     shape function (e.g., :class:`warpax.io.InterpolatedADMMetric` raises
     :class:`NotImplementedError`).
     """
@@ -97,7 +105,7 @@ def wall_clustered(
     shape : tuple of int
         Grid resolution per axis.
     clustering : {"cosh"}, default "cosh"
-        Only ``"cosh"`` supported in v1.1.
+        Only ``"cosh"`` is currently supported.
     wall_radius : float | None, default None
         Wall radius in physical units. If ``None``, inferred via a
         ``metric.shape_function_value`` scan.
@@ -120,7 +128,7 @@ def wall_clustered(
     """
     if clustering != "cosh":
         raise ValueError(
-            f"Only clustering='cosh' supported in v1.1; got {clustering!r}"
+            f"Only clustering='cosh' is supported; got {clustering!r}"
         )
     if len(bounds) != len(shape):
         raise ValueError(

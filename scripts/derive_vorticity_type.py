@@ -4,12 +4,12 @@ Establishes, numerically and in a controlled limit, that the imaginary part of
 the Hawking-Ellis Type-IV eigenvalue pair of ``T^a_b`` is *linear in the shift
 vorticity* for the unit-lapse, flat-slice warp family:
 
-  1. Controlled family -- a pure-rotation shift ``beta = c (-y, x, 0) * env(r)``
+  1. Controlled family: a pure-rotation shift ``beta = c (-y, x, 0) * env(r)``
      has zero expansion and zero shear, only vorticity ``omega^2 = 2 c^2 env^2``.
      Sweeping ``c`` shows ``max|Im lambda|`` is exactly proportional to ``omega``
      (fit ``kappa``, ``R^2 ~ 1``) and the type flips Type I (c=0) -> Type IV (c>0).
 
-  2. Cross-metric validation -- at matched wall points, the irrotational Rodal
+  2. Cross-metric validation: at matched wall points, the irrotational Rodal
      drive (omega ~ 0) is Type I with ``Im ~ 0``, while Natario/Alcubierre/VdB
      (omega > 0) are Type IV with ``Im`` tracking ``kappa * omega``. Each
      cross-metric entry also records the shift expansion ``theta``, shear
@@ -54,6 +54,7 @@ from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
 FIG_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "figures")
+TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 
 class _RotationShift(ADMMetric):
@@ -140,6 +141,7 @@ def cross_metric(kappa: float) -> dict:
     out = {}
     for name, m in metrics.items():
         th, sigma, om, im, he = _kinematics_and_imag(m, point)
+        disc = discriminant_at(m, point)
         out[name] = {
             "omega": om,
             "imag_measured": im,
@@ -149,8 +151,73 @@ def cross_metric(kappa: float) -> dict:
             "sigma": sigma,
             "shear_to_vorticity": (sigma / om) if om > 1e-12 else None,
             "imag_ratio": excess_over_pure_rotation(im, om, kappa),
+            **disc,
         }
     return out
+
+
+def _eulerian_decomp(T_ab, g_ab, g_inv):
+    """Eulerian energy density, momentum magnitude, and longitudinal stress."""
+    n_low = jnp.array([-1.0, 0.0, 0.0, 0.0])
+    n_up = g_inv @ n_low
+    n_up = n_up / jnp.sqrt(jnp.abs(n_low @ n_up))
+    n_low2 = g_ab @ n_up
+    proj = jnp.eye(4) + jnp.outer(n_up, n_low2)
+    T_mixed = g_inv @ T_ab
+    rho = float(n_up @ (T_ab @ n_up))
+    j_up = -(proj @ (T_mixed @ n_up))
+    j2 = float(j_up @ (g_ab @ j_up))
+    jmag = float(np.sqrt(max(j2, 0.0)))
+    if jmag > 1e-14:
+        jhat = j_up / np.sqrt(max(j2, 1e-300))
+        S_par = float(jhat @ (g_ab @ ((proj @ (T_mixed @ proj)) @ jhat)))
+    else:
+        S_par = 0.0
+    return rho, jmag, S_par
+
+
+def discriminant_at(metric, point):
+    """Momentum-density discriminant Delta = (rho+S_par)^2 - 4|j|^2 at a point.
+
+    Type IV iff Delta<0 (2|j|>|rho+S_par|); Im(lambda)=1/2 sqrt(-Delta).
+    """
+    res = compute_curvature_chain(metric, point)
+    rho, jmag, S_par = _eulerian_decomp(res.stress_energy, res.metric, res.metric_inv)
+    denom = abs(rho + S_par)
+    ratio = 2.0 * jmag / denom if denom > 1e-30 else float("inf")
+    Delta = (rho + S_par) ** 2 - 4.0 * jmag ** 2
+    im_pred = 0.5 * float(np.sqrt(-Delta)) if Delta < 0 else 0.0
+    Tm = np.asarray(res.metric_inv @ res.stress_energy)
+    im_meas = float(np.max(np.abs(np.linalg.eigvals(Tm).imag)))
+    return {"rho": rho, "jmag": jmag, "S_par": S_par, "ratio": ratio,
+            "Delta": Delta, "im_predicted_disc": im_pred, "im_measured": im_meas}
+
+
+def write_table(cross, out_path):
+    """Emit the vorticity-mechanism table: discriminant ratio and Im check."""
+    order = ["Rodal", "Van den Broeck", "Alcubierre", "Natário"]
+    names = {"Van den Broeck": "Van~den~Broeck", "Natário": "Nat\\'ario"}
+    lines = [
+        r"\begin{tabular}{l c c c c}",
+        r"  \toprule",
+        r"  Metric & Wall type & $2|j|/|\rho+S_\parallel|$ & "
+        r"$\operatorname{Im}\lambda$ & $\tfrac12\sqrt{-\Delta}$ \\",
+        r"  \midrule",
+    ]
+    for k in order:
+        d = cross[k]
+        typ = "IV" if d["he_type"] == 4 else "I"
+        ratio = d["ratio"]
+        rs = "$\\infty$" if ratio == float("inf") else f"{ratio:.2f}"
+        lines.append(
+            f"  {names.get(k, k)} & {typ} & {rs} & "
+            f"{d['im_measured']:.3f} & {d['im_predicted_disc']:.3f} \\\\"
+        )
+    lines += [r"  \bottomrule", r"\end{tabular}"]
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"  Wrote {out_path}")
 
 
 def _make_figure(controlled, cross, out_path):
@@ -220,6 +287,7 @@ def main():
     out_path = os.path.join(RESULTS_DIR, "vorticity_type_analytic.json")
     dump_json(out, out_path)
     print(f"\nWrote {out_path}")
+    write_table(cross, os.path.join(TABLES_DIR, "vorticity_mechanism.tex"))
     _make_figure(controlled, cross,
                  os.path.join(FIG_DIR, "vorticity_type_mechanism.pdf"))
 

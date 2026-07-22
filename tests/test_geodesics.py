@@ -141,7 +141,7 @@ class TestSchwarzschildRadialInfall:
 
         x0, v0 = radial_infall_ic(metric, r_start_schw=r_start_schw, M=M)
 
-        # Integrate use horizon event to avoid coordinate singularity
+        # Integrate using the horizon event to avoid the coordinate singularity
         event = make_event(horizon_event)
 
         sol = integrate_geodesic(

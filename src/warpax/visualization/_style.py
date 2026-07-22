@@ -116,8 +116,8 @@ def metric_color(name: str, default: str = "#000000") -> str:
     return default
 
 
-# Sequential map for strictly-negative worst-EC margin heatmaps (~8 decade
-# dynamic range); diverging maps waste the unused positive half. Crameri et al. 2024.
+# Sequential perceptually-uniform map (viridis) for strictly-negative worst-EC margin
+# heatmaps (~8 decade dynamic range); diverging maps waste the unused positive half.
 PHASE_COLORMAP: str = "viridis"
 
 

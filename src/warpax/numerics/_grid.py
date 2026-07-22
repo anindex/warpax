@@ -1,4 +1,4 @@
-"""Uniform-grid sanity check, gated behind ``WARPAX_STRICT``."""
+"""Uniform-grid sanity check, enabled by ``WARPAX_STRICT``."""
 from __future__ import annotations
 
 import jax.numpy as jnp

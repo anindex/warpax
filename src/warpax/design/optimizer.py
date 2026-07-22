@@ -61,7 +61,7 @@ def _sigmoid_reparam(theta_raw, lo=-1.0, hi=1.0):
 
 def _sigmoid_inverse(value, lo=-1.0, hi=1.0):
     """Inverse of :func:`_sigmoid_reparam` for recovering raw theta
-    from a given physical value (used to seed Alcubierre-centerd starts).
+    from a given physical value (used to seed Alcubierre-centered starts).
     """
     # value = lo + 0.5*(hi - lo)*(1 + tanh(theta))
     # => tanh(theta) = 2*(value - lo)/(hi - lo) - 1
@@ -98,7 +98,7 @@ def design_metric(
         ``obj + sum_k max(0, -margin_k)^2``. ``None`` (default) =>
         unconstrained.
     strategy
-        Strategy label. ``'hard_bound'`` (default) sigmoid-reparameterises
+        Strategy label. ``'hard_bound'`` (default) sigmoid-reparameterizes
         physical values into ``[-1, 1]``. Other labels currently fall
         through to the same path.
     n_starts

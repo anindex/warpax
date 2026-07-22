@@ -29,7 +29,8 @@ class ComparisonResult(NamedTuple):
     Dict-valued fields are keyed by ``"nec"|"wec"|"sec"|"dec"``. ``missed``
     flags ``(eul >= 0) & (rob < -1e-10)``; ``severity`` is ``eul - rob``
     at missed points (zero elsewhere); ``conditional_miss_rate`` is
-    ``pct_missed / pct_violated_robust`` (zero when nothing violated).
+    ``100 * pct_missed / pct_violated_robust`` (a percentage; zero when
+    nothing violated).
     """
 
     eulerian_margins: dict[str, Float[Array, "..."]]

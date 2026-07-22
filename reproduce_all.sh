@@ -148,27 +148,39 @@ run_core() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_ssv_bound.py"
 
     echo ""
-    echo "[1/5] run_analysis.py Full metric analysis sweep"
+    echo "[1/8] run_analysis.py Full metric analysis sweep"
     $PYTHON "${SCRIPT_DIR}/scripts/run_analysis.py"
 
     echo ""
-    echo "[2/5] run_convergence.py Richardson extrapolation convergence"
+    echo "[2/8] run_convergence.py Richardson extrapolation convergence"
     $PYTHON "${SCRIPT_DIR}/scripts/run_convergence.py"
 
     echo ""
-    echo "[3/5] run_kinematic_scalars.py Kinematic scalar fields"
+    echo "[3/8] run_kinematic_scalars.py Kinematic scalar fields"
     $PYTHON "${SCRIPT_DIR}/scripts/run_kinematic_scalars.py"
 
     echo ""
-    echo "[4/5] run_geodesics.py Geodesic integration & tidal forces"
+    echo "[4/8] run_geodesics.py Geodesic integration & tidal forces"
     $PYTHON "${SCRIPT_DIR}/scripts/run_geodesics.py"
 
     echo ""
-    echo "[5/5] run_clustered_convergence.py Wall-clustered convergence"
+    echo "[5/8] run_clustered_convergence.py Wall-clustered convergence"
     $PYTHON "${SCRIPT_DIR}/scripts/run_clustered_convergence.py" \
         --resolutions 25 50 100 \
         --include-rodal-matched \
         --n-starts 8
+
+    echo ""
+    echo "[6/8] run_diagnostic_convergence.py Per-diagnostic wall-resolved certification"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_diagnostic_convergence.py"
+
+    echo ""
+    echo "[7/8] run_extra_convergence.py Exoticity index + ANEC-minimum convergence"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_extra_convergence.py"
+
+    echo ""
+    echo "[8/8] run_curvature_convergence.py Curvature-exponent resolution stability"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_curvature_convergence.py" --velocities 0.2 0.3 0.5
 
     echo ""
     echo " Core stage complete."

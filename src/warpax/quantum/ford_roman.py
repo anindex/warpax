@@ -110,7 +110,7 @@ def ford_roman(
         (the kernel of the original Ford-Roman bound).
     n_samples : int
         Number of proper-time samples for the QI line integral.
-        Default ``256`` - span ``[-10 tau0, +10 tau0]`` captures ~99% of
+        Default ``256`` - span ``[-10 tau0, +10 tau0]`` captures ~94% of
         the Lorentzian kernel weight.
 
     Returns

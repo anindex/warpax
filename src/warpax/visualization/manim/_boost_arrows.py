@@ -181,7 +181,7 @@ def _worst_direction_field(
         # that margin -- and the threshold rapidity zeta_th -- are undefined there.
         # Plot instead the always-defined Eulerian energy density rho_Eul (the WEC
         # violation seen by the natural observer); show the closed-form worst-boost
-        # direction only where the matter is genuinely Type I.
+        # direction only where the matter is Type I.
         from warpax.visualization.common._conversion import eulerian_wec_fields
 
         wf = eulerian_wec_fields(result.stress_energy, result.metric, result.metric_inv)
@@ -212,7 +212,7 @@ def _worst_direction_field(
 
     energy_density = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
     X, Y, Z = grid_spec.meshgrid
-    # Both margin fields are <= 0 -> one-sided depth scale (honest, no false
+    # Both margin fields are <= 0 -> one-sided depth scale (no false
     # "satisfied" half).
     scalar_fields = {
         field_name: worst_margin_grid,
@@ -279,7 +279,7 @@ def _make_arrow_field(
                 continue
             dx, dy = direction_2d[i, j]
             # Canonical orientation: x-index -> horizontal, y-index -> vertical
-            # up (matches frame_to_rgba / extract_zero_contour after B4).
+            # up (matches frame_to_rgba / extract_zero_contour).
             sx = (i / (Nx - 1) - 0.5) * scene_width
             sy = (j / (Ny - 1) - 0.5) * scene_height
             length = min(
@@ -334,7 +334,7 @@ class _ArrowFieldScene(Scene):
         )
 
         # NEC/WEC worst-case margins are <= 0; use the one-sided sequential
-        # ramp so the colour range encodes violation depth honestly.
+        # ramp so the colour range encodes violation depth faithfully.
         clim = compute_symlog_clim([frame], field_name, one_sided=True)
         rgba = frame_to_rgba(frame, field_name, clim, cmap_name="nec_depth")
         heatmap_img = ImageMobject(rgba)

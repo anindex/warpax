@@ -4,8 +4,9 @@ The float64 classifier at :mod:`warpax.energy_conditions.classification`
 uses a two-tier imaginary-part tolerance (``tol * scale`` absolute OR
 ``imag_rtol * unclamped_scale`` relative). The relative tier may
 misclassify a genuine Type-IV spectrum whose ``|Im λ|`` sits below the
-threshold (e.g. ``|λ| ~ 1``, ``|Im λ| ~ 2e-5`` flips to Type I at
-``imag_rtol = 3e-3``).
+threshold (e.g. ``|λ| ~ 1e7``, ``|Im λ| ~ 1`` flips to Type I at
+``imag_rtol = 3e-3``; the relative tier only engages above the
+``1e6`` scale floor).
 
 This module is a post-hoc 50-digit cross-check, NOT wired into the JAX
 grid pipeline (mpmath is pure-Python and thousands of times slower than

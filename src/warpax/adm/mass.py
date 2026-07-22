@@ -22,7 +22,7 @@ Also provides Richardson extrapolation for convergence verification.
    below 1. Treat such reports as evidence the model is **not**
    asymptotically flat in the ADM sense rather than as a numerical
    issue. See the Fuchs canonical regression test in
-   ``tests/test_physics_validation/test_physics_regression.py``.
+   ``tests/test_physics_validation.py``.
 """
 from __future__ import annotations
 
@@ -204,7 +204,7 @@ def adm_mass_richardson(
         else:
             conv_order = float("nan")
 
-        # Honest extrapolation: only return a finite value when the
+        # Conservative extrapolation: only return a finite value when the
         # observed convergence order matches the model assumption
         # (within 0.25 of n=1) or ``inf`` (already converged).
         if conv_order != conv_order:  # NaN: only two points, can't check

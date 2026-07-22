@@ -117,13 +117,14 @@ class FrameFreeGridResult(NamedTuple):
     quantities: every field derives solely from the Hawking-Ellis classification
     of ``T^a_b`` and the Type-I eigenvalue inequalities. Because neither the
     Eulerian normal nor a timelike tetrad is ever constructed, this result is
-    well-defined at ALL warp velocities, including v_s >= 1 where g_00 changes
-    sign and the Eulerian congruence ceases to exist.
+    well-defined at ALL warp velocities, including v_s >= 1, where the
+    coordinate-stationary observer d_t ceases to be timelike while the Eulerian
+    normal stays unit timelike.
 
-    For non-Type-I points the eigenvalue margins are NaN by construction (no
-    invariant rest frame / proper energy density exists): this is the honest
-    statement, not a defect. Use the type census to quantify the non-Type-I
-    (intrinsically observer-dependent) fraction.
+    For non-Type-I points rho and pressures are NaN (no invariant rest frame /
+    proper energy density exists), but the NEC/WEC/SEC/DEC margins carry the
+    certified cap-free witness (< 0 for Type III/IV), not NaN. Use the type census
+    to quantify the non-Type-I (intrinsically observer-dependent) fraction.
 
     Each margin/scalar field has leading grid dimensions ``(*grid_shape,)``.
     """
@@ -133,7 +134,7 @@ class FrameFreeGridResult(NamedTuple):
     eigenvalues_imag: Float[Array, "... 4"]  # Im eigenvalues of T^a_b
     rho: Float[Array, "..."]  # invariant energy density (Type I) or NaN
     pressures: Float[Array, "... 3"]  # principal pressures (Type I) or NaN
-    nec_margins: Float[Array, "..."]  # NaN where non-Type-I
+    nec_margins: Float[Array, "..."]  # certified witness where non-Type-I
     wec_margins: Float[Array, "..."]
     sec_margins: Float[Array, "..."]
     dec_margins: Float[Array, "..."]

@@ -15,7 +15,7 @@ abstract method ``shape_function_value``), then runs:
 The example metric is a "Gaussian warp bubble" -- the shift uses a
 Gaussian envelope rather than the Alcubierre tanh top-hat. Runtime target:
 under 30 seconds on a laptop CPU (float64, no GPU). To scale up, increase
-``grid_n`` from 20 to 50+ at the cost of minutes rather than seconds.
+``grid_n`` from 16 to 50+ at the cost of minutes rather than seconds.
 
 Outputs
 -------

@@ -14,9 +14,11 @@ Class taxonomy (per §3):
   stress-energy localized inside a finite shell ``R_1..R_2``
   (WarpShell).
 
-Dispatch is the multi-probe cascade ``stationary ->
-shape_function_supported -> has_matter -> comoving_fluid ->
-is_shell_structured``. Class III: has_matter and is_shell_structured;
+Dispatch is the multi-probe cascade ``has_matter ->
+is_shell_structured -> shape_function_supported``, with ``stationary``
+selecting Class I in the no-matter branch; ``comoving_fluid`` is
+reported as a separate probe verdict and does not affect the class.
+Class III: has_matter and is_shell_structured;
 Class II: has_matter and not is_shell_structured and
 shape_function_supported; Class I: no matter or pure-vacuum stationary
 metric; everything else -> 0 (unclassified).

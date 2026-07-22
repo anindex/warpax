@@ -86,8 +86,8 @@ for constraint satisfaction.
 Source-first Class II shell (T-shell). Tilted matter flow with nonzero
 Eulerian momentum density $S_i$. Shift $\beta^x$ derived from the momentum
 constraint (not prescribed). Addresses the Barzegar et al.
-source-consistency critique. Achieves $\epsilon_{\mathcal{H}} \approx 5
-\times 10^{-3}$ with positive EC margins in the deep shell interior.
+source-consistency critique. Achieves $\epsilon_{\mathcal{H}} \approx 3
+\times 10^{-6}$ with positive EC margins in the deep shell interior.
 
 ::: warpax.metrics.TShellMetric
 

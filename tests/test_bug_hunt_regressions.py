@@ -121,7 +121,7 @@ class TestScaleAwareViolationGate:
         assert float(summary.fraction_violated) == 0.0
 
     def test_legacy_absolute_gate_would_have_flagged(self):
-        # Demonstrates the test is load-bearing: without the relative term
+        # Demonstrates the test actually exercises the bug: without the relative term
         # the same noise floor trips the gate at large ||T||.
         margins = self._marginal_margins(1e11)
         summary_abs = _compute_summary(margins)  # scale=None: pure absolute
@@ -194,7 +194,7 @@ class TestImagRtolSentinel:
         assert rep["n_flips"] == 0
 
     def test_mpmath_gate_catches_small_imag_large_real(self):
-        # Eigenvalues s(1 +/- 1e-5j) at s=1e8: genuinely complex (Type IV),
+        # Eigenvalues s(1 +/- 1e-5j) at s=1e8: complex (Type IV),
         # but above the 1e6 scale floor the float64 relative tier
         # (3e-3 * max|Re|) absorbs the split. The 50-digit cross-check
         # (imag_rtol=0) is the authority and must report the flip.

@@ -126,7 +126,7 @@ No API changes.
 - **Universal $v_s$ scaling of the wall curvature invariants**: the wall-peak
   Kretschmann, Weyl-squared and Ricci-squared invariants follow clean power
   laws in the warp speed, split by shift vorticity: the vortical walls grow as
-  $v_s^2$, the irrotational Rodal wall as $v_s^4$ ($R^2 \ge 0.996$;
+  $v_s^2$, the irrotational Rodal wall as $v_s^4$ ($R^2 \ge 0.99$;
   `run_curvature_scaling.py`).
 - **Santiago-Schuster-Visser no-go made quantitative**: the wall NEC
   deficit follows the necessarily-quadratic $\min(\rho+p_i) = -C\,v_s^2$ form
@@ -182,5 +182,7 @@ shell construction, autodiff curvature analysis, and a metric-design API.
 ---
 
 [1.3.0]: https://github.com/anindex/warpax/releases/tag/v1.3.0
+[1.2.0]: https://github.com/anindex/warpax/releases/tag/v1.2.0
+[1.1.1]: https://github.com/anindex/warpax/releases/tag/v1.1.1
 [1.1.0]: https://github.com/anindex/warpax/releases/tag/v1.1.0
 [1.0.0]: https://github.com/anindex/warpax/releases/tag/v1.0.0

@@ -6,7 +6,7 @@ vorticity) and the dimensionless vorticity fraction R_omega, then pair it with
 the cached wall Type-IV fractions from ``results/velocity_sweep.json``.
 
 The result: the irrotational Rodal drive (R_omega = 0) is the unique globally
-Type-I geometry, the zero-expansion Natario drive (theta_beta = 0) still carries
+Type-I geometry, the zero-expansion Natário drive (theta_beta = 0) still carries
 vorticity and is Type-IV-walled, and Alcubierre / Van den Broeck likewise have
 rotational shifts and Type-IV walls. R_omega is independent of v_s because the
 shift scales linearly with the warp speed, so it is a per-drive fingerprint.
@@ -37,8 +37,8 @@ from warpax.analysis.shift_kinematics import compute_shift_kinematics_grid
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.geometry.grid import build_coord_batch
-from warpax.grids import wall_clustered
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
+from _benchmark_grid import benchmark_grid
 from warpax.visualization.shift_vorticity_plots import plot_shift_vorticity
 
 HERE = os.path.dirname(__file__)
@@ -69,7 +69,7 @@ def wall_decomposition(name, v_s, N):
     """Wall proper-volume-weighted (<theta^2/3>, <sigma^2>, <omega^2>)."""
     metric = _instantiate(name, v_s)
     shape = (N, N, N)
-    grid = wall_clustered(metric, BOUNDS, shape, a=1.2)
+    grid = benchmark_grid(metric, N)
     theta, sigma_sq, omega_sq = compute_shift_kinematics_grid(
         metric, grid, t=0.0, batch_size=512
     )
@@ -119,7 +119,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--fingerprint-velocities", type=float, nargs="+",
                    default=[0.1, 0.5, 0.9, 1.5, 2.5])
-    p.add_argument("--N", type=int, default=50)
+    p.add_argument("--N", type=int, default=60)
     p.add_argument("--smoke", action="store_true")
     args = p.parse_args()
     if args.smoke:

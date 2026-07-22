@@ -3,8 +3,8 @@
 The Kretschmann scalar ``K = R_{abcd} R^{abcd}`` is a coordinate- and
 observer-independent measure of spacetime curvature (the tidal magnitude a dust
 particle would feel), unlike the frame-dependent energy density and energy
-conditions. For the Alcubierre bubble it is non-negative and sharply peaked on
-the wall, so a log (SymLog) sequential scale reads best.
+conditions. For the Alcubierre bubble it is sign-indefinite (it dips strongly
+negative on the wall), so a diverging (SymLog) scale centred at 0 reads best.
 
 Usage: manim render -ql --format mp4 \\
     src/warpax/visualization/manim/_kretschmann.py KretschmannInvariant2D
@@ -80,7 +80,7 @@ def _contour_to_vmobject(
 class KretschmannInvariant2D(Scene):
     """2D heatmap of the Kretschmann invariant K = R_abcd R^abcd (v_s sweep).
 
-    Observer-independent curvature, log-sequential colormap, the f = 0.5 bubble
+    Observer-independent curvature, diverging dark-midpoint (SymLog) colormap, the f = 0.5 bubble
     wall overlay, and a units annotation ([K] = 1/length^4). Complements the
     observer-dependent energy-condition scenes by showing the true invariant
     tidal magnitude.

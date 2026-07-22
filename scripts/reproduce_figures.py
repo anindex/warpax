@@ -1,9 +1,10 @@
 
 """Reproduce all paper figures from cached results.
 
-Single-command figure generator that loads cached .npz/.json results from
-results/ and generates PDF figures in figures/. No computation is performed
--- this script only reads cached data and renders plots.
+Single-command figure generator. Most figure sets load cached .npz/.json
+results from results/ and only render PDF figures into figures/. A few sets
+(c1_vs_c2, rodal_dec_ablation, fibonacci_dec, shift_vorticity) recompute their
+data by invoking standalone scripts via subprocess.
 
 Usage
 -----
@@ -16,7 +17,7 @@ Selective regeneration:
 
 Available figure sets: comparison, velocity_convergence, velocity, observer,
     convergence, kinematic, missed, geodesic, alignment, c1_vs_c2,
-    rodal_dec_ablation, fibonacci_dec
+    rodal_dec_ablation, fibonacci_dec, shift_vorticity, velocity_summary
 """
 from __future__ import annotations
 
@@ -380,7 +381,7 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
         fig.colorbar(last_im, cax=cax, label="Missed fraction")
 
     fig.suptitle(
-        rf"Rodal {condition.upper()} Missed Violations ($50^3$, $R = 100$, $\sigma = 0.03$)",
+        rf"Rodal {condition.upper()} missed violations ($50^3$, $R = 100$, $\sigma = 0.03$)",
         fontsize=9,
     )
 
@@ -415,7 +416,7 @@ def generate_geodesic_figures(figures_dir: str, results_dir: str) -> int:
         plot_tidal_evolution(
             tidal_eigenvalues,
             proper_times,
-            title=r"Alcubierre Tidal Eigenvalues ($v_s = 0.5$, $R = 1$, $\sigma = 8$)",
+            title=r"Alcubierre tidal eigenvalues ($v_s = 0.5$, $R = 1$, $\sigma = 8$)",
             save_path=save_path,
         )
         print(f"  Generated: {save_path}")
@@ -433,7 +434,7 @@ def generate_geodesic_figures(figures_dir: str, results_dir: str) -> int:
         plot_blueshift_profile(
             blueshift,
             positions_x,
-            title=r"Alcubierre Blueshift ($v_s = 0.5$, $R = 1$, $\sigma = 8$)",
+            title=r"Alcubierre blueshift ($v_s = 0.5$, $R = 1$, $\sigma = 8$)",
             save_path=save_path,
             bubble_radius=float(data.get("R", 1.0)),
             bubble_sigma=float(data.get("sigma", 8.0)),
@@ -588,7 +589,7 @@ def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> 
     ax1.set_title("(a) Min NEC margin vs velocity", fontsize=9)
 
     # Panel (b): Convergence
-    plot_convergence(json_path, quantity="min_margin_nec", ax=ax2)
+    plot_convergence(json_path, quantity="min_margin_nec", ax=ax2, show_fit=False)
     ax2.set_title(r"(b) Convergence ($25^3$/$50^3$/$100^3$)", fontsize=9)
 
     fig.tight_layout(pad=1.0)

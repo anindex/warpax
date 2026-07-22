@@ -1,6 +1,6 @@
 """Batch render all Manim showcase scenes to MP4 and optimized GIF.
 
-Renders all 8 WarpAx Manim scenes (3 x 3D, 5 x 2D heatmap) at the
+Renders all 9 WarpAx Manim scenes (3 x 3D, 6 x 2D heatmap) at the
 specified quality, then optionally converts each MP4 to a 720p GIF
 using the FFmpeg two-pass palette workflow.
 

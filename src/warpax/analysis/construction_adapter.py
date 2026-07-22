@@ -1,10 +1,10 @@
-"""Uniform adapter for auditing heterogeneous positive-energy warp constructions.
+"""Uniform adapter for certifying heterogeneous positive-energy warp constructions.
 
 The warp-drive metrics in :mod:`warpax.metrics` do not share a constructor: the
 compact family takes ``cls(v_s=, R=1, sigma=8)`` while the source-prescribed
 shells take ``R_1, R_2, ...`` through factory functions and (for the T-shell) a
 matter tilt ``v_0`` rather than a shift speed ``v_s``. This module wraps each
-construction behind a single :class:`ConstructionSpec` so one audit pipeline can flow
+construction behind a single :class:`ConstructionSpec` so one certification pipeline can flow
 all of them through the frame-independent certifier
 (:func:`..energy_conditions.frame_free.certify_grid_frame_free`) and the
 all-observer verification (:mod:`.invariant_verification`) at matched, wall-
@@ -41,7 +41,7 @@ MIN_WALL_CELLS = 4.0
 
 @dataclass(frozen=True)
 class ConstructionSpec:
-    """A positive-energy warp construction wrapped for uniform auditing."""
+    """A positive-energy warp construction wrapped for uniform certification."""
 
     name: str
     build: Callable[[float], MetricSpecification]
@@ -78,13 +78,13 @@ def _vdb(v_s):
 
 
 def _garattini(v_s):
-    # de Sitter background warp bubble; H is matched so that the audit speed
+    # de Sitter background warp bubble; H is matched so that the speed
     # v_s = H * R sits at the Garattini-Zatrimaylov averaged-condition regime.
     return GarattiniMetric(v_s=v_s, R=1.0, sigma=8.0, H=v_s)
 
 
 def construction_registry() -> dict[str, ConstructionSpec]:
-    """All audit constructions keyed by name (compact references + shells)."""
+    """All registered constructions keyed by name (compact references + shells)."""
     specs = [
         # Compact references (baseline + the irrotational global-Type-I claim).
         ConstructionSpec(
@@ -136,7 +136,7 @@ def wall_cells(spec: ConstructionSpec, speed: float | None = None,
     """Number of grid cells spanning the wall transition along +x.
 
     Samples the metric's ``shape_function_value`` on a uniform 1-D radial line
-    at the audit grid spacing and counts points in the active transition band
+    at the sampling grid spacing and counts points in the active transition band
     ``f in [0.05, 0.95]``. This is the operational resolution witness behind the
     "never report an unresolved wall" rule.
     """

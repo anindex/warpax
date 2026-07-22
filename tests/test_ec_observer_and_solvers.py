@@ -1314,7 +1314,7 @@ class TestMpmathClassifier:
     """Pin the 50-digit classifier verdicts and contrast with float64."""
 
     def test_weak_type_iv_now_correct_at_unit_scale(self) -> None:
-        # Pre-fix: the relative imaginary tier absorbed this genuinely
+        # Pre-fix: the relative imaginary tier absorbed this
         # complex pair (1 +/- 2e-5 i) as Type I at unit scale. With the
         # scale floor on the tier, float64 now agrees with the 50-digit
         # verdict here.

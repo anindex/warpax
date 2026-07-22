@@ -235,7 +235,7 @@ def main():
             "tshell": "tshell_default(v_0=0.1), rho_0=1e-4, tilted (E=Eulerian, S_x lowered=gamma_xx*S^x)",
             "fuchs": "fuchs_default() canonical Gaussian-smoothed, v_s=0.02; source=rho_smoothed (static, S_i=0)",
         },
-        "note_vacuum": "Vacuum eps_H = normalized_residuals(metric, coords) with E=0 (published call, sweep.py:209). "
+        "note_vacuum": "Vacuum eps_H = normalized_residuals(metric, coords) with E=0 (published call in optimization/sweep.py, eval_constraint). "
                        "For a matter shell H_vac = R+K^2-K_sq ~ 16 pi rho (matter magnitude), NOT constraint residual.",
         "note_momentum_convention": "S_i passed to normalized_residuals is LOWERED index. T-shell solver stores "
                                     "contravariant S^x; lowered via gamma_xx on x-axis.",

@@ -1,7 +1,7 @@
 """Velocity-resolved Hawking-Ellis type & all-observer EC structure
 across the luminal transition.
 
-Frame-independently (from the eigenstructure of T^a_b only -- no Eulerian normal,
+Frame-independently (from the eigenstructure of T^a_b only, with no Eulerian normal,
 so valid at v_s >= 1), we sweep the warp speed from deep subluminal to
 superluminal and record, on wall-clustered grids, the wall-restricted
 
@@ -9,7 +9,7 @@ superluminal and record, on wall-clustered grids, the wall-restricted
   - Type-I invariant eigenvalue margins min(rho+p_i) [NEC] and min(rho-|p_i|) [DEC];
   - the proper-volume extent of Type-IV ("no rest frame") regions.
 
-This delivers the local all-observer energy-condition problem studied in a
+This addresses the local all-observer energy-condition problem in a
 tetrad/eigenvalue framework across subluminal, luminal, AND superluminal
 regimes. The Type-IV
 labels here are certified physical (not numerical artifact) by the companion
@@ -30,6 +30,7 @@ import json
 import os
 
 from _json_io import dump_json
+from _benchmark_grid import benchmark_grid
 
 import matplotlib
 matplotlib.use("Agg")
@@ -63,7 +64,6 @@ from warpax.energy_conditions.frame_free import (
 )
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.grids import wall_clustered
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 HERE = os.path.dirname(__file__)
@@ -94,8 +94,8 @@ def _instantiate(name, v_s):
 def run_point(name, v_s, N):
     shape = (N, N, N)
     metric = _instantiate(name, v_s)
-    grid = wall_clustered(metric, BOUNDS, shape, a=1.2)
-    curv = evaluate_curvature_grid(metric, grid, batch_size=256)
+    grid = benchmark_grid(metric, N)
+    curv = evaluate_curvature_grid(metric, grid, batch_size=2048)
     ff = certify_grid_frame_free(
         curv.stress_energy, curv.metric, curv.metric_inv, solver="standard"
     )
@@ -218,7 +218,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--velocities", type=float, nargs="+",
                    default=[0.1, 0.3, 0.5, 0.7, 0.9, 0.99, 1.0, 1.1, 1.3, 1.5, 2.0, 2.5])
-    p.add_argument("--N", type=int, default=50)
+    p.add_argument("--N", type=int, default=60)
     p.add_argument("--metrics", type=str, nargs="+", default=METRIC_ORDER)
     p.add_argument("--smoke", action="store_true")
     p.add_argument("--from-cache", action="store_true",

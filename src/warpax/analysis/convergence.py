@@ -3,10 +3,13 @@
 Given a quantity Q computed at multiple grid resolutions, estimates the
 true (continuum) value and the observed convergence order.
 
-Only smooth quantities are suitable for Richardson extrapolation (e.g.
-minimum margin, L2 norm of violation field, integrated violation).
-Discontinuous quantities like "percentage of points violated" are NOT
-suitable.
+Only smooth functionals are suitable for Richardson extrapolation (e.g. an
+L2 norm of the violation field or an integrated violation). Discontinuous
+quantities like "percentage of points violated" are NOT suitable, and neither
+is a grid-sampled EXTREMUM (a min/max over samples): its residual gap
+oscillates with grid alignment (aliasing) and admits no clean order; polish
+such extrema to the continuum with ``analysis.extrema.refine_extremum``
+instead of extrapolating them.
 
 Uses plain Python/numpy math (not JAX) since these are post-processing
 summary statistics.

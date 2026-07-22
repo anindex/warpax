@@ -1,6 +1,6 @@
 """Tests for the symplectic (canonical Hamiltonian) geodesic integrator.
 
-The headline guarantee: ``g(k,k)`` is conserved to ~machine precision, so a null
+The guarantee tested: ``g(k,k)`` is conserved to ~machine precision, so a null
 geodesic stays on the null cone even for a long crossing of a large warp bubble
 where the adaptive Tsit5 integrator drifts off the cone by O(0.1). This is what
 makes the rigorous geodesic-integrated ANEC defensible.
@@ -57,7 +57,7 @@ class TestMinkowskiExact:
 
 
 class TestSymplecticBeatsTsit5:
-    """Headline: on a long large-bubble crossing the symplectic scheme holds
+    """On a long large-bubble crossing the symplectic scheme holds
     the null cone where adaptive RK drifts off it."""
 
     def test_alcubierre_long_crossing(self):

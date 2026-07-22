@@ -68,7 +68,7 @@ def _magnitude_clim(arr: np.ndarray) -> tuple[float, float]:
 def _oneside_neg_clim(arr: np.ndarray) -> tuple[float, float]:
     """One-sided color limits ``(vmin, 0)`` for a strictly-non-positive field.
 
-    Honest for fields like the Eulerian energy density and NEC/WEC margins,
+    Correct for fields like the Eulerian energy density and NEC/WEC margins,
     which are ``<= 0`` everywhere for the Alcubierre bubble (0 in flat regions,
     negative in the wall): a diverging ``+/-`` scale would imply a positive
     "satisfied" half that the data never reaches.

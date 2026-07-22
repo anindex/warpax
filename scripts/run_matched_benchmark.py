@@ -1,22 +1,29 @@
 """Matched-parameter, wall-resolved cross-metric benchmark.
 
 Every *resolved* warp metric is evaluated at the
-SAME family parameters (R = 1, sigma = 8) on identical compact bounds, using
-wall-clustered grids that place several cells across the bubble wall, and the
-reported statistic is the volume-weighted, WALL-RESTRICTED conditional miss
-rate (missed violations as a fraction of violated points within the wall,
-f in [0.1, 0.9]). This removes the wall-volume-scaling confound of the
-unconditional grid-volume fraction and is comparable across metrics.
+SAME family parameters (R = 1, sigma = 8) on identical compact bounds, using the
+canonical wall-resolved graded grid (N = [80, 100, 120] -> 4.5 / 5.6 / 6.7 cells
+across the 10-90% wall, every level clearing the four-cell criterion; see
+scripts/_benchmark_grid.py), and the reported statistic
+is the volume-weighted, WALL-RESTRICTED conditional miss rate (missed violations
+as a fraction of violated points within the wall, f in [0.1, 0.9]). This removes
+the wall-volume-scaling confound of the unconditional grid-volume fraction and is
+comparable across metrics.
 
 For each metric and resolution we record:
   - wall-restricted NEC/WEC/SEC/DEC conditional miss rates (volume-weighted),
-  - minimum NEC/DEC margins (smooth quantities, for Richardson extrapolation),
-  - the number of resolved wall points.
+  - the number of resolved wall points and cells across the wall.
+
+The wall DEC-miss rate is a non-smooth thresholded volume fraction, so the
+convergence table reports its grid stability spread across the wall-resolved
+ladder, NOT a Richardson order. The smooth wall extrema (min NEC/DEC margin,
+max|Im lambda|) are certified exactly, by continuous polishing of the exact
+tensor, in the per-diagnostic table (run_diagnostic_convergence.py).
 
 Outputs
 -------
 - results/matched_benchmark.json                 : structured per-resolution data
-- ../warpax_arxiv/tables/missed_wall_restricted.tex : headline table (finest N)
+- ../warpax_arxiv/tables/missed_wall_restricted.tex : summary table (finest N)
 - ../warpax_arxiv/tables/convergence_per_metric.tex : per-metric convergence/stability
 
 Usage
@@ -39,8 +46,10 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
+from _benchmark_grid import benchmark_grid, N_LADDER
+
 from warpax.analysis import compare_eulerian_vs_robust
-from warpax.analysis.convergence import f_miss_stability, richardson_extrapolation
+from warpax.analysis.convergence import f_miss_stability
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,
@@ -48,7 +57,6 @@ from warpax.energy_conditions.filtering import (
 )
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.grids import wall_clustered
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 
@@ -81,7 +89,7 @@ def _instantiate(name: str):
 def run_single(name: str, metric, N: int, n_starts: int, batch_size: int) -> dict:
     """Wall-restricted, volume-weighted EC comparison on a clustered grid."""
     shape = (N, N, N)
-    grid_spec = wall_clustered(metric, BOUNDS, shape, a=1.2)
+    grid_spec = benchmark_grid(metric, N)
 
     t0 = time.time()
     curv = evaluate_curvature_grid(metric, grid_spec, batch_size=256)
@@ -135,15 +143,15 @@ def _fmt_pct(x: float | None) -> str:
     return f"{x:.1f}" if x is not None else "--"
 
 
-def write_headline_table(panels: dict, resolutions: list[int], out_path: str) -> None:
+def write_summary_table(panels: dict, resolutions: list[int], out_path: str) -> None:
     """Wall-restricted missed-by-Eulerian table at the finest resolution."""
     N = resolutions[-1]
     lines = [
-        r"\begin{tabular}{@{}l c c cccc@{}}",
+        r"\begin{tabular}{@{}l c cccc@{}}",
         r"  \toprule",
-        r"  & Type~I & Wall & \multicolumn{4}{c}{Missed by Eulerian, wall-restricted (\%)} \\",
-        r"  \cmidrule(lr){4-7}",
-        r"  Metric & (\%) & pts & NEC & WEC & SEC & DEC \\",
+        r"  & Wall & \multicolumn{4}{c}{Missed by Eulerian, wall-restricted (\%)} \\",
+        r"  \cmidrule(lr){3-6}",
+        r"  Metric & pts & NEC & WEC & SEC & DEC \\",
         r"  \midrule",
     ]
     for name in METRIC_ORDER:
@@ -153,7 +161,7 @@ def write_headline_table(panels: dict, resolutions: list[int], out_path: str) ->
         r = rows[0]
         m = r["miss"]
         lines.append(
-            f"  {name} & {r['full_type_i_pct']:.1f} & {r['wall_n']} & "
+            f"  {name} & {r['wall_n']} & "
             f"{_fmt_pct(m['nec'])} & {_fmt_pct(m['wec'])} & "
             f"{_fmt_pct(m['sec'])} & {_fmt_pct(m['dec'])} \\\\"
         )
@@ -164,16 +172,24 @@ def write_headline_table(panels: dict, resolutions: list[int], out_path: str) ->
     print(f"  Wrote {out_path}")
 
 
-def write_convergence_table(panels: dict, resolutions: list[int], out_path: str) -> None:
-    """Per-metric resolution stability (wall DEC miss) + min-margin Richardson."""
+def write_convergence_table(panels: dict, resolutions: list[int], out_path: str,
+                            wall_cell_map: dict | None = None) -> None:
+    """Per-metric wall-resolved DEC-miss stability across the graded ladder.
+
+    The wall DEC miss rate is a (non-smooth) thresholded volume fraction, so it
+    carries a stability spread, not a Richardson order. The smooth wall extrema
+    (min NEC/DEC margin, max|Im lambda|) are certified separately and exactly by
+    continuous polishing in the per-diagnostic table; no assumed O(h^2) order is
+    reported for any quantity here.
+    """
+    wall_cell_map = wall_cell_map or {}
+    hdr_cells = " & ".join(f"{n}" for n in resolutions)
     lines = [
-        r"\begin{tabular}{@{}l ccc c c c@{}}",
+        r"\begin{tabular}{@{}l ccc c c@{}}",
         r"  \toprule",
-        r"  & \multicolumn{3}{c}{Wall DEC miss (\%) at $N=$} & Max dev & "
-        r"NEC-min & Stable \\",
+        r"  & \multicolumn{3}{c}{Wall DEC miss (\%) at $N=$} & Max dev & Stable \\",
         r"  \cmidrule(lr){2-4}",
-        f"  Metric & {resolutions[0]} & {resolutions[1]} & {resolutions[2]} "
-        r"& (pp) & order $p$ & \\",
+        f"  Metric & {hdr_cells} & (pp) & \\\\",
         r"  \midrule",
     ]
     for name in METRIC_ORDER:
@@ -183,7 +199,6 @@ def write_convergence_table(panels: dict, resolutions: list[int], out_path: str)
         if len(rows) < 3:
             continue
         dec_vals = [r["miss"]["dec"] for r in rows]
-        nec_min = [r["nec_min"] for r in rows]
         if any(v is None for v in dec_vals):
             dec_cells = " & ".join("--" for _ in rows)
             stable_str, dev_str = "--", "--"
@@ -192,10 +207,8 @@ def write_convergence_table(panels: dict, resolutions: list[int], out_path: str)
             dec_cells = " & ".join(f"{v:.1f}" for v in dec_vals)
             stable_str = r"\checkmark" if stab["stable"] else r"$\times$"
             dev_str = f"{stab['max_dev_pp']:.2f}"
-        rich = richardson_extrapolation(nec_min, resolutions, expected_order=2)
-        p_str = f"{rich['observed_order']:.1f}" + (r"$^\dagger$" if rich.get("fallback") else "")
         lines.append(
-            f"  {name} & {dec_cells} & {dev_str} & {p_str} & {stable_str} \\\\"
+            f"  {name} & {dec_cells} & {dev_str} & {stable_str} \\\\"
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
@@ -206,8 +219,8 @@ def write_convergence_table(panels: dict, resolutions: list[int], out_path: str)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--resolutions", type=int, nargs="+", default=[30, 50, 70])
-    parser.add_argument("--n-starts", type=int, default=4)
+    parser.add_argument("--resolutions", type=int, nargs="+", default=N_LADDER)
+    parser.add_argument("--n-starts", type=int, default=2)
     parser.add_argument("--batch-size", type=int, default=64)
     args = parser.parse_args()
     resolutions = sorted(args.resolutions)
@@ -249,7 +262,7 @@ def main():
     )
     print(f"\nWrote {out_json}")
 
-    write_headline_table(panels, resolutions, os.path.join(TABLES_DIR, "missed_wall_restricted.tex"))
+    write_summary_table(panels, resolutions, os.path.join(TABLES_DIR, "missed_wall_restricted.tex"))
     write_convergence_table(panels, resolutions, os.path.join(TABLES_DIR, "convergence_per_metric.tex"))
 
     print("\n" + "=" * 70)

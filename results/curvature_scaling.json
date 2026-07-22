@@ -12,7 +12,7 @@
       2.0,
       2.5
     ],
-    "N": 50,
+    "N": 60,
     "metrics": [
       "Alcubierre",
       "Nat\u00e1rio",
@@ -26,441 +26,441 @@
     {
       "metric": "Alcubierre",
       "v_s": 0.1,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 12.280142550948572,
-      "weyl_squared_max": 7.3560870580857225,
-      "ricci_squared_max": 3.7920623057532072
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 12.26878228555761,
+      "weyl_squared_max": 7.352050822849881,
+      "ricci_squared_max": 3.7918484338324134
     },
     {
       "metric": "Alcubierre",
       "v_s": 0.2,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 48.96404304599891,
-      "weyl_squared_max": 29.35067468559496,
-      "ricci_squared_max": 15.119301298198312
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 48.91480650453917,
+      "weyl_squared_max": 29.33472403083424,
+      "ricci_squared_max": 15.115818757341462
     },
     {
       "metric": "Alcubierre",
       "v_s": 0.3,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 109.58212001176481,
-      "weyl_squared_max": 65.77074956977518,
-      "ricci_squared_max": 33.83487320289173
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 109.45834257123121,
+      "weyl_squared_max": 65.7275818422572,
+      "ricci_squared_max": 33.81718603656256
     },
     {
       "metric": "Alcubierre",
       "v_s": 0.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 299.20281847277164,
-      "weyl_squared_max": 180.31191793547686,
-      "ricci_squared_max": 92.35416140310414
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 298.92891350719515,
+      "weyl_squared_max": 180.1675975342522,
+      "ricci_squared_max": 92.2214465375917
     },
     {
       "metric": "Alcubierre",
       "v_s": 0.7,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 572.2378739835608,
-      "weyl_squared_max": 346.62818845241776,
-      "ricci_squared_max": 176.34357283404353
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 571.614711721345,
+      "weyl_squared_max": 346.3855941981659,
+      "ricci_squared_max": 176.10975316588502
     },
     {
       "metric": "Alcubierre",
       "v_s": 0.9,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 914.6470524199322,
-      "weyl_squared_max": 558.9891390349552,
-      "ricci_squared_max": 400.6516346302513
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 960.6938997979651,
+      "weyl_squared_max": 558.2458199068608,
+      "ricci_squared_max": 479.81900335634157
     },
     {
       "metric": "Alcubierre",
       "v_s": 1.0,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 1290.4171950274745,
-      "weyl_squared_max": 679.9423207168154,
-      "ricci_squared_max": 621.3646406168027
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 1478.8713804055537,
+      "weyl_squared_max": 679.051857678442,
+      "ricci_squared_max": 738.4885491307358
     },
     {
       "metric": "Alcubierre",
       "v_s": 1.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 6820.929184930873,
-      "weyl_squared_max": 2424.686725751071,
-      "ricci_squared_max": 3274.052244555929
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 7662.108236221959,
+      "weyl_squared_max": 2603.850633587622,
+      "ricci_squared_max": 3824.8202871414614
     },
     {
       "metric": "Alcubierre",
       "v_s": 2.0,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 21876.29489688454,
-      "weyl_squared_max": 7697.946380750151,
-      "ricci_squared_max": 10489.647589317849
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 24409.982077609227,
+      "weyl_squared_max": 8231.72254270974,
+      "ricci_squared_max": 12184.154710301827
     },
     {
       "metric": "Alcubierre",
       "v_s": 2.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 53769.16325697751,
-      "weyl_squared_max": 18833.070196425262,
-      "ricci_squared_max": 25769.9833741498
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 59813.83514781188,
+      "weyl_squared_max": 20099.542532579093,
+      "ricci_squared_max": 29854.765797001397
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 0.1,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 1402.1383711922888,
-      "weyl_squared_max": 728.5191880128393,
-      "ricci_squared_max": 338.17147848040565
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 1400.9440205458059,
+      "weyl_squared_max": 726.7876140953177,
+      "ricci_squared_max": 337.8656827532569
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 0.2,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 5608.173010633919,
-      "weyl_squared_max": 2913.784105989663,
-      "ricci_squared_max": 1352.6063492855817
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 5603.352906126565,
+      "weyl_squared_max": 2906.9332941480056,
+      "ricci_squared_max": 1351.3785639912646
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 0.3,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 12616.962495919215,
-      "weyl_squared_max": 6554.916815745325,
-      "ricci_squared_max": 3043.0659185074055
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 12605.95712857231,
+      "weyl_squared_max": 6539.785553458286,
+      "ricci_squared_max": 3040.286142648738
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 0.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 35034.435573045725,
-      "weyl_squared_max": 18198.347397235728,
-      "ricci_squared_max": 8450.308730208097
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 35002.441710812265,
+      "weyl_squared_max": 18158.832240719814,
+      "ricci_squared_max": 8442.433717743308
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 0.7,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 68630.20725791712,
-      "weyl_squared_max": 35640.08158453485,
-      "ricci_squared_max": 16554.80777687591
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 68563.31449963954,
+      "weyl_squared_max": 35570.02929295107,
+      "ricci_squared_max": 16538.921718644182
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 0.9,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 113367.75203355166,
-      "weyl_squared_max": 58852.02535571869,
-      "ricci_squared_max": 27348.924853450873
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 113247.95059361521,
+      "weyl_squared_max": 58752.52913575901,
+      "ricci_squared_max": 27321.67011126217
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 1.0,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 139899.94595766437,
-      "weyl_squared_max": 72610.4858003766,
-      "ricci_squared_max": 35221.25958140543
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 139745.2818078384,
+      "weyl_squared_max": 72499.60256709046,
+      "ricci_squared_max": 35150.12822921879
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 1.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 670610.151864495,
-      "weyl_squared_max": 328727.09238837135,
-      "ricci_squared_max": 179406.85810074845
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 669510.3418104786,
+      "weyl_squared_max": 329301.61099090555,
+      "ricci_squared_max": 179098.51092085056
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 2.0,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 2122138.2339874967,
-      "weyl_squared_max": 1039187.0549098374,
-      "ricci_squared_max": 568230.2075739866
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 2121324.028408248,
+      "weyl_squared_max": 1041321.932624727,
+      "ricci_squared_max": 567312.9285120065
     },
     {
       "metric": "Nat\u00e1rio",
       "v_s": 2.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 5184028.864725027,
-      "weyl_squared_max": 2537357.0090052444,
-      "ricci_squared_max": 1388654.8195472874
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 5188553.74164688,
+      "weyl_squared_max": 2542929.720120833,
+      "ricci_squared_max": 1388359.9743317189
     },
     {
       "metric": "Van den Broeck",
       "v_s": 0.1,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 466.8259514300294,
-      "weyl_squared_max": 89.64372542653712,
-      "ricci_squared_max": 332.0418936829113
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 467.1032704432535,
+      "weyl_squared_max": 89.77652745310976,
+      "ricci_squared_max": 332.1623157588914
     },
     {
       "metric": "Van den Broeck",
       "v_s": 0.2,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 447.8762800228469,
-      "weyl_squared_max": 78.16620141424798,
-      "ricci_squared_max": 329.26873448272835
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 449.28143149000005,
+      "weyl_squared_max": 78.71103039811456,
+      "ricci_squared_max": 330.02700757013554
     },
     {
       "metric": "Van den Broeck",
       "v_s": 0.3,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 419.54710358029587,
-      "weyl_squared_max": 60.326215563543016,
-      "ricci_squared_max": 326.2879838953569
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 423.6523951248673,
+      "weyl_squared_max": 61.678374358090956,
+      "ricci_squared_max": 327.88879787546944
     },
     {
       "metric": "Van den Broeck",
       "v_s": 0.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 357.98615472714624,
-      "weyl_squared_max": 91.47865365868292,
-      "ricci_squared_max": 326.5948707412281
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 377.1800027889034,
+      "weyl_squared_max": 92.37903074475933,
+      "ricci_squared_max": 336.0355574452017
     },
     {
       "metric": "Van den Broeck",
       "v_s": 0.7,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 367.1602584996852,
-      "weyl_squared_max": 219.6597367172753,
-      "ricci_squared_max": 371.88174012459797
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 421.0580023641271,
+      "weyl_squared_max": 220.519583131087,
+      "ricci_squared_max": 395.4385571381001
     },
     {
       "metric": "Van den Broeck",
       "v_s": 0.9,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 673.5316057579108,
-      "weyl_squared_max": 394.16913236664425,
-      "ricci_squared_max": 504.42694080492964
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 671.9158185813998,
+      "weyl_squared_max": 393.92688349354717,
+      "ricci_squared_max": 556.770182742341
     },
     {
       "metric": "Van den Broeck",
       "v_s": 1.0,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 856.3596508201056,
-      "weyl_squared_max": 494.3630707297082,
-      "ricci_squared_max": 615.3767656677893
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 885.9177374097624,
+      "weyl_squared_max": 493.79842322352806,
+      "ricci_squared_max": 684.2105871655584
     },
     {
       "metric": "Van den Broeck",
       "v_s": 1.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 3273.1895038078947,
-      "weyl_squared_max": 1528.308551017659,
-      "ricci_squared_max": 1878.4519898952476
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 3870.927947009902,
+      "weyl_squared_max": 1623.1718956456198,
+      "ricci_squared_max": 2102.3810988480263
     },
     {
       "metric": "Van den Broeck",
       "v_s": 2.0,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 11011.078930639365,
-      "weyl_squared_max": 5429.6180915674395,
-      "ricci_squared_max": 5080.089330389049
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 12675.755422826449,
+      "weyl_squared_max": 5777.365441513226,
+      "ricci_squared_max": 5685.237703139234
     },
     {
       "metric": "Van den Broeck",
       "v_s": 2.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 28195.768086297292,
-      "weyl_squared_max": 14021.860907757657,
-      "ricci_squared_max": 11648.306910291092
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 32028.667657516344,
+      "weyl_squared_max": 14870.307996203532,
+      "ricci_squared_max": 13022.669406664512
     },
     {
       "metric": "Rodal",
       "v_s": 0.1,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 0.12315975012404197,
-      "weyl_squared_max": 0.031200281572473038,
-      "ricci_squared_max": 0.07876188013958481
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 0.15600444997897683,
+      "weyl_squared_max": 0.039087283814818394,
+      "ricci_squared_max": 0.09986963722740978
     },
     {
       "metric": "Rodal",
       "v_s": 0.2,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 1.9705560019846702,
-      "weyl_squared_max": 0.49920450515956716,
-      "ricci_squared_max": 1.2601900822333587
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 2.4960711996636276,
+      "weyl_squared_max": 0.6253965410370933,
+      "ricci_squared_max": 1.597914195638555
     },
     {
       "metric": "Rodal",
       "v_s": 0.3,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 9.97593976004739,
-      "weyl_squared_max": 2.5272228073703107,
-      "ricci_squared_max": 6.379712291306375
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 12.636360448297118,
+      "weyl_squared_max": 3.166069989000289,
+      "ricci_squared_max": 8.08944061542019
     },
     {
       "metric": "Rodal",
       "v_s": 0.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 76.97484382752619,
-      "weyl_squared_max": 19.500175982795657,
-      "ricci_squared_max": 49.22617508724058
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 97.50278123686053,
+      "weyl_squared_max": 24.42955238426151,
+      "ricci_squared_max": 62.418523267131064
     },
     {
       "metric": "Rodal",
       "v_s": 0.7,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 295.70656004782484,
-      "weyl_squared_max": 74.91187605550796,
-      "ricci_squared_max": 189.10727421514315
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 374.56668439952324,
+      "weyl_squared_max": 93.84856843937878,
+      "ricci_squared_max": 239.78699898301065
     },
     {
       "metric": "Rodal",
       "v_s": 0.9,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 808.0511205638396,
-      "weyl_squared_max": 204.7050473969962,
-      "ricci_squared_max": 516.7566955958163
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 1023.5451963120677,
+      "weyl_squared_max": 256.45166910902395,
+      "ricci_squared_max": 655.2446898490354
     },
     {
       "metric": "Rodal",
       "v_s": 1.0,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 1231.5975012404188,
-      "weyl_squared_max": 312.00281572472966,
-      "ricci_squared_max": 787.6188013958488
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 1560.0444997897675,
+      "weyl_squared_max": 390.8728381481839,
+      "ricci_squared_max": 998.6963722740965
     },
     {
       "metric": "Rodal",
       "v_s": 1.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 6234.962350029601,
-      "weyl_squared_max": 1579.514254606434,
-      "ricci_squared_max": 3987.3201820664813
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 7897.725280185702,
+      "weyl_squared_max": 1978.793743125179,
+      "ricci_squared_max": 5055.900384637612
     },
     {
       "metric": "Rodal",
       "v_s": 2.0,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 19705.560019846725,
-      "weyl_squared_max": 4992.045051595699,
-      "ricci_squared_max": 12601.900822333579
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 24960.71199663628,
+      "weyl_squared_max": 6253.965410370952,
+      "ricci_squared_max": 15979.141956385552
     },
     {
       "metric": "Rodal",
       "v_s": 2.5,
-      "N": 50,
-      "wall_n": 1386,
-      "kretschmann_max": 48109.27739220391,
-      "weyl_squared_max": 12187.609989247272,
-      "ricci_squared_max": 30766.35942952529
+      "N": 60,
+      "wall_n": 4324,
+      "kretschmann_max": 60939.238273037714,
+      "weyl_squared_max": 15268.470240163406,
+      "ricci_squared_max": 39011.577041956916
     }
   ],
   "fits": {
     "Alcubierre": {
       "kretschmann": {
-        "A": 1150.471065468763,
-        "q": 1.9649579419208651,
-        "r_squared": 0.9999073660449812,
+        "A": 1175.7858174251592,
+        "q": 1.9787577388889401,
+        "r_squared": 0.9999686009333435,
         "n": 6
       },
       "weyl_squared": {
-        "A": 699.7271864220056,
-        "q": 1.973162364477272,
-        "r_squared": 0.9999474125347276,
+        "A": 698.9972438650855,
+        "q": 1.9728941701780995,
+        "r_squared": 0.9999460704036285,
         "n": 6
       },
       "ricci_squared": {
-        "A": 416.1565760924039,
-        "q": 2.0609903014104476,
-        "r_squared": 0.9961220768188557,
+        "A": 451.3197725357861,
+        "q": 2.110414047934399,
+        "r_squared": 0.9908227143646857,
         "n": 6
       }
     },
     "Nat\u00e1rio": {
       "kretschmann": {
-        "A": 140017.04750123297,
-        "q": 1.999244380526802,
-        "r_squared": 0.9999999575383223,
+        "A": 139875.5256187748,
+        "q": 1.9991587844287184,
+        "r_squared": 0.9999999473634232,
         "n": 6
       },
       "weyl_squared": {
-        "A": 72700.55450185781,
-        "q": 1.9988809940487662,
-        "r_squared": 0.9999999068024529,
+        "A": 72566.44010815509,
+        "q": 1.999167891950043,
+        "r_squared": 0.9999999484980426,
         "n": 6
       },
       "ricci_squared": {
-        "A": 33775.995360125744,
-        "q": 1.9993449005808028,
-        "r_squared": 0.9999999680913224,
+        "A": 33743.0352980767,
+        "q": 1.9993063519723329,
+        "r_squared": 0.9999999642225246,
         "n": 6
       }
     },
     "Van den Broeck": {
       "kretschmann": {
-        "A": 462.55317003411915,
-        "q": 0.037009325661973506,
-        "r_squared": 0.017812780669474004,
+        "A": 494.12254578307756,
+        "q": 0.06824267324544366,
+        "r_squared": 0.07996133308144959,
         "n": 6
       },
       "weyl_squared": {
-        "A": 237.05039954060067,
-        "q": 0.6330905630158025,
-        "r_squared": 0.5264198815503665,
+        "A": 238.5085061372367,
+        "q": 0.6319925062057153,
+        "r_squared": 0.5329587507909354,
         "n": 6
       },
       "ricci_squared": {
-        "A": 416.47914279682385,
-        "q": 0.13879100249599394,
-        "r_squared": 0.44184819406392195,
+        "A": 449.5699180204749,
+        "q": 0.18065354315479915,
+        "r_squared": 0.5057474054653772,
         "n": 6
       }
     },
     "Rodal": {
       "kretschmann": {
-        "A": 1231.5975012404206,
-        "q": 4.000000000000001,
+        "A": 1560.0444997897666,
+        "q": 3.9999999999999987,
         "r_squared": 1.0,
         "n": 6
       },
       "weyl_squared": {
-        "A": 312.0028157247314,
-        "q": 4.0000000000000036,
+        "A": 390.87283814818375,
+        "q": 3.9999999999999996,
         "r_squared": 1.0,
         "n": 6
       },
       "ricci_squared": {
-        "A": 787.6188013958479,
-        "q": 4.000000000000001,
+        "A": 998.6963722740963,
+        "q": 3.999999999999998,
         "r_squared": 1.0,
         "n": 6
       }

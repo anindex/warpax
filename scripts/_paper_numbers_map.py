@@ -36,11 +36,6 @@ def _kappa_vorticity():
     return _load("vorticity_type_analytic.json")["controlled_family"]["kappa"]
 
 
-def _cross(metric, key):
-    """Per-metric cross-validation entry from the vorticity-mechanism run."""
-    return _load("vorticity_type_analytic.json")["cross_metric"][metric][key]
-
-
 def _vdb_transition_vs():
     """v_s where the VdB wall Type-I fraction first reaches 0.5 (linear interp)."""
     rows = [r for r in _load("velocity_sweep.json")["rows"]
@@ -68,22 +63,10 @@ AUTO_SOURCED = {
     "vdbTransitionVS": (_vdb_transition_vs, 2, "velocity_sweep.json (50% Type-I crossover)"),
     "kappaVorticity": (_kappa_vorticity, 3,
                        "vorticity_type_analytic.json (controlled pure-rotation slope)"),
-    "alcubierreImagRatio": (lambda: _cross("Alcubierre", "imag_ratio"), 1,
-                            "vorticity_type_analytic.json (cross-metric Im/(kappa*omega))"),
-    "natarioImagRatio": (lambda: _cross("Natário", "imag_ratio"), 1,
-                         "vorticity_type_analytic.json (cross-metric Im/(kappa*omega))"),
-    "vdbImagRatio": (lambda: _cross("Van den Broeck", "imag_ratio"), 1,
-                     "vorticity_type_analytic.json (cross-metric Im/(kappa*omega))"),
-    "alcubierreShearVortRatio": (lambda: _cross("Alcubierre", "shear_to_vorticity"), 1,
-                                 "vorticity_type_analytic.json (sigma/omega at wall sample)"),
-    "natarioShearVortRatio": (lambda: _cross("Natário", "shear_to_vorticity"), 1,
-                              "vorticity_type_analytic.json (sigma/omega at wall sample)"),
-    "vdbShearVortRatio": (lambda: _cross("Van den Broeck", "shear_to_vorticity"), 1,
-                          "vorticity_type_analytic.json (sigma/omega at wall sample)"),
 }
 
 # Manually maintained (multi-file/derived provenance): verified by hand against
-# the listed source; the audit checks the source file exists but does not
+# the listed source; the check verifies the source file exists but does not
 # recompute (the value is a rounded/native-params figure).
 MANUAL = {
     "alcubierreNECmissVSfive": "wall_restricted_analysis.json (unconditional)",

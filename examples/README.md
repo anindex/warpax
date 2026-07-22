@@ -67,7 +67,7 @@ python examples/10_phase_diagram.py --full   # 20×15, ~30 min on GPU
 ## Where outputs land
 
 Each script writes its figures and arrays under `examples/output/`
-(gitignored). Example 10 writes its phase diagram to `output/` at the
+(gitignored). Example 10 writes its phase diagram to `results/phase_diagram/` at the
 repository root. Check the header of any script you run for the exact path.
 
 ## Further reading

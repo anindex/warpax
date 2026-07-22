@@ -64,7 +64,7 @@ def measure_seam_continuity(
     """Measure second-derivative discontinuity at shell transition seams.
 
     Sweeps along the x-axis near each shell boundary and computes the
-    maximum absolute third finite difference of the lapse divided by dr.
+    maximum absolute analytic third derivative of the lapse (via jax.grad).
     This quantifies the second-derivative jump (Riemann tensor
     discontinuity) at the transition seams.
 

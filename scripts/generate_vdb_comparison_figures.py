@@ -1,4 +1,4 @@
-"""Generate Van Den Broeck NEC/WEC and SEC/DEC comparison figures.
+"""Generate Van den Broeck NEC/WEC and SEC/DEC comparison figures.
 
 - VdB NEC comparison (NEC missed = 0.1% at v_s=0.5)
 - VdB WEC comparison (WEC missed = 0.4% at v_s=0.5)
@@ -39,7 +39,7 @@ def main():
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
     print("=" * 70)
-    print("Van Den Broeck EC Comparison Figure Generator")
+    print("Van den Broeck EC comparison figure generator")
     print("=" * 70)
 
     metric = VanDenBroeckMetric(v_s=V_S, **VDB_PARAMS)
@@ -85,7 +85,7 @@ def main():
             missed=np.asarray(comparison.missed[cond]),
             grid_bounds=grid_bounds,
             grid_shape=GRID.shape,
-            title=rf"Van Den Broeck {label}: Eulerian vs Robust ($v_s = 0.5$, $50^3$ grid)",
+            title=rf"Van den Broeck {label}: Eulerian vs Robust ($v_s = 0.5$, $50^3$ grid)",
             save_path=path,
         )
         print(f"  Saved: {path}")

@@ -171,7 +171,7 @@ class TestLoadEinField:
 
 
 # NOTE: distinct name from the cactus FIXTURE_PATH above; a bare ``FIXTURE_PATH``
-# here shadowed the cactus one at module load, so the h5py-gated cactus tests
+# here shadowed the cactus one at module load, so the cactus tests requiring h5py
 # silently tried to open this .mat file ("file signature not found").
 WARPFACTORY_FIXTURE_PATH = (
     Path(__file__).parent / "fixtures" / "warpfactory" / "alcubierre.mat"

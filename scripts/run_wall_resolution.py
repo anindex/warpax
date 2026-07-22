@@ -9,8 +9,8 @@ are derived from closed-form expressions.
 For tanh-based metrics the 10-90% transition width is
     wall_width = 2 * arctanh(0.8) / sigma = 2.1972 / sigma
 
-For WarpShell's Hermite smoothstep the transition covers exactly
-``smooth_width`` (default 0.12 * (R_2 - R_1)).
+run_analysis.py additionally covers WarpShell, whose Hermite smoothstep
+transition spans exactly ``smooth_width`` (default 0.12 * (R_2 - R_1)).
 
 Output: results/wall_resolution.json
 
@@ -58,27 +58,11 @@ def main():
             "grid_n": 50,
         },
         {
-            "metric": "lentz",
-            "shape_function": "tanh",
-            "sigma": 8.0,
-            "domain": [-300, 300],
-            "grid_n": 50,
-        },
-        {
             "metric": "rodal",
             "shape_function": "tanh",
             "sigma": 0.03,
             "domain": [-300, 300],
             "grid_n": 50,
-        },
-        {
-            "metric": "warpshell",
-            "shape_function": "hermite",
-            "sigma": None,
-            "domain": [-5, 5],
-            "grid_n": 50,
-            "R_1": 0.5,
-            "R_2": 1.0,
         },
         {
             "metric": "schwarzschild",

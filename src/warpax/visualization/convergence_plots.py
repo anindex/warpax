@@ -29,12 +29,13 @@ def plot_convergence(
     quantity: str = "min_margin_nec",
     save_path: str | None = None,
     ax: plt.Axes | None = None,
+    show_fit: bool = True,
 ) -> plt.Figure:
     """Log-log convergence plot from cached convergence data.
 
     X-axis: grid spacing h = 1/N.
     Y-axis: |Q(h) - Q_extrapolated|.
-    Plots data points plus fitted line with slope = observed order p.
+    Plots data points, optionally with a fitted-order line (see show_fit).
 
     Parameters
     ----------
@@ -46,6 +47,9 @@ def plot_convergence(
         If provided, save as PDF.
     ax : plt.Axes or None
         If provided, plot on this axes instead of creating a new figure.
+    show_fit : bool
+        If True (default), overlay the fitted-order line; set False to show the
+        data points alone (used for non-monotone sequences).
 
     Returns
     -------
@@ -88,7 +92,7 @@ def plot_convergence(
 
     # Fitted line: error ~ C * h^p
     # Use the coarsest point to determine C
-    if errors[0] > 1e-30 and h[0] > 0:
+    if show_fit and errors[0] > 1e-30 and h[0] > 0:
         C = errors[0] / h[0] ** p
         h_fine = np.logspace(np.log10(h[-1] * 0.5), np.log10(h[0] * 2), 50)
         ax.loglog(

@@ -236,7 +236,7 @@ class TestNatario:
 
         The Natario metric uses co-moving bubble frame where far field
         has a uniform flow: n(inf) = 1/2, so shift = -v_s * x_hat.
-        The metric at far field is NOT Minkowski it has nonzero shift.
+        The metric at far field is NOT Minkowski: it has nonzero shift.
 
         g_00 = -(1 - v_s^2), g_0x = -v_s, g_ij = delta_ij.
         """

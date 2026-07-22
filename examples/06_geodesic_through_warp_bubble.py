@@ -8,7 +8,7 @@ Demonstrates the geodesic integration pipeline:
 4. Compute tidal eigenvalues along the trajectory.
 5. Visualize tidal evolution with ``plot_tidal_evolution``.
 
-The particle starts far ahead of the bubble and the bubble sweeps past it.
+The particle starts right at the leading bubble wall (x = R = 1) and the bubble sweeps past it.
 Tidal forces should spike at the bubble wall and vanish inside and outside.
 """
 from __future__ import annotations

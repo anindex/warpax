@@ -1,6 +1,6 @@
 """T-shell outer-edge Type-IV: linear-in-v0 fit + three-solver / 50-digit gate.
 
-Backs two claims in source_first_arxiv:
+Backs two claims in the warpax_arxiv manuscript:
   (i)  the opened imaginary-eigenvalue scale grows linearly with the matter tilt
        v0 at the genuine low-density OUTER edge (r >= R2), excluding the inner
        vacuum r < R1 (a uniform-shift gauge artifact);

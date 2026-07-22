@@ -67,7 +67,7 @@ class ShapeFunction(eqx.Module):
         ----------
         knots
             Monotone increasing sample points in the radial domain.
-            Default 24 knots (matches Alcubierre
+            Typically 24 knots (matches the Alcubierre
             target of ``< 1e-4`` relative error).
         values
             Shape-function amplitudes at ``knots``. Same length as

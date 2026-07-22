@@ -125,7 +125,7 @@ Measured on a 50^3 grid
 | SEC miss rate | 0.32% | 23.08% |
 
 The wall-restricted view makes the concentration effect explicit:
-essentially all Type IV points live in the warp wall. The full-grid 2.05%
+nearly all Type IV points live in the warp wall. The full-grid 2.05%
 is a volume-diluted version of the same phenomenon -- dividing
 `2560 / 125000` instead of `408 / 416`.
 

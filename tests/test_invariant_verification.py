@@ -39,7 +39,7 @@ def _wall(metric, N=24):
 
 def test_rodal_single_frame_miss_is_substantial():
     """Rodal (100% Type I): within the wall, the Eulerian frame misses a large
-    fraction of the all-observer DEC/WEC violations -- the verification of its
+    fraction of the all-observer DEC/WEC violations, the verification of its
     positive-energy claim. NEC is missed far less (Eulerian probes null directly)."""
     metric = RodalMetric(v_s=0.5, R=1.0, sigma=8.0)
     T, g, gi, vw = _curv(metric)
@@ -65,8 +65,10 @@ def test_exotic_content_signs_and_manual_match():
     assert exotic["E_minus_inv"] < 0.0
     assert exotic["E_plus_inv"] > 0.0
     assert exotic["E_minus_eul"] < 0.0
-    assert exotic["E_minus_inv"] == pytest.approx(-0.03419251994163071, rel=1e-3)
-    assert exotic["E_plus_inv"] == pytest.approx(0.04663450787803846, rel=1e-3)
+    # Golden pins recomputed on the corrected wall-clustering grid (the sinh
+    # cosh-stretch that densifies at the wall; see grids/_clustered.py).
+    assert exotic["E_minus_inv"] == pytest.approx(-0.03420913266409097, rel=1e-3)
+    assert exotic["E_plus_inv"] == pytest.approx(0.04670635591978148, rel=1e-3)
 
     # Manual cross-check against the frame-free rho (Rodal is ~100% Type I).
     from warpax.energy_conditions.frame_free import certify_grid_frame_free

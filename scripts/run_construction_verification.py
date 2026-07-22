@@ -1,10 +1,10 @@
 """Cross-construction all-observer verification of positive-energy warp drives.
 
 Extends the n=1 Rodal verification to a panel of published positive-energy
-constructions -- Fuchs constant-velocity shell (arXiv:2405.02709) and the
-Bobrick-Martire / Fell-Heisenberg WarpShell -- alongside the Alcubierre baseline
+constructions (Fuchs constant-velocity shell (arXiv:2405.02709) and the
+Garattini-Zatrimaylov averaged-condition drive) alongside the Alcubierre baseline
 and the Rodal global-Type-I drive. The source-first S-/T-shells remain available
-in the construction registry as a toolkit, but are introduced and audited in the
+in the construction registry as a toolkit, but are introduced and developed in the
 companion note (arXiv:2605.25417), not certified here, to keep the contributions
 disjoint.
 
@@ -45,13 +45,14 @@ from warpax.energy_conditions.frame_free import certify_grid_frame_free, type_fr
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import wall_clustered
+from _benchmark_grid import CLUSTER_A
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
 TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 F_LOW, F_HIGH = 0.1, 0.9
-ORDER = ["Alcubierre", "Rodal", "Fuchs", "WarpShell", "Garattini"]
+ORDER = ["Alcubierre", "Rodal", "Fuchs", "Garattini"]
 
 
 def verify_one(spec, speed, n):
@@ -68,12 +69,12 @@ def verify_one(spec, speed, n):
     }
     if not resolved:
         row["note"] = (
-            f"wall spans {cells:.1f} cells (< 4); numbers withheld -- increase N"
+            f"wall spans {cells:.1f} cells (< 4); numbers withheld; increase N"
         )
         return row
 
     metric = spec.metric(speed)
-    grid = wall_clustered(metric, list(spec.bounds), (n, n, n), a=1.2)
+    grid = wall_clustered(metric, list(spec.bounds), (n, n, n), a=CLUSTER_A)
     curv = evaluate_curvature_grid(metric, grid, batch_size=256)
     T, g, gi = curv.stress_energy, curv.metric, curv.metric_inv
 

@@ -121,3 +121,8 @@ ignore = ["F722", "F821", "E402", "E731", "E741"]
 "scripts/**" = ["F841"]
 # Benchmarks: same as scripts
 "benchmarks/**" = ["F841"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

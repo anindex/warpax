@@ -26,7 +26,7 @@ The spacetime is NOT asymptotically flat: ``gamma_ij`` grows as ``e^{2 H t}``.
 Certification is performed on a reference slice ``t = t0`` (default ``t0 = 0``,
 where ``gamma = delta``); the H-dependence still enters through the time
 derivative of the metric in the curvature chain. ANEC along a complete geodesic
-should be gated on ``geodesic_complete`` because dS geodesics can leave the
+should be conditional on ``geodesic_complete`` because dS geodesics can leave the
 integration box.
 """
 from __future__ import annotations

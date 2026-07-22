@@ -2,7 +2,7 @@
 
 Creates a Manim ``Surface`` whose vertices are first lifted to ``z = value`` so
 ``set_fill_by_value`` can bake per-vertex colors, then (when ``flat=True``)
-collapsed to a genuinely flat plane and positioned at ``z_offset``. The result
+collapsed to a flat plane and positioned at ``z_offset``. The result
 is a color-mapped slab: its colour encodes the scalar, its height
 carries no information (it is not a value relief).
 """
@@ -37,7 +37,7 @@ def _build_colorscale(
     """
     if colormap == "nec_depth":
         # One-sided sequential "violation depth": bright blue (deepest, vmin)
-        # -> dark (marginal, vmax=0). Honest for a strictly-non-positive field
+        # -> dark (marginal, vmax=0). Correct for a strictly-non-positive field
         # (no diverging "satisfied" half that the data never reaches).
         span = (vmax - vmin) if vmax > vmin else 1.0
         return [
@@ -101,7 +101,7 @@ def framedata_to_heatmap(
     The surface is constructed with z = field_value so that
     ``set_fill_by_value`` can map the scalar data to colors via ``axis=2``.
     When ``flat`` is true (default) the value-relief is then collapsed to a
-    genuinely flat plane positioned at ``z_offset`` -- the colours are already
+    flat plane positioned at ``z_offset`` -- the colours are already
     baked, so the slab encodes the scalar by colour alone and its height carries
     no information. With ``flat=False`` the legacy value-relief is shifted to
     ``z_offset`` instead.
@@ -188,7 +188,7 @@ def framedata_to_heatmap(
     surface.set_fill_by_value(axes=axes, colorscale=colorscale, axis=2)
 
     if flat:
-        # Colours are baked; collapse the value-relief to a genuinely flat slab
+        # Colours are baked; collapse the value-relief to a flat slab
         # so the height no longer (mis)reads as a second encoding of the field.
         # Set the scene-z of every vertex to the target plane directly -- a
         # division-free flatten. ``stretch_to_fit_depth`` would divide by the

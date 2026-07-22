@@ -56,9 +56,12 @@ def test_negative_pressure_violates():
     assert float(out["dec"]) < 0
 
 
-def test_type_iv_yields_nan_margins():
-    """A complex-eigenvalue T^a_b is Type IV with no invariant rest-frame margin."""
+def test_type_iv_certifies_nec_violation():
+    """A complex-eigenvalue T^a_b is Type IV; the Eulerian null witness certifies
+    NEC violation in closed form (cap-free), replacing the old NaN margins."""
     # T_{ab} with a (t,x) block giving |T_tx| > |T_tt+T_xx|/2 -> complex pair.
+    # Eulerian decomposition: rho=1, |j|=2, S_par=1 -> Delta=(rho+S_par)^2-4|j|^2
+    # = 4-16 = -12 < 0 (Type IV) and witness = rho+S_par-2|j| = 2-4 = -2.
     T = jnp.array(
         [
             [1.0, 2.0, 0.0, 0.0],
@@ -69,9 +72,38 @@ def test_type_iv_yields_nan_margins():
     )
     out = certify_point_frame_free(T, MINKOWSKI, solver="standard")
     assert int(out["he_type"]) == 4
-    assert np.isnan(float(out["nec"]))
-    assert np.isnan(float(out["wec"]))
-    assert np.isnan(float(out["dec"]))
+    for cond in ("nec", "wec", "sec", "dec"):
+        val = float(out[cond])
+        assert np.isfinite(val), f"{cond} must be a finite certified margin, not NaN"
+        assert val < 0, f"Type IV must certify {cond.upper()} violation"
+    assert abs(float(out["nec"]) - (-2.0)) < 1e-9, "closed-form witness = rho+S_par-2|j|"
+
+
+def test_conformal_type_iv_positive_witness_certified():
+    """A Type-IV point whose momentum witness is >= 0 (conformal pair, not
+    momentum-sourced) still gets a certified-negative margin from -|Im lambda|."""
+    from warpax.energy_conditions.frame_free import _exact_margins
+
+    he = jnp.float64(4.0)  # Type IV
+    witness = jnp.float64(0.5)  # momentum witness >= 0: momentum plane is not the source
+    imag = jnp.float64(0.3)  # nonzero imaginary eigenvalue certifies Type IV
+    nan = jnp.float64(jnp.nan)
+    nec, wec, sec, dec = _exact_margins(he, nan, nan, nan, nan, witness, imag)
+    for m in (nec, wec, sec, dec):
+        assert float(m) == pytest.approx(-0.3)
+        assert float(m) < 0
+
+
+def test_momentum_sourced_type_iv_uses_witness():
+    """When the momentum witness is negative it is the reported margin, not -|Im|."""
+    from warpax.energy_conditions.frame_free import _exact_margins
+
+    he = jnp.float64(4.0)
+    witness = jnp.float64(-2.0)
+    imag = jnp.float64(1.7)
+    nan = jnp.float64(jnp.nan)
+    nec, _, _, _ = _exact_margins(he, nan, nan, nan, nan, witness, imag)
+    assert float(nec) == pytest.approx(-2.0)
 
 
 def test_grid_matches_verify_grid_typeI_margins():

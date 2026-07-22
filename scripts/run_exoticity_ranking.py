@@ -12,11 +12,11 @@ Axes (all boost-invariant):
 Each axis is mapped to a [0,1] sub-score relative to the Alcubierre baseline and
 combined by a geometric mean, so a construction that is clean on any axis (e.g.
 the irrotational Rodal drive) scores low. The full per-axis vector is reported
-alongside the scalar index -- never the scalar alone.
+alongside the scalar index, never the scalar alone.
 
 Scaling laws: for each metric the wall NEC severity is fit to ``|min(rho+p_i)|
 = A v_s^p`` over the subluminal branch (log-log regression). Rodal's clean
-``~0.688 v_s^2`` is recovered as the special case; the exponent is universal
+``~0.773 v_s^2`` is recovered as the special case; the exponent is universal
 (~2) and the coefficient is the per-drive fingerprint.
 
 Outputs

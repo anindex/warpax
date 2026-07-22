@@ -89,7 +89,7 @@ def plot_shift_vorticity(
     ax_b.set_ylabel(f"wall Type-IV fraction ({_PCT})")
     ax_b.set_xlim(-0.04, max(0.6, x_max * 1.1))
     ax_b.set_ylim(-5, 105)
-    ax_b.set_title("(b) vorticity controls the type")
+    ax_b.set_title("(b) wall type vs shift vorticity")
     # Data clusters sit at x >= 0.33 (plus Rodal at the origin); the
     # center-left is empty, so the legend goes there.
     ax_b.legend(fontsize=8, frameon=False, loc="center left",

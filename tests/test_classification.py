@@ -229,7 +229,7 @@ class TestTypeIIIClassification:
         This documents the expected behavior: numerical eigendecomposition
         cannot detect non-diagonalizability at machine precision, so the
         near-degenerate Jordan block appears as a legitimate Type I tensor
-        with nearly-equal pressures. This is physically correct the
+        with nearly-equal pressures. This is physically correct: the
         tensor IS Type I to the precision we can measure.
         """
         lam = 1.0
@@ -652,7 +652,7 @@ class TestScaleAwareImaginaryTolerance:
 
         The 3e-3 relative tier engages only above the 1e6 scale floor
         (it absorbs float64 eigensolver noise on large ill-conditioned
-        ||T||); below the floor a genuinely complex pair is Type IV at
+        ||T||); below the floor a complex pair is Type IV at
         any relative split (50-digit certified). Eigenvalues of the
         (1,2) block are scale * (1 +/- i*imag)."""
         def _classify(imag, scale=1.0):

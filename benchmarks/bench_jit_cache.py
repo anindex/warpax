@@ -4,7 +4,7 @@ Compares the wall-clock of a curvature-chain evaluation when the JAX
 compilation cache is (a) cold (fresh temp cache dir, no prior artifacts) vs
 (b) warm (same temp cache dir pre-populated by one prior evaluation).
 
-The benchmark respects 20% noise budget and uses the CPU
+The benchmark respects the 20% noise budget and uses the CPU
 platform (canonical reproduction). It targets a >= 30% cold-to-warm
 reduction, reported through the asv time harness.
 """

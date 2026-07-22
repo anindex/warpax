@@ -1,0 +1,111 @@
+{
+  "params": {
+    "v_s": 0.5,
+    "N": 60,
+    "note": "matched family R_b=1 sigma=8; Rodal native R=100 sigma=0.03. eig_iv_delta_nonneg = eig Type-IV but Delta>=0 (off-momentum-plane channel: VdB conformal, Natario vortical). Wall = shape function in [0.1,0.9]; full-grid delta_only is dominated by Type-I NEC-violating far field (Delta<0 is a NEC-violation witness, broader than Type IV)."
+  },
+  "order": [
+    "Alcubierre",
+    "Nat\u00e1rio",
+    "Van den Broeck",
+    "Rodal"
+  ],
+  "results": {
+    "Alcubierre": {
+      "full_grid": {
+        "n_points": 216000,
+        "n_eig_typeIV": 44903,
+        "n_delta_typeIV": 133761,
+        "agreement_rate": 0.579,
+        "n_active": 134800,
+        "agreement_rate_active": 0.3254005934718101,
+        "eig_iv_delta_nonneg": 1039,
+        "delta_only": 89897,
+        "exc_median_abs_imag": 2.958451786234074e-07
+      },
+      "wall": {
+        "n_points": 2384,
+        "n_eig_typeIV": 2367,
+        "n_delta_typeIV": 2318,
+        "agreement_rate": 0.977768456375839,
+        "n_active": 2369,
+        "agreement_rate_active": 0.9776276910088645,
+        "eig_iv_delta_nonneg": 51,
+        "delta_only": 2,
+        "exc_median_abs_imag": 0.018014854920202987
+      }
+    },
+    "Nat\u00e1rio": {
+      "full_grid": {
+        "n_points": 216000,
+        "n_eig_typeIV": 60971,
+        "n_delta_typeIV": 215490,
+        "agreement_rate": 0.28223611111111113,
+        "n_active": 215749,
+        "agreement_rate_active": 0.2814010725426306,
+        "eig_iv_delta_nonneg": 259,
+        "delta_only": 154778,
+        "exc_median_abs_imag": 0.06977297555278894
+      },
+      "wall": {
+        "n_points": 2384,
+        "n_eig_typeIV": 2118,
+        "n_delta_typeIV": 1874,
+        "agreement_rate": 0.8850671140939598,
+        "n_active": 2133,
+        "agreement_rate_active": 0.8715424285044538,
+        "eig_iv_delta_nonneg": 259,
+        "delta_only": 15,
+        "exc_median_abs_imag": 0.06977297555278894
+      }
+    },
+    "Van den Broeck": {
+      "full_grid": {
+        "n_points": 216000,
+        "n_eig_typeIV": 18186,
+        "n_delta_typeIV": 10328,
+        "agreement_rate": 0.9198148148148149,
+        "n_active": 22917,
+        "agreement_rate_active": 0.24422917484836584,
+        "eig_iv_delta_nonneg": 12589,
+        "delta_only": 4731,
+        "exc_median_abs_imag": 2.360484465475067e-07
+      },
+      "wall": {
+        "n_points": 2384,
+        "n_eig_typeIV": 2097,
+        "n_delta_typeIV": 1502,
+        "agreement_rate": 0.7495805369127517,
+        "n_active": 2098,
+        "agreement_rate_active": 0.715443279313632,
+        "eig_iv_delta_nonneg": 596,
+        "delta_only": 1,
+        "exc_median_abs_imag": 0.053968092502559586
+      }
+    },
+    "Rodal": {
+      "full_grid": {
+        "n_points": 216000,
+        "n_eig_typeIV": 0,
+        "n_delta_typeIV": 0,
+        "agreement_rate": 1.0,
+        "n_active": 0,
+        "agreement_rate_active": 1.0,
+        "eig_iv_delta_nonneg": 0,
+        "delta_only": 0,
+        "exc_median_abs_imag": 0.0
+      },
+      "wall": {
+        "n_points": 6599,
+        "n_eig_typeIV": 0,
+        "n_delta_typeIV": 0,
+        "agreement_rate": 1.0,
+        "n_active": 0,
+        "agreement_rate_active": 1.0,
+        "eig_iv_delta_nonneg": 0,
+        "delta_only": 0,
+        "exc_median_abs_imag": 0.0
+      }
+    }
+  }
+}

@@ -82,8 +82,11 @@ Two patterns worth flagging:
   envelope only lives in one place, which keeps the shape function and the
   shift aligned when parameters change.
 - **Unit lapse + flat spatial metric.** All of the warp geometry is carried
-  by the shift. This is the Alcubierre-style ADM shape; WarpShell is the
-  only built-in metric that departs from it.
+  by the shift. This is the Alcubierre-style ADM shape, shared by the
+  Natário, Lentz, and Rodal metrics. Several other built-ins depart from it:
+  the shell metrics (WarpShell, S-shell, T-shell) and Fuchs carry a non-unit
+  lapse and a non-flat spatial metric, Van den Broeck adds a conformal
+  spatial factor, and Garattini sits on a de Sitter background.
 
 ## Step 2: Verify at a single point
 
@@ -142,7 +145,7 @@ for cond in ("nec", "wec", "sec", "dec"):
     eul_min = float(np.min(comparison.eulerian_margins[cond]))
     rob_min = float(np.min(comparison.robust_margins[cond]))
     print(
-        f"{cond.upper}: eul_min={eul_min:+.3e} rob_min={rob_min:+.3e}"
+        f"{cond.upper()}: eul_min={eul_min:+.3e} rob_min={rob_min:+.3e}"
         f" cond_miss={comparison.conditional_miss_rate[cond]:.1%}"
     )
 ```

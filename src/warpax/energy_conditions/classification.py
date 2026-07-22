@@ -267,11 +267,11 @@ def classify_hawking_ellis(
 
     # Defective (Jordan) degeneracy: eig splits the pair by O(sqrt(eps*||T||))
     # and returns two nearly parallel eigenvectors whose causal character is
-    # O(split) rather than 0, so a genuinely null eigenvector fails the tol
+    # O(split) rather than 0, so a null eigenvector fails the tol
     # test at large ||T||. Detect the collapse by eigenvector parallelism
     # (a diagonalizable degeneracy keeps well-separated eigenvectors, so a
     # Lambda-like T = lam*delta is untouched) and, only then, admit causal
-    # characters up to a few times the observed split as null. Gated on
+    # characters up to a few times the observed split as null. Conditional on
     # n_unique == 1, so it never fires when tol resolves the split.
     unit_evecs = evecs_real / jnp.maximum(
         jnp.linalg.norm(evecs_real, axis=0, keepdims=True), 1e-300

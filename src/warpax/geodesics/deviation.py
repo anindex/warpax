@@ -41,7 +41,10 @@ class DeviationResult(NamedTuple):
     deviation_velocities : Float[Array, "N 4"]
         Covariant deviation derivatives w^mu = D xi^mu / D tau at each saved point.
     result : int
-        Diffrax result code (0 = success, 1 = max_steps_reached, 2 = event).
+        Diffrax result code (0 = success, 1 = max_steps_reached,
+        11 = event_occurred); see
+        warpax.geodesics._result_codes.TERMINATION_REASONS for the full
+        mapping.
     event_mask : Array or None
         Which event triggered (if any).
     """

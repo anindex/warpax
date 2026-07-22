@@ -27,7 +27,7 @@ The generator writes `minkowski.ckpt/` (an Orbax-populated directory,
 
 ## flax version drift
 
-If Flax's NNX topology API drifts, loader tests honest-skip via `pytest.importorskip('flax')` +
+If Flax's NNX topology API drifts, loader tests skip via `pytest.importorskip('flax')` +
 `pytest.importorskip('orbax.checkpoint')` + explicit `pytest.skip` on
-topology-rebuild failure. CI coverage is honest - skip when env is
-stale, not silently pass.
+topology-rebuild failure. CI coverage skips when env is
+stale, rather than silently passing.

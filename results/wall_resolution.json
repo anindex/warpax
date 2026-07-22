@@ -45,21 +45,6 @@
     "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
   },
   {
-    "metric": "lentz",
-    "shape_function": "tanh",
-    "sigma": 8.0,
-    "wall_width": 0.2747,
-    "domain": [
-      -300,
-      300
-    ],
-    "grid_n": 50,
-    "dx": 12.2449,
-    "cells_resolving_wall": 0.02,
-    "resolved": false,
-    "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
-  },
-  {
     "metric": "rodal",
     "shape_function": "tanh",
     "sigma": 0.03,

@@ -73,5 +73,5 @@ yet enabled.
 | Axis | Values | Notes |
 |------|--------|-------|
 | `pythons` | 3.12, 3.13, 3.14 | Primary coverage |
-| `jax` | 0.10.0 | Pinned to the deps range `<0.11.0` |
+| `jax` | 0.10.1 | Pinned to the deps range `<0.11.0` |
 | `jax backend` | cpu only | CUDA deferred |

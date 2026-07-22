@@ -1,7 +1,7 @@
 """Standalone Rodal admissibility verification.
 
 Evaluates the Rodal (arXiv:2512.18008) irrotational-shift metric and writes
-``output/rodal_verification.json`` with per-probe NEC/WEC/DEC counts under
+``results/rodal_verification.json`` with per-probe NEC/WEC/DEC counts under
 multi-observer BFGS certification.
 
 Reuses ``evaluate_rodal()`` from ``verify_proposals.py`` (RodalMetric v_s=0.1,

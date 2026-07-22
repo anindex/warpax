@@ -1,8 +1,8 @@
 """Independent all-observer verification of warp-drive positive-energy claims.
 
 At matched family parameters (R=1, sigma=8) on wall-clustered grids, and using
-ONLY the frame-independent eigenstructure of T^a_b, we report -- wall-restricted
-and volume-weighted -- for each metric:
+ONLY the frame-independent eigenstructure of T^a_b, we report, wall-restricted
+and volume-weighted, for each metric:
 
   - Hawking-Ellis Type-I / Type-IV fractions (a Type-IV wall has no rest frame
     and no invariant energy density: the positive-energy question is ill-posed
@@ -30,6 +30,7 @@ import argparse
 import os
 
 from _json_io import dump_json
+from _benchmark_grid import benchmark_grid, wall_cells, N_DEFAULT
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -43,20 +44,25 @@ from warpax.analysis.invariant_verification import (
     reduction_factors,
     single_frame_miss,
 )
+from warpax.analysis.extrema import refine_extremum
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.energy_conditions.frame_free import certify_grid_frame_free, type_fractions
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.grids import wall_clustered
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
 TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
-BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
+
+
+def _field_nec_typeI(curv):
+    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv)
+    he = np.asarray(ff.he_types)
+    return np.where(he == 1.0, np.asarray(ff.nec_margins), np.inf)
 
 METRICS = {
     "Alcubierre": (AlcubierreMetric, {}),
@@ -76,8 +82,8 @@ def _instantiate(name, v_s):
 def verify_metric(name, v_s, N):
     shape = (N, N, N)
     metric = _instantiate(name, v_s)
-    grid = wall_clustered(metric, BOUNDS, shape, a=1.2)
-    curv = evaluate_curvature_grid(metric, grid, batch_size=256)
+    grid = benchmark_grid(metric, N)
+    curv = evaluate_curvature_grid(metric, grid, batch_size=4096)
     T, g, gi = curv.stress_energy, curv.metric, curv.metric_inv
 
     coords = build_coord_batch(grid, t=0.0)
@@ -91,18 +97,38 @@ def verify_metric(name, v_s, N):
     exotic = integrated_exotic_content(T, g, gi, vol_w, mask=mask)
     peaks = peak_proper_energy_deficit(T, g, gi, mask=mask_flat)
 
+    # Invariant peak NEC deficit min(rho+p_i) over Type-I wall points, polished to
+    # its EXACT continuous value (the grid sample only bounds it from above; the
+    # true minimum is resolution-independent, obtained by local refinement of the
+    # exact tensor).
     nec_inv = np.asarray(ff.nec_margins).ravel()
     typeI_wall = mask_flat & (np.asarray(ff.he_types).ravel() == 1.0) & np.isfinite(nec_inv)
-    nec_min = float(np.min(nec_inv[typeI_wall])) if typeI_wall.any() else float("nan")
+    nec_min_grid = float(np.min(nec_inv[typeI_wall])) if typeI_wall.any() else float("nan")
+    nec_min = nec_min_grid
+    nec_coord = None
+    if typeI_wall.any():
+        k = int(np.argmin(np.where(typeI_wall, nec_inv, np.inf)))
+        axes = [np.asarray(grid.axes[a]) for a in range(3)]
+        i0, i1, i2 = np.unravel_index(k, shape)
+        nec_coord = [float(axes[0][i0]), float(axes[1][i1]), float(axes[2][i2])]
+        pol = refine_extremum(metric, nec_coord, _field_nec_typeI, mode="min",
+                              half_width=0.15, n=9, levels=7)
+        if pol["value"] is not None and np.isfinite(pol["value"]):
+            # guarantee the polished value is at least as deep as the grid sample
+            nec_min = float(min(nec_min_grid, pol["value"]))
+
+    wc, dxw = wall_cells(metric, N)
 
     def _pct(x):
         return x * 100.0 if x is not None else None
 
     return {
         "metric": name, "v_s": v_s, "N": N,
+        "wall_cells": wc, "dx_wall": dxw,
         "frac_type_i": fr["frac_type_i"], "frac_type_iv": fr["frac_type_iv"],
         "wall_n": fr["n_selected"],
         "invariant_nec_min": nec_min,
+        "invariant_nec_min_grid": nec_min_grid,
         "miss_wec_pct": _pct(miss["wec"]["miss_rate"]),
         "miss_nec_pct": _pct(miss["nec"]["miss_rate"]),
         "miss_dec_pct": _pct(miss["dec"]["miss_rate"]),
@@ -145,7 +171,7 @@ def write_table(rows, out_path):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--v-s", type=float, default=0.5)
-    p.add_argument("--N", type=int, default=50)
+    p.add_argument("--N", type=int, default=N_DEFAULT)
     p.add_argument("--metrics", type=str, nargs="+", default=ORDER)
     p.add_argument("--smoke", action="store_true")
     args = p.parse_args()

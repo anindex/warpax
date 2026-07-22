@@ -35,8 +35,8 @@ DISPLAY = {
     "warpshell": "WarpShell$^{\\ddagger}$",
 }
 
-MISSED_ORDER = ["schwarzschild", "alcubierre", "vdb", "natario", "rodal", "warpshell"]
-BREAKDOWN_ORDER = ["alcubierre", "natario", "vdb", "rodal", "warpshell"]
+MISSED_ORDER = ["schwarzschild", "alcubierre", "vdb", "natario", "rodal"]
+BREAKDOWN_ORDER = ["alcubierre", "natario", "vdb", "rodal"]
 
 
 def _load(rel):
@@ -92,22 +92,20 @@ def emit_missed_uniform() -> None:
 
 
 def emit_type_breakdown() -> None:
+    # Wall-restricted only: the full-grid (box-dependent) fractions are not
+    # reported in the paper.
     data = _load("wall_restricted_analysis.json")["metrics"]
     lines = [
-        "\\begin{tabular}{@{}l r r r r r r r@{}}",
+        "\\begin{tabular}{@{}l r r r@{}}",
         "    \\toprule",
-        "    Metric & \\% Type~I & \\% Type~II & \\% Type~III & \\% Type~IV"
-        " & Wall \\% Type~I & Wall \\% Type~IV & max $|\\mathrm{Im}\\,\\lambda|$ \\\\",
+        "    Metric & Wall \\% Type~I & Wall \\% Type~IV"
+        " & max $|\\mathrm{Im}\\,\\lambda|$ \\\\",
         "    \\midrule",
     ]
     for m in BREAKDOWN_ORDER:
         fg = data[m]["full_grid"]
         wr = data[m]["wall_restricted"]
         cells = [
-            _pct(100 * fg["frac_type_i"]),
-            _pct(100 * fg["frac_type_ii"]),
-            _pct(100 * fg["frac_type_iii"]),
-            _pct(100 * fg["frac_type_iv"]),
             _pct(100 * wr["frac_type_i"]),
             _pct(100 * wr["frac_type_iv"]),
             _sci(fg["max_imag_eigenvalue"]),
@@ -119,8 +117,8 @@ def emit_type_breakdown() -> None:
 
 def emit_nstarts() -> None:
     data = _load("nstarts_ablation.json")
-    order = ["alcubierre", "rodal", "warpshell"]
-    names = {"alcubierre": "Alcubierre", "rodal": "Rodal", "warpshell": "WarpShell"}
+    order = ["alcubierre", "rodal"]
+    names = {"alcubierre": "Alcubierre", "rodal": "Rodal"}
     ns = data["alcubierre"]["n_starts_values"]
     lines = [
         "\\begin{tabular}{@{}l rrrrr@{}}",
@@ -191,7 +189,7 @@ def emit_convergence() -> None:
         q = c[key]
         vals = " & ".join(f"${fmt(v)}$" for v in q["values"])
         if _is_fallback(q):
-            p_cell = "$(2)^{\\dagger}$"
+            p_cell = "--$^{\\dagger}$"  # non-monotone: no fitted order, see dagger note
         else:
             p_cell = f"${q['observed_order']:.1f}$"
         if q["converged"]:

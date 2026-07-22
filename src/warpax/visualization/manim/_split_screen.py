@@ -256,7 +256,9 @@ class EulerianVsWorstCaseNEC(Scene):
 
             # Upsample 8x for smooth contour lines (matches _image_utils).
             # Transpose (Nx,Ny)->(Ny,Nx) so imshow(origin="lower") draws
-            # physical x horizontal and y vertical (see B4 in _image_utils).
+            # physical x horizontal and y vertical (same x->horizontal,
+            # y->vertical convention as frame_to_rgba in _image_utils;
+            # origin="lower" replaces its row flip).
             # Bilinear (order=1), not bicubic: bicubic overshoots/rings on the
             # sharp wall ring, which the robust clim then renders as a visible
             # checkerboard. Bilinear upsampling does not ring.

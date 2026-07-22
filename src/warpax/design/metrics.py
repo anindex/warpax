@@ -81,7 +81,7 @@ class ShapeFunctionMetric(ADMMetric):
     Notes
     -----
     The shift ``beta^x = -v_s * f(r_s)`` follows the Alcubierre
-    convention. ``r_s`` is recenterd at ``x_s = v_s t`` so the bubble
+    convention. ``r_s`` is recentered at ``x_s = v_s t`` so the bubble
     co-moves with its velocity. ``y`` and ``z`` components of the
     shift are zero.
 

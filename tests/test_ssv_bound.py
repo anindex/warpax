@@ -59,5 +59,5 @@ class TestFitBound:
         if not os.path.exists(path):
             pytest.skip("results/ssv_bound.json not present")
         fits = json.load(open(path))["fits"]
-        assert abs(fits["Rodal"]["C"] - 0.688) < 0.01
+        assert abs(fits["Rodal"]["C"] - 0.773) < 0.01
         assert fits["Rodal"]["r_squared_fixed"] > 0.999

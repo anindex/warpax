@@ -89,11 +89,13 @@ def compute_blueshift(
     The observed frequency of a photon by an observer with 4-velocity u^a is:
         omega = -g_{ab} k^a u^b
 
-    The blueshift factor (1 + z) is the ratio of received to emitted frequency:
-        1 + z = omega_recv / omega_emit
+    The blueshift factor is the frequency ratio omega_recv / omega_emit:
+        ratio = omega_recv / omega_emit
 
-    z > 0 indicates blueshift (higher frequency at receiver).
-    z < 0 indicates redshift (lower frequency at receiver).
+    A ratio > 1 indicates blueshift (higher frequency at receiver).
+    A ratio < 1 indicates redshift (lower frequency at receiver).
+    This is the reciprocal of the standard redshift factor
+    1 + z = omega_emit / omega_recv.
 
     Parameters
     ----------
@@ -115,7 +117,7 @@ def compute_blueshift(
     Returns
     -------
     Float[Array, ""]
-        Blueshift factor (1 + z) = omega_recv / omega_emit.
+        Blueshift factor omega_recv / omega_emit (> 1 = blueshift).
     """
     g_emit = metric_fn(x_emit)
     g_recv = metric_fn(x_recv)
@@ -151,7 +153,8 @@ def blueshift_along_trajectory(
     Returns
     -------
     Float[Array, "N"]
-        Blueshift factor (1 + z) at each saved point relative to the first point.
+        Blueshift factor omega_recv / omega_emit (> 1 = blueshift) at each saved
+        point relative to the first point.
     """
     # Emission event (first saved point)
     x_emit = null_sol.positions[0]

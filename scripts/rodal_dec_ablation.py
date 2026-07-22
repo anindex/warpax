@@ -580,12 +580,22 @@ def plot_ablation(sweeps):
     ax.set_xlabel(r"$\varepsilon^2$")
     ax.set_title("Regularization")
 
-    # Panel 2: Sigma sweep
+    # Panel 2: sigma sweep, grid (volume-diluted) vs wall-restricted (intrinsic)
     ax = axes[2]
     x_sig_r = sweeps["sigma"]["values_rodal"]
     ax.plot(
         x_sig_r, sweeps["sigma"]["rodal_dec_miss_pct"],
-        color=COLORS[0], label="Rodal", **LINE_STYLES[0],
+        color=COLORS[0], label="Rodal (grid)", **LINE_STYLES[0],
+    )
+    # Intrinsic wall-restricted conditional DEC miss rate: the fraction of wall DEC
+    # violations the Eulerian frame misses (rises as the wall sharpens), the quantity
+    # normalized by the active wall volume rather than the diluted grid fraction.
+    wall_style = dict(linestyle="--", marker="s", markersize=5, markerfacecolor="none")
+    wall_pct = [r["wall_dec_miss_rate"] * 100.0
+                for r in sweeps["sigma"]["wall_rodal_results"]]
+    ax.plot(
+        x_sig_r, wall_pct,
+        color=COLORS[0], label="Rodal (wall-restricted)", **wall_style,
     )
     x_sig_a = sweeps["sigma"]["values_alcubierre"]
     # Plot Alcubierre on a separate x-axis (twin) since sigma ranges differ
@@ -603,10 +613,11 @@ def plot_ablation(sweeps):
     # Create proxy artists for legend since Alcubierre is on twin axis
     from matplotlib.lines import Line2D
     handles = [
-        Line2D([0], [0], color=COLORS[0], label="Rodal", **LINE_STYLES[0]),
+        Line2D([0], [0], color=COLORS[0], label="Rodal (grid)", **LINE_STYLES[0]),
+        Line2D([0], [0], color=COLORS[0], label="Rodal (wall-restr.)", **wall_style),
         Line2D([0], [0], color=COLORS[1], label="Alcubierre", **LINE_STYLES[1]),
     ]
-    axes[2].legend(handles=handles, loc="center right")
+    axes[2].legend(handles=handles, loc="center right", fontsize=6)
 
     fig.tight_layout()
     outpath = os.path.join(

@@ -35,7 +35,7 @@ builds no Eulerian normal, so it is valid at all warp speeds (including
 $v_s\ge1$). At a Type-I point the worst observer is closed-form,
 $\rho_{\rm obs}(\zeta)=\rho+(\rho+p_i)\sinh^2\zeta$; if some $\rho+p_i<0$ the
 boosted density is unbounded below, so **at non-Type-I points there is no
-invariant margin** — only the algebraic type and the imaginary-eigenvalue scale.
+invariant margin**: only the algebraic type and the imaginary-eigenvalue scale.
 A bounded-rapidity ($\zeta_{\max}=5$) optimizer survives only as a labelled
 one-sided severity *diagnostic*.
 
@@ -49,9 +49,9 @@ shell edge**, $\approx-4.4\times10^{-4}$.
 
 **2. The inner-edge floor is a geometric invariant.** That deficit is
 independent of the bubble velocity *and* of the metric smoothing width; it
-depends only on the **regularity class of the source profile** —
+depends only on the **regularity class of the source profile**:
 $-4.4\times10^{-4}$ (smoothstep), $-2.2\times10^{-4}$ (parabolic),
-$-1.2\times10^{-4}$ (Bernstein), a factor $\sim3.7$ — and no finite-regularity
+$-1.2\times10^{-4}$ (Bernstein), a factor $\sim3.7$, and no finite-regularity
 polynomial family removes it. It is a cap-free Type-I slack, hence a genuine
 invariant rather than an optimizer artifact.
 
@@ -73,7 +73,7 @@ $-7.9\times10^{-3}$ there is the $\zeta_{\max}=5$ diagnostic, not an invariant.
 
 A rigorous symplectic geodesic-integrated ANEC (Tao-2016 extended phase space,
 Yoshida-4; on-cone witness $\lesssim10^{-4}$, versus $O(0.1)$ drift for adaptive
-Runge--Kutta) is **positive for every source-prescribed shell** — Fuchs
+Runge--Kutta) is **positive for every source-prescribed shell**: Fuchs
 $+1.9\times10^{-3}$, S-shell $+2.9\times10^{-3}$, T-shell $+4.6\times10^{-3}$
 ($v_0=0.1$). Only the sign is invariant under $k^a\to\lambda k^a$, and it is
 robustly positive across resolution and impact parameter. So the pointwise

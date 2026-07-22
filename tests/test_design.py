@@ -246,7 +246,7 @@ class TestDesignOptimization:
         knot-point check is an absolute pin at 1e-12 (measured 0.0).
         Between knots the 24-knot grid (spacing 0.52) badly undersamples
         the sigma=0.1 wall, so the dense-probe error is large; we pin it
-        as an honest regression value rather than claim accuracy.
+        as a regression value rather than a claim of accuracy.
         """
         knots, values = alcubierre_knots_values
         shape = ShapeFunction.spline(knots, values)
@@ -268,7 +268,7 @@ class TestDesignOptimization:
         )
         # Mid-knot regression pin: dense 1000-point probe, peak-normalized.
         # Measured 0.611 - the knots are too coarse for the wall, and that
-        # is the honest number (cf. examples/08_metric_design.py dense probe).
+        # is the measured number (cf. examples/08_metric_design.py dense probe).
         x_dense = jnp.linspace(0.0, 12.0, 1000)
         truth_dense = 1.0 - jnp.tanh((x_dense - R) / sigma) ** 2
         recovered_dense = jax.vmap(metric.shape_fn)(x_dense)
@@ -470,7 +470,7 @@ class TestShapeFunctionDtype:
 
 
 class TestShapeFunctionShape:
-    """All shape functions must return a scalar (shape == )."""
+    """All shape functions must return a scalar (shape == ())."""
 
     @pytest.mark.parametrize("metric", ALL_METRICS, ids=ALL_METRIC_IDS)
     def test_scalar_shape(self, metric):

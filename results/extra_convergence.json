@@ -1,0 +1,157 @@
+{
+  "params": {
+    "v_s": 0.5,
+    "grid_N": [
+      80,
+      100,
+      120
+    ],
+    "anec_steps": [
+      2048,
+      4096,
+      8192
+    ],
+    "n_b": 30,
+    "note": "exoticity resolution = spatial grid N (wall-clustered); ANEC resolution = symplectic integrator steps (geodesic, not a spatial grid). matched family R_b=1 sigma=8 for all four drives (Rodal included)."
+  },
+  "order": [
+    "Alcubierre",
+    "Nat\u00e1rio",
+    "Van den Broeck",
+    "Rodal"
+  ],
+  "anec_min_series": {
+    "Alcubierre": [
+      -0.15870261195833474,
+      -0.1586988757740378,
+      -0.15869585428002955
+    ],
+    "Nat\u00e1rio": [
+      -0.0509661958304091,
+      -0.05096708598503208,
+      -0.050964496324314025
+    ],
+    "Van den Broeck": [
+      -0.04495054162125875,
+      -0.04495124441483046,
+      -0.04495119430156661
+    ],
+    "Rodal": [
+      -0.004069035899436272,
+      -0.0040690410882366565,
+      -0.0040690425540881
+    ]
+  },
+  "exoticity_series": {
+    "Alcubierre": [
+      0.9963922677931213,
+      0.9964450492286451,
+      0.996605136575208
+    ],
+    "Nat\u00e1rio": [
+      0.6592619579987861,
+      0.6582857833218027,
+      0.6587059123650635
+    ],
+    "Van den Broeck": [
+      0.6277758168874839,
+      0.6258903158146529,
+      0.6269204760793607
+    ],
+    "Rodal": [
+      0.013687019418103793,
+      0.013687019418103793,
+      0.013687019418103793
+    ]
+  },
+  "results": {
+    "Alcubierre": {
+      "exoticity": {
+        "values": [
+          0.9963922677931213,
+          0.9964450492286451,
+          0.996605136575208
+        ],
+        "spread": 0.0002128687820867059,
+        "stable": true,
+        "verdict": "stability"
+      },
+      "anec_min": {
+        "values": [
+          -0.15870261195833474,
+          -0.1586988757740378,
+          -0.15869585428002955
+        ],
+        "spread": 6.757678305185921e-06,
+        "stable": true,
+        "verdict": "stability"
+      }
+    },
+    "Nat\u00e1rio": {
+      "exoticity": {
+        "values": [
+          0.6592619579987861,
+          0.6582857833218027,
+          0.6587059123650635
+        ],
+        "spread": 0.0009761746769834101,
+        "stable": true,
+        "verdict": "stability"
+      },
+      "anec_min": {
+        "values": [
+          -0.0509661958304091,
+          -0.05096708598503208,
+          -0.050964496324314025
+        ],
+        "spread": 2.5896607180539433e-06,
+        "stable": true,
+        "verdict": "stability"
+      }
+    },
+    "Van den Broeck": {
+      "exoticity": {
+        "values": [
+          0.6277758168874839,
+          0.6258903158146529,
+          0.6269204760793607
+        ],
+        "spread": 0.0018855010728309196,
+        "stable": true,
+        "verdict": "stability"
+      },
+      "anec_min": {
+        "values": [
+          -0.04495054162125875,
+          -0.04495124441483046,
+          -0.04495119430156661
+        ],
+        "spread": 7.027935717135447e-07,
+        "stable": true,
+        "verdict": "stability"
+      }
+    },
+    "Rodal": {
+      "exoticity": {
+        "values": [
+          0.013687019418103793,
+          0.013687019418103793,
+          0.013687019418103793
+        ],
+        "spread": 0.0,
+        "stable": true,
+        "verdict": "stability"
+      },
+      "anec_min": {
+        "values": [
+          -0.004069035899436272,
+          -0.0040690410882366565,
+          -0.0040690425540881
+        ],
+        "spread": 6.654651827850411e-09,
+        "stable": true,
+        "verdict": "stability"
+      }
+    }
+  }
+}

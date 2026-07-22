@@ -336,7 +336,7 @@ def scene_observer_sweep(
         }
 
         # NEC/WEC worst-case margins are <= 0 (0 in flat space, negative in the
-        # wall): a one-sided violation-depth ramp is honest; a diverging +/-
+        # wall): a one-sided violation-depth ramp is correct; a diverging +/-
         # scale would imply a positive "satisfied" half the data never reaches.
         colormaps = {
             "energy_density": "nec_depth",

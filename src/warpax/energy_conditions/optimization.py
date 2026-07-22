@@ -391,8 +391,7 @@ class ProjectedBFGSSolver(optx.BFGS):
     """BFGS with hard projection onto the rapidity ball ``|w|_2 <= zeta_max``.
 
     Bound-inactive iterates pass through unchanged; bound-active iterates
-    are radially clipped to the nearest feasible point. The KKT contract
-    is pinned by ``test_projected_bfgs_hits_kkt_at_bound_active``. Follows
+    are radially clipped to the nearest feasible point. Follows
     the Optimistix custom-solver pattern
     (https://docs.kidger.site/optimistix/examples/custom_solver/).
     """

@@ -353,7 +353,7 @@ def build_fuchs_construction(
     in_shell = (r_grid >= R_1) & (r_grid <= R_2)
     rho_initial = jnp.where(in_shell, rho_0, 0.0)
 
-    # Step 2: Cumulative mass from initial density
+    # Cumulative mass from initial density (input to the TOV solve)
     dr = r_grid[1] - r_grid[0]
     integrand_m = 4.0 * jnp.pi * rho_initial * r_grid ** 2
     m_initial = jnp.concatenate([

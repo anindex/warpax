@@ -1,22 +1,21 @@
-"""Quantitative Santiago-Schuster-Visser lower-bound saturation.
+"""Velocity scaling of the wall NEC deficit.
 
 Santiago, Schuster and Visser proved that any physically reasonable warp drive
-must violate the null energy condition. That theorem is qualitative: the deficit
-is negative. Here we make it quantitative for the matched-parameter family. For
-a unit-lapse, spatially flat drive the shift is linear in the warp speed, so the
-leading wall NEC deficit is necessarily quadratic,
+must violate the null energy condition somewhere. That result is an existence and
+sign statement: the deficit is negative. It does not fix a speed law. Here we
+compute the speed dependence for the matched-parameter family. For a unit-lapse,
+spatially flat drive the shift is linear in the warp speed, so the leading wall
+NEC deficit is quadratic,
 
-    min(rho + p_i)  =  - C  v_s^2 ,                      (SSV-saturating form)
+    min(rho + p_i)  =  - C  v_s^2 ,
 
-with a strictly positive, geometry-fixed coefficient ``C`` (the SSV theorem
-guarantees ``C > 0`` for any non-trivial shift, hence NEC violation at *every*
-speed). We read the frame-independent wall NEC deficit from the velocity sweep
-and show, for each drive with a resolved Type-I wall branch, that the
-computed deficit saturates this form: a fixed-exponent fit has ``R^2`` ~ 1 and a
-small maximum relative deviation across the subluminal range, and the free
-exponent recovers ``q ~ 2``. The coefficient ``C`` is the per-drive fingerprint
-(Rodal recovers ``0.688``). This converts the SSV citation into a measured,
-saturated bound.
+with a per-drive coefficient ``C``. We read the frame-independent wall NEC deficit
+from the velocity sweep and fit it for each drive with a resolved Type-I wall
+branch: a fixed-exponent fit has ``R^2`` ~ 1 with a small maximum relative
+deviation across the subluminal range, and the free exponent recovers ``q ~ 2``.
+The coefficient ``C`` is the per-drive fingerprint (Rodal recovers ``0.773``).
+This gives the measured speed scaling of the pointwise deficit whose sign SSV
+forces.
 
 Outputs
 -------
@@ -62,12 +61,12 @@ def _subluminal_deficits(rows, metric):
 
 
 def fit_bound(vs, deficits):
-    """Fixed-exponent (q=2) SSV-saturating fit + free-exponent check.
+    """Fixed-exponent (q=2) velocity fit + free-exponent check.
 
     Fixed model: deficit = C v_s^2, least squares through the origin in v_s^2,
     so C = sum(deficit * v_s^2) / sum(v_s^4). Also report the free log-log
     exponent q and both R^2, plus the worst relative deviation of the data from
-    the fixed-exponent law (the saturation tightness).
+    the fixed-exponent fit.
     """
     if len(vs) < 3:
         return {"C": None, "r_squared_fixed": None, "q_free": None,
@@ -90,8 +89,15 @@ def fit_bound(vs, deficits):
     ss_res_l = float(np.sum((ld - pred_l) ** 2))
     ss_tot_l = float(np.sum((ld - np.mean(ld)) ** 2))
     r2_free = 1.0 - ss_res_l / ss_tot_l if ss_tot_l > 0 else 1.0
+    # Two-term fit deficit = C2 v_s^2 + D v_s. D is the momentum correction:
+    # zero for an irrotational shift, nonzero for vortical drives.
+    A = np.vstack([v2, vs]).T
+    (C2, D), *_ = np.linalg.lstsq(A, deficits, rcond=None)
+    pred2 = A @ np.array([C2, D])
+    r2_two = 1.0 - float(np.sum((deficits - pred2) ** 2)) / ss_tot if ss_tot > 0 else 1.0
     return {"C": C, "r_squared_fixed": float(r2_fixed), "q_free": float(q),
             "r_squared_free": float(r2_free), "max_rel_dev": max_rel_dev,
+            "C_two": float(C2), "D_two": float(D), "r_squared_two": float(r2_two),
             "n": int(len(vs))}
 
 
@@ -101,9 +107,9 @@ def _f(x, nd=3):
 
 def write_table(fits, out_path):
     lines = [
-        r"\begin{tabular}{@{}l ccccc@{}}",
+        r"\begin{tabular}{@{}l cccc@{}}",
         r"  \toprule",
-        r"  Metric & $C$ & $q$ (free) & $R^2$ & max dev. & NEC $\forall\,v_s$ \\",
+        r"  Metric & $C$ & single-term dev. & $R^2$ & NEC $\forall\,v_s$ \\",
         r"  \midrule",
     ]
     for name in ORDER:
@@ -113,12 +119,12 @@ def write_table(fits, out_path):
             dev = fit.get("max_rel_dev")
             dev_s = f"{dev*100:.2f}\\%" if (dev is not None and np.isfinite(dev)) else "--"
             lines.append(
-                f"  {name} & {_f(fit.get('C'))} & {_f(fit.get('q_free'),2)} & "
-                f"{_f(r2,4)} & {dev_s} & violated \\\\"
+                f"  {name} & {_f(fit.get('C'))} & "
+                f"{dev_s} & {_f(fit.get('r_squared_fixed'),4)} & violated \\\\"
             )
         else:
             lines.append(
-                rf"  {name} & \multicolumn{{4}}{{c}}{{no resolved Type-I branch}} "
+                rf"  {name} & \multicolumn{{3}}{{c}}{{no resolved Type-I branch}} "
                 rf"& violated \\"
             )
     lines += [r"  \bottomrule", r"\end{tabular}"]
@@ -133,7 +139,7 @@ def main():
     rows = sweep["rows"]
 
     print("=" * 70)
-    print("SSV LOWER-BOUND SATURATION  min(rho+p_i) = -C v_s^2")
+    print("WALL NEC DEFICIT SPEED SCALING  min(rho+p_i) = -C v_s^2")
     print("=" * 70)
     fits = {}
     for name in ORDER:
@@ -146,7 +152,7 @@ def main():
               f"n={fit['n']}")
 
     out = {
-        "model": "min(rho+p_i) = -C v_s^2 (SSV-saturating, unit-lapse flat-slice)",
+        "model": "min(rho+p_i) = -C v_s^2 (unit-lapse flat-slice velocity scaling)",
         "fits": fits,
     }
     out_path = os.path.join(RESULTS_DIR, "ssv_bound.json")
