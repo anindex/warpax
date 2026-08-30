@@ -382,9 +382,9 @@ def fibonacci_dec_comparison():
         [r["detection_rate"] for r in results],
         "o-", label="Fibonacci sampling",
     )
-    ax.axhline(100, ls="--", color="green", label="BFGS (100%)")
+    ax.axhline(100, ls="--", color="green", label=r"BFGS (100\%)")
     ax.set_xlabel("Number of directions")
-    ax.set_ylabel("DEC violation detection rate (%)")
+    ax.set_ylabel(r"DEC violation detection rate (\%)")
     ax.set_title("Rodal DEC: Fibonacci Sampling vs BFGS")
     ax.legend()
     ax.set_ylim(0, 105)

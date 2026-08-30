@@ -3,6 +3,30 @@
 How `warpax` got here. Per-release line items live in
 [`CHANGELOG.md`](https://github.com/anindex/warpax/blob/main/CHANGELOG.md).
 
+## v1.4.0 (2026-08)
+
+The verdict stops depending on the algebraic type. `warpax.energy_conditions.slemma`
+decides NEC/WEC/SEC/DEC over every timelike and null observer from the positive
+semidefiniteness of a single $4\times4$ matrix $\hat T + \sigma\eta$, so Types II,
+III and IV are decided by the same call that decides Type I -- no eigendecomposition,
+no rapidity cap, no classification tolerance. The Hawking--Ellis type is demoted to a
+diagnostic and audited against the matrix inequality rather than trusted.
+
+New alongside it: `energy_conditions.certificate` emits an exact rational witness for
+every reported verdict -- a multiplier $\sigma\in\mathbb{Q}$ with $\hat T+\sigma\eta
+\succeq 0$ when the condition holds, a rational boost $|w|\le 1$ with $q(w)<0$ when it
+fails -- checked in exact arithmetic with no floating point in the decision; and
+`energy_conditions.enclosure` returns verified continuum enclosures of the worst-case
+violation by interval branch-and-bound with outward rounding, so the reported extremum
+is bracketed over the whole domain rather than over the sampled grid.
+
+Numerics: grid diagnostics now carry the proper-volume Jacobian
+$\sqrt{\det\gamma}\,d^3x$ rather than coordinate cell volumes, which moves every
+volume-weighted fraction on a conformally scaled slice; Richardson extrapolation
+refuses non-geometric ladders and non-monotone triplets instead of reporting an order
+it cannot support; and the affine window for geodesic ANEC is set from the ray's own
+crossing rather than by a stationarity search.
+
 ## v1.3.0 (2026-06)
 
 Visualization rework: the Manim scenes are renamed to physically accurate names

@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from _anec_window import crossing_span
 from _json_io import dump_json, write_table as write_tex_table
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
@@ -34,7 +35,8 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.averaged.anec import anec_rigorous
+from warpax.averaged.anec import anec_rigorous, null_ic_canonical
+from warpax.geodesics import integrate_geodesic_symplectic
 from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric
 from warpax.geodesics import eulerian_affine_scale
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
@@ -45,8 +47,13 @@ TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 V_S, R_B, SIGMA = 0.5, 1.0, 8.0
 X_START = -8.0
-AFFINE_SPAN = 16.0
-NUM_STEPS = 8192
+# The ray must clear the bubble, not merely reach it. The published span 16.0 =
+# 2|X_START| forgets that the centre recedes at v_s, so it stopped at the centre
+# and integrated only the rear half (ratio 2.0000 for Alcubierre, VdB, Rodal).
+# Natario was unaffected: its exterior shift drags the ray clear inside the same
+# span. The window is read off the geodesic now (_measure_span below).
+SPAN0 = 16.0      # reference span for the step density
+NUM_STEPS = 8192  # at SPAN0; scaled with the span so the step density is fixed
 ORDER = 4
 # g(k,k) < 1e-6 certifies the tangent as null to 6 digits; the ANEC integrand
 # T_ab k^a k^b is O(0.01-1), so this off-cone budget is negligible. Smooth-wall
@@ -56,8 +63,9 @@ ORDER = 4
 # distinct from the paper's reported on-cone acceptance tolerance of 1e-4 for the
 # warp-metric witnesses (cf. run_anec_geodesic_check.py, run_anec_impact_scan.py).
 NULL_TOL = 1e-6
-# Impact parameters: dense near the wall (r_s ~ R_b = 1).
-B_SCAN = np.linspace(1.0e-3, 2.5, 30)
+# Impact parameters, dense near the wall (r_s ~ R_b = 1). The upper end was 2.5
+# and Rodal's minimum sat on it; "b_bracketed" below records interiority.
+B_SCAN = np.linspace(1.0e-3, 5.0, 50)
 SENTINEL_TOL = 1.0e-6
 
 METRICS = {
@@ -97,7 +105,7 @@ def _affine_scale(metric, x0) -> float:
     return float(eulerian_affine_scale(metric, x0))
 
 
-def _rigorous_at(metric, b: float):
+def _rigorous_at(metric, b: float, span: float):
     x0 = jnp.array([0.0, X_START, b, 0.0], dtype=jnp.float64)
     s = _affine_scale(metric, x0)
     # Rescale the tangent AND shrink the affine window by the same factor, so the
@@ -105,16 +113,40 @@ def _rigorous_at(metric, b: float):
     # (hence the reported magnitude) is pinned.
     return anec_rigorous(
         metric, x0, jnp.array([s, 0.0, 0.0]),
-        affine_bounds=(0.0, AFFINE_SPAN / s),
-        num_steps=NUM_STEPS, order=ORDER, null_tol=NULL_TOL,
+        affine_bounds=(0.0, span / s),
+        # Fixed step density.
+        num_steps=int(round(NUM_STEPS * span / SPAN0)),
+        order=ORDER, null_tol=NULL_TOL,
     )
+
+
+# tail_bound certifies the shape function below 1.3e-14 outside this radius, so
+# the integrand has no support there.
+WALL_SUPPORT_R = 3.0
+PROBE_SPAN = 128.0
+
+
+def _measure_span(metric) -> tuple[float, bool]:
+    """Affine span covering the crossing, read off the geodesic itself."""
+    b0 = float(B_SCAN[0])
+    x0 = jnp.array([0.0, X_START, b0, 0.0], dtype=jnp.float64)
+    sc = _affine_scale(metric, x0)
+    x0c, p0 = null_ic_canonical(metric, x0, jnp.array([sc, 0.0, 0.0]))
+    geo = integrate_geodesic_symplectic(
+        metric, x0c, p0, (0.0, PROBE_SPAN / sc),
+        num_steps=int(round(NUM_STEPS * PROBE_SPAN / SPAN0)), order=ORDER,
+    )
+    pos = np.asarray(geo.positions)
+    lam = np.asarray(geo.ts) * sc
+    r_s = np.sqrt((pos[:, 1] - V_S * pos[:, 0]) ** 2 + pos[:, 2] ** 2 + pos[:, 3] ** 2)
+    return crossing_span(lam, r_s, WALL_SUPPORT_R)
 
 
 def _minkowski_sentinel() -> tuple[float, float]:
     """Return (max |ANEC|, max witness) over a few impact parameters."""
     worst_anec, worst_wit = 0.0, 0.0
     for b in (1.0e-3, 0.5, 1.0, 1.5):
-        r = _rigorous_at(MinkowskiMetric(), b)
+        r = _rigorous_at(MinkowskiMetric(), b, SPAN0)
         worst_anec = max(worst_anec, abs(float(r.symplectic.line_integral)))
         worst_wit = max(worst_wit, float(r.symplectic.max_abs_g_kk))
     return worst_anec, worst_wit
@@ -140,10 +172,13 @@ def main() -> None:
     per_metric: dict[str, dict] = {}
     for name in METRIC_ORDER:
         metric = _instantiate(name)
+        span, span_converged = _measure_span(metric)
+        print(f"  {name:16s} affine window {span:.1f} "
+              f"({'crossing covered' if span_converged else 'RAY DID NOT LEAVE'})", flush=True)
         anec_scan, witness_scan, preserved_scan, method_scan = [], [], [], []
         proj_scan = []
         for b in B_SCAN:
-            r = _rigorous_at(metric, float(b))
+            r = _rigorous_at(metric, float(b), span)
             anec_scan.append(float(r.symplectic.line_integral))
             witness_scan.append(float(r.symplectic.max_abs_g_kk))
             preserved_scan.append(bool(r.symplectic.null_preserved))
@@ -163,6 +198,11 @@ def main() -> None:
             "on_axis": anec_scan[0],
             "min_line_integral": float(anec_arr[j]),
             "b_at_min": float(B_SCAN[j]),
+            # An argmin at an endpoint is not a minimum. Record it rather than let a
+            # reader assume the scan bracketed the extremum.
+            "b_bracketed": bool(0 < j < len(B_SCAN) - 1),
+            "affine_span": float(span),
+            "affine_span_covers_crossing": bool(span_converged),
             "max_line_integral": float(anec_arr.max()),
             "worst_witness_g_kk": worst_witness,
             "fraction_null_preserved": frac_preserved,
@@ -181,8 +221,14 @@ def main() -> None:
     out = {
         "params": {
             "v_s": V_S, "R_b": R_B, "sigma": SIGMA,
-            "x_start": X_START, "affine_span": AFFINE_SPAN,
-            "num_steps": NUM_STEPS, "order": ORDER, "null_tol": NULL_TOL,
+            "x_start": X_START, "affine_span_start": SPAN0,
+            "affine_span_note": (
+                "the window is measured per metric from the geodesic's own "
+                "trajectory: out to where it leaves r_s = 3, the radius beyond "
+                "which tail_bound certifies the shape function below 1.3e-14, "
+                "with a factor-2 margin; see each metric's affine_span"
+            ),
+            "num_steps_at_span_start": NUM_STEPS, "order": ORDER, "null_tol": NULL_TOL,
             "integrator": "symplectic (Tao 2016 extended phase space, Yoshida-4)",
         },
         "minkowski_sentinel_abs": sent_anec,

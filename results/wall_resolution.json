@@ -48,14 +48,14 @@
     "metric": "rodal",
     "shape_function": "tanh",
     "sigma": 0.03,
-    "wall_width": 73.2408,
+    "wall_width": 72.5335,
     "domain": [
       -300,
       300
     ],
     "grid_n": 50,
     "dx": 12.2449,
-    "cells_resolving_wall": 5.98,
+    "cells_resolving_wall": 5.92,
     "resolved": true,
     "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
   },

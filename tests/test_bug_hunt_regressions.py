@@ -193,35 +193,25 @@ class TestImagRtolSentinel:
         )
         assert rep["n_flips"] == 0
 
-    def test_mpmath_gate_catches_small_imag_large_real(self):
-        # Eigenvalues s(1 +/- 1e-5j) at s=1e8: complex (Type IV),
-        # but above the 1e6 scale floor the float64 relative tier
-        # (3e-3 * max|Re|) absorbs the split. The 50-digit cross-check
-        # (imag_rtol=0) is the authority and must report the flip.
+    def test_mpmath_gate_agrees_at_every_scale(self):
+        # Eigenvalues s(1 +/- 1e-5j): complex (Type IV) at any s. The float64
+        # relative tier used to absorb the split above its 1e6 scale floor, so
+        # the same physics read Type I at s=1e8 and Type IV at s=1; the tier is
+        # gone and both paths now agree at both scales, with no flip to report.
         g = np.diag([-1.0, 1.0, 1.0, 1.0])
         s = 1e8
         M = np.zeros((4, 4))
         M[0, 0] = M[1, 1] = s
         M[0, 1], M[1, 0] = -1e-5 * s, 1e-5 * s
         M[2, 2], M[3, 3] = 2.0 * s, 3.0 * s
-        f64 = classify_hawking_ellis(jnp.asarray(M), ETA)
-        rep = verify_classification_at_points(
-            M[None, ...], g[None, ...], np.array([int(f64.he_type)])
-        )
-        assert int(f64.he_type) != 4  # the relative tier absorbed the split
-        assert rep["mpmath_he_types"][0] == 4
-        assert rep["n_flips"] == 1
-
-        # Below the floor the relative tier is off: float64 itself gets the
-        # same spectrum (max|Re|=3) right, so the gate reports no flip.
-        M_small = M / s
-        f64_small = classify_hawking_ellis(jnp.asarray(M_small), ETA)
-        rep_small = verify_classification_at_points(
-            M_small[None, ...], g[None, ...], np.array([int(f64_small.he_type)])
-        )
-        assert int(f64_small.he_type) == 4
-        assert rep_small["mpmath_he_types"][0] == 4
-        assert rep_small["n_flips"] == 0
+        for A in (M, M / s):
+            f64 = classify_hawking_ellis(jnp.asarray(A), ETA)
+            rep = verify_classification_at_points(
+                A[None, ...], g[None, ...], np.array([int(f64.he_type)])
+            )
+            assert int(f64.he_type) == 4
+            assert rep["mpmath_he_types"][0] == 4
+            assert rep["n_flips"] == 0
 
 
 class TestTimelikeTiebreakBoundary:

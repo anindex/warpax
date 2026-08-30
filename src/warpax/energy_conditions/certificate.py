@@ -2,7 +2,7 @@
 
 :mod:`.slemma` decides every energy condition over every observer from a 4x4 linear
 matrix inequality, which is exact as mathematics but is searched in binary64. This
-module turns each verdict into an object a referee can check by hand in exact
+module turns each verdict into an object a reader can check by hand in exact
 arithmetic: a rational multiplier for a satisfied condition, a rational observer (or
 observer pair) for a violated one. Nothing here has a tolerance.
 
@@ -170,6 +170,20 @@ def _sigma_is_admissible(sigma: Fraction, condition: str) -> bool:
     return True if condition == "nec" else sigma >= 0
 
 
+def _required_lmis(condition: str) -> tuple[str, ...]:
+    """Which LMIs a satisfaction proof of ``condition`` must exhibit, all of them."""
+    return ("wec", "dec") if condition == "dec" else (condition,)
+
+
+def _admissible_bindings(condition: str) -> frozenset[str]:
+    """Which single LMIs a violation of ``condition`` may legitimately bind on.
+
+    DEC implies WEC, so breaking either half breaks the DEC. Nothing else
+    substitutes for the condition claimed.
+    """
+    return frozenset(_required_lmis(condition))
+
+
 def find_multiplier(
     T: Mat, g: Mat, condition: str, sigma_hint: float
 ) -> Fraction | None:
@@ -320,10 +334,12 @@ def certify(
 ) -> dict[str, Any]:
     """Exact certificate for one condition at one point.
 
-    ``kind`` is ``"satisfied"``, ``"violated"`` or ``"saturated"``. The last is not a
-    failure of the method: it is the honest answer at a point where the feasible
-    multiplier set is a single value, so the true margin is exactly zero and no
-    rational certificate of either sign exists.
+    ``kind`` is ``"satisfied"``, ``"violated"`` or ``"saturated"``. The first two carry
+    a proof and :func:`verify` checks it. The third carries none: it means neither
+    search found one, which is the expected outcome where the feasible multiplier set
+    is a single, possibly irrational, value, but is also what a search failure looks
+    like. :func:`verify` returns ``False`` on it for exactly that reason -- it reports
+    whether an object is a valid proof, and "saturated" is the absence of one.
     """
     if condition not in _CONDITIONS:
         raise ValueError(f"unknown condition {condition!r}")
@@ -375,12 +391,18 @@ def certify(
 def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
     """Re-check a certificate from scratch, using nothing but exact arithmetic.
 
-    This is what a referee runs. It shares no code path with :func:`certify` beyond the
+    This is what an auditor runs. It shares no code path with :func:`certify` beyond the
     rational primitives, and it never consults a float.
     """
     T, g = to_exact(T_ab), to_exact(g_ab)
     cond = cert["condition"]
+    if cond not in _CONDITIONS:
+        return False
     if cert["kind"] == "satisfied":
+        # Bind the proof to the claim: a "dec" certificate carrying only the
+        # "nec" multiplier used to verify True.
+        if set(cert["sigma"]) != set(_required_lmis(cond)):
+            return False
         for c, (num, den) in cert["sigma"].items():
             s = Fraction(num, den)
             if not _sigma_is_admissible(s, c):
@@ -389,6 +411,9 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
                 return False
         return True
     if cert["kind"] == "violated":
+        # Same, with the implication running the other way.
+        if cert["binding"] not in _admissible_bindings(cond):
+            return False
         A = condition_matrix(T, g, cert["binding"])
         if cert["binding"] == "nec":
             k, l = ([Fraction(n, d) for n, d in v] for v in cert["witness_pair"])
@@ -401,7 +426,14 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
             return alpha * _quad(A, k) + beta * _quad(A, l) < 0
         u = [Fraction(n, d) for n, d in cert["witness"]]
         return _quad(g, u) <= 0 and _quad(A, u) < 0
-    return cert["kind"] == "saturated" and cond in _CONDITIONS
+    # "saturated" is the ABSENCE of a certificate, not a certified verdict, and
+    # verify() answers only one question: is this object a valid proof? Returning
+    # True here made a forged {"kind": "saturated"} verify against a tensor with a
+    # null deficit of -2, because no arithmetic was performed at all. It also let a
+    # search failure -- certify() falls through to "saturated" whenever BOTH searches
+    # come up empty, which is not the same as the feasible multiplier set being a
+    # single point -- present itself as a checked result.
+    return False
 
 
 # --------------------------------------------------------------------------
@@ -468,13 +500,13 @@ def _demo() -> None:
         "perfect fluid, all hold": np.diag([2.0, 0.5, 0.5, 0.5]),
         "DEC fails (rho < |p|)": np.diag([1.0, 2.0, 0.0, 0.0]),
         "NEC fails": np.diag([1.0, -3.0, 0.0, 0.0]),
-        # Report item B2: Lorentz-self-adjoint, Type IV, vanishing quartic discriminant.
-        "Type IV (B2)": eta @ np.array([[0.0, 1.0, 0.0, 0.0],
+        # Lorentz-self-adjoint, Type IV, vanishing quartic discriminant.
+        "Type IV (D4=0)": eta @ np.array([[0.0, 1.0, 0.0, 0.0],
                                         [-1.0, 0.0, 0.0, 0.0],
                                         [0.0, 0.0, 0.3, 0.0],
                                         [0.0, 0.0, 0.0, 0.3]]),
-        # Report item B1: the Type-II locus, Delta = 0 with j != 0.
-        "Type II (B1 locus)": np.array([[1.0, -1.0, 0.0, 0.0],
+        # The Type-II locus, Delta = 0 with j != 0.
+        "Type II (locus)": np.array([[1.0, -1.0, 0.0, 0.0],
                                         [-1.0, 1.0, 0.0, 0.0],
                                         [0.0, 0.0, 0.2, 0.0],
                                         [0.0, 0.0, 0.0, 0.2]]),

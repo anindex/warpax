@@ -44,7 +44,9 @@ from warpax.energy_conditions.filtering import (
     shape_function_mask,
 )
 from warpax.energy_conditions.verifier import verify_grid
-from warpax.visualization._style import apply_style, COLORS, DOUBLE_COL, LINE_STYLES
+from warpax.visualization._style import (
+    apply_style, COLORS, DOUBLE_COL, LINE_STYLES, metric_color,
+)
 
 
 # Baseline parameters
@@ -541,11 +543,11 @@ def plot_ablation(sweeps):
     x_res = sweeps["resolution"]["values"]
     ax.plot(
         x_res, sweeps["resolution"]["rodal_dec_miss_pct"],
-        color=COLORS[0], label="Rodal", **LINE_STYLES[0],
+        color=metric_color("Rodal"), label="Rodal", **LINE_STYLES[0],
     )
     ax.plot(
         x_res, sweeps["resolution"]["alcubierre_dec_miss_pct"],
-        color=COLORS[1], label="Alcubierre", **LINE_STYLES[1],
+        color=metric_color("Alcubierre"), label="Alcubierre", **LINE_STYLES[1],
     )
     ax.set_xlabel(r"$N$ (grid points per dim.)")
     ax.set_title("Resolution")
@@ -556,25 +558,25 @@ def plot_ablation(sweeps):
     x_reg = sweeps["regularization"]["values"]
     ax.plot(
         x_reg, sweeps["regularization"]["rodal_dec_miss_pct"],
-        color=COLORS[0], label="Rodal", **LINE_STYLES[0],
+        color=metric_color("Rodal"), label="Rodal", **LINE_STYLES[0],
     )
     # Alcubierre static control as visible marker + horizontal line
     alc_ctrl = sweeps["regularization"]["alcubierre_control_dec_miss_pct"]
     ax.axhline(
-        y=alc_ctrl, color=COLORS[1], linestyle="--", linewidth=2.0,
+        y=alc_ctrl, color=metric_color("Alcubierre"), linestyle="--", linewidth=2.0,
         alpha=0.7, label="Alcubierre",
     )
     # Add a visible scatter marker at the geometric center of log-scale x-range
     x_center = np.sqrt(x_reg[0] * x_reg[-1]) if x_reg[0] > 0 else x_reg[len(x_reg) // 2]
     ax.scatter(
-        [x_center], [alc_ctrl], marker="D", s=60, color=COLORS[1],
+        [x_center], [alc_ctrl], marker="D", s=60, color=metric_color("Alcubierre"),
         zorder=5, edgecolors="black", linewidths=0.5,
     )
     ax.annotate(
         f"{alc_ctrl:.1f}\\%", xy=(x_center, alc_ctrl),
         xytext=(8, 8), textcoords="offset points",
-        fontsize=7, color=COLORS[1],
-        arrowprops=dict(arrowstyle="->", color=COLORS[1], lw=0.8),
+        fontsize=7, color=metric_color("Alcubierre"),
+        arrowprops=dict(arrowstyle="->", color=metric_color("Alcubierre"), lw=0.8),
     )
     ax.set_xscale("log")
     ax.set_xlabel(r"$\varepsilon^2$")
@@ -585,7 +587,7 @@ def plot_ablation(sweeps):
     x_sig_r = sweeps["sigma"]["values_rodal"]
     ax.plot(
         x_sig_r, sweeps["sigma"]["rodal_dec_miss_pct"],
-        color=COLORS[0], label="Rodal (grid)", **LINE_STYLES[0],
+        color=metric_color("Rodal"), label="Rodal (grid)", **LINE_STYLES[0],
     )
     # Intrinsic wall-restricted conditional DEC miss rate: the fraction of wall DEC
     # violations the Eulerian frame misses (rises as the wall sharpens), the quantity
@@ -595,14 +597,14 @@ def plot_ablation(sweeps):
                 for r in sweeps["sigma"]["wall_rodal_results"]]
     ax.plot(
         x_sig_r, wall_pct,
-        color=COLORS[0], label="Rodal (wall-restricted)", **wall_style,
+        color=metric_color("Rodal"), label="Rodal (wall-restricted)", **wall_style,
     )
     x_sig_a = sweeps["sigma"]["values_alcubierre"]
     # Plot Alcubierre on a separate x-axis (twin) since sigma ranges differ
     ax2 = ax.twiny()
     ax2.plot(
         x_sig_a, sweeps["sigma"]["alcubierre_dec_miss_pct"],
-        color=COLORS[1], **LINE_STYLES[1],
+        color=metric_color("Alcubierre"), **LINE_STYLES[1],
     )
     ax.set_xlabel(r"$\sigma_\mathrm{Rodal}$")
     ax2.set_xlabel(r"$\sigma_\mathrm{Alc}$", fontsize=8)
@@ -613,9 +615,9 @@ def plot_ablation(sweeps):
     # Create proxy artists for legend since Alcubierre is on twin axis
     from matplotlib.lines import Line2D
     handles = [
-        Line2D([0], [0], color=COLORS[0], label="Rodal (grid)", **LINE_STYLES[0]),
-        Line2D([0], [0], color=COLORS[0], label="Rodal (wall-restr.)", **wall_style),
-        Line2D([0], [0], color=COLORS[1], label="Alcubierre", **LINE_STYLES[1]),
+        Line2D([0], [0], color=metric_color("Rodal"), label="Rodal (grid)", **LINE_STYLES[0]),
+        Line2D([0], [0], color=metric_color("Rodal"), label="Rodal (wall-restr.)", **wall_style),
+        Line2D([0], [0], color=metric_color("Alcubierre"), label="Alcubierre", **LINE_STYLES[1]),
     ]
     axes[2].legend(handles=handles, loc="center right", fontsize=6)
 

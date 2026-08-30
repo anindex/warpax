@@ -48,7 +48,7 @@ import numpy as np
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from warpax.geometry import evaluate_curvature_grid
-from warpax.grids import wall_clustered
+from warpax.grids import proper_volume_weights, wall_clustered
 
 
 HERE = os.path.dirname(__file__)
@@ -89,11 +89,11 @@ _rho_grid = jax.jit(jax.vmap(_eulerian_rho))
 
 def _proper_dV(g_field, grid):
     """Proper volume element sqrt(det gamma_ij) * cell-volume, per grid point."""
-    flat = g_field.reshape(-1, 4, 4)
-    gamma = flat[:, 1:, 1:]  # spatial 3x3 block == ADM gamma_ij
-    sqrtdet = np.asarray(jnp.sqrt(jnp.clip(jnp.linalg.det(gamma), min=0.0)))
-    w = np.asarray(grid.volume_weights_array).ravel()
-    return sqrtdet * w
+    return np.asarray(
+        proper_volume_weights(
+            grid.volume_weights_array, g_field.reshape(grid.shape + (4, 4))
+        )
+    ).ravel()
 
 
 def _measures_at(name, grid, v_s):

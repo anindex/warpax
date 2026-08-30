@@ -46,15 +46,26 @@ def richardson_extrapolation(
     -------
     dict
         Keys:
-        - ``extrapolated_value``: Richardson-extrapolated estimate of Q_exact
-        - ``observed_order``: estimated convergence order p
-        - ``error_estimate``: |Q_fine - Q_extrapolated|
-        - ``converged``: bool, True if |p - expected_order| < 1.0
+        - ``extrapolated_value``: Richardson estimate of Q_exact when the order
+          is estimable and consistent with ``expected_order``; otherwise the
+          finest computed value, unextrapolated.
+        - ``observed_order``: estimated convergence order p, or ``None`` when
+          the triplet is non-monotonic and p is not estimable.
+        - ``error_estimate``: ``|Q_fine - Q_extrapolated|`` when
+          ``error_basis == "richardson"``; otherwise the ladder spread
+          ``max_i |Q_i - Q_fine|``, which assumes no order at all.
+        - ``converged``: bool, True only if p was estimated AND
+          ``|p - expected_order| < 1.0``.
+        - ``fallback``: bool, True when the triplet was non-monotonic.
+        - ``error_basis``: ``"richardson"``, ``"spread"``, or ``"exact"`` --
+          which of the two bounds above the error estimate is.
 
     Raises
     ------
     ValueError
-        If fewer than 3 values/grid_sizes are provided.
+        If fewer than 3 values/grid_sizes are provided, or if the refinement
+        ladder is not geometric (``h1/h2 != h2/h3``), which the three-point
+        order estimate cannot handle.
     """
     if len(values) < 3 or len(grid_sizes) < 3:
         raise ValueError(
@@ -65,10 +76,20 @@ def richardson_extrapolation(
     # Use the last 3 resolutions (coarsest -> finest)
     Q1, Q2, Q3 = values[-3], values[-2], values[-1]
     N1, N2, N3 = grid_sizes[-3], grid_sizes[-2], grid_sizes[-1]
-    h1, h2, _h3 = 1.0 / N1, 1.0 / N2, 1.0 / N3
+    h1, h2, h3 = 1.0 / N1, 1.0 / N2, 1.0 / N3
 
-    # Refinement ratio
-    r = h1 / h2
+    # The three-point order estimate is valid only on a geometric ladder.
+    r, r2 = h1 / h2, h2 / h3
+    if abs(r - r2) > 1e-9 * max(r, r2):
+        raise ValueError(
+            "richardson_extrapolation needs a geometric refinement ladder: "
+            f"h1/h2 = {r:.6f} but h2/h3 = {r2:.6f} for N = "
+            f"{[N1, N2, N3]}. Three points cannot separate the order from a "
+            "varying ratio."
+        )
+
+    # Assumption-free bound, used whenever Richardson is not earned.
+    spread = max(abs(Q1 - Q3), abs(Q2 - Q3))
 
     # Estimate convergence order
     dQ12 = Q1 - Q2
@@ -83,17 +104,24 @@ def richardson_extrapolation(
             "error_estimate": 0.0,
             "converged": True,
             "fallback": False,
+            "error_basis": "exact",
         }
 
     ratio = dQ12 / dQ23
-    fallback = False
     if ratio <= 0:
-        # Non-monotonic convergence: order estimation not meaningful.
-        # Fall back to expected order for extrapolation; flag it.
-        p = float(expected_order)
-        fallback = True
-    else:
-        p = math.log(abs(ratio)) / math.log(r)
+        # Non-monotonic: no order is estimable. This used to substitute
+        # p = expected_order and then test |p - expected_order| < 1, which is
+        # always true, so a failed convergence reported itself as converged.
+        return {
+            "extrapolated_value": float(Q3),
+            "observed_order": None,
+            "error_estimate": float(spread),
+            "converged": False,
+            "fallback": True,
+            "error_basis": "spread",
+        }
+
+    p = math.log(abs(ratio)) / math.log(r)
 
     # Richardson extrapolation: Q_ext = (r^p * Q_fine - Q_coarse) / (r^p - 1)
     rp = r**p
@@ -102,15 +130,15 @@ def richardson_extrapolation(
     else:
         Q_ext = (rp * Q3 - Q2) / (rp - 1.0)
 
-    error_estimate = abs(Q3 - Q_ext)
     converged = abs(p - expected_order) < 1.0
-
     return {
         "extrapolated_value": float(Q_ext),
         "observed_order": float(p),
-        "error_estimate": float(error_estimate),
+        # Richardson is an error estimate only when the order supports it.
+        "error_estimate": float(abs(Q3 - Q_ext) if converged else spread),
         "converged": bool(converged),
-        "fallback": fallback,
+        "fallback": False,
+        "error_basis": "richardson" if converged else "spread",
     }
 
 
@@ -188,11 +216,14 @@ def compute_convergence_quantity(
     quantity : str
         One of:
         - ``"min_margin"``: ``nanmin`` of margins (most violated point)
-        - ``"l2_violation"``: L2 norm of negative margins
+        - ``"l2_violation"``: discrete L2 norm of the negative margins,
+          ``sqrt(sum f^2 * cell_volume)``
         - ``"integrated_violation"``: sum of |margin| where violated,
           times cell volume (volume-integrated violation)
     cell_volume : float
-        Volume of a single grid cell (for ``"integrated_violation"``).
+        Volume of a single grid cell. Required for both
+        ``"integrated_violation"`` and ``"l2_violation"``: without it
+        neither is an integral and both grow with the point count.
 
     Returns
     -------
@@ -213,7 +244,9 @@ def compute_convergence_quantity(
         violated = flat[flat < -1e-10]
         if violated.size == 0:
             return 0.0
-        return float(np.sqrt(np.sum(violated**2)))
+        # sqrt(sum f^2 dV), not sqrt(sum f^2): without the volume this counts
+        # points, and its "order" -1.4 was just -log_2(r^{3/2}).
+        return float(np.sqrt(np.sum(violated**2) * cell_volume))
 
     elif quantity == "integrated_violation":
         violated = flat[flat < -1e-10]

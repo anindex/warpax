@@ -1,0 +1,115 @@
+{
+  "partial": false,
+  "params": {
+    "v_s": 0.5,
+    "R_b": 1.0,
+    "sigma": 8.0,
+    "box_x": [
+      -3.0,
+      3.0
+    ],
+    "box_s": [
+      0.0,
+      3.0
+    ],
+    "tail_x": [
+      3.0,
+      30.0
+    ],
+    "tail_s": [
+      0.0,
+      30.0
+    ],
+    "tol": 0.0001,
+    "max_boxes": 120000,
+    "wall_mask": [
+      0.1,
+      0.9
+    ],
+    "note": "N = min_{|v|=1} (rho_n + 2 b.v + v^T S v), the Eulerian-normalized null deficit; defined at every point regardless of Hawking-Ellis type. Lower end certified on the continuum by interval branch-and-bound."
+  },
+  "order": [
+    "Alcubierre",
+    "Rodal",
+    "Natario",
+    "VanDenBroeck"
+  ],
+  "results": {
+    "Alcubierre": {
+      "lower": -0.6316237158101168,
+      "upper": -0.631076649550177,
+      "width": 0.0005470662599398324,
+      "argmin": [
+        9.1552734375e-05,
+        0.93109130859375
+      ],
+      "n_evaluations": 120001,
+      "tail_shape_enclosure": [
+        0.0,
+        1.2664351586738398e-14
+      ],
+      "tail_excluded": true,
+      "reference": -0.628,
+      "reference_statistic": "all-wall NEC min, Sec.~3.3",
+      "build_seconds": 9.5367431640625e-07,
+      "search_seconds": 10800.948308467865
+    },
+    "VanDenBroeck": {
+      "lower": -1.4461924132121295,
+      "upper": -1.2964550443603593,
+      "width": 0.14973736885177025,
+      "argmin": [
+        -1.11181640625,
+        0.0029296875
+      ],
+      "n_evaluations": 120001,
+      "tail_shape_enclosure": [
+        0.0,
+        1.2664351586738398e-14
+      ],
+      "tail_excluded": true,
+      "reference": null,
+      "reference_statistic": null,
+      "build_seconds": 2.1457672119140625e-06,
+      "search_seconds": 13077.250447273254
+    },
+    "Natario": {
+      "lower": -38.69478283015173,
+      "upper": -5.216418343993033,
+      "width": 33.478364486158696,
+      "argmin": [
+        -0.0029296875,
+        1.0107421875
+      ],
+      "n_evaluations": 120001,
+      "tail_shape_enclosure": [
+        0.0,
+        1.2664351586738398e-14
+      ],
+      "tail_excluded": true,
+      "reference": null,
+      "reference_statistic": null,
+      "build_seconds": 9.5367431640625e-07,
+      "search_seconds": 14182.56189751625
+    },
+    "Rodal": {
+      "lower": -0.37935555722021436,
+      "upper": -0.1944727965169106,
+      "width": 0.18488276070330376,
+      "argmin": [
+        0.97119140625,
+        0.0029296875
+      ],
+      "n_evaluations": 120001,
+      "tail_shape_enclosure": [
+        0.0,
+        1.2664351586738398e-14
+      ],
+      "tail_excluded": true,
+      "reference": -0.194,
+      "reference_statistic": "polished $\\min(\\rho+p_i)$",
+      "build_seconds": 1.430511474609375e-06,
+      "search_seconds": 14990.397998571396
+    }
+  }
+}

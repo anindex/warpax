@@ -237,8 +237,10 @@ def classify_hawking_ellis(
             f"solver must be 'standard' or 'generalized'; got {solver!r}"
         )
 
-    # cuSolver's geev crashes on NaN GPU inputs (CPU is graceful). Zero
-    # out NaN entries; the near-vacuum guard below absorbs the result.
+    # cuSolver's geev crashes on NaN GPU inputs (CPU is graceful). Zero out NaN
+    # entries so the solver survives, but remember: a zeroed point used to come
+    # out as a confident he_type=1 vacuum with margins exactly 0.0.
+    has_nan = jnp.any(jnp.isnan(T_mixed))
     T_safe = jnp.where(jnp.isnan(T_mixed), 0.0, T_mixed)
 
     if solver == 'standard':
@@ -261,22 +263,29 @@ def classify_hawking_ellis(
     evecs_real = eigenvectors.real
     evals_imag = eigenvalues.imag
 
-    # max(|Re lambda|, 1) prevents division by zero in vacuum and makes
-    # the imaginary-part and degeneracy checks scale-relative.
-    scale = jnp.maximum(jnp.max(jnp.abs(evals_real)), 1.0)
-
-    # Two "real spectrum" tests, OR-combined:
-    #   (a) absolute: |Im| < tol * scale.
-    #   (b) relative: |Im| < imag_rtol * max|Re|, for split-degenerate
-    #       pairs at large ||T|| (WarpShell: |Re|~1e11, |Im| noise ~1e8).
-    #       Only engages above the scale floor -- at small ||T|| a tiny
-    #       |Im| is real physics, not solver noise.
-    imag_parts = jnp.abs(evals_imag)
-    unclamped_scale = jnp.maximum(jnp.max(jnp.abs(evals_real)), jnp.sqrt(tol))
-    tier_b = jnp.all(imag_parts < imag_rtol * unclamped_scale) & (
-        unclamped_scale > _IMAG_RTOL_SCALE_FLOOR
+    # Scale for the relative imaginary-part and degeneracy tests. The floor was
+    # 1.0, which makes both tests ABSOLUTE for any tensor smaller than that: an
+    # exactly complex spectrum of size 9e-12 read as real, and the far tail of
+    # every drive was published as Type I with margins exactly +0.0 while the
+    # LMI resolves the violation. Scaling by the tensor itself is covariant under
+    # T -> cT and costs nothing: measured, it flips 0 of 704 wall points on all
+    # four constructions and only far-tail points outside the band. Exact vacuum
+    # takes the near_vacuum branch below, so a zero scale is never reached.
+    scale = jnp.maximum(
+        jnp.maximum(jnp.max(jnp.abs(evals_real)), jnp.max(jnp.abs(T_safe))), 1e-300
     )
-    all_real = jnp.all(imag_parts < tol * scale) | tier_b
+
+    # Real spectrum: |Im| < tol * scale.
+    #
+    # A second, relative tier (|Im| < 3e-3 * max|Re| above a 1e6 scale floor)
+    # used to be OR-ed in for split-degenerate pairs at large ||T||. It fires at
+    # zero points on every published grid (max|Re| = 0.045 on the WarpShell 50^3
+    # census), and where it does fire it is unsound: 3e-3 is five orders above
+    # any eig rounding error, so an exactly complex spectrum -- a momentum flux
+    # +/- i b against a large transverse pressure -- was declared real, labelled
+    # Type I, and published as NEC = +0.0 against a true null deficit of -2e4.
+    imag_parts = jnp.abs(evals_imag)
+    all_real = jnp.all(imag_parts < tol * scale)
 
     # Near-vacuum bypass: eigenvectors are noise there, so force Type I.
     # Gate on the modulus |lambda|, not |Re|: a pure momentum flux has
@@ -289,8 +298,14 @@ def classify_hawking_ellis(
     # spectrum alone labelled it vacuum and hence Type I, so it never reached the
     # linear matrix inequality that decides non-Type-I points. Require the tensor
     # itself to be small as well.
+    # The tensor test is EXACT, not an epsilon. An absolute 1e-10 on the
+    # components gated 58-72% of a real grid, and the far tail it swallowed is
+    # genuinely Type IV: a point with max|T| = 9.2e-12 has an LMI null deficit
+    # of -4.5e-13 against a noise floor of 1e-18, and was published as +0.0
+    # because Type-I points never reach the LMI. Every point the published grids
+    # actually gate has max|T| identically zero, so this changes no number.
     near_vacuum = (jnp.max(jnp.abs(eigenvalues)) < tol) & (
-        jnp.max(jnp.abs(T_safe)) < tol
+        jnp.max(jnp.abs(T_safe)) == 0.0
     )
 
     # Causal character g_{ab} v^a v^b per eigenvector, with a relative
@@ -373,6 +388,9 @@ def classify_hawking_ellis(
         4,
         jnp.where(is_type_i, 1, jnp.where(is_type_iii, 3, 2)),
     )
+    # A point whose stress-energy was NaN is not a clean vacuum. Return NaN,
+    # which every consumer already treats as "no verdict here" via isfinite.
+    he_type = jnp.where(has_nan, jnp.nan, he_type.astype(evals_real.dtype))
 
     # Type I extraction: ``rho = -eigenvalue(timelike)``, pressures = the
     # spacelike eigenvalues sorted. Pick the most-timelike eigenvector by its
@@ -404,7 +422,7 @@ def classify_hawking_ellis(
         rho=rho,
         pressures=pressures,
         eigenvalues_imag=evals_imag,
-        is_vacuum=near_vacuum.astype(evals_real.dtype),
+        is_vacuum=jnp.where(has_nan, nan, near_vacuum.astype(evals_real.dtype)),
     )
 
 

@@ -66,25 +66,33 @@ def _lorentzian_kernel(
     return (tau0 / jnp.pi) / (tau ** 2 + tau0 ** 2)
 
 
-def _rho_at_tau(
+def _rho_and_rate(
     metric: MetricSpecification,
     worldline: Callable[[Float[Array, ""]], Float[Array, "4"]],
-    tau: Float[Array, ""],
-) -> Float[Array, ""]:
-    """Compute ``rho = T_{ab} u^a u^b`` at proper-time ``tau``."""
-    coords = worldline(tau)
+    lam: Float[Array, ""],
+) -> tuple[Float[Array, ""], Float[Array, ""]]:
+    """``(rho, dtau/dlambda)`` at worldline parameter ``lam``."""
+    coords = worldline(lam)
     curv = compute_curvature_chain(metric, coords)
     T_ab = curv.stress_energy  # covariant (lower indices)
     g = curv.metric
 
     # 4-velocity from worldline derivative; renormalize to g(u,u) = -1
-    u_raw = jax.jacfwd(worldline)(tau)
+    u_raw = jax.jacfwd(worldline)(lam)
     u_sq = jnp.einsum("a,ab,b->", u_raw, g, u_raw)
-    scale = jnp.sqrt(jnp.abs(u_sq) + 1e-30)
-    u = u_raw / scale
+    rate = jnp.sqrt(jnp.abs(u_sq) + 1e-30)
+    u = u_raw / rate
 
-    rho = jnp.einsum("ab,a,b->", T_ab, u, u)
-    return rho
+    return jnp.einsum("ab,a,b->", T_ab, u, u), rate
+
+
+def _rho_at_tau(
+    metric: MetricSpecification,
+    worldline: Callable[[Float[Array, ""]], Float[Array, "4"]],
+    tau: Float[Array, ""],
+) -> Float[Array, ""]:
+    """Compute ``rho = T_{ab} u^a u^b`` at worldline parameter ``tau``."""
+    return _rho_and_rate(metric, worldline, tau)[0]
 
 
 @jaxtyped(typechecker=beartype)
@@ -129,13 +137,28 @@ def ford_roman(
             f"sampling must be 'lorentzian' (only supported kernel), got {sampling!r}"
         )
 
-    tau = jnp.linspace(-10.0 * tau0, 10.0 * tau0, n_samples)
-    dtau = tau[1] - tau[0]
-    f_vals = _lorentzian_kernel(tau, tau0)
-
-    rho_vals = jax.vmap(lambda t: _rho_at_tau(metric, worldline, t))(tau)
-    integrand = rho_vals * f_vals
-    integral = jnp.trapezoid(integrand, dx=dtau)
+    # The kernel width, the measure and the sampling span are PROPER time; the
+    # caller's worldline is parameterized by whatever it likes. Integrate in the
+    # caller's parameter and carry the Jacobian dtau/dlambda, so no inversion is
+    # needed and a proper-time worldline (rate == 1) reduces to the previous code
+    # exactly. A coordinate-static observer in Alcubierre has
+    # rate = sqrt(1 - v_s^2 f^2) < 1 inside the wall.
+    span = 10.0 * tau0
+    half = span
+    for _ in range(3):
+        lam = jnp.linspace(-half, half, n_samples)
+        rho_vals, rate = jax.vmap(lambda t: _rho_and_rate(metric, worldline, t))(lam)
+        dlam = lam[1] - lam[0]
+        tau = jnp.concatenate(
+            [jnp.zeros(1), jnp.cumsum(0.5 * (rate[1:] + rate[:-1]) * dlam)]
+        )
+        tau = tau - tau[n_samples // 2]
+        reach = float(jnp.minimum(-tau[0], tau[-1]))
+        if reach >= span * (1.0 - 1e-6):
+            break
+        half += span - reach  # rate -> 1 outside the wall, so this converges
+    integrand = rho_vals * _lorentzian_kernel(tau, tau0) * rate
+    integral = jnp.trapezoid(integrand, dx=dlam)
 
     C = jnp.asarray(FORD_ROMAN_CONSTANT_C)
     bound = -C / tau0 ** 4

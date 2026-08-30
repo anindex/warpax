@@ -1,12 +1,9 @@
 """50-digit mpmath verification of the Hawking-Ellis classifier.
 
 The float64 classifier at :mod:`warpax.energy_conditions.classification`
-uses a two-tier imaginary-part tolerance (``tol * scale`` absolute OR
-``imag_rtol * unclamped_scale`` relative). The relative tier may
-misclassify a genuine Type-IV spectrum whose ``|Im λ|`` sits below the
-threshold (e.g. ``|λ| ~ 1e7``, ``|Im λ| ~ 1`` flips to Type I at
-``imag_rtol = 3e-3``; the relative tier only engages above the
-``1e6`` scale floor).
+declares a spectrum real when ``|Im λ| < tol * max(|Re λ|, max|T|)``. This
+module applies the same test at 50 digits, where the eigensolver noise the
+tolerance exists to absorb is absent.
 
 This module is a post-hoc 50-digit cross-check, NOT wired into the JAX
 grid pipeline (mpmath is pure-Python and thousands of times slower than
@@ -66,14 +63,8 @@ def classify_hawking_ellis_mpmath(
     evaluates eigenvalues (and, for real spectra, eigenvectors) at
     arbitrary precision before applying tolerances.
 
-    The default ``imag_rtol = 0.0`` is deliberately tighter than the
-    float64 classifier's ``3e-3``. The relative tolerance exists in the
-    float64 path to mask split-degenerate-pair noise from
-    ``jnp.linalg.eig`` at large ``|λ|``; that noise does not exist at
-    50-digit precision, so any non-negligible imaginary part is
-    physical. Pass ``imag_rtol=3e-3`` explicitly to reproduce the
-    float64 verdict exactly (useful when checking tolerance sensitivity
-    rather than physical classification).
+    ``imag_rtol`` is retained for API compatibility and is no longer read:
+    the relative tier it controlled has been removed from both paths.
 
     Parameters
     ----------
@@ -85,11 +76,10 @@ def classify_hawking_ellis_mpmath(
     precision : int
         mpmath decimal precision (default 50).
     tol : float
-        Absolute imaginary-part threshold: ``|Im λ| < tol * max(|Re λ|, 1)``
-        marks the spectrum as real. Default matches the float64 classifier.
+        Imaginary-part threshold: ``|Im λ| < tol * max(|Re λ|, max|T|)``
+        marks the spectrum as real. Matches the float64 classifier.
     imag_rtol : float
-        Relative imaginary-part threshold (default 0.0 - absolute-only
-        cross-check; see note above).
+        Unused; retained for API compatibility.
 
     Returns
     -------
@@ -128,26 +118,21 @@ def classify_hawking_ellis_mpmath(
         max_real_abs = max(abs(r) for r in evals_real)
         max_imag_abs = max(abs(i) for i in evals_imag)
 
-        scale = max(max_real_abs, 1.0)
-        unclamped_scale = max(max_real_abs, tol**0.5)
+        # Same scale-covariant threshold as the float64 path, and the same
+        # removal of the relative tier.
+        max_T_abs = float(np.max(np.abs(T_safe)))
+        scale = max(max_real_abs, max_T_abs, 1e-300)
+        all_real = all(abs(i) < tol * scale for i in evals_imag)
 
-        all_abs = all(abs(i) < tol * scale for i in evals_imag)
-        # Relative tier only above the scale floor, as in float64.
-        from .classification import _IMAG_RTOL_SCALE_FLOOR
-
-        all_rel = (
-            all(abs(i) < imag_rtol * unclamped_scale for i in evals_imag)
-            and unclamped_scale > _IMAG_RTOL_SCALE_FLOOR
-        )
-        all_real = all_abs or all_rel
-
-        # Vacuum gate uses the modulus (matches float64): a purely
-        # imaginary spectrum is Type IV, not vacuum.
+        # Vacuum gate uses the modulus (matches float64): a purely imaginary
+        # spectrum is Type IV, not vacuum. The tensor test the float64 path
+        # carries was missing here, so a nilpotent Segre [3,1] core -- the
+        # paper's own general Type III -- was labelled vacuum at any amplitude.
         max_mod_abs = max(
             float(mpmath.sqrt(r * r + i * i))
             for r, i in zip(evals_real, evals_imag)
         )
-        near_vacuum = max_mod_abs < tol
+        near_vacuum = (max_mod_abs < tol) and (max_T_abs == 0.0)
 
         # Degeneracy count on real parts (matches float64 logic).
         sorted_re = sorted(evals_real)

@@ -219,24 +219,36 @@ it:
 cd ../warpax_arxiv && bash verify/run_certs.sh   # non-zero exit on any failure
 ```
 
-Each `verify/*.sage` file proves one result: the per-observer Type-I eigenvalue
-criteria for the null, weak, strong and dominant conditions (the dominant-energy
-bound is `rho >= |p_i|`); the momentum discriminant
-`Delta = (rho + S_par)^2 - 4|j|^2` and the closed-form null witness; the
-momentum-curl identity `8 pi |j| = (1/2)|curl(curl beta)|`; the single-term wall
-NEC deficit and its momentum correction, nonvanishing for the actual
-divergence-free but vortical Natário shift; the curvature power laws (the Ricci,
-Weyl and Kretschmann wall-peak exponents); the
+Each `verify/*.sage` file proves one result. The two headline certificates are
+`slemma_certificate` and `lmi_rational_certificate`: the linear matrix inequality
+`T_ab + sigma g_ab >= 0` decides the null, weak, strong and dominant conditions
+over every observer at Hawking-Ellis Types I, II, III and IV alike, with no
+rapidity cap, no eigendecomposition and no classification tolerance, and each
+reported verdict reduces to exact rational arithmetic -- a rational multiplier
+`sigma` when the condition holds, a rational boost `w` with `|w| <= 1` and
+`q(w) < 0` when it fails.
+
+The rest: the per-observer Type-I eigenvalue criteria for all four conditions
+(the dominant-energy bound is `rho >= |p_i|`); the momentum discriminant
+`Delta = (rho + S_par)^2 - 4|j|^2` and the closed-form null witness; the Type-II
+wall at `Delta = 0` separating the Type-I and Type-IV momentum-channel regions,
+so the two types do not exhaust it; the momentum-curl identity
+`8 pi |j| = (1/2)|curl(curl beta)|`; the two-term wall NEC law
+`W = a v_s^2 - 2 d v_s` with its linear coefficient proportional to `|j|`, so it
+vanishes exactly in the irrotational case, together with the proof of which real
+eigenvector is timelike on each sign branch of `a = rho_n + S_par`; that same law
+evaluated on the actual divergence-free but vortical Natário shift; the exactly
+quadratic irrotational deficit with `C > 0`; the curvature power laws (the Ricci,
+Weyl and Kretschmann wall-peak exponents), including the explicit witness showing
+that a nonzero shift vorticity does not by itself force `q = 2` for `C^2`; the
 conformal Type-IV case (discriminant sufficient but not necessary), with its
 closed-form transverse-channel criterion `D(rho, Sx, Sy, |j|, m) < 0` and an
-explicit null witness `T(k,k) < 0` at such a point; the complete criterion for the
-full flat-slice tensor, Type-IV exactly when the quartic discriminant is negative
-; the Type-I wall margin being quadratic up
-to a constant, with no term linear in `v_s`; the exactly
-quadratic irrotational deficit with `C > 0`; the exact `v_s^2` scaling of the
-integrated negative energy `E_-(v_s) = v_s^2 E_-(1)`; and the total Eulerian energy
-of a compact slice being non-positive, `int rho_n dV = -(1/16 pi) int omega_ij
-omega^ij dV <= 0` (minus the integrated shift vorticity). See
+explicit null witness `T(k,k) < 0` at such a point; the exact `v_s^2` scaling of
+the integrated negative energy `E_-(v_s) = v_s^2 E_-(1)`, in both the scalar and
+the vectorial shift; and the total Eulerian energy of a compact slice being
+non-positive, `int rho_n dV = -(1/16 pi) int omega_ij omega^ij dV <= 0` (minus
+the integrated shift vorticity). Two certificates from the first revision are
+retired in `verify/retired/`, with the reasons stated there. See
 `../warpax_arxiv/verify/README.md` for the per-file summary.
 
 ## Reproducing results

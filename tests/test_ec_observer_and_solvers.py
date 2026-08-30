@@ -1329,15 +1329,16 @@ class TestMpmathClassifier:
         assert mp_result["he_type"] == 4
         assert mp_result["max_imag_abs"] > 1.0e-6
 
-    def test_type_iv_that_float64_misclassifies(self) -> None:
-        # The float64 blind spot now exists only above the relative
-        # tier's scale floor (where it absorbs eigensolver noise by
-        # design); the 50-digit gate remains the authority there.
+    def test_type_iv_agrees_with_mpmath_at_large_scale(self) -> None:
+        # This used to be the float64 blind spot: above the relative tier's
+        # 1e6 scale floor the tier absorbed a genuine 2e-5 relative split and
+        # float64 said Type I while the 50-digit gate said Type IV. The tier is
+        # gone, both paths agree, and the gate has nothing to flip.
         scale = 1.0e11
         T = scale * _type_iv_block_diag(imag=2.0e-5)
 
         float64_result = classify_hawking_ellis(T, MINKOWSKI)
-        assert int(float64_result.he_type) == 1
+        assert int(float64_result.he_type) == 4
 
         mp_result = classify_hawking_ellis_mpmath(
             np.asarray(T), np.asarray(MINKOWSKI), precision=50

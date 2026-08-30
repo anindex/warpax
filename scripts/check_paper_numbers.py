@@ -18,7 +18,9 @@ Exits non-zero, listing every mismatch, if any check fails.
 from __future__ import annotations
 
 import argparse
+import collections
 import json
+import pathlib
 import re
 import sys
 from pathlib import Path
@@ -46,6 +48,13 @@ _TABLE_ARTIFACTS = (
     "enclosures.json",
     "type_transition_audit.json",
     "lmi_audit.json",
+    # Declared by a shipped table's provenance header, so a stale one is a stale
+    # published number even though no check below reads it.
+    "anec/retained_symplectic.json",
+    "quantum/ford_roman.json",
+    "clustered_convergence_alcubierre.json",
+    "vorticity_type_analytic.json",
+    "wall_resolution.json",
 )
 
 DEFAULT_PAPER = Path(__file__).resolve().parents[2] / "warpax_arxiv"
@@ -179,6 +188,94 @@ def main() -> int:
                     + f"$ but velocity_sweep.json ran at N={n_run}"
                 )
 
+    # The geodesic ANEC ordering is an argument, not just a number: it reversed this
+    # round when the affine window was measured instead of assumed. Pin the ordering
+    # and the four values together, so a future window change cannot leave the prose
+    # asserting a ranking the data no longer supports.
+    anec = artifact("anec/retained_symplectic.json")
+    if anec is not None:
+        m = anec["metrics"]
+        checks.append((
+            "Section 3.4 geodesic ANEC minima vs anec/retained_symplectic.json",
+            (f"{m['Natário']['min_line_integral']:.2f}",
+             f"{m['Alcubierre']['min_line_integral']:.2f}",
+             f"{m['Van den Broeck']['min_line_integral']:.3f}",
+             f"{m['Rodal']['min_line_integral']:.4f}"),
+            r"the impact-parameter scan is \$(-[\d.]+)\$ \(Nat\\'ario\), \$(-[\d.]+)\$ \(Alcubierre\),\s*\n?"
+            r"\$(-[\d.]+)\$ \(Van~den~Broeck\), and \$(-[\d.]+)\$ \(Rodal\)",
+        ))
+        # Appendix F reads the enclosures as ratios rather than widths, so pin the
+        # ratios the prose quotes. The Alcubierre one is the whole A2 claim: a
+        # certified bound that agrees with the achieved value to four digits.
+        enc = artifact("enclosures.json")
+        if enc is not None:
+            e = enc["results"]
+
+            def ratio(name: str, sig: int) -> str:
+                r = e[name]
+                return f"{r['lower'] / r['upper']:.{sig}g}"
+
+            checks.append((
+                "Appendix F enclosure ratios vs enclosures.json",
+                (f"{e['Alcubierre']['width']:.1e}".replace("e-04", r"\times10^{-4}"),
+                 ratio("Alcubierre", 5), ratio("VanDenBroeck", 3),
+                 ratio("Natario", 2)),
+                r"bracketed to a width of \$(.+?)\$,[\s\S]{0,200}?"
+                r"a factor of \$([\d.]+)\$ apart"
+                r"[\s\S]{0,140}?within a factor of \$([\d.]+)\$"
+                r"[\s\S]{0,300}?finite but \$([\d.]+)\$ times its own achieved value",
+            ))
+
+        order = sorted(m, key=lambda k: m[k]["min_line_integral"])
+        if order[0] != "Natário":
+            failures_pre.append(
+                "the deepest geodesic ANEC minimum is now "
+                f"{order[0]}, but Section 3.4 names Natário"
+            )
+
+    # The Rodal single-frame miss rates are the paper's headline observer-dependence
+    # number and are quoted in five places, none of them a table. Pin every one.
+    inv = artifact("invariant_verification.json")
+    if inv is not None:
+        rod = next(r for r in inv["rows"] if r["metric"] == "Rodal")
+        wec, dec = f"{rod['miss_wec_pct']:.0f}", f"{rod['miss_dec_pct']:.0f}"
+        for desc, pattern, expected in (
+            ("abstract", r"reading of Rodal misses about \$(\d+)\\%\$ of the wall weak-energy",
+             (wec,)),
+            ("Section 1", r"register\s*\n?\$\{\\approx\}(\d+)\\%\$ of the dominant and "
+                          r"\$\{\\approx\}(\d+)\\%\$ of the weak energy-condition", (dec, wec)),
+            ("Section 2", r"at \$\{\\approx\}(\d+)\\%\$ of the wall points where a boosted "
+                          r"observer sees a\s*\n?weak-energy violation, and at "
+                          r"\$\{\\approx\}(\d+)\\%\$ for the dominant energy", (wec, dec)),
+            ("Appendix C cross-reference",
+             r"matched-parameter benchmark \(\$\{\\approx\}(\d+)\\%\$ DEC, "
+             r"\$\{\\approx\}(\d+)\\%\$ WEC;", (dec, wec)),
+            ("Discussion", r"\$\{\\approx\}(\d+)\\%\$ of the wall points where boosted observers "
+                           r"register a\s*\n?dominant-energy violation, and \$\{\\approx\}(\d+)\\%\$ "
+                           r"for the weak energy condition", (dec, wec)),
+            ("Conclusion", r"no violation at \$\{\\approx\}(\d+)\\%\$ of the wall points where "
+                           r"boosted\s*\n?\s*observers see a weak-energy violation, and at "
+                           r"\$\{\\approx\}(\d+)\\%\$ for the", (wec, dec)),
+        ):
+            checks.append((
+                f"Rodal single-frame miss rates ({desc}) vs invariant_verification.json",
+                expected, pattern,
+            ))
+
+    # The Garattini wall is not uniformly labelled Type I. The balance is Type II and
+    # the manuscript now says so; if the fraction moves, the prose must move with it.
+    cv = artifact("construction_verification.json")
+    if cv is not None:
+        def type_ii_pct(block: str) -> str:
+            row = cv[block]["Garattini"][-1]
+            return f"{100 * (1.0 - row['frac_type_i'] - row['frac_type_iv']):.1f}"
+        checks.append((
+            "Garattini Type-II wall balance vs construction_verification.json",
+            (type_ii_pct("matched"), type_ii_pct("native")),
+            r"returns Type~II on \$([\d.]+)\\%\$ of the matched wall volume and "
+            r"\$([\d.]+)\\%\$ of the native",
+        ))
+
     exo_json = artifact("exoticity_ranking.json")
     if exo_json is not None:
         axes = exo_json["raw_axes"]
@@ -186,7 +283,10 @@ def main() -> int:
         checks.append((
             "Table 15 caption uncapped NEC severity ratio vs exoticity_ranking.json",
             (f"{ratio:.0f}",),
-            r"severity is \$(\d+)\\times\$ the Alcubierre\s*\n?\s*baseline",
+            # The caption says "~13x" rather than "13x", because the ratio is not an
+            # integer and the caption no longer restates the two tabulated values it
+            # is formed from. Allow the tilde; the digits are still pinned.
+            r"severity is \$(?:\{\\sim\})?(\d+)\\times\$ the Alcubierre\s*\n?\s*baseline",
         ))
 
     curv = artifact("curvature_scaling.json")
@@ -199,6 +299,25 @@ def main() -> int:
             "Section 3.5 Ricci-axis crossing speed vs curvature_scaling.json",
             (f"{cross:.2f}",),
             r"overtaking the Alcubierre wall at \$v_s=([\d.]+)\$ on the Ricci axis",
+        ))
+        # The worst single-point departure from each fitted power law. Quoted in
+        # Section 3.6 so the log-fit R^2 is not the only thing a reader sees.
+        def sci(x: float, sig: int) -> str:
+            mant, exp = f"{x:.{sig}e}".split("e")
+            mant = mant.rstrip("0").rstrip(".")
+            return rf"{mant}\times10^{{{int(exp)}}}"
+
+        def worst(metric: str) -> float:
+            return max(f["max_rel_dev"] for f in curv["fits"][metric].values())
+
+        checks.append((
+            "Section 3.6 worst power-law deviations vs curvature_scaling.json",
+            (sci(curv["fits"]["Alcubierre"]["weyl_squared"]["max_rel_dev"], 1),
+             sci(worst("Natário"), 0),
+             sci(worst("Rodal"), 0),
+             f"{curv['fits']['Alcubierre']['ricci_squared']['max_rel_dev']:.2f}"),
+            r"is\s*\n?\$(.+?)\$ \(Alcubierre, Weyl\), \$(.+?)\$ \(Nat\\'ario, all three\) and\s*\n?"
+            r"\$(.+?)\$ \(Rodal, all three\), but \$([\d.]+)\$ on the one branch",
         ))
 
     # Appendix H quotes the type-transition audit in prose rather than only through a
@@ -223,6 +342,19 @@ def main() -> int:
             r"family, \$(\d+)\$ points log-spaced over[\s\S]{0,400}?"
             r"Type~IV at every one of the\s*\n?\$(\d+)\$[\s\S]{0,600}?"
             r"certifies the null-energy violation at all \$(\d+)\$",
+        ))
+        # The tolerance sweep is the sharpest number in the appendix and the one most
+        # likely to drift, since it is the only place the label is quoted as a
+        # function of a knob rather than as a verdict.
+        def tol_counts(tol: str) -> tuple[str, str, str]:
+            c = collections.Counter(r["labels"][tol] for r in t3["rows"])
+            return (str(c[2]), str(c[3]), str(c[4]))
+
+        checks.append((
+            "Appendix H Type-III tolerance sweep vs type_transition_audit.json",
+            tol_counts("tol_2e-06") + tol_counts("tol_5e-06"),
+            r"Type~II at \$(\d+)\$, Type~III at \$(\d+)\$ and Type~IV at \$(\d+)\$, "
+            r"and at \$5\\times10\^\{-6\}\$ it\s*\n?returns \$(\d+)\$, \$(\d+)\$ and \$(\d+)\$",
         ))
 
     failures: list[str] = list(failures_pre)
@@ -269,17 +401,50 @@ def main() -> int:
     # resulting mixture put two fits of the same law in the manuscript with
     # different coefficients. A file mtime is a weak check, but it is the one that
     # would have caught that.
-    src_dir = RESULTS.parent / "src" / "warpax" / "energy_conditions"
+    #
+    # The watch was src/warpax/energy_conditions/ only, which is where the labels
+    # and margins live but not where the quadrature weights, the fits or the
+    # generators do: a proper-volume fix in src/warpax/grids/ or a polished
+    # extremum in scripts/ would have left every artifact "fresh". Watch the whole
+    # library and every generator, excluding this file so that editing the gate
+    # does not condemn the data it is checking.
+    src_dir = RESULTS.parent / "src" / "warpax"
+    scripts_dir = pathlib.Path(__file__).resolve().parent
     if src_dir.is_dir():
-        newest_code = max((p.stat().st_mtime for p in src_dir.glob("*.py")),
-                          default=0.0)
+        watched = list(src_dir.rglob("*.py")) + [
+            q for q in scripts_dir.glob("*.py")
+            if q.name != pathlib.Path(__file__).name
+        ]
+        newest_code = max((q.stat().st_mtime for q in watched), default=0.0)
         for name in sorted(_TABLE_ARTIFACTS):
             path = RESULTS / name
-            if path.exists() and path.stat().st_mtime < newest_code:
+            # A MISSING artifact is a failure, not a skip. Every JSON-pinned check in
+            # this file already returns early when its input is absent, so on a wiped
+            # results/ the gate reported "all checks passed" while checking almost
+            # nothing -- which is how a broken pipeline survived a round of review.
+            # The gate has to be loudest exactly when there is no data.
+            if not path.exists():
                 failures.append(
-                    f"results/{name} predates the newest file in "
-                    f"src/warpax/energy_conditions/; regenerate before quoting it"
+                    f"results/{name} is missing; every check that reads it was "
+                    f"silently skipped. Run reproduce_all.sh before quoting a number"
                 )
+                continue
+            if path.stat().st_mtime < newest_code:
+                failures.append(
+                    f"results/{name} predates the newest file in src/warpax/ "
+                    f"or scripts/; regenerate before quoting it"
+                )
+            # A checkpointed artifact is not a finished one.
+            try:
+                import json as _json
+
+                if _json.loads(path.read_text()).get("partial") is True:
+                    failures.append(
+                        f"results/{name} is a partial checkpoint; the run that "
+                        f"writes it has not finished"
+                    )
+            except (ValueError, OSError, AttributeError):
+                pass
 
     # Every table must say which script wrote it and which artifact it read. Nine of
     # the twenty-seven did; the rest were indistinguishable from hand-typed values,

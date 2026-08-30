@@ -40,7 +40,9 @@ RESULTS_DIR = os.path.join(HERE, "..", "results")
 TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 # Subluminal branch used for the exponent fit (three or more points required).
-VELOCITIES = [0.1, 0.2, 0.3, 0.5, 0.7]
+# The same subluminal window run_curvature_scaling.py fits: this table certifies
+# that table's exponents, and [0.2, 0.5] gave q = 1.97 against its 2.08.
+VELOCITIES = [0.1, 0.2, 0.3, 0.5, 0.7, 0.9]
 # Reference exponents retained in the JSON only. They are NOT printed as a
 # "closed form" column: only the q=4 irrotational side has an analytic
 # derivation (the pure-gauge reduction); the q=2 values are empirical fits.

@@ -12,7 +12,46 @@ from __future__ import annotations
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
-__all__ = ["compute_volume_weights"]
+__all__ = ["compute_volume_weights", "proper_volume_weights"]
+
+
+def proper_volume_weights(
+    coord_weights: Float[Array, "..."],
+    g_field: Float[Array, "... 4 4"],
+) -> Float[Array, "..."]:
+    """Attach the slice Jacobian: ``dV = sqrt(det gamma) d^3x``.
+
+    :func:`compute_volume_weights` returns *coordinate* cell volumes, which are
+    the proper volumes only on a flat slice. Alcubierre, Natário and Rodal carry
+    ``gamma_ij = delta_ij``; Van den Broeck carries ``B^2 delta_ij``, so
+    ``sqrt(det gamma) = B^3`` runs over ``[1, 3.4]`` across its wall and moved
+    its wall Type-I fraction from 0.1372 to 0.1449.
+
+    ``gamma_ij`` is the spatial block of ``g_ab``, so pass the metric field the
+    curvature pass already returned.
+
+    Parameters
+    ----------
+    coord_weights : Float[Array, "..."]
+        Coordinate cell volumes, shape ``grid_shape`` (or flattened).
+    g_field : Float[Array, "... 4 4"]
+        Four-metric on the same points, shape ``(*coord_weights.shape, 4, 4)``.
+
+    Returns
+    -------
+    Float[Array, "..."]
+        ``coord_weights * sqrt(|det gamma|)``, same shape as ``coord_weights``.
+    """
+    if coord_weights is None:
+        return None  # uniform grid: equal weights, the documented None path
+    if g_field.shape[:-2] != coord_weights.shape:
+        raise ValueError(
+            f"metric grid shape {g_field.shape[:-2]} != weight shape "
+            f"{coord_weights.shape}; a broadcast here reweights the wrong points"
+        )
+    gamma = g_field[..., 1:, 1:]
+    # Clip, not |det|: a degenerate point gets zero weight, not a plausible one.
+    return coord_weights * jnp.sqrt(jnp.clip(jnp.linalg.det(gamma), min=0.0))
 
 
 def _cell_widths(coords: Float[Array, "N"]) -> Float[Array, "N"]:

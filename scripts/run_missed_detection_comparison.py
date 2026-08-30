@@ -69,10 +69,32 @@ def dense_sample_margin(
     thetas = jnp.arccos(cos_thetas)
     phis = jax.random.uniform(k3, (n_samples,), minval=0.0, maxval=2.0 * jnp.pi)
 
+    # The condition was accepted and ignored: this always returned the WEC
+    # contraction, so the NEC and DEC detection rates compared a WEC quantity
+    # against a point set selected by the NEC/DEC robust margins.
+    g_inv = jnp.linalg.inv(g_ab)
+    trace = jnp.einsum("ab,ab->", g_inv, T_ab)
+    theta_ab = T_ab - 0.5 * trace * g_ab                      # trace-reversed
+    flux_ab = -jnp.einsum("ac,cd,db->ab", T_ab, g_inv, T_ab)  # -T g^-1 T
+
     def eval_single(zeta, theta, phi):
         u = timelike_from_rapidity(zeta, theta, phi, tetrad)
-        rho = jnp.einsum("a,ab,b->", u, T_ab, u)
-        return rho
+        if condition == "sec":
+            return jnp.einsum("a,ab,b->", u, theta_ab, u)
+        if condition == "dec":
+            return jnp.minimum(
+                jnp.einsum("a,ab,b->", u, T_ab, u),
+                jnp.einsum("a,ab,b->", u, flux_ab, u),
+            )
+        if condition == "nec":
+            # Null limit of the same family: k = u + spatial unit along the boost.
+            k = timelike_from_rapidity(zeta, theta, phi, tetrad)
+            n = tetrad[:, 0]
+            s = k + jnp.einsum("a,ab,b->", k, g_ab, n) * n
+            s = s / jnp.sqrt(jnp.maximum(jnp.einsum("a,ab,b->", s, g_ab, s), 1e-300))
+            null = n + s
+            return jnp.einsum("a,ab,b->", null, T_ab, null)
+        return jnp.einsum("a,ab,b->", u, T_ab, u)
 
     margins = jax.vmap(eval_single)(zetas, thetas, phis)
     return float(jnp.min(margins))

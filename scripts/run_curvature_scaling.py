@@ -57,6 +57,7 @@ from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import wall_clustered
+from warpax.analysis.extrema import refine_extremum, seed_from_grid_index
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from _benchmark_grid import CLUSTER_A
 
@@ -103,35 +104,97 @@ def run_point(name, v_s, N):
             (-1,),
         )
     ).astype(bool)
+    axes = [np.asarray(a) for a in grid.axes]
     out = {"metric": name, "v_s": v_s, "N": N, "wall_n": int(mask.sum())}
     for key, _sym in INVARIANTS:
         field = np.abs(np.asarray(jnp.reshape(getattr(curv, key), (-1,))))
-        wall_vals = field[mask]
-        out[f"{key}_max"] = float(np.max(wall_vals)) if wall_vals.size else float("nan")
+        masked = np.where(mask, field, -np.inf)
+        k = int(np.argmax(masked))
+        raw = float(masked[k])
+        if not np.isfinite(raw):
+            out[f"{key}_max"] = float("nan")
+            out[f"{key}_max_grid"] = float("nan")
+            continue
+        # Polish to the continuum: the raw grid max undershoots by 1-15%,
+        # speed-dependently, which tilts the exponent.
+        seed = seed_from_grid_index(k, shape, axes)
+        polished = refine_extremum(
+            metric, seed, lambda c, _k=key: np.abs(np.asarray(getattr(c, _k))),
+            mode="max", half_width=0.15, n=9, levels=7, compute_invariants=True,
+        )
+        out[f"{key}_max"] = float(polished["value"])
+        out[f"{key}_max_grid"] = raw
     return out
 
 
-def fit_power_law(rows, metric, key, v_max=1.0):
-    """Fit X_max = A v_s^q over the subluminal branch (log-log regression)."""
-    vs, xs = [], []
+def _branch(rows, metric, key, v_max=1.0):
+    """The subluminal (v_s, X_max) samples for one metric and one invariant.
+
+    Non-positive samples are dropped (the log fit cannot take them) and counted,
+    so a shortened branch is visible in the artifact.
+    """
+    vs, xs, dropped = [], [], 0
     for r in rows:
         if r["metric"] != metric or r["v_s"] >= v_max:
             continue
         x = r.get(f"{key}_max")
         if x is None or not np.isfinite(x) or x <= 0.0:
+            dropped += 1
             continue
         vs.append(r["v_s"])
         xs.append(x)
+    return np.array(vs), np.array(xs), dropped
+
+
+def fit_power_law(rows, metric, key, v_max=1.0):
+    """Fit X_max = A v_s^q over the subluminal branch (log-log regression).
+
+    ``r_squared`` is the log-space R^2 of the regression actually performed;
+    ``r_squared_linear`` is the same curve scored in linear space. They differ
+    only on Alcubierre Ricci^2 (0.9938 vs 0.9338).
+    """
+    vs, xs, dropped = _branch(rows, metric, key, v_max)
     if len(vs) < 3:
-        return {"A": None, "q": None, "r_squared": None, "n": len(vs)}
-    lv, lx = np.log(np.array(vs)), np.log(np.array(xs))
+        return {"A": None, "q": None, "r_squared": None,
+                "r_squared_linear": None, "max_rel_dev": None,
+                "v_s_at_max_dev": None, "n": len(vs), "n_dropped": dropped}
+    lv, lx = np.log(vs), np.log(xs)
     q, logA = np.polyfit(lv, lx, 1)
-    pred = q * lv + logA
-    ss_res = float(np.sum((lx - pred) ** 2))
+    ss_res = float(np.sum((lx - (q * lv + logA)) ** 2))
     ss_tot = float(np.sum((lx - np.mean(lx)) ** 2))
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
+    pred_lin = np.exp(logA) * vs**q
+    tot_lin = float(np.sum((xs - xs.mean()) ** 2))
+    r2_lin = (1.0 - float(np.sum((xs - pred_lin) ** 2)) / tot_lin
+              if tot_lin > 0 else 1.0)
+    # Worst single-point deviation, as run_ssv_bound.py reports: R^2 alone hides
+    # a fit driven by one sample. Alcubierre's Ricci branch sits 21% off at
+    # v_s = 0.9, where the wall-peak argmax migrates to another basin.
+    max_rel_dev = float(np.max(np.abs(xs - pred_lin) / xs))
     return {"A": float(np.exp(logA)), "q": float(q), "r_squared": float(r2),
-            "n": len(vs)}
+            "r_squared_linear": float(r2_lin), "max_rel_dev": max_rel_dev,
+            "v_s_at_max_dev": float(vs[int(np.argmax(np.abs(xs - pred_lin) / xs))]),
+            "n": len(vs), "n_dropped": dropped}
+
+
+def fit_exact_exponents(rows, metric, key, powers=(2.0, 4.0), v_max=1.0):
+    """Fit X_max = sum_p C_p v_s^p at the exponents the theorem fixes.
+
+    verify/weyl_scaling.sage fixes the exponents: an irrotational shift starts
+    at v_s^4, a vortical one carries a nonzero v_s^2 term. Fitting the
+    coefficients at those exponents makes C_2 a measurement of that statement.
+    """
+    vs, xs, dropped = _branch(rows, metric, key, v_max)
+    if len(vs) <= len(powers):
+        return {"powers": list(powers), "coeffs": None, "r_squared": None,
+                "n": len(vs), "n_dropped": dropped}
+    design = np.vstack([vs**p for p in powers]).T
+    coeffs, *_ = np.linalg.lstsq(design, xs, rcond=None)
+    resid = xs - design @ coeffs
+    tot = float(np.sum((xs - xs.mean()) ** 2))
+    r2 = 1.0 - float(np.sum(resid**2)) / tot if tot > 0 else 1.0
+    return {"powers": list(powers), "coeffs": [float(c) for c in coeffs],
+            "r_squared": float(r2), "n": len(vs), "n_dropped": dropped}
 
 
 def _f(x, nd=2):
@@ -146,7 +209,8 @@ def write_table(fits, out_path):
         r"  & \multicolumn{3}{c}{Weyl $C^2$} "
         r"& \multicolumn{3}{c}{Ricci $|R_{ab}R^{ab}|$} \\",
         r"  \cmidrule(lr){2-4}\cmidrule(lr){5-7}",
-        r"  Metric & $q$ & $A$ & $R^2$ & $q$ & $A$ & $R^2$ \\",
+        # R^2 of a power law is ambiguous; name the convention.
+        r"  Metric & $q$ & $A$ & $R^2_{\log}$ & $q$ & $A$ & $R^2_{\log}$ \\",
         r"  \midrule",
     ]
     for name in METRIC_ORDER:
@@ -244,14 +308,33 @@ def main():
 
     fits = {name: {key: fit_power_law(rows, name, key) for key, _ in INVARIANTS}
             for name in args.metrics}
-    print("\n  Subluminal scaling exponents X_max = A v_s^q:")
+    two_term = {name: {key: fit_exact_exponents(rows, name, key)
+                       for key, _ in INVARIANTS}
+                for name in args.metrics}
+    print("\n  Subluminal scaling exponents X_max = A v_s^q "
+          "(R^2 of the log-log regression; R^2_lin of the same curve in linear space):")
     for name in args.metrics:
         for key, sym in INVARIANTS:
             fl = fits[name][key]
             print(f"    {name:16s} {key:14s} q={_f(fl['q'])}  "
-                  f"A={_f(fl['A'],3)}  R^2={_f(fl['r_squared'],4)}")
+                  f"A={_f(fl['A'],3)}  R^2={_f(fl['r_squared'],4)}  "
+                  f"R^2_lin={_f(fl['r_squared_linear'],4)}  "
+                  f"maxdev={_f(fl['max_rel_dev'],3)}@v={_f(fl['v_s_at_max_dev'],2)}"
+                  + (f"  [{fl['n_dropped']} point(s) dropped]"
+                     if fl.get("n_dropped") else ""))
+    print("\n  Fixed-exponent law X_max = C2 v_s^2 + C4 v_s^4 "
+          "(C2 = 0 iff the shift is irrotational, verify/weyl_scaling.sage):")
+    for name in args.metrics:
+        for key, sym in INVARIANTS:
+            tt = two_term[name][key]
+            c = tt["coeffs"]
+            print(f"    {name:16s} {key:14s} "
+                  + (f"C2={c[0]:12.4g}  C4={c[1]:12.4g}  R^2={_f(tt['r_squared'],6)}"
+                     if c else "--"))
 
-    dump_json({"config": vars(args), "rows": rows, "fits": fits}, os.path.join(RESULTS_DIR, "curvature_scaling.json"))
+    dump_json({"config": vars(args), "rows": rows, "fits": fits,
+               "fits_fixed_exponent": two_term},
+              os.path.join(RESULTS_DIR, "curvature_scaling.json"))
     print(f"\nWrote {os.path.join(RESULTS_DIR, 'curvature_scaling.json')}")
 
     if not args.smoke:

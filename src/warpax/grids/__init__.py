@@ -19,6 +19,7 @@ from ._axisymmetric import AxisymmetricGrid, axisymmetric_grid
 from ._clustered import wall_clustered
 from ._refined import RefinedGrid, wall_refined
 from ._resolution import WallResolution, wall_cells_on_axis
+from ._volume_weights import proper_volume_weights
 
 __all__ = [
     "AxisymmetricGrid",
@@ -26,6 +27,7 @@ __all__ = [
     "RefinedGrid",
     "WallResolution",
     "axisymmetric_grid",
+    "proper_volume_weights",
     "wall_cells_on_axis",
     "wall_clustered",
     "wall_refined",

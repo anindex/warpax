@@ -62,7 +62,9 @@ def single_frame_miss(
     Returns per-condition ``miss_rate`` (volume-weighted), ``n_violated``,
     ``n_missed``, plus the Type-IV volume fraction within the selection.
     """
-    ff = certify_grid_frame_free(T_field, g_field, g_inv_field)
+    # Only the masked points are read, so only they need the LMI.
+    ff = certify_grid_frame_free(T_field, g_field, g_inv_field,
+                                 lmi_where=mask)
     flat_T = _flat(T_field, (4, 4))
     flat_g = _flat(g_field, (4, 4))
     flat_gi = _flat(g_inv_field, (4, 4))
@@ -102,8 +104,11 @@ def single_frame_miss(
             "n_missed": int(np.sum(sel & missed)),
         }
     wsel = float(np.sum(w))
+    # Same population as typeIV_viol above: near-vacuum points are excluded there,
+    # so counting them here made the reported fraction describe a different set
+    # from the one that produced the violations.
     out["frac_type_iv"] = (
-        float(np.sum(w * (he == 4.0)) / wsel) if wsel > 0 else 0.0
+        float(np.sum(w * (he == 4.0) * (~vac)) / wsel) if wsel > 0 else 0.0
     )
     out["n_selected"] = int(np.sum(sel))
     return out
@@ -129,7 +134,9 @@ def integrated_exotic_content(
     Returns ``E_minus_inv``, ``E_plus_inv``, ``E_minus_eul``, ``E_plus_eul``,
     ``balance_inv`` (E_+/|E_-|), ``typeIV_volume_frac``.
     """
-    ff = certify_grid_frame_free(T_field, g_field, g_inv_field)
+    # Only the masked points are read, so only they need the LMI.
+    ff = certify_grid_frame_free(T_field, g_field, g_inv_field,
+                                 lmi_where=mask)
     flat_T = _flat(T_field, (4, 4))
     flat_g = _flat(g_field, (4, 4))
     flat_gi = _flat(g_inv_field, (4, 4))
@@ -179,7 +186,9 @@ def peak_proper_energy_deficit(
     points). Used by :func:`reduction_factors` to check published reduction
     claims.
     """
-    ff = certify_grid_frame_free(T_field, g_field, g_inv_field)
+    # Only the masked points are read, so only they need the LMI.
+    ff = certify_grid_frame_free(T_field, g_field, g_inv_field,
+                                 lmi_where=mask)
     flat_T = _flat(T_field, (4, 4))
     flat_g = _flat(g_field, (4, 4))
     flat_gi = _flat(g_inv_field, (4, 4))

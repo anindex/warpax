@@ -74,7 +74,7 @@ def write_table(
     """Write a generated LaTeX table with a provenance header.
 
     Every table in the manuscript is machine-generated, but only nine of the
-    twenty-seven said so. A referee auditing the paper cannot tell a generated table
+    twenty-seven said so. A reader auditing the paper cannot tell a generated table
     from a hand-typed one without opening the script that might have written it, and
     "the hardcoded values are entirely fabricated or disconnected from the data" is
     exactly the charge a table with no provenance invites. The header costs one line

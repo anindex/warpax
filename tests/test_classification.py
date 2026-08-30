@@ -652,14 +652,14 @@ class TestScaleAwareImaginaryTolerance:
     # under the scale-aware tolerance is covered by
     # test_imag_rtol_threshold_boundary below.
 
-    def test_imag_rtol_threshold_boundary(self):
-        """Pin the relative-imaginary tier from both sides.
+    def test_imag_tolerance_is_scale_covariant(self):
+        """The real-spectrum test must be invariant under T -> cT.
 
-        The 3e-3 relative tier engages only above the 1e6 scale floor
-        (it absorbs float64 eigensolver noise on large ill-conditioned
-        ||T||); below the floor a complex pair is Type IV at
-        any relative split (50-digit certified). Eigenvalues of the
-        (1,2) block are scale * (1 +/- i*imag)."""
+        There used to be a second, relative tier (|Im| < 3e-3 max|Re| above a
+        1e6 scale floor) that made the verdict depend on the overall scale: the
+        same relative split read Type IV at unit scale and Type I at 1e11. It
+        fired at zero points on every published grid and could only produce
+        false Type-I labels, so it is gone and the single test is relative."""
         def _classify(imag, scale=1.0):
             T_mixed = scale * jnp.array([
                 [-1.0, 0.0,   0.0,  0.0],
@@ -669,17 +669,11 @@ class TestScaleAwareImaginaryTolerance:
             ])
             return int(classify_hawking_ellis(T_mixed, ETA).he_type)
 
-        # Unit scale: relative tier off; any |Im| above tol*scale is IV.
-        assert _classify(4e-3) == 4, "unit scale, |Im/Re|=4e-3 must be Type IV"
-        assert _classify(2e-3) == 4, "unit scale, |Im/Re|=2e-3 must be Type IV"
-        # Above the scale floor: the 3e-3 tier absorbs sub-threshold
-        # splits (solver-noise regime) and passes super-threshold ones.
-        assert _classify(4e-3, scale=1e11) == 4, (
-            "large scale, |Im/Re|=4e-3 (> 3e-3) must be Type IV"
-        )
-        assert _classify(2e-3, scale=1e11) == 1, (
-            "large scale, |Im/Re|=2e-3 (< 3e-3) is absorbed as Type I"
-        )
+        for scale in (1e-8, 1.0, 1e11):
+            assert _classify(4e-3, scale) == 4, f"|Im/Re|=4e-3 at {scale}"
+            assert _classify(2e-3, scale) == 4, f"|Im/Re|=2e-3 at {scale}"
+            # Below the tolerance the spectrum reads real at every scale.
+            assert _classify(1e-12, scale) == 1, f"|Im/Re|=1e-12 at {scale}"
 
     def test_eigenvalues_imag_field_present(self):
         """ClassificationResult has eigenvalues_imag field."""
@@ -1088,15 +1082,22 @@ def test_exact_vacuum_is_tagged_vacuum():
     )
 
 
-def test_near_vacuum_is_tagged_vacuum():
-    """T with all eigenvalues below tol must be tagged vacuum."""
-    # Eigenvalues at scale ~1e-12 < default tol=1e-10
+def test_only_exact_vacuum_is_tagged_vacuum():
+    """The vacuum tag needs T == 0, not merely small.
+
+    An absolute 1e-10 on the components gated 58-72% of a real Alcubierre grid,
+    and the far tail it swallowed is genuinely Type IV: those points were
+    published as Type I with margins exactly +0.0 while the LMI resolves the
+    violation six orders above its floor. A tiny perfect fluid is still Type I,
+    just not vacuum."""
     T = jnp.diag(jnp.array([-1e-12, 1e-12, 1e-12, 1e-12]))
     res = classify_hawking_ellis(T, _g_minkowski())
     assert float(res.he_type) == 1.0
-    assert float(res.is_vacuum) == 1.0, (
-        f"Near-vacuum (1e-12) should have is_vacuum=1; got {float(res.is_vacuum)}"
-    )
+    assert float(res.is_vacuum) == 0.0
+
+    res0 = classify_hawking_ellis(jnp.zeros((4, 4)), _g_minkowski())
+    assert float(res0.he_type) == 1.0
+    assert float(res0.is_vacuum) == 1.0
 
 
 def test_genuine_type_i_perfect_fluid_is_not_tagged_vacuum():

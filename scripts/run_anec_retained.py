@@ -23,6 +23,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from _anec_window import converged_window
 from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
@@ -42,7 +43,11 @@ RESULTS_DIR = os.path.join(HERE, "..", "results", "anec")
 
 V_S, R_B, SIGMA = 0.5, 1.0, 8.0
 X_START, X_END = -8.0, 8.0
-N_SAMPLES = 1024
+# The span was X_END - X_START = 16 = 2|X_START|, which ends at the receding
+# bubble's centre: every published value here was exactly half (2.00, 2.02 for
+# Rodal). Measured now, not assumed -- see _anec_window.
+SPAN0 = X_END - X_START
+N_SAMPLES = 1024  # at SPAN0; scaled with the span so the step density is fixed
 TANGENT_NORM = "null_projected"
 # Impact parameters: dense near the wall (r_s ~ R_b = 1) where the off-axis
 # null violations concentrate.
@@ -82,21 +87,31 @@ def _axial_ray(b: float):
     return geo
 
 
-def _anec_along(metric, b: float) -> float:
+def _anec_along(metric, b: float, span: float) -> float:
     res = anec(
         metric,
         _axial_ray(b),
         tangent_norm=TANGENT_NORM,
-        n_samples=N_SAMPLES,
-        affine_bounds=(0.0, X_END - X_START),
+        # Fixed step density, so the doubling tests truncation not quadrature.
+        n_samples=int(round(N_SAMPLES * span / SPAN0)),
+        affine_bounds=(0.0, span),
     )
     return float(res.line_integral)
+
+
+def _measure_span(metric) -> tuple[float, bool]:
+    """Affine span at which the on-axis line integral stops moving."""
+    b0 = float(B_SCAN[0])
+    _, span, converged = converged_window(
+        lambda s: _anec_along(metric, b0, s), SPAN0
+    )
+    return span, converged
 
 
 def _minkowski_sentinel() -> float:
     worst = 0.0
     for b in (1.0e-3, 0.5, 1.0, 1.5):
-        worst = max(worst, abs(_anec_along(MinkowskiMetric(), b)))
+        worst = max(worst, abs(_anec_along(MinkowskiMetric(), b, SPAN0)))
     return worst
 
 
@@ -114,24 +129,36 @@ def main() -> None:
     per_metric: dict[str, dict] = {}
     for name in ORDER:
         metric = _instantiate(name)
-        on_axis = _anec_along(metric, float(B_SCAN[0]))
-        scan = np.array([_anec_along(metric, float(b)) for b in B_SCAN])
+        span, span_converged = _measure_span(metric)
+        on_axis = _anec_along(metric, float(B_SCAN[0]), span)
+        scan = np.array([_anec_along(metric, float(b), span) for b in B_SCAN])
         j = int(np.argmin(scan))
         per_metric[name] = {
             "on_axis": on_axis,
             "min_line_integral": float(scan[j]),
             "b_at_min": float(B_SCAN[j]),
+            "b_bracketed": bool(0 < j < len(B_SCAN) - 1),
+            "affine_span": float(span),
+            "affine_span_stationary": bool(span_converged),
             "max_line_integral": float(scan.max()),
             "b_scan": B_SCAN.tolist(),
             "line_integral_scan": scan.tolist(),
         }
         print(f"  {name:16s} on-axis={on_axis:+.4e}  "
-              f"min={scan[j]:+.4e} @ b={B_SCAN[j]:.3f}  max={scan.max():+.3e}")
+              f"min={scan[j]:+.4e} @ b={B_SCAN[j]:.3f}  max={scan.max():+.3e}  "
+              f"span={span:.1f}{'' if span_converged else ' [NOT stationary]'}"
+              f"{'' if 0 < j < len(B_SCAN) - 1 else ' [argmin on endpoint]'}",
+              flush=True)
 
     out = {
         "params": {
             "v_s": V_S, "R_b": R_B, "sigma": SIGMA,
-            "x_bounds": [X_START, X_END], "n_samples": N_SAMPLES,
+            "x_start": X_START, "affine_span_start": SPAN0,
+            "n_samples_at_span_start": N_SAMPLES,
+            "affine_span_note": (
+                "the window is measured per metric by doubling until the on-axis "
+                "line integral is stationary; see each metric's affine_span"
+            ),
             "tangent_norm": TANGENT_NORM,
         },
         "minkowski_sentinel_abs": sentinel,

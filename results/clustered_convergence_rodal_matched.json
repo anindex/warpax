@@ -1,0 +1,85 @@
+{
+  "metric": "rodal_matched",
+  "params": {
+    "v_s": 0.5,
+    "R": 1.0,
+    "sigma": 8.0
+  },
+  "results": [
+    {
+      "metric": "rodal_matched",
+      "grid": "clustered_25",
+      "shape": [
+        25,
+        25,
+        25
+      ],
+      "n_grid_total": 15625,
+      "wall_n_total": 194,
+      "volume_weighted": true,
+      "wall_frac_type_i": 1.0,
+      "wall_frac_type_iv": 0.0,
+      "wall_nec_miss_rate": 0.08687754918771119,
+      "wall_wec_miss_rate": 0.7731295978756796,
+      "wall_sec_miss_rate": 0.037651292322412946,
+      "wall_dec_miss_rate": 0.7827836968600344,
+      "full_frac_type_i": 0.999936,
+      "full_frac_type_iv": 6.4e-05,
+      "n_vacuum": 0,
+      "nec_min_margin": -0.16207035687915958,
+      "dec_min_margin": -0.16207035687915958,
+      "t_curvature_s": 0.5910601615905762,
+      "t_verify_grid_s": 6.781958103179932
+    },
+    {
+      "metric": "rodal_matched",
+      "grid": "clustered_50",
+      "shape": [
+        50,
+        50,
+        50
+      ],
+      "n_grid_total": 125000,
+      "wall_n_total": 1864,
+      "volume_weighted": true,
+      "wall_frac_type_i": 1.0,
+      "wall_frac_type_iv": 0.0,
+      "wall_nec_miss_rate": 0.11092619083517188,
+      "wall_wec_miss_rate": 0.730110902952007,
+      "wall_sec_miss_rate": 0.2145292466163085,
+      "wall_dec_miss_rate": 0.7423193373554021,
+      "full_frac_type_i": 1.0,
+      "full_frac_type_iv": 0.0,
+      "n_vacuum": 0,
+      "nec_min_margin": -0.18099115458802523,
+      "dec_min_margin": -0.18099115458802523,
+      "t_curvature_s": 1.1743273735046387,
+      "t_verify_grid_s": 0.5371456146240234
+    },
+    {
+      "metric": "rodal_matched",
+      "grid": "clustered_100",
+      "shape": [
+        100,
+        100,
+        100
+      ],
+      "n_grid_total": 1000000,
+      "wall_n_total": 15144,
+      "volume_weighted": true,
+      "wall_frac_type_i": 1.0,
+      "wall_frac_type_iv": 0.0,
+      "wall_nec_miss_rate": 0.12416075665279304,
+      "wall_wec_miss_rate": 0.7288391333363662,
+      "wall_sec_miss_rate": 0.20540214019943268,
+      "wall_dec_miss_rate": 0.7419781830074197,
+      "full_frac_type_i": 1.0,
+      "full_frac_type_iv": 0.0,
+      "n_vacuum": 0,
+      "nec_min_margin": -0.18739051254869243,
+      "dec_min_margin": -0.18739051254869243,
+      "t_curvature_s": 7.297515630722046,
+      "t_verify_grid_s": 4.770319223403931
+    }
+  ]
+}

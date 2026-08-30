@@ -1,0 +1,309 @@
+{
+  "params": {
+    "v_s": 0.5,
+    "R_b": 100.0,
+    "r_max": 300.0,
+    "sigmas": [
+      0.01,
+      0.03,
+      0.1,
+      0.3
+    ],
+    "ladder": [
+      [
+        48,
+        48
+      ],
+      [
+        64,
+        64
+      ],
+      [
+        80,
+        80
+      ],
+      [
+        96,
+        96
+      ]
+    ],
+    "cluster_a": {
+      "0.01": 1.0,
+      "0.03": 1.5,
+      "0.1": 3.0,
+      "0.3": 4.5
+    },
+    "wall_band": [
+      0.1,
+      0.9
+    ],
+    "min_wall_cells": 4.0,
+    "note": "Exact axisymmetric (r, mu) reduction: the Rodal slice is invariant under rotations about the propagation axis, so the half-plane sweeps the full orbit space. Proper-volume weights 2 pi r^2 w_r w_mu; Gauss-Legendre in mu."
+  },
+  "rows": {
+    "0.01": [
+      {
+        "sigma": 0.01,
+        "n_r": 48,
+        "n_mu": 48,
+        "cluster_a": 1.0,
+        "wall_cells": 26.103868959765006,
+        "resolved": true,
+        "n_wall_points": 1440,
+        "wall_volume": 45184225.117008045,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 46.973077203825355,
+        "wall_dec_miss_pct": 53.05278549844572,
+        "wall_wec_miss_pct": 48.7148804244689,
+        "wall_nec_miss_pct": 8.017192914587687
+      },
+      {
+        "sigma": 0.01,
+        "n_r": 64,
+        "n_mu": 64,
+        "cluster_a": 1.0,
+        "wall_cells": 34.711559162465754,
+        "resolved": true,
+        "n_wall_points": 2560,
+        "wall_volume": 46869329.80640286,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 46.920459801309875,
+        "wall_dec_miss_pct": 52.45625671713285,
+        "wall_wec_miss_pct": 47.62624090802293,
+        "wall_nec_miss_pct": 7.874223594995497
+      },
+      {
+        "sigma": 0.01,
+        "n_r": 80,
+        "n_mu": 80,
+        "cluster_a": 1.0,
+        "wall_cells": 43.80569477406451,
+        "resolved": true,
+        "n_wall_points": 4000,
+        "wall_volume": 45488300.94465369,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 46.89023779698498,
+        "wall_dec_miss_pct": 52.82744802354477,
+        "wall_wec_miss_pct": 48.43614120830326,
+        "wall_nec_miss_pct": 7.68093202263037
+      },
+      {
+        "sigma": 0.01,
+        "n_r": 96,
+        "n_mu": 96,
+        "cluster_a": 1.0,
+        "wall_cells": 52.413209327669115,
+        "resolved": true,
+        "n_wall_points": 5856,
+        "wall_volume": 46649631.309572466,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 46.98044358446636,
+        "wall_dec_miss_pct": 52.87910639156615,
+        "wall_wec_miss_pct": 47.9857733097208,
+        "wall_nec_miss_pct": 7.852890876742803
+      }
+    ],
+    "0.03": [
+      {
+        "sigma": 0.03,
+        "n_r": 48,
+        "n_mu": 48,
+        "cluster_a": 1.5,
+        "wall_cells": 12.953643758321455,
+        "resolved": true,
+        "n_wall_points": 720,
+        "wall_volume": 9393561.26514274,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 34.45460905800929,
+        "wall_dec_miss_pct": 62.38753715638483,
+        "wall_wec_miss_pct": 59.985518338803786,
+        "wall_nec_miss_pct": 6.198962047237929
+      },
+      {
+        "sigma": 0.03,
+        "n_r": 64,
+        "n_mu": 64,
+        "cluster_a": 1.5,
+        "wall_cells": 17.444773818708118,
+        "resolved": true,
+        "n_wall_points": 1280,
+        "wall_volume": 9367763.414997099,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 34.50076823232531,
+        "wall_dec_miss_pct": 63.10524709614162,
+        "wall_wec_miss_pct": 60.721000828346526,
+        "wall_nec_miss_pct": 6.1220678285388725
+      },
+      {
+        "sigma": 0.03,
+        "n_r": 80,
+        "n_mu": 80,
+        "cluster_a": 1.5,
+        "wall_cells": 21.191123438891864,
+        "resolved": true,
+        "n_wall_points": 2080,
+        "wall_volume": 9527003.305527624,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 34.466481073084786,
+        "wall_dec_miss_pct": 62.912970001320744,
+        "wall_wec_miss_pct": 60.59874315826903,
+        "wall_nec_miss_pct": 6.280441743283658
+      },
+      {
+        "sigma": 0.03,
+        "n_r": 96,
+        "n_mu": 96,
+        "cluster_a": 1.5,
+        "wall_cells": 25.683727682242907,
+        "resolved": true,
+        "n_wall_points": 2976,
+        "wall_volume": 9489009.468240466,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 34.46162049100902,
+        "wall_dec_miss_pct": 63.16403340776117,
+        "wall_wec_miss_pct": 60.794167506959354,
+        "wall_nec_miss_pct": 6.190842224913968
+      }
+    ],
+    "0.1": [
+      {
+        "sigma": 0.1,
+        "n_r": 48,
+        "n_mu": 48,
+        "cluster_a": 3.0,
+        "wall_cells": 7.498283309813107,
+        "resolved": true,
+        "n_wall_points": 528,
+        "wall_volume": 2955320.210189714,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 32.28372587336094,
+        "wall_dec_miss_pct": 74.86345959357801,
+        "wall_wec_miss_pct": 73.46221802021758,
+        "wall_nec_miss_pct": 10.528439070732764
+      },
+      {
+        "sigma": 0.1,
+        "n_r": 64,
+        "n_mu": 64,
+        "cluster_a": 3.0,
+        "wall_cells": 10.52284844895577,
+        "resolved": true,
+        "n_wall_points": 896,
+        "wall_volume": 2779222.1270093843,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 32.2358480316263,
+        "wall_dec_miss_pct": 75.63900594967231,
+        "wall_wec_miss_pct": 74.3162365219537,
+        "wall_nec_miss_pct": 10.361548400354916
+      },
+      {
+        "sigma": 0.1,
+        "n_r": 80,
+        "n_mu": 80,
+        "cluster_a": 3.0,
+        "wall_cells": 12.454154154316837,
+        "resolved": true,
+        "n_wall_points": 1440,
+        "wall_volume": 2845636.388198064,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 32.1493632428586,
+        "wall_dec_miss_pct": 76.74261944025928,
+        "wall_wec_miss_pct": 75.63576694377502,
+        "wall_nec_miss_pct": 9.807533735741575
+      },
+      {
+        "sigma": 0.1,
+        "n_r": 96,
+        "n_mu": 96,
+        "cluster_a": 3.0,
+        "wall_cells": 15.475327633997674,
+        "resolved": true,
+        "n_wall_points": 2016,
+        "wall_volume": 2748440.804055941,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 32.098434040927856,
+        "wall_dec_miss_pct": 76.78021896786532,
+        "wall_wec_miss_pct": 75.68151213196181,
+        "wall_nec_miss_pct": 9.907429396490004
+      }
+    ],
+    "0.3": [
+      {
+        "sigma": 0.3,
+        "n_r": 48,
+        "n_mu": 48,
+        "cluster_a": 4.5,
+        "wall_cells": 6.3326750049630025,
+        "resolved": true,
+        "n_wall_points": 432,
+        "wall_volume": 845136.355335088,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 30.996856438372834,
+        "wall_dec_miss_pct": 84.93229679045226,
+        "wall_wec_miss_pct": 84.35348029471874,
+        "wall_nec_miss_pct": 14.72137993774138
+      },
+      {
+        "sigma": 0.3,
+        "n_r": 64,
+        "n_mu": 64,
+        "cluster_a": 4.5,
+        "wall_cells": 8.631054815885495,
+        "resolved": true,
+        "n_wall_points": 832,
+        "wall_volume": 919245.0294229949,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 30.828408749446023,
+        "wall_dec_miss_pct": 84.98049100126951,
+        "wall_wec_miss_pct": 84.12402219220772,
+        "wall_nec_miss_pct": 18.269695102184354
+      },
+      {
+        "sigma": 0.3,
+        "n_r": 80,
+        "n_mu": 80,
+        "cluster_a": 4.5,
+        "wall_cells": 9.452861605447646,
+        "resolved": true,
+        "n_wall_points": 1360,
+        "wall_volume": 981157.2573194054,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 30.74487827198933,
+        "wall_dec_miss_pct": 85.18967960949212,
+        "wall_wec_miss_pct": 84.48823282895773,
+        "wall_nec_miss_pct": 16.24631626823626
+      },
+      {
+        "sigma": 0.3,
+        "n_r": 96,
+        "n_mu": 96,
+        "cluster_a": 4.5,
+        "wall_cells": 11.731879409136038,
+        "resolved": true,
+        "n_wall_points": 1920,
+        "wall_volume": 951085.7289706786,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "grid_dec_miss_pct": 30.658627274989996,
+        "wall_dec_miss_pct": 85.45824412834175,
+        "wall_wec_miss_pct": 84.74743905765,
+        "wall_nec_miss_pct": 16.086433759814764
+      }
+    ]
+  }
+}

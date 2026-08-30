@@ -1,0 +1,42 @@
+{
+  "v_s": 0.5,
+  "shape": [
+    50,
+    50,
+    50
+  ],
+  "bounds": [
+    -25.0,
+    25.0
+  ],
+  "resolution_limit": {
+    "J2_exponent": 0.5088565073706866,
+    "J2_split_at_1e-8": 0.00011857081895512902,
+    "J3_exponent": 0.3336053660980144,
+    "J3_split_at_1e-8": 0.00273415670235555,
+    "J3_split_rounding_only": 5.706278331822752e-06,
+    "eps": 2.220446049250313e-16,
+    "eps_sqrt": 1.4901161193847656e-08,
+    "eps_cbrt": 6.055454452393343e-06,
+    "generic_type_iii_label": 4
+  },
+  "counts": {
+    "type_1": 92616,
+    "type_2": 0,
+    "type_3": 0,
+    "type_4": 32384,
+    "vacuum": 89808,
+    "total": 125000
+  },
+  "lmi_audit": {
+    "type_3": {
+      "n": 0
+    },
+    "type_4": {
+      "n": 32384,
+      "nec_certified_satisfied": 0,
+      "error_rate_percent": 0.0,
+      "wec_violated_percent": 100.0
+    }
+  }
+}

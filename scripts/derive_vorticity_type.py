@@ -4,10 +4,15 @@ Establishes, numerically and in a controlled limit, that the imaginary part of
 the Hawking-Ellis Type-IV eigenvalue pair of ``T^a_b`` is *linear in the shift
 vorticity* for the unit-lapse, flat-slice warp family:
 
-  1. Controlled family: a pure-rotation shift ``beta = c (-y, x, 0) * env(r)``
-     has zero expansion and zero shear, only vorticity ``omega^2 = 2 c^2 env^2``.
-     Sweeping ``c`` shows ``max|Im lambda|`` is exactly proportional to ``omega``
-     (fit ``kappa``, ``R^2 ~ 1``) and the type flips Type I (c=0) -> Type IV (c>0).
+  1. Controlled family: a localized rotation ``beta = c (-y, x, 0) * env(r)``
+     has expansion exactly zero and, at the sample point, a FIXED shear-to-
+     vorticity ratio ``sigma/omega = 1/3`` and ``omega^2 = (9/8) c^2 env^2``
+     (both independent of ``c``, so the sweep scales shear and vorticity
+     together and cannot by itself separate them; the exact statement that
+     isolates the vorticity is Lemma jcurl, ``j = curl(beta)/2``, proved to all
+     orders in verify/momentum_curl.sage). Sweeping ``c`` shows
+     ``max|Im lambda|`` proportional to ``omega`` (fit ``kappa``, ``R^2 ~ 1``)
+     and the type flips Type I (c=0) -> Type IV (c>0).
 
   2. Cross-metric validation: at matched wall points, the irrotational Rodal
      drive (omega ~ 0) is Type I with ``Im ~ 0``, while Natario/Alcubierre/VdB
@@ -58,9 +63,11 @@ TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 
 class _RotationShift(ADMMetric):
-    """Controlled pure-rotation shift (zero expansion/shear, tunable vorticity).
+    """Localized rotation: zero expansion, tunable vorticity, fixed shear ratio.
 
     ``beta = c (-y, x, 0) * exp(-r^2 / 2 w^2)``, ``alpha = 1``, ``gamma = delta``.
+    The envelope makes it shear-free only at the origin; at the sample point
+    ``sigma/omega = 1/3`` exactly, for every ``c``.
     """
 
     c: float = 0.1
@@ -179,7 +186,11 @@ def _eulerian_decomp(T_ab, g_ab, g_inv):
 def discriminant_at(metric, point):
     """Momentum-density discriminant Delta = (rho+S_par)^2 - 4|j|^2 at a point.
 
-    Type IV iff Delta<0 (2|j|>|rho+S_par|); Im(lambda)=1/2 sqrt(-Delta).
+    Delta < 0 is SUFFICIENT for Type IV in the momentum plane, not necessary:
+    the transverse channel can go complex on its own, which is why this script's
+    own Van den Broeck row has Delta = +1.1e-2 and Im(lambda) = 0.058. The
+    ``iff`` this said is the two-dimensional statement, not the four.
+    Im(lambda) = 1/2 sqrt(-Delta) holds on the momentum plane.
     """
     res = compute_curvature_chain(metric, point)
     rho, jmag, S_par = _eulerian_decomp(res.stress_energy, res.metric, res.metric_inv)

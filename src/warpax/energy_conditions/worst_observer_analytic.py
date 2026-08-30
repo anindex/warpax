@@ -105,6 +105,10 @@ def worst_observer_typeI(
     idx = jnp.arange(4)
     is_spacelike = idx != timelike_idx
 
+    p_sum = jnp.sum(jnp.where(is_spacelike, eigenvalues, 0.0))
+    axis_slack = jnp.where(is_spacelike, rho + eigenvalues, jnp.inf)
+    axis_min = jnp.min(axis_slack)
+
     if condition == "dec":
         # Worst DEC axis: largest |p_i| (eigenvalue bound rho >= |p_i|).
         score = jnp.where(is_spacelike, jnp.abs(eigenvalues), -jnp.inf)
@@ -118,38 +122,56 @@ def worst_observer_typeI(
         # p_i = -1/2 gives min_i(rho + p_i) = +1/2 but rho + sum p_i = -1/2.
         # Returning only the axis minimum reported that tensor as satisfying the
         # SEC with an infinite threshold rapidity.
-        p_sum = jnp.sum(jnp.where(is_spacelike, eigenvalues, 0.0))
-        slack = jnp.where(is_spacelike, rho + eigenvalues, jnp.inf)
-        worst_axis = jnp.argmin(slack)
-        axis_margin = rho + eigenvalues[worst_axis]
-        trace_margin = rho + p_sum
-        # Report the binding one; p_star stays the axis eigenvalue because the
-        # threshold rapidity below is defined by the axis contraction.
+        # Theta(u,u) = (rho + sum p)/2 + (rho + p_i) sinh^2 zeta, so the rest
+        # value is HALF the trace slack and the boost direction is the axis
+        # minimum. The previous min(rho + p_*, rho + sum p) was neither.
+        worst_axis = jnp.argmin(axis_slack)
         p_star = eigenvalues[worst_axis]
-        margin = jnp.minimum(axis_margin, trace_margin)
+        rest = 0.5 * (rho + p_sum)
+        margin = jnp.where(axis_min >= 0.0, rest, jnp.minimum(rest, axis_min))
+    elif condition == "wec":
+        # T(u,u) = rho + (rho + p_i) sinh^2 zeta, so the infimum is rho when
+        # every axis slack is non-negative and -inf otherwise. rho + p_* alone,
+        # which this returned, is the NEC.
+        worst_axis = jnp.argmin(axis_slack)
+        p_star = eigenvalues[worst_axis]
+        margin = jnp.where(axis_min >= 0.0, rho, jnp.minimum(rho, axis_min))
     else:
-        # Worst NEC/WEC axis: most-negative (rho + p_i).
-        slack = jnp.where(is_spacelike, rho + eigenvalues, jnp.inf)
-        worst_axis = jnp.argmin(slack)
+        # NEC: the most-negative (rho + p_i), boost-independent.
+        worst_axis = jnp.argmin(axis_slack)
         p_star = eigenvalues[worst_axis]
         margin = rho + p_star
 
-    # Threshold rapidity (WEC/NEC interpretation rho_obs(zeta) = 0).
-    # rho_obs = rho + (rho + p_star) sinh^2(zeta); set to zero.
+    # Threshold rapidity: where this condition's observer value crosses zero.
+    # Each condition has its own; the WEC one used to be applied to all four.
     rho_plus_p = rho + p_star
-    violated = rho_plus_p < -atol
-    # sinh^2 zeta_th = -rho / (rho + p_star) = rho / |rho + p_star|  (rho > 0)
-    ratio = rho / jnp.maximum(-rho_plus_p, atol)
-    zeta_th = jnp.where(
-        violated & (rho > 0.0),
-        jnp.arcsinh(jnp.sqrt(jnp.maximum(ratio, 0.0))),
-        jnp.where(violated, 0.0, jnp.inf),  # rho<=0: already violated at rest
-    )
-    # A negative SEC trace margin is a violation at rest, whatever the axis line
-    # does, so the threshold rapidity is zero rather than infinite. Without this
-    # rho = 1, p_i = -1/2 reported "SEC satisfied out to arbitrary boosts".
-    if condition == "sec":
-        zeta_th = jnp.where(margin < -atol, jnp.minimum(zeta_th, 0.0), zeta_th)
+    if condition == "wec":
+        # rho_obs = rho + (rho + p_*) sinh^2 zeta
+        zeta_th = jnp.where(
+            (rho_plus_p < -atol) & (rho > 0.0),
+            jnp.arcsinh(jnp.sqrt(jnp.maximum(rho / jnp.maximum(-rho_plus_p, atol), 0.0))),
+            jnp.where(rho <= 0.0, 0.0, jnp.inf),
+        )
+    elif condition == "sec":
+        # Theta_obs = (rho + sum p)/2 + (rho + p_*) sinh^2 zeta
+        rest = 0.5 * (rho + p_sum)
+        zeta_th = jnp.where(
+            (rho_plus_p < -atol) & (rest > 0.0),
+            jnp.arcsinh(jnp.sqrt(jnp.maximum(rest / jnp.maximum(-rho_plus_p, atol), 0.0))),
+            jnp.where(rest <= 0.0, 0.0, jnp.inf),
+        )
+    elif condition == "dec":
+        # g(J,J) = -rho^2 cosh^2 zeta + p_*^2 sinh^2 zeta, so tanh zeta_th = rho/|p_*|
+        ap = jnp.abs(p_star)
+        zeta_th = jnp.where(
+            (ap > rho) & (rho > 0.0),
+            jnp.arctanh(jnp.clip(rho / jnp.maximum(ap, atol), 0.0, 1.0 - 1e-15)),
+            jnp.where(rho <= 0.0, 0.0, jnp.inf),
+        )
+    else:
+        # NEC: T_ab k^a k^b along a null direction is rapidity-independent, so
+        # there is no threshold -- either it is violated at every boost or none.
+        zeta_th = jnp.where(rho_plus_p < -atol, 0.0, jnp.inf)
     asymptotic_sign = jnp.sign(rho_plus_p)
 
     # Normalized boost frame (no Eulerian normal): e_0 timelike, e_i* spacelike.

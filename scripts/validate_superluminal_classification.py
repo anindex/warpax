@@ -61,7 +61,7 @@ from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.energy_conditions.verifier import _classify_grid_batch
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.grids import wall_clustered
+from warpax.grids import wall_clustered, proper_volume_weights
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
@@ -101,7 +101,12 @@ def _flat_curv(metric, N: int):
     coords = build_coord_batch(grid_spec, t=0.0)
     mask = shape_function_mask(metric, coords, shape, f_low=F_LOW, f_high=F_HIGH)
     wall_flat = np.asarray(jnp.reshape(mask, (-1,))).astype(bool)
-    vol_w_flat = np.asarray(jnp.reshape(grid_spec.volume_weights_array, (-1,)))
+    vol_w_flat = np.asarray(
+        jnp.reshape(
+            proper_volume_weights(grid_spec.volume_weights_array, curv.metric),
+            (-1,),
+        )
+    )
     return flat_T, flat_g, flat_ginv, flat_Tmixed, wall_flat, vol_w_flat
 
 

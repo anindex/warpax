@@ -234,9 +234,13 @@ class WarpShellMetric(ADMMetric):
         beta_x = -S_warp * v_s
         gamma_rr = 1 + S * (1 / (1 - r_s / r) - 1)
 
+        # beta_x above is the CONTRAVARIANT beta^x; g_{0x} = gamma_xx beta^x and
+        # g_{00} = -(alpha^2 - gamma_xx (beta^x)^2). Dropping gamma_xx made this
+        # a different spacetime from the numeric __call__ wherever gamma_rr != 1.
+        beta_x_low = gamma_rr * beta_x
         g = sp.Matrix([
-            [-(alpha**2 - beta_x**2), beta_x, 0, 0],
-            [beta_x, gamma_rr, 0, 0],
+            [-(alpha**2 - gamma_rr * beta_x**2), beta_x_low, 0, 0],
+            [beta_x_low, gamma_rr, 0, 0],
             [0, 0, 1, 0],
             [0, 0, 0, 1],
         ])

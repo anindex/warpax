@@ -1,0 +1,93 @@
+{
+  "model": "min(rho+p_i) = -C v_s^2 (unit-lapse flat-slice velocity scaling)",
+  "source": {
+    "file": "velocity_sweep.json",
+    "config": {
+      "velocities": [
+        0.1,
+        0.3,
+        0.5,
+        0.7,
+        0.9,
+        0.99,
+        1.0,
+        1.1,
+        1.3,
+        1.5,
+        2.0,
+        2.5
+      ],
+      "N": 100,
+      "metrics": [
+        "Alcubierre",
+        "Nat\u00e1rio",
+        "Van den Broeck",
+        "Rodal"
+      ],
+      "smoke": false,
+      "from_cache": false
+    }
+  },
+  "fits": {
+    "Alcubierre": {
+      "C": 0.6305268764170865,
+      "r_squared_fixed": 0.9999894178304568,
+      "q_free": 2.033520278760002,
+      "r_squared_free": 0.9999654672480527,
+      "max_rel_dev": 0.040861834207610116,
+      "max_rel_dev_dense": 0.009219635407781515,
+      "dense_v_s_min": 0.5,
+      "n_type_i_min": 32,
+      "n_type_i_max": 696,
+      "C_two": 0.6393614723694743,
+      "D_two": -0.007760002164059855,
+      "r_squared_two": 0.9999990003304965,
+      "n": 5
+    },
+    "Nat\u00e1rio": {
+      "C": 8.351172087568347,
+      "r_squared_fixed": 0.9999834162042736,
+      "q_free": 2.202155021366989,
+      "r_squared_free": 0.9978287027911589,
+      "max_rel_dev": 0.6277817186062444,
+      "max_rel_dev_dense": 0.008924409433476305,
+      "dense_v_s_min": 0.5,
+      "n_type_i_min": 80,
+      "n_type_i_max": 2240,
+      "C_two": 8.481154592955415,
+      "D_two": -0.11412603044203586,
+      "r_squared_two": 0.9999959914024641,
+      "n": 6
+    },
+    "Van den Broeck": {
+      "C": 0.7202291350719863,
+      "r_squared_fixed": 0.564904797549322,
+      "q_free": -0.06936172560982176,
+      "r_squared_free": 0.45041713352374013,
+      "max_rel_dev": 0.9881164597596325,
+      "max_rel_dev_dense": 0.6527289215930362,
+      "dense_v_s_min": 0.5,
+      "n_type_i_min": 720,
+      "n_type_i_max": 11824,
+      "C_two": -1.5859338824296305,
+      "D_two": 2.0248358035255913,
+      "r_squared_two": 0.8655546519702273,
+      "n": 6
+    },
+    "Rodal": {
+      "C": 0.7679023043550397,
+      "r_squared_fixed": 1.0,
+      "q_free": 2.000000000000001,
+      "r_squared_free": 1.0,
+      "max_rel_dev": 7.376463327090242e-16,
+      "max_rel_dev_dense": 7.376463327090242e-16,
+      "dense_v_s_min": 0.5,
+      "n_type_i_min": 12888,
+      "n_type_i_max": 12888,
+      "C_two": 0.7679023043550396,
+      "D_two": 2.6950505043497403e-16,
+      "r_squared_two": 1.0,
+      "n": 6
+    }
+  }
+}

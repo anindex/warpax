@@ -40,6 +40,7 @@ from warpax.geometry.grid import build_coord_batch
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from _benchmark_grid import benchmark_grid
 from warpax.visualization.shift_vorticity_plots import plot_shift_vorticity
+from warpax.grids import proper_volume_weights
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
@@ -77,7 +78,12 @@ def wall_decomposition(name, v_s, N):
     mask = np.asarray(jnp.reshape(
         shape_function_mask(metric, coords, shape, f_low=F_LOW, f_high=F_HIGH),
         (-1,))).astype(bool)
-    w = np.asarray(grid.volume_weights_array).reshape(-1)
+    g_field = jax.vmap(metric)(coords)
+    w = np.asarray(
+        proper_volume_weights(
+            jnp.reshape(grid.volume_weights_array, (-1,)), g_field
+        )
+    )
     w = np.where(mask, w, 0.0)
     wsum = float(w.sum())
     if wsum == 0.0:

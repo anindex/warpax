@@ -1,0 +1,346 @@
+{
+  "ladder_N": [
+    80,
+    100,
+    120
+  ],
+  "cluster_a": 2.0,
+  "box": 3.0,
+  "velocities": [
+    0.1,
+    0.2,
+    0.3,
+    0.5,
+    0.7,
+    0.9
+  ],
+  "theory_q": {
+    "Rodal": 4.0,
+    "Alcubierre": 2.0,
+    "Nat\u00e1rio": 2.0
+  },
+  "fits": {
+    "Alcubierre": {
+      "80": {
+        "weyl_squared": {
+          "A": 700.225192371179,
+          "q": 1.9730715741774814,
+          "r_squared": 0.9999478372699032,
+          "r_squared_linear": 0.9996058741759972,
+          "max_rel_dev": 0.016737069918827046,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 454.3840426006311,
+          "q": 2.113267754269124,
+          "r_squared": 0.990494971220223,
+          "r_squared_linear": 0.9024496696969332,
+          "max_rel_dev": 0.25103757489508244,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      },
+      "100": {
+        "weyl_squared": {
+          "A": 700.2251919489753,
+          "q": 1.9730715738841798,
+          "r_squared": 0.9999478372496936,
+          "r_squared_linear": 0.9996058740082476,
+          "max_rel_dev": 0.01673707353275526,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 454.3399602537222,
+          "q": 2.1132089103006355,
+          "r_squared": 0.9905023937755506,
+          "r_squared_linear": 0.902517769889149,
+          "max_rel_dev": 0.2509459407117978,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      },
+      "120": {
+        "weyl_squared": {
+          "A": 700.2251915872401,
+          "q": 1.9730715733982835,
+          "r_squared": 0.9999478372666492,
+          "r_squared_linear": 0.9996058742154454,
+          "max_rel_dev": 0.016737068961959575,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 453.62760472188904,
+          "q": 2.1122574559190173,
+          "r_squared": 0.9906221368781583,
+          "r_squared_linear": 0.9036176518757628,
+          "max_rel_dev": 0.24946200368694377,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      }
+    },
+    "Nat\u00e1rio": {
+      "80": {
+        "weyl_squared": {
+          "A": 72792.30323540406,
+          "q": 1.9990526691799322,
+          "r_squared": 0.9999999350267899,
+          "r_squared_linear": 0.9999994978380462,
+          "max_rel_dev": 0.0005977508974118917,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 33803.422707719,
+          "q": 1.9993888117707939,
+          "r_squared": 0.999999972354585,
+          "r_squared_linear": 0.9999997843195294,
+          "max_rel_dev": 0.00039170479429329264,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      },
+      "100": {
+        "weyl_squared": {
+          "A": 72792.30328948838,
+          "q": 1.9990526710980394,
+          "r_squared": 0.9999999350267489,
+          "r_squared_linear": 0.9999994978384126,
+          "max_rel_dev": 0.0005977507404574032,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 33803.422610872774,
+          "q": 1.9993888106599682,
+          "r_squared": 0.9999999723554553,
+          "r_squared_linear": 0.9999997843269255,
+          "max_rel_dev": 0.0003916985264707863,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      },
+      "120": {
+        "weyl_squared": {
+          "A": 72792.3031056235,
+          "q": 1.9990526690943458,
+          "r_squared": 0.9999999350263701,
+          "r_squared_linear": 0.999999497831547,
+          "max_rel_dev": 0.0005977546981519672,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 33803.42274015275,
+          "q": 1.9993888128507002,
+          "r_squared": 0.9999999723549119,
+          "r_squared_linear": 0.9999997843225873,
+          "max_rel_dev": 0.0003917019179876565,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      }
+    },
+    "Van den Broeck": {
+      "80": {
+        "weyl_squared": {
+          "A": 239.29144113646407,
+          "q": 0.6314937967867413,
+          "r_squared": 0.536565755668983,
+          "r_squared_linear": 0.5550389635363389,
+          "max_rel_dev": 0.7865489157230853,
+          "v_s_at_max_dev": 0.3,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 453.78806103928264,
+          "q": 0.18509622643813772,
+          "r_squared": 0.5268871682732152,
+          "r_squared_linear": 0.5265715409010319,
+          "max_rel_dev": 0.20355166413169212,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      },
+      "100": {
+        "weyl_squared": {
+          "A": 239.24205921800666,
+          "q": 0.631065232275181,
+          "r_squared": 0.5360955914112209,
+          "r_squared_linear": 0.5547053044185134,
+          "max_rel_dev": 0.7862212121050131,
+          "v_s_at_max_dev": 0.3,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 450.555242613318,
+          "q": 0.1809337528546214,
+          "r_squared": 0.5246007440077507,
+          "r_squared_linear": 0.5239745924599869,
+          "max_rel_dev": 0.2010165767712701,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      },
+      "120": {
+        "weyl_squared": {
+          "A": 239.19248267517986,
+          "q": 0.6312138861527584,
+          "r_squared": 0.535754091053323,
+          "r_squared_linear": 0.5545704426244804,
+          "max_rel_dev": 0.7888631052176227,
+          "v_s_at_max_dev": 0.3,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 452.5378595390926,
+          "q": 0.18322632214704593,
+          "r_squared": 0.5204758209782128,
+          "r_squared_linear": 0.5195255898916669,
+          "max_rel_dev": 0.2051825363624323,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      }
+    },
+    "Rodal": {
+      "80": {
+        "weyl_squared": {
+          "A": 393.5541008891942,
+          "q": 3.9999999999999996,
+          "r_squared": 1.0,
+          "r_squared_linear": 1.0,
+          "max_rel_dev": 1.7631359673878455e-15,
+          "v_s_at_max_dev": 0.1,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 1032.1081692424552,
+          "q": 3.9999999999999987,
+          "r_squared": 1.0,
+          "r_squared_linear": 1.0,
+          "max_rel_dev": 2.6892118910366617e-15,
+          "v_s_at_max_dev": 0.1,
+          "n": 6,
+          "n_dropped": 0
+        }
+      },
+      "100": {
+        "weyl_squared": {
+          "A": 392.82194718681137,
+          "q": 3.9999999999999982,
+          "r_squared": 1.0,
+          "r_squared_linear": 1.0,
+          "max_rel_dev": 2.8262754476321932e-15,
+          "v_s_at_max_dev": 0.1,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 1031.5174534959162,
+          "q": 3.999999999999998,
+          "r_squared": 1.0,
+          "r_squared_linear": 1.0,
+          "max_rel_dev": 2.687717076480631e-15,
+          "v_s_at_max_dev": 0.9,
+          "n": 6,
+          "n_dropped": 0
+        }
+      },
+      "120": {
+        "weyl_squared": {
+          "A": 392.82192497799355,
+          "q": 3.9999999999999996,
+          "r_squared": 1.0,
+          "r_squared_linear": 1.0,
+          "max_rel_dev": 2.651814150172059e-15,
+          "v_s_at_max_dev": 0.3,
+          "n": 6,
+          "n_dropped": 0
+        },
+        "ricci_squared": {
+          "A": 1022.090712643272,
+          "q": 3.9999999999999996,
+          "r_squared": 1.0,
+          "r_squared_linear": 1.0,
+          "max_rel_dev": 6.788921783627462e-16,
+          "v_s_at_max_dev": 0.2,
+          "n": 6,
+          "n_dropped": 0
+        }
+      }
+    }
+  },
+  "summary": {
+    "Alcubierre": {
+      "weyl_squared": {
+        "mean": 1.9730715738199816,
+        "max_dev": 4.2169800984481753e-10,
+        "stable": true
+      },
+      "ricci_squared": {
+        "mean": 2.112911373496259,
+        "max_dev": 0.0006539175772415362,
+        "stable": true
+      }
+    },
+    "Nat\u00e1rio": {
+      "weyl_squared": {
+        "mean": 1.9990526697907727,
+        "max_dev": 1.3072667393032589e-09,
+        "stable": true
+      },
+      "ricci_squared": {
+        "mean": 1.9993888117604872,
+        "max_dev": 1.100519009256118e-09,
+        "stable": true
+      }
+    },
+    "Van den Broeck": {
+      "weyl_squared": {
+        "mean": 0.6312576384048936,
+        "max_dev": 0.00023615838184776194,
+        "stable": true
+      },
+      "ricci_squared": {
+        "mean": 0.18308543381326836,
+        "max_dev": 0.0021516809586469565,
+        "stable": true
+      }
+    },
+    "Rodal": {
+      "weyl_squared": {
+        "mean": 3.9999999999999996,
+        "max_dev": 1.3322676295501878e-15,
+        "stable": true
+      },
+      "ricci_squared": {
+        "mean": 3.9999999999999987,
+        "max_dev": 8.881784197001252e-16,
+        "stable": true
+      }
+    }
+  }
+}

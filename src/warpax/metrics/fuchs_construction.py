@@ -527,10 +527,12 @@ class FuchsMetric(ADMMetric):
         nnT = n * n.T
         spatial_metric = delta + (gamma_rr - 1) * nnT
 
+        # -v_s beta(r) is the CONTRAVARIANT beta^x; lower it with gamma_xx.
+        beta_low = -gamma_rr * v_s * beta(r)
         g = sp.Matrix.zeros(4, 4)
-        g[0, 0] = -sp.exp(2 * a(r)) + (v_s * beta(r)) ** 2
-        g[0, 1] = -v_s * beta(r)
-        g[1, 0] = -v_s * beta(r)
+        g[0, 0] = -sp.exp(2 * a(r)) + gamma_rr * (v_s * beta(r)) ** 2
+        g[0, 1] = beta_low
+        g[1, 0] = beta_low
         for i in range(3):
             for j in range(3):
                 g[i + 1, j + 1] = spatial_metric[i, j]

@@ -6,6 +6,48 @@ history is summarized in `docs/explanation/release_notes.md`.
 
 ---
 
+## [1.4.0] - 2026-08-22
+
+Type-free certification. The energy-condition verdict is decided by a $4\times4$
+linear matrix inequality rather than by an eigendecomposition, so it no longer
+depends on the algebraic type, and every reported verdict carries an exact
+rational certificate.
+
+- `energy_conditions.slemma`: `certify_point_lmi` decides NEC/WEC/SEC/DEC over
+  every timelike and null observer from $\hat T + \sigma\eta \succeq 0$ (the
+  S-lemma), at Hawking--Ellis Types I, II, III and IV alike -- no rapidity cap,
+  no classification tolerance. `witness_observer` returns the violating boost.
+- `energy_conditions.certificate`: exact rational two-sided certificates. A
+  multiplier $\sigma \in \mathbb{Q}$ verified by $LDL^{\mathsf T}$ over
+  `Fraction` when the condition holds; a rational $w$ with $|w| \le 1$ and
+  $q(w) < 0$ when it fails. `verify()` rejects a certificate whose multiplier
+  keys or binding condition do not match the claim.
+- `energy_conditions.enclosure`: verified continuum enclosures of the worst-case
+  violation by interval branch-and-bound (Moore--Skelboe, `mpmath.iv`, outward
+  rounding), bracketing the extremum over the whole domain rather than over the
+  sampled grid.
+- `energy_conditions.frame_free`: the LMI runs on the non-Type-I subset by
+  gather/scatter, and `certify_grid_frame_free` accepts `lmi_where` to restrict
+  it to a region of interest; an ill-conditioned eigenbasis now routes to the
+  LMI instead of being trusted.
+- `grids.proper_volume_weights`: attaches the slice Jacobian
+  $\mathrm{d}V = \sqrt{\det\gamma}\,\mathrm{d}^3x$ to grid diagnostics. Every
+  volume-weighted fraction on a conformally scaled slice (Van den Broeck) moves.
+- `analysis.convergence.richardson_extrapolation` refuses non-geometric ladders
+  and non-monotone triplets, reporting `observed_order=None` with a spread-based
+  error rather than an order the data cannot support. `l2_violation` is now a
+  true $L^2$ norm, $\sqrt{\sum v^2\,\Delta V}$.
+- `analysis.extrema.refine_extremum` can polish with the curvature invariants;
+  `seed_from_grid_index` seeds the polish from a grid argmin.
+- Classification: the type is a diagnostic, not a gate. The imaginary-part test
+  is scaled by the tensor magnitude, an all-NaN input yields `NaN` rather than a
+  spurious type, and vacuum counting is NaN-safe.
+- ANEC: the affine window for geodesic rays is set from the ray's own horizon
+  crossing (`crossing_span`), not by a stationarity search, which walked past
+  the answer into integrator drift.
+
+---
+
 ## [1.3.0] - 2026-06-22
 
 Visualization rework: Manim scenes renamed to physically accurate names,

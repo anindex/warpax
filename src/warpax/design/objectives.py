@@ -95,20 +95,29 @@ def ec_margin_objective(
     TT = jnp.full_like(XX, t)
     coords_stack = jnp.stack([TT, XX, YY, ZZ], axis=-1).reshape(-1, 4)
 
-    @eqx.filter_jit
-    def _per_point_margin(coords):
-        cc = compute_curvature_chain(metric, coords)
-        T = jnp.where(jnp.isnan(cc.stress_energy), 0.0, cc.stress_energy)
-        g = cc.metric
-        res = optimizer(T, g, n_starts=n_starts)
-        return res.margin
-
-    margins = jax.vmap(_per_point_margin)(coords_stack)
+    margins = _margins_over_grid(metric, coords_stack, optimizer, n_starts)
     # Finite-filter: take min over finite margins only (defensive against
     # NaN at degenerate probe points).
     finite_mask = jnp.isfinite(margins)
     safe_margins = jnp.where(finite_mask, margins, jnp.inf)
     return jnp.min(safe_margins)
+
+
+@eqx.filter_jit
+def _margins_over_grid(metric, coords_stack, optimizer, n_starts):
+    """Worst-observer margin at every probe point.
+
+    Module-level and jitted once. The kernel used to be a @eqx.filter_jit
+    closure rebuilt on every objective call, so its compile cache was empty
+    every time and each evaluation re-compiled the full curvature chain.
+    """
+
+    def one(coords):
+        cc = compute_curvature_chain(metric, coords)
+        T = jnp.where(jnp.isnan(cc.stress_energy), 0.0, cc.stress_energy)
+        return optimizer(T, cc.metric, n_starts=n_starts).margin
+
+    return jax.vmap(one)(coords_stack)
 
 
 def averaged_objective(

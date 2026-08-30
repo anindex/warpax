@@ -34,6 +34,13 @@ import os
 
 from _json_io import dump_json, write_table as write_tex_table
 
+import jax
+
+jax.config.update("jax_enable_x64", True)
+import jax.numpy as jnp
+
+from warpax.benchmarks.alcubierre import alcubierre_shape
+
 
 TABLES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "warpax_arxiv", "tables")
 
@@ -42,9 +49,21 @@ def main():
     results_dir = os.path.join(os.path.dirname(__file__), "..", "results")
     os.makedirs(results_dir, exist_ok=True)
 
-    # For f(r) = [1 - tanh(sigma*(r-R))]/2, the 10-90% width is
-    # f=0.9 -> tanh=-0.8, f=0.1 -> tanh=+0.8, so Delta_r = 2*atanh(0.8)/sigma
-    TANH_10_90 = 2.0 * math.atanh(0.8)
+    # The 10-90% width of the ACTUAL top-hat shape function, by bisection.
+    # The asymptotic form 2*atanh(0.8)/sigma is only the sigma*R >> 1 limit; at
+    # Rodal's sigma*R = 3 it gives 73.24 against the true 72.53.
+    def _width_10_90(sigma, R):
+        f = lambda r: float(alcubierre_shape(jnp.asarray(r), R, sigma))
+        def root(target, lo, hi):
+            for _ in range(200):
+                mid = 0.5 * (lo + hi)
+                if f(mid) > target:
+                    lo = mid
+                else:
+                    hi = mid
+            return 0.5 * (lo + hi)
+        hi = R + 40.0 / sigma
+        return root(0.1, R, hi) - root(0.9, 0.0, R + hi)
 
     # Metric configurations matching run_analysis.py METRICS dict exactly
     metrics = [
@@ -52,6 +71,7 @@ def main():
             "metric": "alcubierre",
             "shape_function": "tanh",
             "sigma": 8.0,
+            "R": 1.0,
             "domain": [-5, 5],
             "grid_n": 50,
         },
@@ -59,6 +79,7 @@ def main():
             "metric": "vdb",
             "shape_function": "tanh",
             "sigma": 8.0,
+            "R": 1.0,
             "domain": [-5, 5],
             "grid_n": 50,
         },
@@ -66,6 +87,7 @@ def main():
             "metric": "natario",
             "shape_function": "tanh",
             "sigma": 8.0,
+            "R": 1.0,
             "domain": [-5, 5],
             "grid_n": 50,
         },
@@ -73,6 +95,7 @@ def main():
             "metric": "rodal",
             "shape_function": "tanh",
             "sigma": 0.03,
+            "R": 100.0,
             "domain": [-300, 300],
             "grid_n": 50,
         },
@@ -91,7 +114,7 @@ def main():
         dx = (m["domain"][1] - m["domain"][0]) / (m["grid_n"] - 1)
 
         if m["shape_function"] == "tanh":
-            wall_width = TANH_10_90 / m["sigma"]
+            wall_width = _width_10_90(m["sigma"], m["R"])
             cells = wall_width / dx
             resolved = cells >= 4.0
             notes = (

@@ -116,11 +116,17 @@ class LentzMetric(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
-        """Diamond-pattern shape function via L1 distance."""
+        """Shape function, on the same distance the shift uses."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
         rho_perp = jnp.sqrt(y**2 + z**2 + 1e-60)
-        d = jnp.abs(x_rel) + rho_perp
+        # L1 was hard-coded here while shift() honoured self.distance, so with
+        # distance="L2" the wall masks and grid clustering described a different
+        # bubble from the metric.
+        if self.distance == "L2":
+            d = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
+        else:
+            d = jnp.abs(x_rel) + rho_perp
         return _diamond_shape(d, self.R, self.sigma)
 
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)

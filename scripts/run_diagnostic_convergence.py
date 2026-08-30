@@ -52,8 +52,9 @@ from warpax.energy_conditions.filtering import (
 )
 from warpax.energy_conditions.verifier import _eulerian_ec_point
 from warpax.analysis.convergence import f_miss_stability
-from warpax.analysis.extrema import refine_extremum
+from warpax.analysis.extrema import refine_extremum, seed_from_grid_index
 from warpax.analysis.shift_kinematics import compute_shift_kinematics_grid
+from warpax.grids import proper_volume_weights
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
@@ -89,10 +90,11 @@ def _grid_diagnostics(metric, N):
     """Grid-sampled wall diagnostics + argmin/argmax seeds at resolution N."""
     grid = benchmark_grid(metric, N)
     curv = evaluate_curvature_grid(metric, grid, batch_size=4096)
-    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv)
     coords = build_coord_batch(grid, t=0.0)
     mask = shape_function_mask(metric, coords, grid.shape)
-    vol_w = grid.volume_weights_array
+    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv,
+                                 lmi_where=mask)
+    vol_w = proper_volume_weights(grid.volume_weights_array, curv.metric)
     fracs = type_fractions(ff, mask=mask, volume_weights=vol_w)
     m = np.asarray(mask).ravel().astype(bool)
     axes = [np.asarray(grid.axes[a]) for a in range(3)]
@@ -152,9 +154,7 @@ def _grid_diagnostics(metric, N):
     }
 
 
-def _flat_to_xyz(k, shape, axes):
-    i0, i1, i2 = np.unravel_index(k, shape)
-    return [float(axes[0][i0]), float(axes[1][i1]), float(axes[2][i2])]
+_flat_to_xyz = seed_from_grid_index
 
 
 def _masked_min(field, sel, shape, axes):
@@ -201,7 +201,10 @@ def write_table(results, wall_info, out_path):
             c = diags[key]
             v = c["ladder"]
             if kind == "fraction":
-                cert = f"stable ({_f(c['max_dev_pp'], 2)}~pp)"
+                # Read the flag; the word was hard-coded, so this column could
+                # not fail (VdB WEC/DEC miss rates are stable=False).
+                verdict = "stable" if c.get("stable", False) else "\\emph{unstable}"
+                cert = f"{verdict} ({_f(c['max_dev_pp'], 2)}~pp)"
             else:
                 cert = f"polished {_f(c['polished'], 3)}"
             mcol = name if first else ""

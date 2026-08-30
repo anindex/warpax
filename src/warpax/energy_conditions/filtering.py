@@ -218,10 +218,23 @@ def compute_wall_restricted_stats(
 
     violated_counts: dict[str, int] = {}
     violated_fracs: dict[str, float] = {}
+    nan_counts: dict[str, int] = {}
     for cond, margins in conditions.items():
-        viol = (margins.ravel() < -threshold) & mask_flat
+        flat = margins.ravel()
+        # A NaN margin scores False under "< -threshold" while still counting in
+        # the denominator, i.e. it reads as satisfied. Count them and warn.
+        nan_sel = jnp.isnan(flat) & mask_flat
+        nan_counts[cond] = int(jnp.sum(nan_sel))
+        viol = (flat < -threshold) & mask_flat
         violated_counts[cond] = int(jnp.sum(viol))
         violated_fracs[cond] = float(jnp.sum(weight * viol)) / w_safe
+    if any(nan_counts.values()):
+        warnings.warn(
+            "non-finite margins inside the mask: "
+            + ", ".join(f"{c}={n}" for c, n in nan_counts.items() if n)
+            + ". They are counted in the denominator and score as satisfied.",
+            stacklevel=2,
+        )
 
     # Miss rates (if eulerian_margins provided)
     miss_rates: dict[str, float | None] = {

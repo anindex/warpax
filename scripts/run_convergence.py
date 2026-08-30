@@ -196,7 +196,9 @@ def main():
 
         # Extract convergence quantities
         q_min = compute_convergence_quantity(nec_margin, "min_margin")
-        q_l2 = compute_convergence_quantity(nec_margin, "l2_violation")
+        q_l2 = compute_convergence_quantity(
+            nec_margin, "l2_violation", cell_volume=cell_vol
+        )
         q_int = compute_convergence_quantity(
             nec_margin, "integrated_violation", cell_volume=cell_vol
         )
@@ -236,13 +238,16 @@ def main():
             "error_estimate": result["error_estimate"],
             "converged": result["converged"],
             "fallback": result.get("fallback", False),
+            "error_basis": result.get("error_basis"),
         }
 
         print(f"\n  {qname}:")
         for i, (N, v) in enumerate(zip(grid_sizes, values)):
             print(f"    N={N:>4d}: {v:.6e}")
         print(f"    Extrapolated: {result['extrapolated_value']:.6e}")
-        print(f"    Observed order p: {result['observed_order']:.2f}")
+        p_obs = result["observed_order"]
+        print("    Observed order p: "
+              + (f"{p_obs:.2f}" if p_obs is not None else "-- (non-monotone triplet)"))
         print(f"    Error estimate: {result['error_estimate']:.6e}")
         print(f"    Converged: {result['converged']}")
 

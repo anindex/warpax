@@ -324,11 +324,30 @@ class Enclosure:
 
 
 def _lo(c) -> float:
-    return float(mpmath.mpf(c.a))
+    """Lower endpoint of an interval, rounded DOWN into binary64.
+
+    float(mpmath.mpf(x)) rounds to NEAREST, which is the wrong direction for an
+    endpoint that is used conservatively, and every use here is conservative:
+
+      * the LDL pivot positivity test accepts a certified-positive-definite matrix
+        on ``_lo(pivot) > 0``, so a lower endpoint rounded UP can accept a pivot
+        that is actually non-positive and certify a bound that does not hold;
+      * the Gershgorin bound subtracts a radius from ``_lo(S_ii)``, and an inward
+        error there raises a LOWER bound above the truth;
+      * the wall mask discards a box on ``_lo(f) > wall_hi``.
+
+    Rounding outward can only widen an interval, so it is unconditionally safe: it
+    can make a bound looser, never unsound. The defect is sub-ulp and moves no
+    published bracket, but "sound except in the last bit" is not a certificate.
+    """
+    v = float(mpmath.mpf(c.a))
+    return v if v == -math.inf else math.nextafter(v, -math.inf)
 
 
 def _hi(c) -> float:
-    return float(mpmath.mpf(c.b))
+    """Upper endpoint of an interval, rounded UP into binary64. See :func:`_lo`."""
+    v = float(mpmath.mpf(c.b))
+    return v if v == math.inf else math.nextafter(v, math.inf)
 
 
 def _mid_iv(c) -> float:
@@ -356,16 +375,6 @@ def _lo_down(c) -> float:
     return v if v == -math.inf else math.nextafter(v, -math.inf)
 
 
-def _mag_up(c) -> float:
-    """Largest absolute value on the interval, rounded UP into binary64.
-
-    Used for quantities that are *subtracted* from a lower bound, where rounding
-    inward would raise the bound above the truth.
-    """
-    v = max(abs(float(mpmath.mpf(c.a))), abs(float(mpmath.mpf(c.b))))
-    return v if v == math.inf else math.nextafter(v, math.inf)
-
-
 # Converting mpmath endpoints to double rounds to nearest, which could shave a
 # sub-ulp sliver off an enclosure. Widening every bound by this relative amount
 # restores outward rounding with a large margin: even at the 53-bit floor the
@@ -373,16 +382,6 @@ def _mag_up(c) -> float:
 # earlier comment justified the pad by "60-bit precision", which was not in
 # force -- mpmath.iv keeps its own precision and mp.prec alone did not set it.)
 _OUTWARD = 1e-12
-
-
-def _gershgorin_min(S_iv) -> float:
-    """Rigorous lower bound on the least eigenvalue of a symmetric interval matrix."""
-    best = None
-    for i in range(3):
-        rad = sum(_mag(S_iv[i][j]) for j in range(3) if j != i)
-        cand = _lo(S_iv[i][i]) - rad
-        best = cand if best is None else min(best, cand)
-    return best
 
 
 # --- the S-lemma dual bound -------------------------------------------------
@@ -987,6 +986,15 @@ def tail_bound(metric_fn, shape_fn, x_outer, s_outer, prec=60, wall_mask=(0.1, 0
     no wall point in any direction -- including ``x < -x_outer[0]``, which the old
     annulus never touched, since ``r`` does not distinguish the two sides.
 
+    The exterior is UNBOUNDED, and a box evaluation is not. ``x_outer``/``s_outer``
+    only fix the inner radius ``r_min``; the bound is then taken on all of
+    ``r >= r_min`` using monotonicity, which the top hat has exactly: with
+    ``f = [tanh(s(r+R)) - tanh(s(r-R))] / (2 tanh(sR))``,
+    ``df/dr = s[sech^2(s(r+R)) - sech^2(s(r-R))] / (2 tanh(sR)) < 0`` for every
+    ``r > 0``, because ``|r+R| > |r-R|`` there. So ``f`` on ``[r_min, inf)`` is
+    enclosed by ``[0, f(r_min)]``. Evaluating the box alone certified only the
+    annulus ``r_min <= r <= |corner|``, while the appendix claimed ``r >= 3``.
+
     Returns ``(f_lo, f_hi, excluded)``: the certified enclosure of the shape function
     on the exterior, and whether it is provably disjoint from the wall band.
     """
@@ -995,6 +1003,9 @@ def tail_bound(metric_fn, shape_fn, x_outer, s_outer, prec=60, wall_mask=(0.1, 0
     # this argument inert.
     mpmath.mp.prec = prec
     iv.prec = prec
-    f_iv = shape_fn(iv.mpf([x_outer[0], x_outer[1]]), iv.mpf([s_outer[0], s_outer[1]]))
-    f_lo, f_hi = _lo(f_iv), _hi(f_iv)
+    r_min = min(abs(x_outer[0]), abs(x_outer[1]))
+    if s_outer[0] > 0:
+        r_min = math.hypot(r_min, s_outer[0])
+    f_at_rmin = shape_fn(iv.mpf([r_min, r_min]), iv.mpf([0.0, 0.0]))
+    f_lo, f_hi = 0.0, _hi(f_at_rmin)
     return f_lo, f_hi, bool(f_hi < wall_mask[0] or f_lo > wall_mask[1])

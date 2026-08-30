@@ -376,8 +376,9 @@ def witness_observer(
 def _demo() -> None:
     """Self-check: the LMI must agree with a brute-force observer search.
 
-    Run on the four Hawking-Ellis canonical forms plus the referee's own Type-IV
-    counterexample, in Minkowski coordinates where the tetrad is the identity.
+    Run on the four Hawking-Ellis canonical forms plus the Type-IV tensor whose
+    quartic discriminant vanishes, in Minkowski coordinates where the tetrad is
+    the identity.
     """
     import numpy as np
 
@@ -405,11 +406,11 @@ def _demo() -> None:
     Tm = np.array([[0.7, 0.0, 1.0, 0.0], [0.0, -0.7, 1.0, 0.0],
                    [1.0, -1.0, -0.7, 0.0], [0.0, 0.0, 0.0, 0.3]])
     cases["III"] = eta @ Tm
-    # Type IV: the referee's B2 counterexample, eigenvalues +-i f and a double c.
+    # Type IV with vanishing quartic discriminant: eigenvalues +-i f and a double c.
     f, c = 1.3, 0.4
     Tm = np.array([[0.0, f, 0.0, 0.0], [-f, 0.0, 0.0, 0.0],
                    [0.0, 0.0, c, 0.0], [0.0, 0.0, 0.0, c]])
-    cases["IV(B2)"] = eta @ Tm
+    cases["IV(D4=0)"] = eta @ Tm
 
     for name, T_np in cases.items():
         T_np = 0.5 * (T_np + T_np.T)

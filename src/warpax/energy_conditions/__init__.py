@@ -8,9 +8,12 @@ separately for clean single-frame comparisons.
 Independently of both tiers, :func:`certify_point_lmi` decides all four
 conditions over every observer from a single 4x4 linear matrix inequality,
 with no eigendecomposition, no rapidity cap and no classification tolerance,
-at any Hawking-Ellis type. Its verdict is one-sided: a non-negative margin
-certifies the condition, and a margin below ``-noise_floor(...)`` certifies
-that some observer sees it fail.
+at any Hawking-Ellis type. Its verdict is one-sided in the strict direction
+only: a margin below ``-noise_floor(...)`` certifies that some observer sees
+the condition fail, and a margin above ``+noise_floor(...)`` certifies that it
+holds. Between the two the point is saturated and neither is certified -- a
+computed ``+1.1e-17`` occurs on a tensor the exact rational certificate reports
+violated. For a proof rather than a margin, use :mod:`.certificate`.
 """
 
 from .classification import (

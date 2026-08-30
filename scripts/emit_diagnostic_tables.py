@@ -44,6 +44,20 @@ def _load(rel):
         return json.load(f)
 
 
+def _mark(tex: str, marker: str) -> str:
+    """Attach a footnote marker inside the math group rather than beside it.
+
+    ``_sci`` returns a string already wrapped in ``$...$``; appending
+    ``$^{\\ddagger}$`` to it emitted ``$0.0016$$^{\\ddagger}$``, two adjacent math
+    groups with the superscript hanging off an empty box. The body is braced
+    before the marker goes on, because ``_sci`` returns ``1.2\\times10^{-7}``
+    outside a narrow exponent range and a second ``^`` on that is a TeX error.
+    """
+    if not (tex.startswith("$") and tex.endswith("$")):
+        return tex + marker
+    return "${" + tex[1:-1] + "}" + marker + "$"
+
+
 def _sci(x: float, digits: int = 1) -> str:
     """Format as $a.b\\times10^{n}$ (or plain decimal for small exponents)."""
     if x == 0.0:
@@ -188,13 +202,20 @@ def emit_convergence() -> None:
     def _row(label, key, fmt):
         q = c[key]
         vals = " & ".join(f"${fmt(v)}$" for v in q["values"])
-        if _is_fallback(q):
+        p = q.get("observed_order")
+        if _is_fallback(q) or p is None:
             p_cell = "--$^{\\dagger}$"  # non-monotone: no fitted order, see dagger note
         else:
-            p_cell = f"${q['observed_order']:.1f}$"
-        if q["converged"]:
+            p_cell = f"${p:.1f}$"
+        # "richardson": extrapolated continuum value. "spread": finest computed
+        # value with the ladder spread as its bound, marked with a double dagger.
+        basis = q.get("error_basis", "richardson" if q["converged"] else None)
+        if basis in ("richardson", "exact"):
             ext = f"${fmt(q['extrapolated_value'])}$"
             err = _sci(q["error_estimate"])
+        elif basis == "spread":
+            ext = _mark(f"${fmt(q['extrapolated_value'])}$", "^{\\ddagger}")
+            err = _mark(_sci(q["error_estimate"]), "^{\\ddagger}")
         else:
             ext, err = "--", "--"
         return f"    {label}\n      & {vals}\n      & {ext} & {p_cell} & {err} \\\\"

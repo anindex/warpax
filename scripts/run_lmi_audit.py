@@ -1,6 +1,6 @@
 """Audit the type-based certification against the type-free LMI, at every grid point.
 
-Referee item A1 objects that Type-IV identification is tolerance dependent, and that a
+Type-IV identification is tolerance dependent, and a
 finite grid missing the Type-II/III loci is not a continuum proof of their absence. Both
 are true of the *classification*. Neither is true of Theorem 1: the linear matrix
 inequality forms no eigendecomposition, consults no tolerance and never asks what the
@@ -118,7 +118,7 @@ def audit_one(name, v_s, N, batch_size=2048):
     # (b) Certified misclassification. Types III and IV violate every standard energy
     #     condition, so an LMI margin that certifies satisfaction there cannot be
     #     reconciled with the label. Counting them is the classifier's measured error
-    #     rate -- the quantity item A1 says is unquantified.
+    #     rate -- the quantity that would otherwise be unquantified.
     bad_label = (he >= 3) & ~vac
     lmi_says_ok = np.ones_like(bad_label)
     for c in CONDITIONS:

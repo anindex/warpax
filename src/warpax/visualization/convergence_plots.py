@@ -79,7 +79,11 @@ def plot_convergence(
     errors = np.array([abs(v - Q_ext) for v in values])
 
     # Avoid log(0) for exact matches
-    errors = np.maximum(errors, 1e-30)
+    # A fallback extrapolation sets Q_ext to the finest value, so that point's
+    # error is exactly zero and cannot be drawn on a log axis. Plot the levels
+    # that carry information rather than clamping it to 1e-30 off the bottom.
+    finite = errors > 0.0
+    h, errors, values = h[finite], errors[finite], [v for v, k in zip(values, finite) if k]
 
     fig, ax = (ax.figure, ax) if ax is not None else plt.subplots(figsize=(SINGLE_COL, SINGLE_COL * 0.8))
 
@@ -92,7 +96,9 @@ def plot_convergence(
 
     # Fitted line: error ~ C * h^p
     # Use the coarsest point to determine C
-    if show_fit and errors[0] > 1e-30 and h[0] > 0:
+    # p is None on a non-monotone triplet, where no order was estimated: draw the
+    # data and omit the fitted line rather than raising on h ** None.
+    if show_fit and p is not None and errors[0] > 1e-30 and h[0] > 0:
         C = errors[0] / h[0] ** p
         h_fine = np.logspace(np.log10(h[-1] * 0.5), np.log10(h[0] * 2), 50)
         ax.loglog(

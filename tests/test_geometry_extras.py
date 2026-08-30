@@ -518,10 +518,12 @@ class TestClassifierNearDegenerateInputs:
         assert int(result.he_type) == 1
 
     def test_large_scale_eigenvalues_with_tiny_imaginary(self):
-        """Above the scale floor, |Im|/|Re| = 0.001 < 3e-3 is Type I.
+        """A relative split of 1e-3 is Type IV at every scale.
 
-        The relative tier absorbs split-degenerate pairs at large norm,
-        where the absolute criterion alone would report spurious Type IV.
+        It used to be absorbed above a 1e6 scale floor by a relative tier, so
+        the same physics read Type I at 1e9 and Type IV at unit scale. The test
+        is now scale-covariant, and the eigensolver noise the tier existed to
+        absorb is 1e-16 relative, thirteen orders below this split.
         """
         lam = 1e9
         eps = 0.001 * lam
@@ -536,7 +538,8 @@ class TestClassifierNearDegenerateInputs:
             .set(lam)
         )
         result = classify_hawking_ellis(T, ETA)
-        assert int(result.he_type) == 1
+        assert int(result.he_type) == 4
+        assert int(classify_hawking_ellis(T / lam, ETA).he_type) == 4
 
 
 # Category 2: NaN propagation at sharp walls
@@ -579,8 +582,14 @@ class TestNaNPropagationAtSharpWalls:
         assert jnp.all(jnp.isfinite(curv.stress_energy))
         assert jnp.all(jnp.isfinite(curv.riemann))
 
-    def test_classifier_with_nan_input_sanitizes(self):
-        """Classifier replaces NaN entries with zero before eigendecomposition."""
+    def test_classifier_with_nan_input_reports_no_verdict(self):
+        """A NaN tensor must not come out as a confident Type-I vacuum.
+
+        The NaN entries are still zeroed so cuSolver's geev survives, but the
+        verdict is NaN rather than he_type=1 with margins exactly 0.0, which is
+        what 179 of 125000 points on the WarpShell 50^3 grid used to report.
+        Every consumer already treats a non-finite he_type as "no verdict".
+        """
         T = jnp.array(
             [
                 [-1.0, float("nan"), 0.0, 0.0],
@@ -589,11 +598,8 @@ class TestNaNPropagationAtSharpWalls:
                 [0.0, 0.0, 0.0, 1.0],
             ]
         )
-        # Must not raise and must produce a finite he_type
         result = classify_hawking_ellis(T, ETA)
-        he = int(result.he_type)
-        # NaN -> 0 leaves a diagonal dust-like tensor; must classify Type I
-        assert he == 1
+        assert not jnp.isfinite(result.he_type)
         assert jnp.all(jnp.isfinite(result.eigenvalues))
 
 

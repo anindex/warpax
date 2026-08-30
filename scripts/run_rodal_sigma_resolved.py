@@ -1,6 +1,6 @@
 """Rodal wall-thickness sweep, wall-resolved and convergence-certified.
 
-Referee item A5. The superseded sweep used a uniform ``N = 50`` grid on
+The superseded sweep used a uniform ``N = 50`` grid on
 ``[-300, 300]^3``, so ``dx = 600/49 = 12.24``. Against the exact 10-90% wall
 widths that is
 
@@ -41,7 +41,7 @@ import numpy as np
 from warpax.analysis.invariant_verification import single_frame_miss
 from warpax.energy_conditions.frame_free import certify_grid_frame_free
 from warpax.geometry import evaluate_curvature_points
-from warpax.grids import axisymmetric_grid, wall_cells_on_axis
+from warpax.grids import axisymmetric_grid, wall_cells_on_axis, proper_volume_weights
 from warpax.metrics import RodalMetric
 
 HERE = os.path.dirname(__file__)
@@ -78,7 +78,7 @@ def run_one(sigma: float, n_r: int, n_mu: int) -> dict:
 
     f = np.asarray(jax.vmap(metric.shape_function_value)(grid.coords))
     wall = (f >= F_LOW) & (f <= F_HIGH)
-    w = grid.weights
+    w = np.asarray(proper_volume_weights(grid.weights, g))
 
     ff = certify_grid_frame_free(T, g, gi, solver="auto")
     he = np.asarray(ff.he_types).ravel()
@@ -121,7 +121,9 @@ def write_table(rows_by_sigma: dict, out_path: str) -> None:
         rows = rows_by_sigma[str(sigma)]
         fine = rows[-1]
         series = [r["wall_dec_miss_pct"] for r in rows]
-        spread2 = abs(series[-1] - series[-2]) if len(series) > 1 else 0.0
+        # Full ladder spread, not the last-two gap: at sigma = 0.1 the top two
+        # levels nearly coincide and the gap understates the drift 51x.
+        spread2 = max(abs(v - series[-1]) for v in series) if len(series) > 1 else 0.0
         pts = f"{fine['n_wall_points']:,}".replace(",", r"{,}")
         lines.append(
             f"  ${sigma}$ & {rows[0]['wall_cells']:.1f} & {fine['wall_cells']:.1f}"

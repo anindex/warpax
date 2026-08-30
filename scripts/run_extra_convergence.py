@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 
+from _anec_window import crossing_span
 from _json_io import dump_json
 from _benchmark_grid import benchmark_grid, N_LADDER
 
@@ -31,8 +32,8 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.averaged.anec import anec_rigorous
-from warpax.geodesics import eulerian_affine_scale
+from warpax.averaged.anec import anec_rigorous, null_ic_canonical
+from warpax.geodesics import eulerian_affine_scale, integrate_geodesic_symplectic
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from warpax.geometry import evaluate_curvature_grid
@@ -43,9 +44,11 @@ from warpax.energy_conditions import (
     typeI_min_margins,
 )
 from warpax.energy_conditions.filtering import shape_function_mask
+from warpax.grids import proper_volume_weights
 
-# Reuse the exoticity index (no re-implementation).
+# Reuse the exoticity index and the impact fan (no re-implementation).
 from run_exoticity_ranking import exoticity_index
+from run_anec_symplectic import B_SCAN as SYMPLECTIC_B_SCAN
 
 
 def _stability(values):
@@ -82,8 +85,10 @@ FAMILY = {
 }
 GRID_N = N_LADDER             # exoticity-index spatial resolutions (wall-resolved ladder)
 ANEC_STEPS = [2048, 4096, 8192]  # ANEC integrator resolutions
-N_B = 30                       # impact-parameter fan (matches run_anec_symplectic;
-                               # Natario's min at b~0.777 is sharp, needs dense b)
+# The impact-parameter fan IS run_anec_symplectic's, imported rather than
+# restated: the two scripts report the same ANEC minimum, and when this one kept
+# 30 points on [1e-3, 2.5] while that one moved to 50 on [1e-3, 5.0] the same
+# quantity came out -0.1416 here and -0.1461 there.
 
 
 def _instantiate(name):
@@ -92,24 +97,51 @@ def _instantiate(name):
 
 
 # ---------------------------------------------------------------- ANEC minimum
-def _anec_min(metric, R, num_steps):
+def _anec_ray(metric, R, b, span, num_steps):
+    x0 = jnp.array([0.0, -8.0 * R, float(b), 0.0], dtype=jnp.float64)
+    # Pin the free affine scale to -g(k,n) = 1, exactly as
+    # run_anec_symplectic.py does. Without this the Natario ray is scaled
+    # differently from the other three (its shift tends to -v_s x_hat at
+    # infinity), and this table certified an ANEC minimum the paper does not
+    # report: -0.0510 against the published -0.0764.
+    sc = float(eulerian_affine_scale(metric, x0))
+    return anec_rigorous(metric, x0, jnp.array([sc, 0.0, 0.0]),
+                         affine_bounds=(0.0, span / sc), num_steps=num_steps,
+                         order=4, null_tol=1e-6)
+
+
+WALL_SUPPORT_R = 3.0   # tail_bound certifies f < 1.3e-14 outside this radius
+PROBE_SPAN_MULT = 8.0
+
+
+def _anec_span(metric, R, num_steps) -> tuple[float, bool]:
+    """Affine span covering the crossing, read off the geodesic itself.
+
+    Not a stationarity search: past the crossing, doubling the window adds no
+    physics and does add integrator drift, so the integral is stationary and then
+    degrades. This test is monotone.
+    """
+    x0 = jnp.array([0.0, -8.0 * R, 1.0e-3 * R, 0.0], dtype=jnp.float64)
+    sc = float(eulerian_affine_scale(metric, x0))
+    x0c, p0 = null_ic_canonical(metric, x0, jnp.array([sc, 0.0, 0.0]))
+    probe = PROBE_SPAN_MULT * 16.0 * R
+    geo = integrate_geodesic_symplectic(
+        metric, x0c, p0, (0.0, probe / sc),
+        num_steps=int(round(num_steps * PROBE_SPAN_MULT)), order=4,
+    )
+    pos = np.asarray(geo.positions)
+    lam = np.asarray(geo.ts) * sc
+    r_s = np.sqrt((pos[:, 1] - V_S * pos[:, 0]) ** 2 + pos[:, 2] ** 2 + pos[:, 3] ** 2)
+    return crossing_span(lam, r_s, WALL_SUPPORT_R * R)
+
+
+def _anec_min(metric, R, num_steps, span):
     """Most-negative geodesic ANEC line integral over an axial impact fan."""
-    x_start = -8.0 * R
-    span = 16.0 * R
-    b_scan = np.linspace(1.0e-3 * R, 2.5 * R, N_B)
+    b_scan = SYMPLECTIC_B_SCAN * R
     best = np.inf
     worst_wit = 0.0
     for b in b_scan:
-        x0 = jnp.array([0.0, x_start, float(b), 0.0], dtype=jnp.float64)
-        # Pin the free affine scale to -g(k,n) = 1, exactly as
-        # run_anec_symplectic.py does. Without this the Natario ray is scaled
-        # differently from the other three (its shift tends to -v_s x_hat at
-        # infinity), and this table certified an ANEC minimum the paper does not
-        # report: -0.0510 against the published -0.0764.
-        sc = float(eulerian_affine_scale(metric, x0))
-        r = anec_rigorous(metric, x0, jnp.array([sc, 0.0, 0.0]),
-                          affine_bounds=(0.0, span / sc), num_steps=num_steps,
-                          order=4, null_tol=1e-6)
+        r = _anec_ray(metric, R, b, span, num_steps)
         li = float(r.symplectic.line_integral)
         worst_wit = max(worst_wit, float(r.symplectic.max_abs_g_kk))
         best = min(best, li)
@@ -123,10 +155,12 @@ def _grid_axes(name, N):
     grid = benchmark_grid(metric, N)
     bs = 4096 if N < 100 else 2048
     curv = evaluate_curvature_grid(metric, grid, batch_size=bs)
-    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv)
     coords = build_coord_batch(grid, t=0.0)
     mask = shape_function_mask(metric, coords, grid.shape)
-    fracs = type_fractions(ff, mask=mask, volume_weights=grid.volume_weights_array)
+    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv,
+                                 lmi_where=mask)
+    vol_w = proper_volume_weights(grid.volume_weights_array, curv.metric)
+    fracs = type_fractions(ff, mask=mask, volume_weights=vol_w)
     margins = typeI_min_margins(ff, mask=mask)
     nec = margins["nec_min"]
     nec_sev = abs(nec) if (nec is not None and np.isfinite(nec) and nec < 0) else 0.0
@@ -138,9 +172,12 @@ def _f(x, nd=3):
 
 
 def _verdict_str(c):
-    if c.get("verdict") == "stability":
-        return f"stable ({_f(c.get('spread'), 4)})"
-    return "--"
+    # Read the flag, not the presence of the key: _stability() always sets
+    # verdict="stability", so this column could not fail.
+    if c.get("verdict") != "stability":
+        return "--"
+    word = "stable" if c.get("stable", False) else r"\emph{unstable}"
+    return f"{word} ({_f(c.get('spread'), 4)})"
 
 
 def write_table(results, out_path):
@@ -181,19 +218,25 @@ def main():
     # ---- ANEC minimum vs integrator steps (also supplies the exoticity ANEC axis)
     print("\nANEC minimum (geodesic) vs integrator steps:")
     anec_series = {}
+    anec_spans = {}
     anec_min_abs = {}
     for name in ORDER:
         metric = _instantiate(name)
         R = FAMILY[name][3]
+        # Window measured once, then held fixed: the ladder's knob is num_steps.
+        span, span_ok = _anec_span(metric, R, ANEC_STEPS[0])
         vals, wits = [], []
         for ns in ANEC_STEPS:
-            mn, wit = _anec_min(metric, R, ns)
+            mn, wit = _anec_min(metric, R, ns, span)
             vals.append(mn)
             wits.append(wit)
         anec_series[name] = vals
+        anec_spans[name] = {"affine_span": float(span),
+                            "affine_span_covers_crossing": bool(span_ok)}
         anec_min_abs[name] = abs(vals[-1])  # finest resolution
         print(f"  {name:16s} " + " ".join(f"{v:+.5f}" for v in vals) +
-              f"   worst|g(k,k)|={max(wits):.1e}")
+              f"   worst|g(k,k)|={max(wits):.1e}  span={span:.1f}"
+              f"{'' if span_ok else ' [RAY DID NOT LEAVE]'}", flush=True)
 
     # ---- Exoticity index vs wall grid resolution
     print("\nExoticity index vs wall grid resolution:")
@@ -224,12 +267,13 @@ def main():
 
     out = {
         "params": {"v_s": V_S, "grid_N": GRID_N, "anec_steps": ANEC_STEPS,
-                   "n_b": N_B,
+                   "n_b": int(SYMPLECTIC_B_SCAN.size),
                    "note": "exoticity resolution = spatial grid N (wall-clustered); "
                            "ANEC resolution = symplectic integrator steps (geodesic, "
                            "not a spatial grid). matched family R_b=1 sigma=8 for all "
                            "four drives (Rodal included)."},
         "order": ORDER,
+        "anec_affine_window": anec_spans,
         "anec_min_series": anec_series,
         "exoticity_series": exo_series,
         "results": results,

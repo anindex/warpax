@@ -5,12 +5,13 @@ type: software
 authors:
   - given-names: An T.
     family-names: Le
-    email: an@robot-learning.de
+    email: an.lt@vinuni.edu.vn
+    affiliation: "Center for Environmental Intelligence, VinUniversity, Hanoi, Vietnam"
     orcid: "https://orcid.org/0000-0003-0929-3316"
 repository-code: "https://github.com/anindex/warpax"
 license: MIT
-version: 1.3.0
-date-released: "2026-06-22"
+version: 1.4.0
+date-released: "2026-08-22"
 keywords:
   - warp drive
   - general relativity
@@ -22,11 +23,17 @@ keywords:
   - source consistency
   - Einstein constraints
   - Hawking-Ellis classification
+  - linear matrix inequality
+  - interval arithmetic
 abstract: >-
   WarpAX uses JAX automatic differentiation to compute exact curvature tensors
-  from analytic warp drive metrics and performs continuous BFGS optimization over
-  the full timelike observer manifold to find worst-case energy condition
-  violations.  The toolkit includes source-consistency modules for Einstein
+  from analytic warp drive metrics and decides the null, weak, strong and
+  dominant energy conditions over every timelike observer at once, from the
+  positive semidefiniteness of a single 4x4 linear matrix inequality, with a
+  continuous BFGS search over the observer manifold as the independent
+  cross-check.  Reported verdicts carry exact rational certificates, and
+  interval branch-and-bound supplies verified continuum enclosures of the
+  worst-case violation.  The toolkit includes source-consistency modules for Einstein
   constraint residuals, anisotropic TOV equilibrium, ADM mass, Israel junction
   conditions, and invariant transport diagnostics, as well as source-first shell
   construction (S-shell Class I, T-shell Class II) with Bernstein-parameterized

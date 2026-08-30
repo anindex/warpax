@@ -97,26 +97,31 @@ def test_conformal_type_iv_positive_witness_uses_lmi():
     lmi = {"nec": jnp.float64(-0.7), "wec": jnp.float64(-0.8),
            "sec": jnp.float64(-0.9), "dec": jnp.float64(-1.1)}
     nec, wec, sec, dec = _exact_margins(he, nan, nan, nan, nan, witness, lmi)
-    assert float(nec) == pytest.approx(-0.7)
+    # The NEC slot carries the full null deficit, which is twice the LMI margin.
+    assert float(nec) == pytest.approx(-1.4)
     assert float(wec) == pytest.approx(-0.8)
     assert float(sec) == pytest.approx(-0.9)
     assert float(dec) == pytest.approx(-1.1)
 
 
-def test_momentum_sourced_type_iv_uses_witness():
-    """When the momentum witness is negative it is the reported NEC margin.
+def test_nonI_nec_is_the_full_null_deficit_not_the_witness():
+    """The NEC slot is one quantity at every type: min_{|s|=1} q(s).
 
-    It is kept over the LMI margin there because it is strictly better evidence:
-    an explicit null vector ``k = n +/- jhat`` a reader can substitute by hand.
+    It used to be the momentum witness wherever that happened to be negative and
+    ``lmi["nec"]`` otherwise -- three different scales in one array, since the
+    witness probes a single direction (an upper bound on the deficit) and
+    ``lmi["nec"]`` is half of it. Now non-Type-I always reports ``2*lmi["nec"]``,
+    which is ``slemma.null_deficit`` and the same quantity as the Type-I
+    ``min_i(rho + p_i)``.
     """
     from warpax.energy_conditions.frame_free import _exact_margins
 
     he = jnp.float64(4.0)
-    witness = jnp.float64(-2.0)
     nan = jnp.float64(jnp.nan)
     lmi = {k: jnp.float64(-0.5) for k in ("nec", "wec", "sec", "dec")}
-    nec, _, _, _ = _exact_margins(he, nan, nan, nan, nan, witness, lmi)
-    assert float(nec) == pytest.approx(-2.0)
+    for witness in (jnp.float64(-2.0), jnp.float64(+0.5)):
+        nec, _, _, _ = _exact_margins(he, nan, nan, nan, nan, witness, lmi)
+        assert float(nec) == pytest.approx(-1.0)
 
 
 def test_type_ii_nec_is_not_read_off_the_momentum_witness():

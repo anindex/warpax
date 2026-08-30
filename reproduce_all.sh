@@ -12,6 +12,7 @@
 # Stages: core (analysis, convergence, scalars, geodesics),
 #         ablation (ablation + supplementary studies),
 #         figures (figure generation),
+#         gate (prose/table consistency check; runs last, needs everything above),
 #         enclosures (certified interval branch-and-bound; hours, opt-in only).
 set -euo pipefail
 
@@ -42,11 +43,11 @@ while [ $# -gt 0 ]; do
             fi
             STAGE_ONLY="$1"
             ;;
-        core|ablation|figures|enclosures) STAGE_ONLY="$1" ;;
+        core|ablation|figures|enclosures|gate) STAGE_ONLY="$1" ;;
         -h|--help)
             echo "Usage: $0 [--keep-cache] [--stage core|ablation|figures|enclosures]"
             echo "  --keep-cache   Skip cache deletion (only recompute missing results)"
-            echo "  --stage NAME   Run only one stage (core, ablation, figures, enclosures)"
+            echo "  --stage NAME   Run only one stage (core, ablation, figures, gate, enclosures)"
             echo "                 'enclosures' is hours of interval branch-and-bound;"
             echo "                 it is deliberately not part of 'all'."
             exit 0
@@ -192,9 +193,8 @@ run_core() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_lmi_audit.py"
     echo ""
 
-    echo "[K17] emit_paper_numbers.py + check_paper_numbers.py Prose/table consistency gate"
+    echo "[K17] emit_paper_numbers.py Emit the auto-sourced macros"
     $PYTHON "${SCRIPT_DIR}/scripts/emit_paper_numbers.py"
-    $PYTHON "${SCRIPT_DIR}/scripts/check_paper_numbers.py"
 
     echo ""
     echo "[1/8] run_analysis.py Full metric analysis sweep"
@@ -229,7 +229,8 @@ run_core() {
 
     echo ""
     echo "[8/8] run_curvature_convergence.py Curvature-exponent resolution stability"
-    $PYTHON "${SCRIPT_DIR}/scripts/run_curvature_convergence.py" --velocities 0.2 0.3 0.5
+    # No --velocities override: the default is the scaling table's own window.
+    $PYTHON "${SCRIPT_DIR}/scripts/run_curvature_convergence.py"
 
     echo ""
     echo " Core stage complete."
@@ -346,14 +347,30 @@ run_figures() {
     echo ""
 }
 
+# The consistency gate belongs AFTER everything, not inside core. It used to run as
+# K17, roughly two thirds of the way through the core stage -- before run_analysis.py
+# had written a single .npz, so write_manifest.check() reported all 41 cached grids
+# absent, the gate exited 1, and `set -e` tore the run down before the steps that
+# would have produced them. A gate placed where its inputs do not exist yet does not
+# check the pipeline; it just stops it.
+run_gate() {
+    echo "============================================================"
+    echo " Stage: Prose/table consistency gate"
+    echo "============================================================"
+    echo ""
+    $PYTHON "${SCRIPT_DIR}/scripts/check_paper_numbers.py"
+}
+
 case "${STAGE_ONLY}" in
     core) run_core ;;
     ablation) run_ablation ;;
     figures) run_figures ;;
+    gate) run_gate ;;
     "")
         run_core
         run_ablation
         run_figures
+        run_gate
         ;;
     enclosures)
         run_enclosures

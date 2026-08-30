@@ -91,17 +91,37 @@ def eulerian_null_witness(
     return rho + S_par - 2.0 * jmag
 
 
-def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi):
+# A boosted Type-I tensor keeps he_type = 1 while jnp.linalg.eig returns nearly
+# parallel eigenvectors, and the eigenvalue route then publishes a wrong margin
+# as exact: at rapidity 11 a diagonal Type I with invariant NEC margin 2.5 came
+# out 48. The eigenvalue error grows like cond(V)^2 * eps, so 1e5 keeps it under
+# ~1e-6 relative. Past it the point takes the LMI, which touches no eigenvector;
+# there the margin lands under the (scale-relative) noise floor and reads as
+# saturated, which is the honest verdict for an invariant 12 orders below the
+# components carrying it. Fires at 0 wall points on all four constructions.
+_EVEC_COND_MAX = 1e5
+
+
+def ill_conditioned_eigenbasis(evecs, cond_max: float = _EVEC_COND_MAX):
+    """True where the eigenvector matrix is too ill-conditioned to read."""
+    sv = jnp.linalg.svd(evecs, compute_uv=False)
+    return (sv[..., 0] / jnp.maximum(sv[..., -1], 1e-300)) > cond_max
+
+
+def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi,
+                   ill_conditioned=None):
     """Select cap-free EC margins by Hawking-Ellis type (branchless for vmap).
 
     Type I -> eigenvalue-inequality margins (exact, necessary & sufficient).
 
     Type II/III/IV -> all four margins come from :func:`.slemma.certify_point`.
 
-    The momentum witness is retained only where it is *negative*, because there it
-    is strictly better evidence than a margin: an explicit null vector a reader can
-    substitute by hand. Where it is non-negative it certifies nothing, and the two
-    previous fallbacks were both unsound.
+    The NEC margin at every type is the full null deficit ``min_{|s|=1} q(s)``:
+    ``min_i(rho + p_i)`` at Type I and ``2 * lmi["nec"]`` elsewhere. The momentum
+    witness is kept as evidence (an explicit null vector a reader can substitute
+    by hand) but not as the margin -- it probes one direction, so it is an upper
+    bound on the deficit, and reporting it where it happened to be negative put
+    three different scales in one array.
 
     Returning the witness as the Type-II NEC margin was wrong. It probes the
     momentum plane only, so a violation living in the transverse channel is
@@ -121,10 +141,10 @@ def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi):
     assumption baked into it: see ``tests/test_slemma.py``.
     """
     is_I = he_type == 1
-    # Keep the closed-form null witness wherever it certifies (negative); otherwise
-    # defer to the LMI, which quantifies over the full observer set.
-    certifying = witness < 0.0
-    nonI_nec = jnp.where(certifying, witness, lmi["nec"])
+    if ill_conditioned is not None:
+        is_I = is_I & ~ill_conditioned
+    # 2 * lmi["nec"] is slemma.null_deficit, the same quantity as nec_I.
+    nonI_nec = 2.0 * lmi["nec"]
     nec = jnp.where(is_I, nec_I, nonI_nec)
     wec = jnp.where(is_I, wec_I, lmi["wec"])
     sec = jnp.where(is_I, sec_I, lmi["sec"])
@@ -159,7 +179,7 @@ def certify_point_frame_free(
     -------
     dict
         ``he_type`` (1-4), ``rho``, ``pressures`` (NaN if non-Type-I),
-        ``nec``/``wec``/``sec``/``dec`` margins (certified witness if non-Type-I),
+        ``nec``/``wec``/``sec``/``dec`` margins (from the LMI if non-Type-I),
         ``eigenvalues``, ``eigenvalues_imag``, ``is_vacuum``.
     """
     if g_inv is None:
@@ -171,6 +191,7 @@ def certify_point_frame_free(
     nec, wec, sec, dec = _exact_margins(
         cls.he_type, nec_I, wec_I, sec_I, dec_I, witness,
         certify_point_lmi(T_ab, g_ab),
+        ill_conditioned_eigenbasis(cls.eigenvectors),
     )
     return {
         "he_type": cls.he_type,
@@ -193,6 +214,7 @@ def certify_grid_frame_free(
     *,
     solver: str = "auto",
     tol: float = 1e-10,
+    lmi_where: Float[Array, "..."] | None = None,
 ) -> FrameFreeGridResult:
     """Frame-independent EC certification across an evaluation grid.
 
@@ -211,6 +233,14 @@ def certify_grid_frame_free(
         Eigenvalue backend.
     tol : float
         Classification tolerance.
+    lmi_where : Float[Array, "..."] | None
+        Boolean mask of points whose margins the caller will actually read. The
+        LMI -- the whole cost of this function -- is then evaluated only on the
+        non-Type-I points inside it, and non-Type-I points outside it get NaN
+        margins rather than a number nobody asked for. Pass the wall mask when
+        only wall-restricted statistics are consumed: a wall band is ~1% of a
+        bubble grid against the ~80% that is non-Type-I. ``None`` (default)
+        computes everything, which is what a grid-wide consumer needs.
 
     Returns
     -------
@@ -242,7 +272,11 @@ def certify_grid_frame_free(
     # Type-IV dominated, so `he != 1` holds somewhere on all of them and the guard
     # never fired. Gather the points that actually read the slot, run the LMI on those,
     # and scatter back; the rest keep a placeholder that is never selected.
-    nonI = np.flatnonzero(he != 1)
+    ill = np.asarray(jax.vmap(ill_conditioned_eigenbasis)(cls.eigenvectors))
+    wanted = (he != 1) | ill
+    if lmi_where is not None:
+        wanted &= np.asarray(jnp.reshape(lmi_where, (-1,))).astype(bool)
+    nonI = np.flatnonzero(wanted)
     unused = jnp.zeros_like(witness)
     if nonI.size:
         idx = jnp.asarray(nonI)
@@ -250,8 +284,16 @@ def certify_grid_frame_free(
         lmi = {k: unused.at[idx].set(v) for k, v in sub.items()}
     else:
         lmi = {"nec": unused, "wec": unused, "sec": unused, "dec": unused}
+    if lmi_where is not None:
+        # A non-Type-I point the caller excluded has no verdict, and NaN is the
+        # sentinel every consumer already treats as one. Zero would read as a
+        # satisfied condition.
+        nan = jnp.full_like(unused, jnp.nan)
+        skipped = jnp.asarray(((he != 1) | ill) & ~wanted)
+        lmi = {k: jnp.where(skipped, nan, v) for k, v in lmi.items()}
     nec, wec, sec, dec = jax.vmap(_exact_margins)(
-        cls.he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi
+        cls.he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi,
+        jnp.asarray(ill),
     )
 
     n_vacuum = int(np.sum(np.asarray(cls.is_vacuum) > 0.5))

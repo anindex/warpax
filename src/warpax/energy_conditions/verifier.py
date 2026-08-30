@@ -12,6 +12,7 @@ Eulerian-frame margins are exposed separately by
 from __future__ import annotations
 
 
+import warnings
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -546,8 +547,18 @@ def verify_grid(
     n_type_ii = int(jnp.sum(he_types == 2.0))
     n_type_iii = int(jnp.sum(he_types == 3.0))
     n_type_iv = int(jnp.sum(he_types == 4.0))
-    # Near-vacuum is a subset of n_type_i; reported separately.
-    n_vacuum = int(jnp.sum(cls_results.is_vacuum))
+    # Near-vacuum is a subset of n_type_i; reported separately. Threshold rather
+    # than sum the flag: a point whose stress-energy was NaN carries a NaN flag
+    # (it has no verdict, vacuum included), and summing that gave int(NaN).
+    n_vacuum = int(jnp.sum(cls_results.is_vacuum > 0.5))
+    n_undecided = int(jnp.sum(jnp.isnan(he_types)))
+    if n_undecided:
+        warnings.warn(
+            f"{n_undecided} of {he_types.size} grid points have a non-finite "
+            "stress-energy and carry no Hawking-Ellis verdict; they are counted "
+            "in no type and in no margin.",
+            stacklevel=2,
+        )
     # nanmax: a NaN-sanitized eigenvalue must not poison the grid-wide
     # imaginary-part diagnostic (it is a summary, not a certified margin).
     max_imag = float(jnp.nanmax(jnp.abs(cls_results.eigenvalues_imag)))

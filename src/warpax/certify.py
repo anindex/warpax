@@ -41,7 +41,7 @@ from .energy_conditions.frame_free import (
 )
 from .geometry import GridSpec, evaluate_curvature_grid
 from .geometry.grid import build_coord_batch
-from .grids import wall_clustered
+from .grids import wall_clustered, proper_volume_weights
 
 
 class CertifyResult(NamedTuple):
@@ -114,7 +114,8 @@ def certify(
     mask = shape_function_mask(metric, coords, shape,
                                f_low=wall_bounds[0], f_high=wall_bounds[1])
     mask_flat = np.asarray(jnp.reshape(mask, (-1,))).astype(bool)
-    vol_w = grid.volume_weights_array
+    vol_w = (None if grid.volume_weights_array is None
+             else proper_volume_weights(grid.volume_weights_array, g))
 
     fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
     mm = typeI_min_margins(ff, mask=mask_flat)

@@ -65,6 +65,7 @@ from warpax.energy_conditions.frame_free import (
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
+from warpax.grids import proper_volume_weights
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
@@ -96,12 +97,18 @@ def run_point(name, v_s, N):
     metric = _instantiate(name, v_s)
     grid = benchmark_grid(metric, N)
     curv = evaluate_curvature_grid(metric, grid, batch_size=2048)
-    ff = certify_grid_frame_free(
-        curv.stress_energy, curv.metric, curv.metric_inv, solver="standard"
-    )
     coords = build_coord_batch(grid, t=0.0)
     mask = shape_function_mask(metric, coords, shape, f_low=F_LOW, f_high=F_HIGH)
-    vol_w = grid.volume_weights_array
+    # Wall-restricted statistics only, so the LMI runs on the wall band (~1% of
+    # the grid) rather than on every non-Type-I point (~80%).
+    ff = certify_grid_frame_free(
+        curv.stress_energy, curv.metric, curv.metric_inv, solver="standard",
+        lmi_where=mask,
+    )
+    # Proper volume, not coordinate volume: the manuscript calls every one of
+    # these fractions proper-volume weighted, and Van den Broeck's slice carries
+    # gamma_ij = B^2 delta_ij (sqrt(det gamma) = B^3 running over [1, 3.4]).
+    vol_w = proper_volume_weights(grid.volume_weights_array, curv.metric)
     fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
     mm = typeI_min_margins(ff, mask=np.asarray(jnp.reshape(mask, (-1,))).astype(bool))
     return {

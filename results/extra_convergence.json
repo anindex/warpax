@@ -1,0 +1,175 @@
+{
+  "params": {
+    "v_s": 0.5,
+    "grid_N": [
+      80,
+      100,
+      120
+    ],
+    "anec_steps": [
+      2048,
+      4096,
+      8192
+    ],
+    "n_b": 50,
+    "note": "exoticity resolution = spatial grid N (wall-clustered); ANEC resolution = symplectic integrator steps (geodesic, not a spatial grid). matched family R_b=1 sigma=8 for all four drives (Rodal included)."
+  },
+  "order": [
+    "Alcubierre",
+    "Nat\u00e1rio",
+    "Van den Broeck",
+    "Rodal"
+  ],
+  "anec_affine_window": {
+    "Alcubierre": {
+      "affine_span": 43.578125,
+      "affine_span_covers_crossing": true
+    },
+    "Nat\u00e1rio": {
+      "affine_span": 32.5625,
+      "affine_span_covers_crossing": true
+    },
+    "Van den Broeck": {
+      "affine_span": 47.578125,
+      "affine_span_covers_crossing": true
+    },
+    "Rodal": {
+      "affine_span": 43.578125,
+      "affine_span_covers_crossing": true
+    }
+  },
+  "anec_min_series": {
+    "Alcubierre": [
+      -0.14615230319920758,
+      -0.1461429647067243,
+      -0.1461470031724032
+    ],
+    "Nat\u00e1rio": [
+      -0.7009939706421988,
+      -0.7009922629145853,
+      -0.7010072532355068
+    ],
+    "Van den Broeck": [
+      -0.06218592346080272,
+      -0.06220857699139346,
+      -0.0621928248992904
+    ],
+    "Rodal": [
+      -0.0016707656406793477,
+      -0.0016707692846423894,
+      -0.0016707624706274952
+    ]
+  },
+  "exoticity_series": {
+    "Alcubierre": [
+      0.9963346289452817,
+      0.9957199717541106,
+      0.9965641874331699
+    ],
+    "Nat\u00e1rio": [
+      0.9650759501894725,
+      0.9602471862123908,
+      0.9602371148380712
+    ],
+    "Van den Broeck": [
+      0.7176870604079072,
+      0.7015316082931077,
+      0.7094122863709219
+    ],
+    "Rodal": [
+      0.010456225298826755,
+      0.010456225298826755,
+      0.010456225298826755
+    ]
+  },
+  "results": {
+    "Alcubierre": {
+      "exoticity": {
+        "values": [
+          0.9963346289452817,
+          0.9957199717541106,
+          0.9965641874331699
+        ],
+        "spread": 0.0008442156790592348,
+        "stable": true,
+        "verdict": "stability"
+      },
+      "anec_min": {
+        "values": [
+          -0.14615230319920758,
+          -0.1461429647067243,
+          -0.1461470031724032
+        ],
+        "spread": 9.338492483274008e-06,
+        "stable": true,
+        "verdict": "stability"
+      }
+    },
+    "Nat\u00e1rio": {
+      "exoticity": {
+        "values": [
+          0.9650759501894725,
+          0.9602471862123908,
+          0.9602371148380712
+        ],
+        "spread": 0.004838835351401283,
+        "stable": true,
+        "verdict": "stability"
+      },
+      "anec_min": {
+        "values": [
+          -0.7009939706421988,
+          -0.7009922629145853,
+          -0.7010072532355068
+        ],
+        "spread": 1.4990320921559608e-05,
+        "stable": true,
+        "verdict": "stability"
+      }
+    },
+    "Van den Broeck": {
+      "exoticity": {
+        "values": [
+          0.7176870604079072,
+          0.7015316082931077,
+          0.7094122863709219
+        ],
+        "spread": 0.016155452114799518,
+        "stable": true,
+        "verdict": "stability"
+      },
+      "anec_min": {
+        "values": [
+          -0.06218592346080272,
+          -0.06220857699139346,
+          -0.0621928248992904
+        ],
+        "spread": 2.2653530590742432e-05,
+        "stable": true,
+        "verdict": "stability"
+      }
+    },
+    "Rodal": {
+      "exoticity": {
+        "values": [
+          0.010456225298826755,
+          0.010456225298826755,
+          0.010456225298826755
+        ],
+        "spread": 0.0,
+        "stable": true,
+        "verdict": "stability"
+      },
+      "anec_min": {
+        "values": [
+          -0.0016707656406793477,
+          -0.0016707692846423894,
+          -0.0016707624706274952
+        ],
+        "spread": 6.814014894213419e-09,
+        "stable": true,
+        "verdict": "stability"
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 """Cross-construction all-observer verification, in two explicitly separate blocks.
 
-Referee item A3. The superseded panel evaluated each construction at *its own*
+The superseded panel evaluated each construction at *its own*
 parameters and speed, on a single grid, with no per-construction convergence
 evidence, and reported a "wall cells" figure that was neither measured on the
 grid used nor counted per wall normal. None of it was comparable.
@@ -61,7 +61,7 @@ from warpax.analysis.construction_adapter import (
 from warpax.analysis.invariant_verification import single_frame_miss
 from warpax.energy_conditions.frame_free import certify_grid_frame_free
 from warpax.geometry import evaluate_curvature_points
-from warpax.grids import axisymmetric_grid, wall_cells_on_axis
+from warpax.grids import axisymmetric_grid, wall_cells_on_axis, proper_volume_weights
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
@@ -84,7 +84,9 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
     # reported the Garattini wall at 1.5 cells because the radial nodes cluster on a
     # sphere the wall only crosses; on the axis through the bubble centre the same
     # ladder level spans 4.5.
-    axis = center + np.concatenate([-grid.r[::-1], grid.r])
+    # grid.r may start at 0, which the mirror would duplicate into a zero-width cell.
+    r_pos = grid.r[grid.r > 0.0]
+    axis = center + np.concatenate([-r_pos[::-1], grid.r])
     res = wall_cells_on_axis(metric, axis)
     row = {
         "metric": spec.name,
@@ -110,7 +112,7 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
 
     f = np.asarray(jax.vmap(metric.shape_function_value)(grid.coords))
     wall = (f >= F_LOW) & (f <= F_HIGH)
-    w = grid.weights
+    w = np.asarray(proper_volume_weights(grid.weights, g))
 
     ff = certify_grid_frame_free(T, g, gi, solver="auto")
     he = np.asarray(ff.he_types).ravel()

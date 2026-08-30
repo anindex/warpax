@@ -31,7 +31,7 @@ import argparse
 import os
 import time
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -46,7 +46,7 @@ from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import RodalMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.grids import wall_clustered
+from warpax.grids import wall_clustered, proper_volume_weights
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,
     shape_function_mask,
@@ -102,7 +102,7 @@ def run_single(
     mask = shape_function_mask(metric, coords, grid_spec.shape, f_low=F_LOW, f_high=F_HIGH)
     # Proper per-cell volume weights on clustered grids; None (uniform) recovers
     # raw point-fraction behavior exactly.
-    vol_w = grid_spec.volume_weights_array
+    vol_w = proper_volume_weights(grid_spec.volume_weights_array, curv.metric)
     wall = compute_wall_restricted_stats(
         ec, mask, eulerian_margins=eulerian_margins, volume_weights=vol_w,
     )
@@ -238,8 +238,8 @@ def write_convergence_table(panel: dict, out_path: str) -> None:
     lines.append(r"\end{tabular}")
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/run_clustered_convergence.py",
+                    sources="results/clustered_convergence_alcubierre.json")
     print(f"  Wrote {out_path}")
 
 

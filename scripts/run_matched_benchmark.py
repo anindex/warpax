@@ -58,6 +58,7 @@ from warpax.energy_conditions.filtering import (
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
+from warpax.grids import proper_volume_weights
 
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
@@ -110,7 +111,7 @@ def run_single(name: str, metric, N: int, n_starts: int, batch_size: int) -> dic
 
     coords = build_coord_batch(grid_spec, t=0.0)
     mask = shape_function_mask(metric, coords, shape, f_low=F_LOW, f_high=F_HIGH)
-    vol_w = grid_spec.volume_weights_array
+    vol_w = proper_volume_weights(grid_spec.volume_weights_array, curv.metric)
     wall = compute_wall_restricted_stats(
         ec, mask, eulerian_margins=eulerian_margins, volume_weights=vol_w,
     )

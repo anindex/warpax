@@ -51,6 +51,7 @@ from warpax.energy_conditions.frame_free import certify_grid_frame_free, type_fr
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
+from warpax.grids import proper_volume_weights
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
@@ -89,9 +90,9 @@ def verify_metric(name, v_s, N):
     coords = build_coord_batch(grid, t=0.0)
     mask = shape_function_mask(metric, coords, shape, f_low=F_LOW, f_high=F_HIGH)
     mask_flat = np.asarray(jnp.reshape(mask, (-1,))).astype(bool)
-    vol_w = grid.volume_weights_array
+    vol_w = proper_volume_weights(grid.volume_weights_array, g)
 
-    ff = certify_grid_frame_free(T, g, gi, solver="standard")
+    ff = certify_grid_frame_free(T, g, gi, solver="standard", lmi_where=mask)
     fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
     miss = single_frame_miss(T, g, gi, mask=mask_flat, volume_weights=np.asarray(jnp.reshape(vol_w, (-1,))))
     exotic = integrated_exotic_content(T, g, gi, vol_w, mask=mask)

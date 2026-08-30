@@ -154,6 +154,15 @@ def solve_tshell_potentials(
     # Source: 8pi alpha S_x (the e^{2Lambda} factors cancel in index raising)
     source_beta = 8.0 * jnp.pi * alpha_grid * S_x_grid
 
+    # KNOWN DEFECT, not certified by the manuscript (see main.tex Sec. 2: the
+    # S- and T-shell constructions are the companion note's, "we neither
+    # construct nor certify those shells here"). This ODE is not the momentum
+    # constraint for the Cartesian ansatz beta^i = b(r) delta^i_x that
+    # TShellMetric actually uses: the geometric S^i of the constructed metric
+    # comes out 2-3 orders below the prescribed S_x and flips sign across the
+    # shell. Do not read the T-shell output as a source-consistent solution
+    # until the constraint is rederived for this ansatz.
+    #
     # ODE coefficients: A(r) = 2/r + 2 Phi' - 2 Lambda',  B(r) = -2/r^2
     A_coeff = 2.0 / r_safe + 2.0 * dPhi_dr - 2.0 * dLambda_dr
     A_coeff = jnp.where(r_grid < 1e-6, 0.0, A_coeff)

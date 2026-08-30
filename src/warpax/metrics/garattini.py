@@ -23,17 +23,32 @@ Hubble flow everywhere instead of switching it off inside the bubble, its slices
 are not flat, and its shift is NOT irrotational -- so it reported wall vorticity
 and Type-IV structure that the published construction does not have.
 
-Irrotationality is the point of the paper, and it holds only under the matching
-condition ``v = r_0 / L`` (the bubble moves with the Hubble flow at its own
-position). Then
+Irrotationality is the point of the paper, and it holds under the matching condition
+``v = r_0 / L`` (the bubble moves with the Hubble flow at its own position). Then
 
     N = -x/L + f (x - x_s)/L,
 
 a sum of two radial gradients -- about the origin and about the bubble centre --
 hence curl N = 0 identically. By the momentum constraint the Eulerian momentum
 density then vanishes and the stress-energy is Hawking-Ellis Type I everywhere.
-Away from matching the residual ``f (x_s/L - v)`` is a constant vector times a
-radial profile, whose curl is nonzero.
+
+This class realises the matched family and ONLY that family. ``shift`` takes
+``x_s(t) = (v_s/H) e^{Ht}`` and ``v = H x_s``, so ``v = r_0 / L`` is an identity of the
+parametrisation rather than a condition on it, so ``curl beta`` vanishes
+*identically* at every ``v_s``, ``R``, ``sigma`` and ``H`` -- an algebraic fact
+about the shift, not a numerical result. What the autodiff pipeline returns is
+that fact through float64: the realised values are rounding noise at 1e-18 to
+1e-22, not the literal 0.0 an earlier version of this docstring claimed. No
+irrotationality tolerance appears anywhere downstream because the vanishing is
+structural, not because the measurement is exact.
+
+Two consequences worth stating plainly, because an earlier version of this docstring
+got both wrong. First, ``v_s`` fixes the bubble's position at ``t = 0`` as well as its
+speed there: ``r_0 = v_s / H`` and ``|N(x_s)| = v_s``. Second, the un-matched case is
+NOT implemented, so no claim about it is tested here; the previous text quoted a
+measurement (``|curl beta| ~ 0.29``) from a configuration this class cannot produce.
+``matched()`` is the inverse parametrisation -- specify ``r_0`` and get ``v_s = H r_0``
+-- not a different spacetime.
 
 At ``H = 0`` with the matching relaxed this reduces to Alcubierre.
 
@@ -43,10 +58,12 @@ symbolic cross-checks), not a structural placeholder.
 
 Notes
 -----
-The spacetime is NOT asymptotically flat: ``gamma_ij`` grows as ``e^{2 H t}``.
-Certification is performed on a reference slice ``t = t0`` (default ``t0 = 0``,
-where ``gamma = delta``); the H-dependence still enters through the time
-derivative of the metric in the curvature chain. ANEC along a complete geodesic
+The slices are flat by construction -- ``spatial_metric`` returns the identity at
+every ``t`` -- because this is de Sitter in Painleve-Gullstrand form, where the
+expansion is carried entirely by the background shift ``-x^i/L``. An earlier version
+of this note described ``gamma_ij`` as growing like ``e^{2 H t}``; that was the
+superseded exponential-slicing implementation, not this one. The H-dependence enters
+through the shift and through its time derivative in the curvature chain. ANEC along a complete geodesic
 should be conditional on ``geodesic_complete`` because dS geodesics can leave the
 integration box.
 """
@@ -78,9 +95,11 @@ class GarattiniMetric(ADMMetric):
     H : float
         de Sitter Hubble (expansion) rate.
     t0 : float
-        Reference slice for the spatial expansion factor ``e^{2 H t}``. The
-        certification grid is built at ``t = t0``; ``t0 = 0`` gives ``gamma =
-        delta`` on the slice while retaining the H-dependence in the curvature.
+        Retained for backward compatibility with the superseded exponential-slicing
+        implementation, which built its certification grid on a reference slice. It is
+        read by nothing: the slices here are flat at every ``t``, so
+        ``max|g(t0=0) - g(t0=17)| = 0`` exactly. Do not add a use for it without
+        deciding what it should mean.
     """
 
     v_s: float = 0.1

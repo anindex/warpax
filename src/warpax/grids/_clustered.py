@@ -77,6 +77,16 @@ def _infer_wall_radius(
     when the metric has no
     shape function (e.g., :class:`warpax.io.InterpolatedADMMetric` raises
     :class:`NotImplementedError`).
+
+    This scan starts at the coordinate ORIGIN, so it assumes the bubble is centred
+    there. Every construction that reaches this function is -- Alcubierre, Natario,
+    Van den Broeck, Rodal and the shells all sit at the origin at ``t = 0``, and the
+    one that does not, Garattini-Zatrimaylov at ``r_0 = v_s / H``, is certified on the
+    axisymmetric ladder with an explicit ``wall_radius`` and ``center`` instead. For an
+    off-origin bubble the scan finds only the outer crossing, and anchoring the
+    clustering there puts the COARSEST spacing on the inner one, so the refinement
+    makes the resolution worse rather than better. Rather than leave that silent, the
+    scan now refuses to guess when it cannot see a wall at all.
     """
     r_lo = max(0.01, 0.01 * bounds[0][1])
     r_hi = 0.95 * bounds[0][1]
@@ -90,6 +100,21 @@ def _infer_wall_radius(
         f_values = jax.vmap(_f_at_r)(r_samples)
     except NotImplementedError:
         return 0.5 * (bounds[0][0] + bounds[0][1]) + 1.0
+
+    # If the shape function never crosses the transition band on the scanned axis, the
+    # argmax below is the argmax of rounding noise and the returned radius is
+    # meaningless -- GarattiniMetric(v_s=0.5, H=0.1) on bounds (-3, 3) has its walls at
+    # x = 4 and x = 6, entirely outside the window, and this used to return 2.82.
+    f_lo, f_hi = float(jnp.min(f_values)), float(jnp.max(f_values))
+    if f_hi - f_lo < 0.1:
+        raise ValueError(
+            f"cannot infer a wall radius: the shape function spans only "
+            f"[{f_lo:.3g}, {f_hi:.3g}] on the scanned axis x in "
+            f"[{r_lo:.3g}, {r_hi:.3g}], so no transition is visible there. Pass "
+            f"wall_radius= explicitly, or widen the bounds. A bubble that is not "
+            f"centred on the coordinate origin needs the axisymmetric grid with an "
+            f"explicit center= instead."
+        )
 
     df = jnp.abs(jnp.diff(f_values))
     wall_idx = int(jnp.argmax(df))

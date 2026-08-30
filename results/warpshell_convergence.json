@@ -1,0 +1,56 @@
+{
+  "resolutions": [
+    25,
+    50,
+    100
+  ],
+  "min_nec_margin_eulerian": [
+    -9.856885028488648e+24,
+    -4.546136783529723e+48,
+    -4.0055800521935827e+49
+  ],
+  "integrated_nec_violation_eulerian": [
+    -2.0092645265968567e+25,
+    -4.5792503384452474e+48,
+    -4.011609169535548e+49
+  ],
+  "min_wec_margin_eulerian": [
+    -6.4652193817435795e+75,
+    -2.6950269665297954e+101,
+    -6.541882479035733e+104
+  ],
+  "min_nec_margin_robust": [
+    -9.85685692708132e+24,
+    -5.705660564304972e+48,
+    null
+  ],
+  "integrated_nec_violation_robust": [
+    -2.011727476424917e+25,
+    -5.7437710060519547e+48,
+    null
+  ],
+  "min_wec_margin_robust": [
+    -5.427804704842218e+28,
+    -2.7209701517473225e+52,
+    null
+  ],
+  "n_type_i": [
+    15556,
+    124496,
+    null
+  ],
+  "n_type_iv": [
+    4,
+    28,
+    null
+  ],
+  "time_s": [
+    9.6,
+    9.6,
+    9.2
+  ],
+  "richardson_order_min_nec_eulerian": -2.965498701179092,
+  "extrapolated_min_nec_eulerian": 6.6747433794221126e+47,
+  "richardson_order_integrated_nec_eulerian": -2.956132113579245,
+  "extrapolated_integrated_nec_eulerian": 6.773632240843028e+47
+}

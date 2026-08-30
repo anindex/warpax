@@ -30,7 +30,17 @@ import numpy as np
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.types import GridSpec
 
-__all__ = ["refine_extremum"]
+__all__ = ["refine_extremum", "seed_from_grid_index"]
+
+
+def seed_from_grid_index(k: int, shape, axes) -> list[float]:
+    """Coordinates of flat grid index ``k`` -- the seed :func:`refine_extremum` wants.
+
+    Every caller that polishes a grid extremum needs exactly this, so it lives
+    beside the polisher rather than being re-derived per script.
+    """
+    i0, i1, i2 = np.unravel_index(k, tuple(shape))
+    return [float(axes[0][i0]), float(axes[1][i1]), float(axes[2][i2])]
 
 
 def refine_extremum(
@@ -46,6 +56,7 @@ def refine_extremum(
     tol: float = 1e-9,
     batch_size: int = 512,
     t: float = 0.0,
+    compute_invariants: bool = False,
 ) -> dict:
     """Polish a grid-seeded spatial extremum to its exact continuous value.
 
@@ -71,6 +82,10 @@ def refine_extremum(
         the value change between levels.
     batch_size, t : int, float
         Curvature-evaluation batch size and slice time.
+    compute_invariants : bool
+        Populate the curvature scalars (Kretschmann, Weyl^2, Ricci^2) on the
+        local grid. Off by default because most fields are built from the
+        stress-energy; required when ``field_fn`` reads an invariant.
 
     Returns
     -------
@@ -90,7 +105,8 @@ def refine_extremum(
         bounds = [(float(center[i] - hw), float(center[i] + hw)) for i in range(3)]
         grid = GridSpec(bounds=bounds, shape=(n, n, n))
         curv = evaluate_curvature_grid(
-            metric, grid, batch_size=batch_size, t=t, compute_invariants=False
+            metric, grid, batch_size=batch_size, t=t,
+            compute_invariants=compute_invariants,
         )
         field = np.asarray(field_fn(curv)).reshape(n, n, n)
         flat = field.ravel()

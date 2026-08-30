@@ -99,24 +99,35 @@ def _worst_static_point(metric) -> tuple[float, float, float]:
     Restricted to the active wall ``f in [F_LOW, F_HIGH]`` for consistency with
     the rest of the paper. Used only for the smooth-wall drives.
     """
-    xs = np.linspace(-1.5, 1.5, 61)
-    ys = np.linspace(0.05, 1.6, 61)
-    xx, yy = np.meshgrid(xs, ys, indexing="ij")
-    pts = np.stack([xx.ravel(), yy.ravel()], axis=1)
-
     def rho0(x, y):
         wl = _static_worldline(x, y)
         return float(_rho_at_tau(metric, wl, jnp.asarray(0.0)))
 
-    best_rho, best_xy = 0.0, (0.0, 1.0)
-    for x, y in pts:
-        r_s = float(np.hypot(x, y))
-        f = float(alcubierre_shape(jnp.asarray(r_s), R_B, SIGMA))
-        if not (F_LOW <= f <= F_HIGH):
-            continue
-        rho = rho0(float(x), float(y))
-        if rho < best_rho:
-            best_rho, best_xy = rho, (float(x), float(y))
+    def scan(x0, x1, y0, y1, n):
+        best_rho, best_xy = 0.0, None
+        for x in np.linspace(x0, x1, n):
+            for y in np.linspace(y0, y1, n):
+                f = float(alcubierre_shape(jnp.asarray(float(np.hypot(x, y))),
+                                           R_B, SIGMA))
+                if not (F_LOW <= f <= F_HIGH):
+                    continue
+                rho = rho0(float(x), float(y))
+                if rho < best_rho:
+                    best_rho, best_xy = rho, (float(x), float(y))
+        return best_rho, best_xy
+
+    # Coarse scan, then zoom. The raw 61x61 argmin missed the minimum by 2.8%
+    # and put it at the wrong x.
+    best_rho, best_xy = scan(-1.5, 1.5, 0.05, 1.6, 61)
+    if best_xy is None:
+        return 0.0, 0.0, 1.0
+    hw = 3.0 / 60
+    for _ in range(6):
+        x, y = best_xy
+        r, xy = scan(x - hw, x + hw, max(y - hw, 1e-3), y + hw, 9)
+        if xy is not None and r < best_rho:
+            best_rho, best_xy = r, xy
+        hw *= 0.34
     return best_rho, best_xy[0], best_xy[1]
 
 
@@ -213,6 +224,9 @@ def _make_figure(anec: dict, qi: dict) -> None:
 
     ax_a.axhline(0.0, color="0.4", lw=0.7, ls="--")
     ax_a.set_xlabel(r"impact parameter $b$")
+    # Natario peaks at +6.7 while the minima this panel is about are ~-0.1, so a
+    # linear axis hides the negativity the caption claims. symlog shows both.
+    ax_a.set_yscale("symlog", linthresh=1e-2)
     ax_a.set_ylabel(r"null line integral $\int T_{ab}k^ak^b\,d\lambda$")
     ax_a.set_title("(a) Averaged null energy along null rays", fontsize=9)
     ax_a.legend(frameon=False, fontsize=7)
