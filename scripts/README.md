@@ -17,6 +17,9 @@ The paper's three contribution results are produced by these scripts (the others
 below are supporting ablations / convergence studies, retained for
 reproducibility):
 
+`tables/` and `figures/` below are the manuscript's directories, written beside
+this repository rather than inside it; `results/` is local.
+
 | Script | Produces | Paper artifact |
 |--------|----------|----------------|
 | `run_velocity_sweep.py` | `tables/velocity_type_structure.tex`, `figures/velocity_type_structure.pdf`, `figures/rodal_invariant_margins.pdf` | Type/EC structure across the luminal transition |
@@ -42,8 +45,7 @@ prefer `run_matched_benchmark.py` (cross-metric) and `run_velocity_sweep.py`.
 | `run_construction_verification.py` | `results/construction_verification.json`, `tables/construction_matched.tex`, `tables/construction_native.tex` (cross-construction all-observer verification; under-resolved walls carry cell counts only) |
 | `run_rodal_sigma_resolved.py` | `results/rodal_sigma_resolved.json`, `tables/rodal_sigma_resolved.tex` (wall-resolved Rodal sigma sweep on the exact axisymmetric reduction) |
 | `run_enclosures.py` | `results/enclosures.json`, `tables/enclosures.tex` (certified global interval enclosures of the wall null deficit; hours, opt-in stage) |
-| `run_classifier_audit.py` | `results/classifier_audit.json` (Jordan displacement exponents and the LMI audit of the classifier's labels) |
-| `run_box_sensitivity.py` | `results/box_sensitivity.json` (sensitivity of wall statistics to the exterior box) |
+| `run_classifier_error_rate.py` | `results/classifier_error_rate.json` (Jordan displacement exponents and the LMI audit of the classifier's labels) |
 | `run_exoticity_ranking.py` | `results/exoticity_ranking.json`, `tables/exoticity_ranking.tex`, `tables/scaling_laws.tex` (composite exoticity ranking + v_s scaling laws, reads `run_velocity_sweep.py` + `run_anec_symplectic.py`) |
 | `derive_vorticity_type.py` | `results/vorticity_type_analytic.json`, `figures/vorticity_type_mechanism.pdf` (vorticity -> Type-IV mechanism f = kappa*omega; cross-metric entries record theta, sigma, sigma/omega, and the excess Im/(kappa*omega)) |
 | `run_curvature_scaling.py` | `results/curvature_scaling.json`, `tables/curvature_scaling.tex`, `figures/curvature_scaling.pdf` (universal v_s scaling of wall curvature invariants) |
@@ -93,10 +95,14 @@ Documented in [docs/how-to/reproduce_warpshell_paper.md](../docs/how-to/reproduc
 | `verify_fuchs.py` | `results/fuchs_verification_report.json` |
 | `verify_proposals.py` | `results/proposals_verification_report.json` |
 | `run_sshell_sweep.py` | S-shell sweep under `results/` |
-| `run_anec_profiles.py` | ANEC profile data |
 | `run_integrated_negative_energy.py` | `tables/integrated_volume.tex` (slice-integrated negative-energy volume vs `v_s`) |
 | `run_delta_crosscheck.py` | `results/delta_crosscheck.json` (algebraic `Delta < 0` label vs the eigensolver Type-IV label) |
-| `run_extra_convergence.py` | `tables/extra_convergence.tex` (exoticity index + ANEC-minimum convergence) |
+| `run_exoticity_anec_convergence.py` | `tables/extra_convergence.tex` (exoticity index + ANEC-minimum convergence) |
+| `run_error_budget.py` | `results/error_budget.json` (sign robustness of the T-shell boundary DEC deficit across resolution, velocity and source-profile family) |
+| `run_criterion_e_verification.py` | Criterion E (global) verification |
+| `run_tshell_convergence.py` | T-shell convergence study |
+| `run_tshell_kterm_angular.py` | T-shell angular k-term |
+| `run_v0_ablation.py` | T-shell matter-tilt ablation |
 
 The cross-metric comparison covers Alcubierre, Natario, Van den Broeck, and Rodal.
 WarpShell and Lentz remain implemented as metrics but are not part of the paper's
@@ -110,28 +116,12 @@ quantitative tables (their thin walls are not resolved at common parameters).
 | `render_manim_scenes.sh` | Shell wrapper for Manim |
 | `generate_showcase.py` | Delegates to render pipeline |
 
-## Ad-hoc research (not in `reproduce_all.sh`)
-
-| Script | Purpose |
-|--------|---------|
-| `run_delta_tau_scan.py` | Delta-tau parameter scan |
-| `run_tshell_convergence.py` | T-shell convergence study |
-| `run_tshell_kterm_angular.py` | T-shell angular k-term |
-| `run_v0_ablation.py` | v0 ablation |
-| `run_fuchs_canonical.py` | Fuchs canonical radial sweep |
-| `run_landscape.py` | EC landscape exploration |
-| `run_lentz.py` | Lentz metric radial sweep |
-| `run_lentz_distance_comparison.py` | Lentz L1 vs L2 distance |
-| `run_error_budget.py` | Numerical error budget |
-| `run_criterion_e_verification.py` | Criterion E verification |
-| `constraint_residual_verification.py` | ADM constraint residuals -> `results/` |
-| `fuchs_kernel_comparison.py` | Fuchs kernel comparison |
-| `verify_rodal.py` | Standalone Rodal verification |
-| `summarize_results.py` | Manual results inspection |
-| `dump_hlo_curvature.py` / `.sh` | XLA HLO profiling for curvature |
-
 ## Shared helpers
 
-| Module | Used by |
-|--------|---------|
-| `_radial_sweep.py` | `run_fuchs_canonical.py`, `run_lentz.py`, `run_landscape.py`, `fuchs_kernel_comparison.py`, `run_lentz_distance_comparison.py` |
+| Module | Provides |
+|--------|----------|
+| `_json_io.py` | RFC 8259 JSON dumps (no bare `NaN`/`Infinity`); used by every writer |
+| `_paper_metrics.py` | The four swept constructions and their instantiation |
+| `_benchmark_grid.py` | The matched wall-resolved benchmark grid |
+| `_anec_window.py` | Affine window for a null line integral, chosen by convergence |
+| `_paper_numbers_map.py` | `paper_numbers.tex` macros to `results/*.json`, for `emit_paper_numbers.py` |

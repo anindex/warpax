@@ -186,12 +186,9 @@ def framedata_to_heatmap(
     surface.set_fill_by_value(axes=axes, colorscale=colorscale, axis=2)
 
     if flat:
-        # Colours are baked; collapse the value-relief to a flat slab
-        # so the height no longer (mis)reads as a second encoding of the field.
-        # Set the scene-z of every vertex to the target plane directly, a
-        # division-free flatten. ``stretch_to_fit_depth`` would divide by the
-        # relief depth, which collapses to ~0 as the field flattens (e.g. the
-        # rampdown tail), yielding inf coordinates that crash the Cairo renderer.
+        # Colours are baked, so flatten the relief: set every vertex's scene-z directly.
+        # ``stretch_to_fit_depth`` divides by the relief depth, which goes to ~0 as the
+        # field flattens and yields inf coordinates that crash Cairo.
         target_z = float(axes.c2p(0.0, 0.0, z_offset)[2])
         surface.apply_function(lambda p: np.array([p[0], p[1], target_z], dtype=float))
     elif z_offset != 0.0:

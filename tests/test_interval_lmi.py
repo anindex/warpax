@@ -6,7 +6,6 @@ import os
 import sys
 
 import numpy as np
-import pytest
 
 from warpax.energy_conditions.enclosure import (
     alcubierre_metric,
@@ -96,7 +95,6 @@ class TestClosingSpeed:
         assert np.isfinite(out[0]) and not np.isfinite(out[1])
 
 
-@pytest.mark.slow
 def test_wall_certified_violated_exterior_refused():
     """Wall: certified violated. Exterior: refused, not guessed.
 
@@ -129,7 +127,7 @@ def test_wall_certified_violated_exterior_refused():
     # The exterior is vacuum to 1e-24, so q == 0 there and nothing can be
     # certified strictly positive. "inconclusive" is correct, and the bracket
     # must show it is a saturation refusal rather than a failure. Alcubierre
-    # only: a construction with a 1/r tail is genuinely decidable here.
+    # only: a construction with a 1/r tail is decidable here.
     far = certify_point_from_metric(m, (0.0, 12.0, 0.0, 0.0))
     assert far["nec"] == "inconclusive", far
     assert abs(far["nec_lower"]) < 1e-12 and abs(far["nec_upper"]) < 1e-12, far

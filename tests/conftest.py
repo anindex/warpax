@@ -69,12 +69,9 @@ def all_metrics() -> list:
     return [MinkowskiMetric(), SchwarzschildMetric(), AlcubierreMetric()]
 
 
-# --gpu-baseline pytest plugin
-#
-# When --gpu-baseline is passed, this plugin applies xfail markers from
-# ``_gpu_xfail_registry.EXPECTED_GPU_FAILURES`` to known-bad tests on
-# Blackwell sm_120 GPUs and emits a short summary at session finish so
-# real regressions surface without drowning in expected sm_120 failures.
+# --gpu-baseline: apply xfail markers from ``_gpu_xfail_registry`` to known-bad
+# tests on Blackwell sm_120 and summarise at session finish, so real regressions
+# surface among the expected failures.
 
 
 def pytest_addoption(parser) -> None:
@@ -100,12 +97,9 @@ def pytest_collection_modifyitems(config, items) -> None:
 
     collected_ids = {item.nodeid for item in items}
     collected_files = {nid.split("::", 1)[0] for nid in collected_ids}
-    # Staleness guard: a registry that points at renamed/deleted tests silently
-    # turns every "expected failure" into a real regression (the dead-registry
-    # bug this fix repaired). Warn loudly if an entry whose FILE was collected
-    # no longer matches a collected test. Restricting to collected files keeps
-    # subset runs (e.g. a single test file) from spuriously flagging entries
-    # for files that simply were not part of this run.
+    # Staleness guard: a registry pointing at renamed tests turns every expected
+    # failure into a real regression. Warn when an entry whose file was collected
+    # matches no collected test; restricting to collected files spares subset runs.
     unmatched = sorted(
         e
         for e in EXPECTED_GPU_FAILURES

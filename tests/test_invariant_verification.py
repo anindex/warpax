@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import jax
-
-jax.config.update("jax_enable_x64", True)
-
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -64,12 +60,8 @@ def test_exotic_content_signs_and_manual_match():
     assert exotic["E_minus_inv"] < 0.0
     assert exotic["E_plus_inv"] > 0.0
     assert exotic["E_minus_eul"] < 0.0
-    # Golden pins recomputed on the *anchored* wall-clustered grid, whose
-    # densest sampling now sits exactly on |x| = R and is symmetric about the
-    # centre (see grids/_clustered.py). The previous pins were taken on the
-    # unanchored map, which refined at x = 1.266 for a wall at r = 1:
-    #   E_minus_inv  -0.03420913 -> -0.03415577  (-0.16%)
-    #   E_plus_inv   +0.04670636 -> +0.04581991  (-1.90%)
+    # Golden pins on the anchored wall-clustered grid, whose densest sampling sits on
+    # |x| = R and is symmetric about the centre (see grids/_clustered.py).
     assert exotic["E_minus_inv"] == pytest.approx(-0.03415577141800838, rel=1e-3)
     assert exotic["E_plus_inv"] == pytest.approx(0.045819908245425686, rel=1e-3)
 

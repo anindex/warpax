@@ -25,6 +25,8 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
+from ._radial_solve import hamiltonian_and_lapse
+
 
 class SShellPotentials(NamedTuple):
     """Metric potentials solved from source profiles.
@@ -105,54 +107,14 @@ def solve_sshell_potentials(
 
     import interpax
 
-    # Cumulative mass: m(r) = 4pi int_0^r rho(r') r'^2 dr'
     rho_grid = jax.vmap(rho)(r_grid)
-    integrand = 4.0 * jnp.pi * rho_grid * r_grid**2
-    m_grid = jnp.concatenate(
-        [
-            jnp.array([0.0]),
-            jnp.cumsum(0.5 * (integrand[:-1] + integrand[1:]) * dr),
-        ]
-    )
-
-    # Bug fix (total_mass static-leaf retrace): keep total_mass a jnp array
-    # leaf, NOT a Python float. eqx.filter_jit partitions Python floats into
-    # the static side, so a float total_mass forced a retrace per value.
-    total_mass = jnp.asarray(m_grid[-1])
-
-    compactness_max = float(jnp.max(2.0 * m_grid / jnp.maximum(r_grid, 1e-30)))
-    if compactness_max >= 1.0:
-        raise ValueError(
-            f"Shell compactness 2m(r)/r reaches {compactness_max:.4f} >= 1. "
-            "Reduce rho_0 or widen the shell to avoid a trapped surface."
-        )
-
-    # Radial metric potential: Lambda = -0.5 * ln(1 - 2m/r)
-    compactness = 2.0 * m_grid / jnp.maximum(r_grid, 1e-30)
-    compactness_safe = jnp.minimum(compactness, 1.0 - 1e-12)
-    Lambda_grid = -0.5 * jnp.log(1.0 - compactness_safe)
-
-    # Lapse potential via inward integration from Schwarzschild boundary
     p_r_grid = jax.vmap(p_r)(r_grid)
-
-    numerator = m_grid + 4.0 * jnp.pi * r_grid**3 * p_r_grid
-    denominator = r_grid * (r_grid - 2.0 * m_grid)
-    denom_safe = jnp.where(
-        jnp.abs(denominator) < 1e-30,
-        jnp.where(denominator >= 0.0, 1e-30, -1e-30),
-        denominator,
+    m_grid, Lambda_grid, Phi_grid, _, _ = hamiltonian_and_lapse(
+        rho_grid, p_r_grid, r_grid, dr, R_1, r_max
     )
-    dPhi_dr = numerator / denom_safe
-    dPhi_dr = jnp.where(r_grid < R_1 * 0.5, 0.0, dPhi_dr)
-
-    Phi_boundary = 0.5 * jnp.log(1.0 - 2.0 * total_mass / r_max)
-    forward_integral = jnp.concatenate(
-        [
-            jnp.array([0.0]),
-            jnp.cumsum(0.5 * (dPhi_dr[:-1] + dPhi_dr[1:]) * dr),
-        ]
-    )
-    Phi_grid = Phi_boundary - (forward_integral[-1] - forward_integral)
+    # A jnp leaf, not a Python float: eqx.filter_jit partitions floats onto the
+    # static side, so a float total_mass retraces per value.
+    total_mass = jnp.asarray(m_grid[-1])
 
     # Interpolated callables via interpax cubic splines
     def Phi_fn(r: Float[Array, ""]) -> Float[Array, ""]:

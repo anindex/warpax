@@ -117,15 +117,10 @@ def worst_observer_typeI(
         p_star = eigenvalues[worst_axis]
         margin = rho - jnp.abs(p_star)
     elif condition == "sec":
-        # The SEC is NOT the NEC on the same axes. For Type I it is
-        #     rho + p_i >= 0 for every i   AND   rho + sum_i p_i >= 0,
-        # and the trace line can fail while every axis line holds: rho = 1,
-        # p_i = -1/2 gives min_i(rho + p_i) = +1/2 but rho + sum p_i = -1/2.
-        # Returning only the axis minimum reported that tensor as satisfying the
-        # SEC with an infinite threshold rapidity.
-        # Theta(u,u) = (rho + sum p)/2 + (rho + p_i) sinh^2 zeta, so the rest
-        # value is HALF the trace slack and the boost direction is the axis
-        # minimum. The previous min(rho + p_*, rho + sum p) was neither.
+        # The SEC is NOT the NEC on the same axes: it needs rho + p_i >= 0 for every i AND
+        # rho + sum_i p_i >= 0, and the trace line can fail while every axis line holds.
+        # Theta(u,u) = (rho + sum p)/2 + (rho + p_i) sinh^2 zeta, so the rest value is HALF
+        # the trace slack and the boost direction is the axis minimum.
         worst_axis = jnp.argmin(axis_slack)
         p_star = eigenvalues[worst_axis]
         rest = 0.5 * (rho + p_sum)
@@ -144,7 +139,7 @@ def worst_observer_typeI(
         margin = rho + p_star
 
     # Threshold rapidity: where this condition's observer value crosses zero.
-    # Each condition has its own; the WEC one used to be applied to all four.
+    # Each condition has its own.
     rho_plus_p = rho + p_star
     if condition == "wec":
         # rho_obs = rho + (rho + p_*) sinh^2 zeta

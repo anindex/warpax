@@ -135,7 +135,7 @@ def _analyze(name):
             "eig_iv_delta_nonneg": n_exc,  # eig-IV & Delta>=0 (off-momentum channel)
             "delta_only": delta_only,  # Delta<0 & not eig-IV
             # median |Im lambda| of the off-momentum exception points: confirms
-            # they are genuine complex pairs, not classifier noise.
+            # they are true complex pairs, not classifier noise.
             "exc_median_abs_imag": float(np.median(im[exc])) if n_exc else 0.0,
         }
 

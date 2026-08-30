@@ -21,13 +21,131 @@ from warpax.metrics._common import alcubierre_shape
 from warpax.metrics.natario import natario_eulerian_energy_density
 from warpax.metrics.rodal import _rodal_G, _rodal_g_paper
 
+# The contract every warp metric owes, asserted once over the table rather than
+# copied per class. Only the points differ: ``probe`` is a generic evaluation
+# point, ``speed_point`` sits where changing v_s must move the metric, and
+# ``wall`` tunes the metric so ``wall_point`` lands where curvature is nontrivial.
+CONTRACTS = [
+    dict(
+        name="Lentz",
+        build=LentzMetric,
+        probe=[0.0, 5.0, 2.0, 3.0],
+        speeds=({"v_s": 0.1}, {"v_s": 0.5}),
+        speed_point=[0.0, 10.0, 5.0, 0.0],  # inside the diamond
+        wall={"v_s": 0.1, "R": 100.0, "sigma": 8.0},
+        wall_point=[0.0, 50.0, 50.0, 0.0],  # off-axis, avoiding the L1 kink
+    ),
+    dict(
+        name="Natario",
+        build=NatarioMetric,
+        probe=[0.0, 1.0, 2.0, 3.0],
+        speeds=({"v_s": 0.1}, {"v_s": 0.5}),
+        speed_point=[0.0, 50.0, 0.0, 0.0],
+        wall={"v_s": 0.1, "R": 100.0, "sigma": 0.03},
+        wall_point=[0.0, 100.0, 1.0, 0.0],
+    ),
+    dict(
+        name="Rodal",
+        build=RodalMetric,
+        probe=[0.0, 1.0, 2.0, 3.0],
+        speeds=({"v_s": 0.1}, {"v_s": 0.5}),
+        speed_point=[0.0, 10.0, 0.0, 0.0],
+        wall={"v_s": 0.1, "R": 100.0, "sigma": 0.03},
+        wall_point=[0.0, 100.0, 1.0, 0.0],
+    ),
+    dict(
+        name="VanDenBroeck",
+        build=VanDenBroeckMetric,
+        probe=[0.0, 1.0, 2.0, 3.0],
+        speeds=({"v_s": 0.1}, {"v_s": 0.5}),
+        speed_point=[0.0, 10.0, 0.0, 0.0],
+        wall={
+            "v_s": 0.1,
+            "R": 350.0,
+            "sigma": 8.0,
+            "R_tilde": 200.0,
+            "alpha_vdb": 0.5,
+            "sigma_B": 8.0,
+        },
+        wall_point=[0.0, 200.0, 1.0, 0.0],  # the conformal wall
+    ),
+    dict(
+        name="WarpShell",
+        build=WarpShellMetric,
+        probe=[0.0, 15.0, 2.0, 3.0],
+        speeds=({"v_s": 0.02}, {"v_s": 0.1}),
+        speed_point=[0.0, 5.0, 0.0, 0.0],  # interior, r < R_1
+        wall={"v_s": 0.02, "R_1": 10.0, "R_2": 20.0, "R_b": 1.0, "r_s_param": 5.0},
+        wall_point=[0.0, 15.0, 0.0, 0.0],  # inside the shell
+    ),
+    dict(
+        name="WarpShellPhysical",
+        build=WarpShellPhysical,
+        probe=[0.0, 15.0, 2.0, 3.0],
+        speeds=({"v_s": 0.02}, {"v_s": 0.1}),
+        speed_point=[0.0, 5.0, 0.0, 0.0],
+        wall={"v_s": 0.02, "R_1": 10.0, "R_2": 20.0, "r_s_param": 5.0},
+        wall_point=[0.0, 15.0, 0.0, 0.0],
+    ),
+]
+
+contract = pytest.mark.parametrize("c", CONTRACTS, ids=lambda c: c["name"])
+
+
+@contract
+def test_jit_matches_eager(c):
+    m = c["build"]()
+    coords = jnp.array(c["probe"])
+    assert jnp.allclose(m(coords), eqx.filter_jit(m)(coords), atol=1e-15)
+
+
+@contract
+def test_call_matches_adm_reconstruction(c):
+    m = c["build"]()
+    coords = jnp.array(c["probe"])
+    g_adm = adm_to_full_metric(m.lapse(coords), m.shift(coords), m.spatial_metric(coords))
+    assert jnp.allclose(m(coords), g_adm, atol=1e-15)
+
+
+@contract
+def test_symbolic_is_a_wellformed_metric(c):
+    sm = c["build"]().symbolic()
+    assert isinstance(sm, SymbolicMetric)
+    assert sm.g.shape == (4, 4)
+    assert len(sm.coords) == 4
+
+
+@contract
+def test_speed_is_a_dynamic_field(c):
+    slow, fast = (c["build"](**kw) for kw in c["speeds"])
+    coords = jnp.array(c["speed_point"])
+    assert not jnp.allclose(slow(coords), fast(coords), atol=1e-10)
+
+
+@contract
+def test_curvature_chain_is_finite_at_the_wall(c):
+    result = compute_curvature_chain(c["build"](**c["wall"]), jnp.array(c["wall_point"]))
+    assert result.christoffel.shape == (4, 4, 4)
+    assert result.riemann.shape == (4, 4, 4, 4)
+    for field in ("metric", "christoffel", "riemann", "ricci", "einstein", "stress_energy"):
+        assert jnp.all(jnp.isfinite(getattr(result, field))), field
+
+
+# Metrics whose defaults give a Minkowski limit on the x-axis. Natario is co-moving,
+# so its far field carries a uniform flow, and WarpShell checks its exterior at two
+# radii; both keep their own test.
+@pytest.mark.parametrize(
+    "build",
+    [LentzMetric, RodalMetric, VanDenBroeckMetric, WarpShellPhysical],
+    ids=["Lentz", "Rodal", "VanDenBroeck", "WarpShellPhysical"],
+)
+def test_far_field_is_minkowski(build):
+    g = build()(jnp.array([0.0, 1000.0, 0.0, 0.0]))
+    assert jnp.allclose(g, jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0])), atol=1e-6)
+
 
 class TestLentz:
     """Tests for LentzMetric."""
-
-    # ------------------------------------------------------------------
-    # Standard 8-test battery
-    # ------------------------------------------------------------------
 
     def test_lentz_at_origin(self):
         """Evaluate near origin, verify metric structure.
@@ -46,82 +164,6 @@ class TestLentz:
         assert jnp.allclose(g[1:, 1:], jnp.eye(3), atol=1e-14)
         # g_00 = -(1 - v_s^2 * f^2) ~ -(1 - 0.01) = -0.99 for f~1
         assert g[0, 0] < 0.0  # timelike
-
-    def test_lentz_far_field(self):
-        """Evaluate far from bubble (d >> R), verify approaches Minkowski."""
-        m = LentzMetric()  # R=100.0
-        far_coords = jnp.array([0.0, 1000.0, 0.0, 0.0])
-        g = m(far_coords)
-        minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, minkowski, atol=1e-6)
-
-    def test_lentz_jit(self):
-        """jax.jit compilation works."""
-        m = LentzMetric()
-        coords = jnp.array([0.0, 5.0, 2.0, 3.0])
-        g_eager = m(coords)
-        g_jit = eqx.filter_jit(m)(coords)
-        assert jnp.allclose(g_eager, g_jit, atol=1e-15)
-
-    def test_lentz_float64(self):
-        """Output dtype is float64."""
-        m = LentzMetric()
-        coords = jnp.array([0.0, 5.0, 2.0, 3.0])
-        g = m(coords)
-        assert g.dtype == jnp.float64
-
-    def test_lentz_parameter_change(self):
-        """Change v_s, verify output changes (dynamic field)."""
-        coords = jnp.array([0.0, 10.0, 5.0, 0.0])  # inside diamond
-        m1 = LentzMetric(v_s=0.1)
-        m2 = LentzMetric(v_s=0.5)
-        g1 = m1(coords)
-        g2 = m2(coords)
-        assert not jnp.allclose(g1, g2, atol=1e-10)
-
-    def test_lentz_adm_reconstruction(self):
-        """Verify __call__ matches manual ADM reconstruction."""
-        m = LentzMetric()
-        coords = jnp.array([0.0, 5.0, 2.0, 3.0])
-        g_call = m(coords)
-        g_adm = adm_to_full_metric(
-            m.lapse(coords),
-            m.shift(coords),
-            m.spatial_metric(coords),
-        )
-        assert jnp.allclose(g_call, g_adm, atol=1e-15)
-
-    def test_lentz_symbolic(self):
-        """symbolic returns valid SymbolicMetric."""
-        m = LentzMetric()
-        sm = m.symbolic()
-        assert isinstance(sm, SymbolicMetric)
-        assert sm.g.shape == (4, 4)
-        assert len(sm.coords) == 4
-
-    def test_lentz_curvature_chain(self):
-        """Run compute_curvature_chain and verify no NaN, correct shapes.
-
-        Uses a point on the bubble wall where curvature is nontrivial.
-        Avoids x_rel=0 (L1 non-differentiable kink).
-        """
-        m = LentzMetric(v_s=0.1, R=100.0, sigma=8.0)
-        # Point on bubble wall, off-axis to avoid L1 kink
-        coords = jnp.array([0.0, 50.0, 50.0, 0.0])
-        result = compute_curvature_chain(m, coords)
-
-        assert result.metric.shape == (4, 4)
-        assert result.christoffel.shape == (4, 4, 4)
-        assert result.riemann.shape == (4, 4, 4, 4)
-        assert result.ricci.shape == (4, 4)
-        assert result.einstein.shape == (4, 4)
-        assert result.stress_energy.shape == (4, 4)
-        # No NaN
-        assert not jnp.any(jnp.isnan(result.metric))
-        assert not jnp.any(jnp.isnan(result.christoffel))
-        assert not jnp.any(jnp.isnan(result.riemann))
-        assert not jnp.any(jnp.isnan(result.einstein))
-        assert not jnp.any(jnp.isnan(result.stress_energy))
 
     # ------------------------------------------------------------------
     # Physics-specific tests
@@ -259,73 +301,6 @@ class TestNatario:
         # Spatial block still flat
         assert jnp.allclose(g[1:, 1:], jnp.eye(3), atol=1e-14)
 
-    def test_natario_jit(self):
-        """jax.jit compilation works."""
-        m = NatarioMetric()
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g_eager = m(coords)
-        g_jit = eqx.filter_jit(m)(coords)
-        assert jnp.allclose(g_eager, g_jit, atol=1e-15)
-
-    def test_natario_float64(self):
-        """Output dtype is float64."""
-        m = NatarioMetric()
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g = m(coords)
-        assert g.dtype == jnp.float64
-
-    def test_natario_parameter_change(self):
-        """Change v_s, verify output changes (dynamic field)."""
-        coords = jnp.array([0.0, 50.0, 0.0, 0.0])  # inside bubble (R=100)
-        m1 = NatarioMetric(v_s=0.1)
-        m2 = NatarioMetric(v_s=0.5)
-        g1 = m1(coords)
-        g2 = m2(coords)
-        assert not jnp.allclose(g1, g2, atol=1e-10)
-
-    def test_natario_adm_reconstruction(self):
-        """Verify __call__ matches manual ADM reconstruction."""
-        m = NatarioMetric()
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g_call = m(coords)
-        g_adm = adm_to_full_metric(
-            m.lapse(coords),
-            m.shift(coords),
-            m.spatial_metric(coords),
-        )
-        assert jnp.allclose(g_call, g_adm, atol=1e-15)
-
-    def test_natario_symbolic(self):
-        """symbolic returns valid SymbolicMetric."""
-        m = NatarioMetric()
-        sm = m.symbolic()
-        assert isinstance(sm, SymbolicMetric)
-        assert sm.g.shape == (4, 4)
-        assert len(sm.coords) == 4
-
-    def test_natario_curvature_chain(self):
-        """Run compute_curvature_chain and verify no NaN, correct shapes.
-
-        Uses a point near the bubble wall where curvature is nontrivial.
-        """
-        m = NatarioMetric(v_s=0.1, R=100.0, sigma=0.03)
-        # Point near bubble wall
-        coords = jnp.array([0.0, 100.0, 1.0, 0.0])
-        result = compute_curvature_chain(m, coords)
-
-        assert result.metric.shape == (4, 4)
-        assert result.christoffel.shape == (4, 4, 4)
-        assert result.riemann.shape == (4, 4, 4, 4)
-        assert result.ricci.shape == (4, 4)
-        assert result.einstein.shape == (4, 4)
-        assert result.stress_energy.shape == (4, 4)
-        # No NaN
-        assert not jnp.any(jnp.isnan(result.metric))
-        assert not jnp.any(jnp.isnan(result.christoffel))
-        assert not jnp.any(jnp.isnan(result.riemann))
-        assert not jnp.any(jnp.isnan(result.einstein))
-        assert not jnp.any(jnp.isnan(result.stress_energy))
-
     # ------------------------------------------------------------------
     # Physics-specific tests
     # ------------------------------------------------------------------
@@ -413,85 +388,6 @@ class TestRodal:
         assert jnp.allclose(g[1:, 1:], jnp.eye(3), atol=1e-14)
         # g_00 = -(1 - v_s^2) since f(0) ~ 1 for r inside bubble
         assert g[0, 0] < 0.0  # timelike
-
-    def test_rodal_far_field(self):
-        """Evaluate far from bubble (r >> R), verify approaches Minkowski.
-
-        Rodal uses lab-frame convention: F(inf)=0, G(inf)=0, so shift -> 0
-        and metric -> Minkowski at far field.
-        """
-        m = RodalMetric()  # R=100.0
-        far_coords = jnp.array([0.0, 1000.0, 0.0, 0.0])
-        g = m(far_coords)
-        minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, minkowski, atol=1e-6)
-
-    def test_rodal_jit(self):
-        """jax.jit compilation works."""
-        m = RodalMetric()
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g_eager = m(coords)
-        g_jit = eqx.filter_jit(m)(coords)
-        assert jnp.allclose(g_eager, g_jit, atol=1e-15)
-
-    def test_rodal_float64(self):
-        """Output dtype is float64."""
-        m = RodalMetric()
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g = m(coords)
-        assert g.dtype == jnp.float64
-
-    def test_rodal_parameter_change(self):
-        """Change v_s, verify output changes (dynamic field)."""
-        coords = jnp.array([0.0, 10.0, 0.0, 0.0])  # inside bubble (R=100)
-        m1 = RodalMetric(v_s=0.1)
-        m2 = RodalMetric(v_s=0.5)
-        g1 = m1(coords)
-        g2 = m2(coords)
-        assert not jnp.allclose(g1, g2, atol=1e-10)
-
-    def test_rodal_adm_reconstruction(self):
-        """Verify __call__ matches manual ADM reconstruction."""
-        m = RodalMetric()
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g_call = m(coords)
-        g_adm = adm_to_full_metric(
-            m.lapse(coords),
-            m.shift(coords),
-            m.spatial_metric(coords),
-        )
-        assert jnp.allclose(g_call, g_adm, atol=1e-15)
-
-    def test_rodal_symbolic(self):
-        """symbolic returns valid SymbolicMetric."""
-        m = RodalMetric()
-        sm = m.symbolic()
-        assert isinstance(sm, SymbolicMetric)
-        assert sm.g.shape == (4, 4)
-        assert len(sm.coords) == 4
-
-    def test_rodal_curvature_chain(self):
-        """Run compute_curvature_chain and verify no NaN, correct shapes.
-
-        Uses a point near the bubble wall where curvature is nontrivial.
-        """
-        m = RodalMetric(v_s=0.1, R=100.0, sigma=0.03)
-        # Point near bubble wall
-        coords = jnp.array([0.0, 100.0, 1.0, 0.0])
-        result = compute_curvature_chain(m, coords)
-
-        assert result.metric.shape == (4, 4)
-        assert result.christoffel.shape == (4, 4, 4)
-        assert result.riemann.shape == (4, 4, 4, 4)
-        assert result.ricci.shape == (4, 4)
-        assert result.einstein.shape == (4, 4)
-        assert result.stress_energy.shape == (4, 4)
-        # No NaN
-        assert not jnp.any(jnp.isnan(result.metric))
-        assert not jnp.any(jnp.isnan(result.christoffel))
-        assert not jnp.any(jnp.isnan(result.riemann))
-        assert not jnp.any(jnp.isnan(result.einstein))
-        assert not jnp.any(jnp.isnan(result.stress_energy))
 
     # ------------------------------------------------------------------
     # Physics-specific tests
@@ -745,86 +641,6 @@ class TestVanDenBroeck:
         # Timelike
         assert g[0, 0] < 0.0
 
-    def test_vdb_far_field(self):
-        """Evaluate far from bubble (r >> R), verify approaches Minkowski.
-
-        At far field: f(inf)~0, B(inf)~1, so metric -> Minkowski.
-        """
-        m = VanDenBroeckMetric()  # R=350
-        far_coords = jnp.array([0.0, 1000.0, 0.0, 0.0])
-        g = m(far_coords)
-        minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, minkowski, atol=1e-6)
-
-    def test_vdb_jit(self):
-        """jax.jit compilation works."""
-        m = VanDenBroeckMetric()
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g_eager = m(coords)
-        g_jit = eqx.filter_jit(m)(coords)
-        assert jnp.allclose(g_eager, g_jit, atol=1e-15)
-
-    def test_vdb_float64(self):
-        """Output dtype is float64."""
-        m = VanDenBroeckMetric()
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g = m(coords)
-        assert g.dtype == jnp.float64
-
-    def test_vdb_parameter_change(self):
-        """Change v_s, verify output changes (dynamic field)."""
-        coords = jnp.array([0.0, 10.0, 0.0, 0.0])  # inside bubble (R=350)
-        m1 = VanDenBroeckMetric(v_s=0.1)
-        m2 = VanDenBroeckMetric(v_s=0.5)
-        g1 = m1(coords)
-        g2 = m2(coords)
-        assert not jnp.allclose(g1, g2, atol=1e-10)
-
-    def test_vdb_adm_reconstruction(self):
-        """Verify __call__ matches manual ADM reconstruction."""
-        m = VanDenBroeckMetric()
-        coords = jnp.array([0.0, 1.0, 2.0, 3.0])
-        g_call = m(coords)
-        g_adm = adm_to_full_metric(
-            m.lapse(coords),
-            m.shift(coords),
-            m.spatial_metric(coords),
-        )
-        assert jnp.allclose(g_call, g_adm, atol=1e-15)
-
-    def test_vdb_symbolic(self):
-        """symbolic returns valid SymbolicMetric."""
-        m = VanDenBroeckMetric()
-        sm = m.symbolic()
-        assert isinstance(sm, SymbolicMetric)
-        assert sm.g.shape == (4, 4)
-        assert len(sm.coords) == 4
-
-    def test_vdb_curvature_chain(self):
-        """Run compute_curvature_chain and verify no NaN, correct shapes.
-
-        Uses a point near the conformal bubble wall where curvature is nontrivial.
-        """
-        m = VanDenBroeckMetric(
-            v_s=0.1, R=350.0, sigma=8.0, R_tilde=200.0, alpha_vdb=0.5, sigma_B=8.0
-        )
-        # Point near conformal bubble wall
-        coords = jnp.array([0.0, 200.0, 1.0, 0.0])
-        result = compute_curvature_chain(m, coords)
-
-        assert result.metric.shape == (4, 4)
-        assert result.christoffel.shape == (4, 4, 4)
-        assert result.riemann.shape == (4, 4, 4, 4)
-        assert result.ricci.shape == (4, 4)
-        assert result.einstein.shape == (4, 4)
-        assert result.stress_energy.shape == (4, 4)
-        # No NaN
-        assert not jnp.any(jnp.isnan(result.metric))
-        assert not jnp.any(jnp.isnan(result.christoffel))
-        assert not jnp.any(jnp.isnan(result.riemann))
-        assert not jnp.any(jnp.isnan(result.einstein))
-        assert not jnp.any(jnp.isnan(result.stress_energy))
-
     # ------------------------------------------------------------------
     # Physics-specific tests
     # ------------------------------------------------------------------
@@ -925,73 +741,6 @@ class TestWarpShell:
                 f"Exterior metric at r={r} should be Minkowski. "
                 f"Got g_00={g[0, 0]}, diag_spatial={jnp.diag(g[1:, 1:])}"
             )
-
-    def test_warpshell_jit(self):
-        """jax.jit compilation works."""
-        m = WarpShellMetric()
-        coords = jnp.array([0.0, 15.0, 2.0, 3.0])
-        g_eager = m(coords)
-        g_jit = eqx.filter_jit(m)(coords)
-        assert jnp.allclose(g_eager, g_jit, atol=1e-15)
-
-    def test_warpshell_float64(self):
-        """Output dtype is float64."""
-        m = WarpShellMetric()
-        coords = jnp.array([0.0, 15.0, 2.0, 3.0])
-        g = m(coords)
-        assert g.dtype == jnp.float64
-
-    def test_warpshell_parameter_change(self):
-        """Change v_s, verify output changes (dynamic field)."""
-        coords = jnp.array([0.0, 5.0, 0.0, 0.0])  # interior (r < R_1)
-        m1 = WarpShellMetric(v_s=0.02)
-        m2 = WarpShellMetric(v_s=0.1)
-        g1 = m1(coords)
-        g2 = m2(coords)
-        assert not jnp.allclose(g1, g2, atol=1e-10)
-
-    def test_warpshell_adm_reconstruction(self):
-        """Verify __call__ matches manual ADM reconstruction."""
-        m = WarpShellMetric()
-        coords = jnp.array([0.0, 15.0, 2.0, 3.0])
-        g_call = m(coords)
-        g_adm = adm_to_full_metric(
-            m.lapse(coords),
-            m.shift(coords),
-            m.spatial_metric(coords),
-        )
-        assert jnp.allclose(g_call, g_adm, atol=1e-15)
-
-    def test_warpshell_symbolic(self):
-        """symbolic returns valid SymbolicMetric."""
-        m = WarpShellMetric()
-        sm = m.symbolic()
-        assert isinstance(sm, SymbolicMetric)
-        assert sm.g.shape == (4, 4)
-        assert len(sm.coords) == 4
-
-    def test_warpshell_curvature_chain(self):
-        """Run compute_curvature_chain and verify no NaN, correct shapes.
-
-        Uses a point in the shell region where curvature is nontrivial.
-        """
-        m = WarpShellMetric(v_s=0.02, R_1=10.0, R_2=20.0, R_b=1.0, r_s_param=5.0)
-        # Point in shell region
-        coords = jnp.array([0.0, 15.0, 0.0, 0.0])
-        result = compute_curvature_chain(m, coords)
-
-        assert result.metric.shape == (4, 4)
-        assert result.christoffel.shape == (4, 4, 4)
-        assert result.riemann.shape == (4, 4, 4, 4)
-        assert result.ricci.shape == (4, 4)
-        assert result.einstein.shape == (4, 4)
-        assert result.stress_energy.shape == (4, 4)
-        # No NaN
-        assert not jnp.any(jnp.isnan(result.metric))
-        assert not jnp.any(jnp.isnan(result.christoffel))
-        assert not jnp.any(jnp.isnan(result.riemann))
-        assert not jnp.any(jnp.isnan(result.einstein))
-        assert not jnp.any(jnp.isnan(result.stress_energy))
 
     # ------------------------------------------------------------------
     # Physics-specific tests
@@ -1413,22 +1162,6 @@ class TestWarpShellPhysical:
         for x in (5.0, 11.0, 15.0, 19.0, 25.0):
             coords = jnp.array([0.0, x, 0.0, 0.0])
             assert jnp.allclose(phys(coords), stress(coords), atol=1e-14)
-
-    def test_physical_far_field(self):
-        """Far from bubble the metric approaches Minkowski."""
-        m = WarpShellPhysical()
-        g = m(jnp.array([0.0, 1000.0, 0.0, 0.0]))
-        minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, minkowski, atol=1e-6)
-
-    def test_physical_jit(self):
-        m = WarpShellPhysical()
-        coords = jnp.array([0.0, 15.0, 2.0, 3.0])
-        assert jnp.allclose(m(coords), eqx.filter_jit(m)(coords), atol=1e-15)
-
-    def test_physical_float64(self):
-        g = WarpShellPhysical()(jnp.array([0.0, 15.0, 2.0, 3.0]))
-        assert g.dtype == jnp.float64
 
     def test_physical_lapse_positive_without_floor(self):
         """Within the shell, r_s_param / r < 1 by construction, so the

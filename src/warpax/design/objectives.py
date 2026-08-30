@@ -107,9 +107,9 @@ def ec_margin_objective(
 def _margins_over_grid(metric, coords_stack, optimizer, n_starts):
     """Worst-observer margin at every probe point.
 
-    Module-level and jitted once. The kernel used to be a @eqx.filter_jit
-    closure rebuilt on every objective call, so its compile cache was empty
-    every time and each evaluation re-compiled the full curvature chain.
+    Module-level and jitted once, so the compile cache survives across
+    objective calls. A closure rebuilt per call recompiles the whole curvature
+    chain every evaluation.
     """
 
     def one(coords):

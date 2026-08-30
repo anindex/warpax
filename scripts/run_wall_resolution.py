@@ -16,11 +16,10 @@ Outputs
 - results/wall_resolution.json
 - ../warpax_arxiv/tables/wall_resolution.tex
 
-The table used to be maintained by hand. That is how it came to print a wall width
-of 0.27 and a spacing of 0.20 whose quotient is 1.35, correct, because the true
-values are 0.2747 and 10/49 = 0.2041 and 0.2747/0.2041 = 1.3458, but not correct
-as displayed, and a reader dividing what they were shown gets 1.4. A generated
-table cannot round its inputs and keep an unrounded quotient.
+The quotient is computed from the unrounded inputs and printed at the same
+precision as them, so a reader dividing the displayed values reproduces it. A
+width of 0.2747 over a spacing of 0.2041 is 1.3458; shown as 0.27 over 0.20 it
+would read as 1.4.
 
 Usage
 -----

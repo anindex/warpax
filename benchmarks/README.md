@@ -2,7 +2,7 @@
 
 This top-level `benchmarks/` directory hosts the
 [airspeed velocity (`asv`)](https://asv.readthedocs.io) regression harness.
-It tracks commit-to-commit performance deltas across the 18 benchmarks
+It tracks commit-to-commit performance deltas across the 13 benchmarks
 defined below.
 
 ## Naming collision
@@ -49,18 +49,16 @@ make bench-compare  # asv compare HEAD~1 HEAD (per-commit deltas)
 ### Full history
 
 ```bash
-cd warpax
-asv run v0.1.0..HEAD  # time every commit since v0.1.0
+asv run v1.0.0..HEAD  # time every commit since v1.0.0
 asv publish           # HTML report at .asv/html/
 asv preview           # local web server for exploring results
 ```
 
 ## Noise budget
 
-`regressions_thresholds.default = 0.20` (20%) in `asv.conf.json` -
-regression deltas under 20% are tolerated. This is a single-CPU harness;
-CI runners have ±10% variance on tight kernels, so the budget covers
-real noise without masking real perf drift.
+`regressions_thresholds.default = 0.20` in `asv.conf.json`, so deltas under
+20% are tolerated. This is a single-CPU harness and CI runners have +/-10%
+variance on tight kernels, so the budget covers noise without masking drift.
 
 ## JAX platform
 

@@ -48,6 +48,32 @@ class GeodesicResult(NamedTuple):
     event_mask: Array | None
 
 
+def _solve_geodesic_ode(
+    vector_field, y0, metric, tau_span, dt0, rtol, atol, num_points, max_steps, event
+):
+    """One Tsit5 + PID solve on the extended geodesic state, saved on a uniform grid.
+
+    ``throw=False`` so a non-success result code reaches the caller instead of
+    raising; ``RecursiveCheckpointAdjoint`` is diffrax's default and is named
+    here because differentiating a geodesic goes through it.
+    """
+    return diffrax.diffeqsolve(
+        diffrax.ODETerm(vector_field),
+        diffrax.Tsit5(),
+        t0=tau_span[0],
+        t1=tau_span[1],
+        dt0=dt0,
+        y0=y0,
+        args=metric,
+        saveat=diffrax.SaveAt(ts=jnp.linspace(tau_span[0], tau_span[1], num_points)),
+        stepsize_controller=diffrax.PIDController(rtol=rtol, atol=atol),
+        max_steps=max_steps,
+        throw=False,
+        event=event,
+        adjoint=diffrax.RecursiveCheckpointAdjoint(),
+    )
+
+
 def geodesic_vector_field(
     tau: Float[Array, ""],
     y: Float[Array, "8"],
@@ -226,26 +252,8 @@ def integrate_geodesic(
     """
     y0 = jnp.concatenate([x0, v0])  # (8,)
 
-    term = diffrax.ODETerm(geodesic_vector_field)
-    solver = diffrax.Tsit5()
-    controller = diffrax.PIDController(rtol=rtol, atol=atol)
-    save_ts = jnp.linspace(tau_span[0], tau_span[1], num_points)
-    saveat = diffrax.SaveAt(ts=save_ts)
-
-    sol = diffrax.diffeqsolve(
-        term,
-        solver,
-        t0=tau_span[0],
-        t1=tau_span[1],
-        dt0=dt0,
-        y0=y0,
-        args=metric,
-        saveat=saveat,
-        stepsize_controller=controller,
-        max_steps=max_steps,
-        throw=False,
-        event=event,
-        adjoint=diffrax.RecursiveCheckpointAdjoint(),
+    sol = _solve_geodesic_ode(
+        geodesic_vector_field, y0, metric, tau_span, dt0, rtol, atol, num_points, max_steps, event
     )
 
     # Unpack positions and velocities from state

@@ -69,15 +69,16 @@ eigenvalues. Types II-IV do **not** - they require a continuous search
 over the timelike observer manifold, which warpax performs via
 Optimistix BFGS over a bounded rapidity parameter.
 
-The observer-robust EC check in warpax thus has two tiers:
+The observer-robust EC check in warpax does not branch on the type. One
+$4\times4$ linear matrix inequality, $\hat T + \sigma\eta \succeq 0$, decides
+NEC, WEC, SEC and DEC over every timelike and null observer at Types I through IV
+alike, with no rapidity cap and no classification tolerance, and each verdict
+carries an exact rational certificate. The Hawking-Ellis type is reported as a
+diagnostic, and the BFGS observer search only displays how severe a violation is.
 
-1. Classify the point as Type I-IV.
-2. For Type II-IV, run the BFGS observer-space optimization (and for
-   Type I, run it anyway as a verification - the algebraic check should
-   agree with the optimizer's worst-case margin).
-
-See `warpax.energy_conditions.classify_hawking_ellis` and
-`warpax.energy_conditions.verify_point` for the implementation.
+See `warpax.energy_conditions.slemma.certify_point`,
+`warpax.energy_conditions.certificate`, and
+`warpax.energy_conditions.classify_hawking_ellis` for the implementation.
 
 ## Why it matters for warp drives
 

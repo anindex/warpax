@@ -84,12 +84,9 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
         a=spec.cluster_a,
         center=center,
     )
-    # The resolution witness must be measured on the axis the grid actually samples,
-    # which for an off-origin bubble is the shifted one. Measuring on grid.r alone
-    # reported the Garattini wall at 1.5 cells because the radial nodes cluster on a
-    # sphere the wall only crosses; on the axis through the bubble centre the same
-    # ladder level spans 4.5.
-    # grid.r may start at 0, which the mirror would duplicate into a zero-width cell.
+    # Measure the resolution witness on the axis the grid samples, the shifted one for
+    # an off-origin bubble: on grid.r alone the Garattini wall reads 1.5 cells against
+    # 4.5 through the bubble centre. grid.r may start at 0, which the mirror duplicates.
     r_pos = grid.r[grid.r > 0.0]
     axis = center + np.concatenate([-r_pos[::-1], grid.r])
     res = wall_cells_on_axis(metric, axis)

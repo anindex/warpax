@@ -1,12 +1,12 @@
-"""Warp drive metric comparison with Hawking–Ellis classification.
+"""Warp drive metric comparison with Hawking-Ellis classification.
 
 Surveys six warp drive metrics at representative bubble-wall points,
-computing curvature, Hawking–Ellis stress-energy type, and observer-robust
+computing curvature, Hawking-Ellis stress-energy type, and observer-robust
 energy condition margins. Also shows how violations scale with bubble velocity.
 
 Demonstrates:
 - Constructing every warp drive metric (Lentz, Natário, Rodal, VDB, WarpShell)
-- Hawking–Ellis Type I/II/III/IV classification
+- Hawking-Ellis Type I/II/III/IV classification
 - Observer-robust NEC/WEC margins vs Eulerian-frame margins
 - Velocity scaling of exotic matter requirements
 """
@@ -33,7 +33,7 @@ metrics = {
     "Lentz": LentzMetric(v_s=0.5, R=100.0, sigma=8.0),
     "Natário": NatarioMetric(v_s=0.5, R=1.0, sigma=8.0),
     "Rodal": RodalMetric(v_s=0.5, R=1.0, sigma=8.0),
-    "VDB": VanDenBroeckMetric(v_s=0.5, R=1.0, sigma=8.0),
+    "Van den Broeck": VanDenBroeckMetric(v_s=0.5, R=1.0, sigma=8.0),
     "WarpShell": WarpShellMetric(v_s=0.5),
 }
 
@@ -44,12 +44,12 @@ metrics["Alcubierre"] = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
 
 # Probe each metric at a bubble-wall point
 print("Warp Drive Metric Comparison (v_s = 0.5)")
-print("=" * 72)
+print("=" * 75)
 print(
-    f"{'Metric':<12s} {'HE Type':>8s} {'Euler NEC':>12s} {'Robust NEC':>12s} "
+    f"{'Metric':<15s} {'HE Type':>8s} {'Euler NEC':>12s} {'Robust NEC':>12s} "
     f"{'Robust WEC':>12s} {'Kretschmann':>12s}"
 )
-print("-" * 72)
+print("-" * 75)
 
 for name, metric in metrics.items():
     # Choose probe point near the bubble wall for each metric
@@ -70,7 +70,7 @@ for name, metric in metrics.items():
     result = compute_curvature_chain(metric, coords)
     K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
 
-    # Hawking–Ellis classification of stress-energy
+    # Hawking-Ellis classification of stress-energy
     g_inv = result.metric_inv
     T_mixed = jnp.einsum("ab,bc->ac", g_inv, result.stress_energy)
     he = classify_hawking_ellis(T_mixed, result.metric)
@@ -82,7 +82,7 @@ for name, metric in metrics.items():
     eul = compute_eulerian_ec(result.stress_energy, result.metric, g_inv)
 
     print(
-        f"{name:<12s} {'Type ' + str(int(he.he_type)):>8s} {eul['nec']:>12.4e} "
+        f"{name:<15s} {'Type ' + str(int(he.he_type)):>8s} {eul['nec']:>12.4e} "
         f"{ec.nec_margin:>12.4e} {ec.wec_margin:>12.4e} {float(K):>12.4e}"
     )
 

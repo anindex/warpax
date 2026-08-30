@@ -135,12 +135,8 @@ def load_einfield(
             "Install via `pip install 'warpax[einfields]'`."
         ) from err
 
-    # Restore the saved state. For a hand-synth Minkowski fixture (see
-    # `tests/fixtures/einfields/generate_minkowski_ckpt.py`), the state is
-    # a dict of arrays suitable for a known topology; for real EinFields
-    # checkpoints the user must provide a topology factory - tracked as a
-    # follow-up. This conservative path returns the identity fallback
-    # when topology rebuild is unavailable.
+    # Restore the saved state. A real EinFields checkpoint needs a topology factory
+    # from the caller; without one this returns the identity fallback.
     checkpointer = ocp.StandardCheckpointer()
     try:
         state = checkpointer.restore(checkpoint_path)

@@ -12,7 +12,7 @@ where ``N(x) = min_{|v|=1} T_ab k^a k^b`` with ``k = n + v`` is the Eulerian-nor
 null deficit, which is defined at every point regardless of Hawking-Ellis type.
 
 The two ends are not equally sharp. ``upper`` is an *achieved* value, evaluated on a
-degenerate box with the same rigorous arithmetic, so it is a genuine wall value.
+degenerate box with the same rigorous arithmetic, so it is a wall value.
 ``lower`` is a continuum bound, valid at every point, not merely at sampled ones,
 which is the global statement local refinement cannot supply, but it is loose,
 because the interval extension of the full curvature chain overestimates. Report the
@@ -57,35 +57,21 @@ TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 V_S, R_B, SIGMA = 0.5, 1.0, 8.0
 BOX_X = (-3.0, 3.0)
 BOX_S = (0.0, 3.0)
-# Only the inner radius is read. tail_bound bounds f on all of r_s >= r_min by
-# monotonicity, so the exterior is covered unbounded, not out to this corner.
+# Only the inner radius is read: tail_bound bounds f on all of r_s >= r_min by
+# monotonicity, so the exterior is covered unbounded.
 TAIL_X = (3.0, 30.0)
 TAIL_S = (0.0, 30.0)
 
-# Independently reported values for comparison. For Rodal (irrotational, b == 0)
-# N is exactly the polished invariant margin min_i(rho + p_i) of
-# run_diagnostic_convergence.py. For Alcubierre the wall is Type-IV dominated, so
-# the Type-I-restricted margin is a different statistic; the comparable number is
-# the all-wall NEC minimum quoted in the paper's per-metric section. The column
-# carries the value AND the statistic it is: the two are not the same quantity for
-# every drive, and saying which is the whole point of the column.
-#
-# These used to be the literals -0.628 and -0.194, typed here and copied into the
-# table. Nothing read them back, so the column could stay internally consistent
-# while the statistic it claimed to quote had moved. They are now loaded from the
-# artifact that produces them, and the key path is recorded with the value.
-#
-# Natario and Van den Broeck have no directly comparable published statistic: N is
-# the all-type deficit, while the tabulated wall minima for these two are restricted
-# to their residual Type-I points. Left blank rather than compared against a
-# different quantity.
+# Comparison column, loaded from the artifact that produces it with the key path
+# recorded beside the value. The statistic differs by drive, so the column carries
+# its name too: Rodal's is the polished min_i(rho + p_i), Alcubierre's the all-wall
+# NEC minimum. Natario and Van den Broeck have no comparable one and stay blank.
 REFERENCE_SOURCES = {
     "Alcubierre": (
         "comparison_table.json",
         ("metric", "alcubierre", "v_s", V_S, "nec_robust_min"),
-        # Name the section by what it is, not by a number: the per-metric
-        # section moved from 3.3 to 3.4 when the closing-speed section was
-        # inserted, and this string was baked into the artifact and the table.
+        # Name the section by what it is, not by a number: the number moves
+        # and this string is baked into the artifact and the table.
         r"all-wall NEC min, per-metric section",
     ),
     "Rodal": (
@@ -101,9 +87,9 @@ REFERENCE_SOURCES = {
 def _load_references():
     """Read the comparison column from the artifacts that produce it.
 
-    Missing or moved is a hard failure, not a silent ``--``: a blank cell reads as
-    "no comparable statistic exists" (which is the honest state for Natario and Van
-    den Broeck) and must not double as "the lookup broke".
+    Missing or moved is a hard failure, not a silent ``--``: a blank cell means
+    "no comparable statistic exists", which is the state for Natario and Van den
+    Broeck, and must not double as "the lookup broke".
     """
     out = {}
     for name, spec in REFERENCE_SOURCES.items():
@@ -135,16 +121,9 @@ def _load_references():
     return out
 
 
-# Van den Broeck's conformal parameters. Its shift is the same tanh top-hat as
-# Alcubierre's, so the wall mask is unchanged; the slice carries B^2 delta_ij.
-#
-# R_tilde MUST match the benchmark, which fixes R_tilde = 1.0 everywhere else
-# (run_velocity_sweep.py, run_diagnostic_convergence.py, run_matched_benchmark.py).
-# It was 0.6 here, so the certified bracket in tables/enclosures.tex enclosed the
-# extremum of a *different spacetime* from the one every other table reports, and
-# the regression test in tests/test_enclosure.py compared the interval and JAX
-# transcriptions of that same wrong instance, agreeing with each other proves
-# nothing about the metric the paper is about.
+# Van den Broeck's conformal parameters. Same tanh top-hat shift as Alcubierre, so
+# the wall mask is unchanged; the slice carries B^2 delta_ij. R_tilde MUST stay 1.0
+# to match the benchmark, or the bracket certifies a different spacetime.
 VDB_KW = dict(R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
 
 BUILDERS = {
@@ -163,11 +142,10 @@ def _f(x, nd=4):
 def _endpoint_decimals(width):
     """Decimals that resolve a bracket of this width, two figures into it.
 
-    The endpoints used to be printed at 3 and 4 decimals and the width at 1, so
-    the tightest bracket in the table read ``-0.632, -0.6311, 0.0``: the width
-    looked like zero, and it was not recoverable from the endpoints either,
-    because they were rounded to different places. Both columns now share a
-    per-row precision fixed by the bracket itself.
+    Endpoints and width share a per-row precision fixed by the bracket. Printing
+    them at fixed, different places renders a tight bracket as
+    ``-0.632, -0.6311, 0.0``, where the width reads as zero and is not
+    recoverable from the endpoints.
     """
     if not math.isfinite(width) or width <= 0.0:
         return 4

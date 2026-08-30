@@ -1,11 +1,8 @@
 """TOV equilibrium residuals and ADM-aux constraint diagnostics."""
 
-import jax
 import jax.numpy as jnp
 
 from warpax.tov import tov_residual
-
-jax.config.update("jax_enable_x64", True)
 
 
 def test_tov_residual_isotropic_perfect_fluid():
@@ -79,8 +76,6 @@ def test_tov_residual_from_metric_vacuum_zero():
     result = tov_residual_from_metric(MinkowskiMetric(), jnp.array(2.0), zero, zero, zero)
     assert jnp.isclose(result, 0.0, atol=1e-14)
 
-
-jax.config.update("jax_enable_x64", True)
 
 from warpax.benchmarks.minkowski import MinkowskiMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric

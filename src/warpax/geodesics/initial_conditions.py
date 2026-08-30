@@ -30,7 +30,7 @@ def _future_time_component(a, b, c):
 
     Branchless (vmap/jit-safe): both branches are evaluated and selected. The
     radicand is floored so forward-mode gradients stay finite when the
-    discriminant is negative (the genuinely superluminal case), which is
+    discriminant is negative (the superluminal case), which is
     signalled by returning NaN. Callers should test ``jnp.isfinite``.
     """
     scale = jnp.maximum(jnp.maximum(jnp.abs(a), jnp.abs(b)), jnp.abs(c))
@@ -315,7 +315,9 @@ def null_ic_killing_normalized(
     return x0, k0 * scale
 
 
-def _schw_r_to_iso(r_schw: float | Float[Array, ""], M: float = 1.0) -> Float[Array, ""]:
+def _schw_r_to_iso(
+    r_schw: float | Float[Array, ""], M: float | Float[Array, ""] = 1.0
+) -> Float[Array, ""]:
     """Convert Schwarzschild radial coordinate to isotropic radial coordinate.
 
     r_iso = (r_schw - M + sqrt(r_schw^2 - 2 M r_schw)) / 2
@@ -372,21 +374,9 @@ def circular_orbit_ic(
     # Position: equatorial plane, on x-axis
     x0 = jnp.array([0.0, r_iso, 0.0, 0.0])
 
-    # Compute 4-velocity directly from Schwarzschild conserved quantities.
-    #
-    # For a circular orbit at Schwarzschild radius r_schw:
-    # u^t = dt/dtau = 1 / sqrt(1 - 3M/r_schw)
-    # dphi/dtau = sqrt(M/r_schw) / (r_schw * sqrt(1 - 3M/r_schw))
-    #
-    # Since the time coordinate t and the azimuthal angle phi are the
-    # same in both Schwarzschild and isotropic coordinates, these
-    # proper-time derivatives transfer directly.
-    #
-    # At position (r_iso, 0, 0) on the x-axis, the y-component of
-    # 4-velocity is u^y = dy/dtau = r_iso * dphi/dtau.
-    #
-    # We set u^t and u^y directly (no need for timelike_ic, which
-    # expects spatial 3-velocity and solves for u^t).
+    # Circular orbit at Schwarzschild radius r_schw, with u^t = 1/sqrt(1 - 3M/r_schw)
+    # and dphi/dtau = sqrt(M/r_schw)/(r_schw sqrt(1 - 3M/r_schw)). t and phi agree in
+    # both charts, so u^y = r_iso dphi/dtau on the x-axis.
 
     # Circular geodesics require r_schw > 3M; below this the factor
     # ``1 - 3M/r`` goes negative and ``u^t`` becomes complex. Floor the

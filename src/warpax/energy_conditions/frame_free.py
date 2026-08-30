@@ -63,7 +63,7 @@ def eulerian_null_witness(
 
     Decomposes ``T`` in the Eulerian frame ``{n, e_i}`` into energy density
     ``rho``, momentum density ``j^i`` and spatial stress ``S``, then evaluates
-    the null contraction ``T_ab k^a k^b`` for ``k = n +/- jhat`` (a genuine null
+    the null contraction ``T_ab k^a k^b`` for ``k = n +/- jhat`` (an exactly null
     vector, no rapidity), minimizing over the sign:
 
         witness = rho + S(jhat, jhat) - 2 |j|.
@@ -102,9 +102,9 @@ def eulerian_momentum_frame(
     j_up = -(proj @ (T_mixed @ n_up))  # spatial momentum density j^a
     j2 = j_up @ (g_ab @ j_up)
     jmag = jnp.sqrt(jnp.clip(j2, min=0.0))
-    # Normalise j by its own largest component first. The direction is
-    # well-defined however small |j| is, but dividing by |j| against an
-    # absolute 1e-30 floor collapsed jhat, and with it S_par, at small momentum.
+    # Normalise j by its own largest component first: the direction is
+    # well-defined at any |j|, but dividing by |j| against an absolute floor
+    # collapses jhat, and with it S_par, at small momentum.
     j_scale = jnp.max(jnp.abs(j_up))
     j_unit = j_up / jnp.where(j_scale > 0.0, j_scale, 1.0)
     j2_unit = j_unit @ (g_ab @ j_unit)
@@ -114,13 +114,10 @@ def eulerian_momentum_frame(
 
 
 # A boosted Type-I tensor keeps he_type = 1 while jnp.linalg.eig returns nearly
-# parallel eigenvectors, and the eigenvalue route then publishes a wrong margin
-# as exact: at rapidity 11 a diagonal Type I with invariant NEC margin 2.5 came
-# out 48. The eigenvalue error grows like cond(V)^2 * eps, so 1e5 keeps it under
-# ~1e-6 relative. Past it the point takes the LMI, which touches no eigenvector;
-# there the margin lands under the (scale-relative) noise floor and reads as
-# saturated, which is the honest verdict for an invariant 12 orders below the
-# components carrying it. Fires at 0 wall points on all four constructions.
+# parallel eigenvectors, and the eigenvalue route then reports a wrong margin as
+# exact: at rapidity 11 an invariant NEC margin of 2.5 comes out 48. The
+# eigenvalue error grows like cond(V)^2 * eps, so 1e5 holds it under ~1e-6
+# relative. Past it the point takes the LMI, which touches no eigenvector.
 _EVEC_COND_MAX = 1e5
 
 
@@ -164,14 +161,9 @@ def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi, ill_condit
     is_I = he_type == 1
     if ill_conditioned is not None:
         is_I = is_I & ~ill_conditioned
-    # 2 * lmi["nec"] is slemma.null_deficit, at Eulerian null normalisation.
-    # It equals nec_I only in T's own rest frame: under a boost of rapidity
-    # zeta the two differ by exp(2 zeta), and the WEC/SEC/DEC slots differ
-    # already at rest (on diag(2, .5, .5, .5) the WEC slack is 2.0 against an
-    # LMI value of 1.25) because one is an inequality slack and the other the
-    # worst contraction. Only the SIGN is comparable across types; consumers
-    # that want a magnitude must stay within one type, which is what
-    # typeI_min_margins does.
+    # 2 * lmi["nec"] is slemma.null_deficit at Eulerian normalisation, equal to nec_I
+    # only in T's own rest frame. The slots are an inequality slack against a worst
+    # contraction, so only the SIGN is comparable; typeI_min_margins exists for that.
     nonI_nec = 2.0 * lmi["nec"]
     nec = jnp.where(is_I, nec_I, nonI_nec)
     wec = jnp.where(is_I, wec_I, lmi["wec"])
@@ -293,18 +285,9 @@ def certify_grid_frame_free(
     witness = jax.vmap(eulerian_null_witness)(flat_T, flat_g, flat_ginv)
 
     he = np.asarray(cls.he_type)
-    # The LMI decides every non-Type-I point, and only those: _exact_margins takes
-    # the eigenvalue margins wherever he_type == 1. Evaluating it on the whole grid
-    # anyway is what made the N=100 velocity sweep unrunnable. The multiplier search
-    # is a 4x4 eigensolve per iteration, measured at ~0.95 ms/point against ~5 us for
-    # the classification it supports, so a 1e6-point grid costs ~16 min of LMI for a
-    # slot that a few per cent of the points read.
-    #
-    # The guard used to be `if np.any(he != 1)`, which reads as "skip on an all-Type-I
-    # grid" and was described that way. But every bubble-wall grid in the paper is
-    # Type-IV dominated, so `he != 1` holds somewhere on all of them and the guard
-    # never fired. Gather the points that actually read the slot, run the LMI on those,
-    # and scatter back; the rest keep a placeholder that is never selected.
+    # The LMI decides every non-Type-I point and only those. At ~0.95 ms/point against
+    # ~5 us for the classification, running it everywhere costs ~16 min per 1e6 points,
+    # so gather the ones that read the slot, run it there, and scatter back.
     ill = np.asarray(jax.vmap(ill_conditioned_eigenbasis)(cls.eigenvectors))
     wanted = (he != 1) | ill
     if lmi_where is not None:
@@ -344,9 +327,8 @@ def certify_grid_frame_free(
         return jnp.reshape(x, (*grid_shape, *trailing))
 
     # The LMI margin contract is one-sided: a value between -floor and +floor is
-    # inconclusive, not a verdict. Carrying the floor alongside the margin is what
-    # lets a consumer honour that, an audit that thresholds at exactly zero counts
-    # saturated points as classification errors and reports rounding noise.
+    # inconclusive, not a verdict. Carry the floor so a consumer can honour it;
+    # thresholding at exactly zero counts saturated points as errors.
     nec_floor = jax.vmap(lambda T, g: noise_floor(T, g, condition="nec"))(flat_T, flat_g)
 
     return FrameFreeGridResult(

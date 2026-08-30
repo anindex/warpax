@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from itertools import pairwise
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -24,6 +25,13 @@ from warpax.energy_conditions.slemma import (
 
 ETA = np.diag([-1.0, 1.0, 1.0, 1.0])
 MINKOWSKI = jnp.asarray(ETA)
+
+# The randomized checks draw hundreds of tensors. Each margin runs a ternary search
+# over eigvalsh, which costs ~0.8 s dispatched eagerly one tensor at a time and
+# ~0.03 s for a whole batch under one trace.
+certify_batch = jax.jit(jax.vmap(certify_point, in_axes=(0, None)))
+tetrad_batch = jax.jit(jax.vmap(tetrad_components, in_axes=(0, None)))
+witness_batch = jax.jit(jax.vmap(witness_observer, in_axes=(0, None)))
 
 
 def brute_min(T_np, on_sphere, seed=0, n=400_000):
@@ -56,7 +64,7 @@ def _type_ii(amplitude, extra=None):
 
 
 def _type_iii(r=0.7, f=1.0, p=0.3):
-    """Genuine Type III: covariant T_ab whose mixed form is ``J_3(-r) (+) [p]``.
+    """Type III: covariant T_ab whose mixed form is ``J_3(-r) (+) [p]``.
 
     This is returned as ``T_ab`` directly, and it is symmetric, which is the whole
     point. The previous version built a mixed matrix and returned ``ETA @ Tm``; that
@@ -89,7 +97,7 @@ CASES = {
     "II-null-dust": _type_ii(1.0),
     # Was _type_ii(1.0, extra=[-1.0, 0.0, 3.0, 3.0]), whose longitudinal factor is
     # lam^2 - lam + 1 (discriminant -3): a complex pair, i.e. Type IV, not Type II.
-    # These are the canonical J_2 blocks, and they are genuinely Type II.
+    # These are the canonical J_2 blocks, and they are Type II.
     "II-violating": _type_ii_canonical(-2.0, 1.0, 3.0, 3.0),
     "II-transverse-violating": _type_ii_canonical(0.0, 1.0, -2.0, 0.0),
     "III": _type_iii(),
@@ -196,11 +204,11 @@ def test_dec_matches_brute_force(name):
 
 
 def test_type_ii_is_decided_not_nan():
-    """The Type-II slot that used to be NaN now carries a real verdict.
+    """The Type-II slot carries a real verdict, not NaN.
 
     ``II-violating`` is the case recorded in ``frame_free._exact_margins``: the
     null witness is non-negative while the Eulerian energy density is negative,
-    so WEC and DEC genuinely fail and were once reported satisfied.
+    so WEC and DEC fail.
     """
     m = certify_point(jnp.asarray(_sym(CASES["II-violating"])), MINKOWSKI)
     for key in ("nec", "wec", "sec", "dec"):
@@ -211,13 +219,14 @@ def test_type_ii_is_decided_not_nan():
 
 def test_dec_never_cleaner_than_wec():
     """DEC implies WEC, so its margin can never be the more permissive one."""
-    for name, T in CASES.items():
-        m = certify_point(jnp.asarray(_sym(T)), MINKOWSKI)
-        assert float(m["dec"]) <= float(m["wec"]) + 1e-9, name
+    names = sorted(CASES)
+    m = certify_batch(jnp.asarray(np.stack([_sym(CASES[n]) for n in names])), MINKOWSKI)
+    cleaner = np.asarray(m["dec"]) > np.asarray(m["wec"]) + 1e-9
+    assert not cleaner.any(), [n for n, bad in zip(names, cleaner, strict=True) if bad]
 
 
 def test_witness_observer_actually_violates():
-    """When WEC fails, the returned boost must be a genuine violating observer."""
+    """When WEC fails, the returned boost must be a violating observer."""
     T = _sym(CASES["I-violating"])
     w = np.asarray(witness_observer(jnp.asarray(T), MINKOWSKI))
     assert np.all(np.isfinite(w)) and np.linalg.norm(w) <= 1.0 + 1e-9
@@ -248,7 +257,7 @@ def test_verdict_is_boost_invariant(name):
 
      Boosting the coordinates tilts the ``t = const`` slices, so the slice normal
     , and with it the Eulerian ``rho``, ``b``, ``S`` that normalize the margin,
-     genuinely changes. What cannot change is the answer, because "some observer
+     changes. What cannot change is the answer, because "some observer
      sees this fail" quantifies over all observers in any chart. This is precisely
      the paper's claim: the Boolean is frame-independent, the magnitude is a
      slice-normal-normalized severity.
@@ -283,16 +292,18 @@ def test_agrees_in_sign_with_eigenvalue_margins_at_type_i():
     from warpax.energy_conditions.eigenvalue_checks import check_all
 
     rng = np.random.default_rng(3)
-    for _ in range(200):
-        rho, p = rng.normal(size=1)[0] * 2.0, rng.normal(size=3) * 2.0
-        T = np.diag([rho, *p])
-        m = certify_point(jnp.asarray(T), MINKOWSKI)
-        nec_I, wec_I, sec_I, dec_I = check_all(jnp.asarray(rho), jnp.asarray(p))
-        for key, ref in (("nec", nec_I), ("wec", wec_I), ("sec", sec_I), ("dec", dec_I)):
-            assert (float(m[key]) >= -1e-8) == (float(ref) >= -1e-8), (
-                f"{key}: LMI {float(m[key]):.3e} vs eigenvalue {float(ref):.3e} "
-                f"at rho={rho:.3f} p={p}"
-            )
+    draws = [(rng.normal(size=1)[0] * 2.0, rng.normal(size=3) * 2.0) for _ in range(200)]
+    rho = jnp.asarray([d[0] for d in draws])
+    p = jnp.asarray(np.stack([d[1] for d in draws]))
+
+    lmi = certify_batch(jax.vmap(jnp.diag)(jnp.column_stack([rho, p])), MINKOWSKI)
+    eigenvalue = jax.jit(jax.vmap(check_all))(rho, p)
+
+    for key, ref in zip(("nec", "wec", "sec", "dec"), eigenvalue, strict=True):
+        disagree = np.flatnonzero((np.asarray(lmi[key]) >= -1e-8) != (np.asarray(ref) >= -1e-8))
+        assert disagree.size == 0, (
+            f"{key}: LMI and eigenvalue verdicts differ at rho={rho[disagree]} p={p[disagree]}"
+        )
 
 
 # --- regressions for the three defects found in the R2 audit ------------------
@@ -346,19 +357,23 @@ def test_witness_is_genuine_at_a_repeated_lowest_eigenvalue():
 def test_witness_is_genuine_on_random_violating_tensors():
     """Randomized version of the above: no returned observer may fail to violate."""
     rng = np.random.default_rng(3)
-    checked = 0
-    for _ in range(200):
-        A = rng.normal(size=(4, 4))
-        T = _sym(A + A.T)
-        if float(certify_point(jnp.asarray(T), MINKOWSKI)["wec"]) >= -1e-9:
-            continue
-        checked += 1
-        w = np.asarray(witness_observer(jnp.asarray(T), MINKOWSKI))
-        assert np.all(np.isfinite(w)) and np.linalg.norm(w) <= 1.0 + 1e-9
-        T_hat = np.asarray(tetrad_components(jnp.asarray(T), MINKOWSKI))
-        q = T_hat[0, 0] - 2.0 * (-T_hat[0, 1:]) @ w + w @ T_hat[1:, 1:] @ w
-        assert q < 0.0, f"returned observer does not violate: q = {q:.3e}"
-    assert checked > 20, "expected a decent number of violating draws"
+    A = rng.normal(size=(200, 4, 4))
+    T = jnp.asarray(A + np.swapaxes(A, 1, 2))
+
+    violating = T[np.asarray(certify_batch(T, MINKOWSKI)["wec"]) < -1e-9]
+    assert violating.shape[0] > 20, "expected a decent number of violating draws"
+
+    w = np.asarray(witness_batch(violating, MINKOWSKI))
+    assert np.all(np.isfinite(w))
+    assert np.all(np.linalg.norm(w, axis=1) <= 1.0 + 1e-9)
+
+    T_hat = np.asarray(tetrad_batch(violating, MINKOWSKI))
+    q = (
+        T_hat[:, 0, 0]
+        + 2.0 * np.einsum("ni,ni->n", T_hat[:, 0, 1:], w)
+        + np.einsum("ni,nij,nj->n", w, T_hat[:, 1:, 1:], w)
+    )
+    assert np.all(q < 0.0), f"returned observers do not violate: q = {q[q >= 0.0]}"
 
 
 @pytest.mark.parametrize("name", sorted(CASES))
@@ -388,16 +403,17 @@ def test_null_deficit_dominates_the_momentum_witness():
 
     g_inv = jnp.linalg.inv(MINKOWSKI)
     rng = np.random.default_rng(11)
-    strict = 0
-    for _ in range(100):
-        A = rng.normal(size=(4, 4))
-        T = jnp.asarray(_sym(A + A.T))
-        deficit = float(null_deficit(T, MINKOWSKI))
-        witness = float(eulerian_null_witness(T, MINKOWSKI, g_inv))
-        assert deficit <= witness + 1e-8, f"{deficit:.6f} > {witness:.6f}"
-        if deficit < witness - 1e-6:
-            strict += 1
-    assert strict > 0, "the witness should be strictly weaker somewhere"
+    A = rng.normal(size=(100, 4, 4))
+    T = jnp.asarray(A + np.swapaxes(A, 1, 2))
+
+    deficit = np.asarray(jax.jit(jax.vmap(null_deficit, in_axes=(0, None)))(T, MINKOWSKI))
+    witness = np.asarray(
+        jax.jit(jax.vmap(eulerian_null_witness, in_axes=(0, None, None)))(T, MINKOWSKI, g_inv)
+    )
+
+    over = np.flatnonzero(deficit > witness + 1e-8)
+    assert over.size == 0, f"deficit exceeds the witness at draws {over}"
+    assert np.any(deficit < witness - 1e-6), "the witness should be strictly weaker somewhere"
 
 
 # --------------------------------------------------------------------------
@@ -495,14 +511,12 @@ def test_lmi_is_continuous_through_the_type_ii_locus():
     """
     rho = s_par = 1.0
     js = [0.90, 0.99, 0.999, 1.0, 1.001, 1.01, 1.10]
-    margins = []
-    for j in js:
-        T = np.zeros((4, 4))
-        T[0, 0] = rho
-        T[0, 1] = T[1, 0] = -j
-        T[1, 1] = s_par
-        T[2, 2] = T[3, 3] = 0.2
-        margins.append(float(certify_point(jnp.asarray(T), MINKOWSKI)["nec"]))
+    T = np.zeros((len(js), 4, 4))
+    T[:, 0, 0] = rho
+    T[:, 0, 1] = T[:, 1, 0] = -np.asarray(js)
+    T[:, 1, 1] = s_par
+    T[:, 2, 2] = T[:, 3, 3] = 0.2
+    margins = [float(m) for m in certify_batch(jnp.asarray(T), MINKOWSKI)["nec"]]
 
     # Exactly zero on the locus, and strictly monotone through it.
     assert margins[js.index(1.0)] == pytest.approx(0.0, abs=1e-13)
@@ -514,7 +528,6 @@ def test_lmi_is_continuous_through_the_type_ii_locus():
         assert m == pytest.approx(0.5 * (rho + s_par) - j, abs=1e-12)
 
 
-@pytest.mark.slow
 def test_lmi_agrees_with_brute_force_at_every_hawking_ellis_type():
     """The LMI verdict must match a brute-force observer search.
 

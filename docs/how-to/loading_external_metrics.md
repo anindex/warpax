@@ -21,7 +21,7 @@ via `mat73`; older v7 / v6 / v4 via `scipy.io.loadmat`.
 from warpax.io import load_warpfactory
 
 metric = load_warpfactory("path/to/alcubierre.mat")
-# metric is an InterpolatedADMMetric - plug into the curvature chain
+# metric is an InterpolatedADMMetric; plug into the curvature chain
 # and EC verifier exactly like any analytic metric.
 
 import jax.numpy as jnp
@@ -54,7 +54,7 @@ metric = load_einfield(
     "path/to/checkpoint.ckpt",
     sample_bounds=((-1.0, 1.0), (-5.0, 5.0), (-5.0, 5.0), (-5.0, 5.0)),
     sample_shape=(2, 8, 8, 8),
-    interp_method="cubic",
+    interp_method="linear",
 )
 ```
 
@@ -73,7 +73,7 @@ metric = load_cactus_slice(
     "path/to/simulation.h5",
     iteration=0,
     timelevel=0,
-    interp_method="cubic",
+    interp_method="linear",
 )
 ```
 
@@ -100,7 +100,7 @@ component groups are deferred to a future release.
 
 Every loader returns an ``InterpolatedADMMetric`` instance. The returned object
 exposes the same `lapse`, `shift`, `spatial_metric`, and `__call__(coords)`
-methods as any analytic metric - the difference is that values at arbitrary
+methods as any analytic metric. The difference is that values at arbitrary
 coordinates are produced by interpolation over the stored grid rather than
 evaluated from a closed-form expression.
 

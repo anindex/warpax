@@ -1,228 +1,110 @@
 # Changelog
 
-All notable changes to `warpax` are recorded here. The project follows
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html). Pre-1.0
-history is summarized in `docs/explanation/release_notes.md`.
+All notable changes to `warpax`, following
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). Pre-1.0 history is
+in `docs/explanation/release_notes.md`.
 
----
+## [1.4.0] - 2026-08-31
 
-## [1.4.0] - 2026-08-22
+Type-free certification. The energy-condition verdict comes from a $4\times4$
+linear matrix inequality rather than from an eigendecomposition, so it holds at
+every Hawking-Ellis type, and each verdict carries an exact rational
+certificate.
 
-Type-free certification. The energy-condition verdict is decided by a $4\times4$
-linear matrix inequality rather than by an eigendecomposition, so it no longer
-depends on the algebraic type, and every reported verdict carries an exact
-rational certificate.
+### Added
 
-- `energy_conditions.slemma`: `certify_point_lmi` decides NEC/WEC/SEC/DEC over
-  every timelike and null observer from $\hat T + \sigma\eta \succeq 0$ (the
-  S-lemma), at Hawking--Ellis Types I, II, III and IV alike -- no rapidity cap,
-  no classification tolerance. `witness_observer` returns the violating boost.
-- `energy_conditions.certificate`: exact rational two-sided certificates. A
-  multiplier $\sigma \in \mathbb{Q}$ verified by $LDL^{\mathsf T}$ over
-  `Fraction` when the condition holds; a rational $w$ with $|w| \le 1$ and
-  $q(w) < 0$ when it fails. `verify()` rejects a certificate whose multiplier
-  keys or binding condition do not match the claim.
+- `energy_conditions.slemma.certify_point_lmi`: NEC/WEC/SEC/DEC over every
+  timelike and null observer from $\hat T + \sigma\eta \succeq 0$, at Types I
+  through IV alike, with no rapidity cap and no classification tolerance.
+  `witness_observer` returns the violating boost.
+- `energy_conditions.certificate`: exact rational certificates checked over
+  `Fraction`. A multiplier $\sigma$ when the condition holds, a boost $w$ with
+  $|w| \le 1$ and $q(w) < 0$ when it fails.
 - `energy_conditions.enclosure`: verified continuum enclosures of the worst-case
-  violation by interval branch-and-bound (Moore--Skelboe, `mpmath.iv`, outward
-  rounding), bracketing the extremum over the whole domain rather than over the
-  sampled grid.
-- `energy_conditions.frame_free`: the LMI runs on the non-Type-I subset by
-  gather/scatter, and `certify_grid_frame_free` accepts `lmi_where` to restrict
-  it to a region of interest; an ill-conditioned eigenbasis now routes to the
-  LMI instead of being trusted.
-- `grids.proper_volume_weights`: attaches the slice Jacobian
-  $\mathrm{d}V = \sqrt{\det\gamma}\,\mathrm{d}^3x$ to grid diagnostics. Every
-  volume-weighted fraction on a conformally scaled slice (Van den Broeck) moves.
-- `analysis.convergence.richardson_extrapolation` refuses non-geometric ladders
-  and non-monotone triplets, reporting `observed_order=None` with a spread-based
-  error rather than an order the data cannot support. `l2_violation` is now a
-  true $L^2$ norm, $\sqrt{\sum v^2\,\Delta V}$.
-- `analysis.extrema.refine_extremum` can polish with the curvature invariants;
-  `seed_from_grid_index` seeds the polish from a grid argmin.
-- Classification: the type is a diagnostic, not a gate. The imaginary-part test
-  is scaled by the tensor magnitude, an all-NaN input yields `NaN` rather than a
-  spurious type, and vacuum counting is NaN-safe.
-- ANEC: the affine window for geodesic rays is set from the ray's own horizon
-  crossing (`crossing_span`), not by a stationarity search, which walked past
-  the answer into integrator drift.
+  violation by interval branch-and-bound (Moore-Skelboe, `mpmath.iv`, outward
+  rounding), bracketing the extremum over the domain rather than over a grid.
+- `energy_conditions.interval_lmi`: the same certificate in interval arithmetic,
+  from the metric rather than from a sampled stress-energy tensor.
+- `grids.proper_volume_weights`: the slice Jacobian
+  $\mathrm{d}V = \sqrt{\det\gamma}\\,\mathrm{d}^3x$. Every volume-weighted
+  fraction on a conformally scaled slice moves.
+- `analysis.extrema.refine_extremum`: polishes a grid extremum off the grid.
 
----
+### Fixed
+
+- `averaged.anec`: the on-cone witness is measured on the trajectory tangent
+  $\mathrm{d}x/\mathrm{d}\lambda$, not on the projected vector, which is null by
+  construction. `_project_to_null` uses the Citardauq form.
+- `averaged.awec`: a spacelike curve is reported rather than normalised as
+  timelike, and the line integral carries $\mathrm{d}\tau/\mathrm{d}\lambda$.
+- `analysis.convergence`: grid spacing is $1/(N-1)$ on endpoint-inclusive grids.
+  Non-geometric ladders are refused rather than fitted.
+- `energy_conditions.enclosure.tail_bound`: the minimum of $|x|$ over the slab,
+  not of $|$endpoint$|$, which excluded a slab straddling the origin.
+- `junction.darmois`: one-sided limits at $\Sigma$, so a smooth metric gives a
+  vanishing jump. A $\Sigma$ of changing causal character gives no verdict.
+- Every absolute floor is relative to the tensor or metric scale, so a verdict
+  survives a coordinate rescaling.
+- Both classifiers report no verdict on non-finite input, and agree with each
+  other.
+- `frame_free`: `lmi_substituted` marks margins taken from the LMI rather than
+  from the eigenvalue inequalities. Only their sign is comparable.
+- ANEC affine windows come from the ray's horizon crossing, not from a
+  stationarity search that walked into integrator drift.
+
+### Performance
+
+- Interval branch-and-bound 3.3x faster, with bit-identical enclosures.
+- Metric parameters are array leaves, so a velocity sweep no longer recompiles
+  the curvature chain per value.
+- `import warpax` drops from 2.5 s to 0.75 s; `design` and sympy load on first
+  use.
+
+### Removed
+
+- `exceptions`, `grids._refined`, `benchmarks.registry`,
+  `visualization.common._themes` and `_jit_cache`, none of which had a caller.
 
 ## [1.3.0] - 2026-06-22
 
-Visualization rework: Manim scenes renamed to physically accurate names,
-colormaps matched to each field's sign, and a reliable headless 3D render path.
-
-- Scenes renamed for physical precision (e.g. `BubbleSweep` ->
-  `WallAndVelocitySweep`, `VelocityRamp` -> `VelocitySweep`, `ObserverSweep` ->
-  `BoostRapiditySweep`, `ExpansionShear` -> `EulerianKinematics2D`).
-- One-sided colormaps for the non-positive fields ($\rho_{\rm Eul}$, NEC/WEC
-  margins); a signed scale for the sign-indefinite Kretschmann invariant $K$.
-- 3D scenes render through the OpenGL/EGL path, avoiding the Cairo 3D crash.
-
----
+Manim scenes renamed to physically accurate names, colormaps matched to each
+field's sign, and a headless 3D render path through OpenGL/EGL.
 
 ## [1.2.0] - 2026-06-21
 
-New `warpax.bondi` submodule: Bondi four-momentum radiated-flux and Newman--Penrose
-peeling extraction at null infinity, read directly from the curvature.
-
-- `radiated_momentum_flux`: the four-momentum radiated to null infinity, sampled on a
-  family of cones and Richardson-extrapolated in radius, with a gravitational-news
-  ($\Psi_4$) proxy.
-- `peeling_slopes`, `weyl_scalars`: the Newman--Penrose Weyl scalars and their asymptotic
-  peeling falloff $\Psi_n \sim r^{-(5-n)}$.
-- `psi4_at`: the outgoing $\Psi_4$ on an asymptotic Minkowski null tetrad.
-- Tests: `tests/test_bondi.py`, `tests/test_peeling.py`.
-
----
+New `warpax.bondi`: Bondi four-momentum radiated flux, Newman-Penrose Weyl
+scalars, and peeling falloff $\Psi_n \sim r^{-(5-n)}$ at null infinity.
 
 ## [1.1.1] - 2026-06-20
 
-Reproduction artifacts and docs for the source-shell paper (arXiv:2605.25417).
-No API changes.
-
-- `run_tshell_typeIV_gate.py`: measures the T-shell Type-IV onset on the genuine
-  outer edge ($r \ge R_2$) only -- the inner vacuum is a uniform-shift gauge
-  artifact and is excluded. The opened imaginary eigenvalue is linear in the
-  tilt (outer-edge log-log slope $1.01 \pm 0.01$), and the standard,
-  generalized-pencil, and 50-digit solvers all confirm Type IV. Writes
-  `results/tshell_typeIV_gate.json`.
-- `run_anec_impact_scan.py`: the source-shell ANEC sign is robust across impact
-  parameter $b \in [10^{-3}, 5]$ and resolution; the on-cone witness drops below
-  $10^{-4}$ only at the finest grid (up to $\sim 2\times10^{-4}$ on coarse grids).
-  Writes `results/anec/source_first_impact_scan.json`.
-- Saved constraint-residual and S-/T-shell phase-diagram artifacts under `results/`.
-- Docs: new `boundary_cost.md`; updated `reproduce_warpshell_paper.md`.
-
----
+Reproduction artifacts and docs for the source-shell paper
+(arXiv:2605.25417). No API changes.
 
 ## [1.1.0] - 2026-06-10
 
-### Frame-independent certification
+Frame-independent certification.
 
-- `warpax.certify(metric)`: one-call all-observer, all-velocity energy-condition
-  certifier built on the Hawking-Ellis eigenvalue test of $T^a{}_b$; it never
-  constructs the Eulerian normal, so it is valid at all warp speeds including
-  superluminal $v_s \ge 1$ (`energy_conditions.frame_free`).
-- Type-IV physical-certification gate: three-solver agreement (`eig`, LAPACK
-  `zggev` generalized pencil) plus a 50-digit `mpmath` recomputation, with a
-  refinement-stability and tolerance-insensitivity check
-  (`validate_superluminal_classification.py`).
-- Closed-form Type-I worst observer $\sinh^2\zeta_{\rm th} = \rho/|\rho+p_i|$
-  with principal-eigenvector boost direction, validated against the BFGS
-  optimizer (`energy_conditions.worst_observer_analytic`).
-
-### New physics analyses
-
-- Velocity-resolved Hawking-Ellis type map across the luminal transition
-  ($v_s \in [0.1, 2.5]$) and a matched-parameter, wall-resolved invariant
-  benchmark with per-metric wall-clustered convergence (`run_velocity_sweep.py`,
-  `run_invariant_verification.py`, `run_matched_benchmark.py`).
-- Shift-vorticity analysis: the vorticity of the ADM shift controls the
-  Hawking-Ellis type of the bubble wall (`analysis.shift_kinematics`,
-  `run_shift_vorticity.py`).
-- Averaged null energy (ANEC) line integrals for the retained metrics and a
-  Ford-Roman quantum-inequality diagnostic (`run_anec_retained.py`,
-  `run_quantum_inequality.py`).
-- **Rigorous geodesic-integrated ANEC**: a structure-preserving symplectic
-  null-geodesic integrator (`geodesics.symplectic`, Tao-2016 extended phase
-  space with JAX autodiff, Yoshida-4) that conserves $g_{ab}k^a k^b$ to ~machine
-  precision where the adaptive RK integrator drifts off the null cone by $O(0.1)$
-  on long bubble crossings. `averaged.anec.anec_rigorous` returns the ANEC with
-  an on-cone rigor witness $\max|g(k,k)|$ and a projection-corrected fallback
-  for the strongest-shift walls (`run_anec_symplectic.py`). `ANECResult` now
-  carries `max_abs_g_kk` and `null_preserved`.
-- **Cross-construction all-observer verification**: a uniform adapter
-  (`analysis.construction_adapter`) flows the Fuchs constant-velocity shell, the
-  Bobrick-Martire/Fell-Heisenberg WarpShell, and the Garattini-Zatrimaylov de
-  Sitter bubble (alongside Alcubierre and Rodal)
-  through the same frame-independent certifier with a wall-resolution gate
-  (`run_construction_verification.py`). The source-first S-/T-shells stay in the
-  construction registry as a toolkit but are now certified in the companion note
-  (arXiv:2605.25417), not here, keeping the two contributions disjoint.
-- **Garattini-Zatrimaylov de Sitter bubble** (`metrics.GarattiniMetric`): a
-  warp bubble on a de Sitter background with a faithful closed-form `.symbolic()`
-  that reduces exactly to Alcubierre at $H=0$. Certified at its matched
-  $v_s = H R$ averaged-condition regime, the wall is Hawking-Ellis Type IV and
-  the Eulerian frame misses ~63% of the wall weak-energy violations even though
-  the de Sitter background renders the Eulerian density non-negative.
-- **Vorticity -> Type-IV mechanism**: the imaginary part of the Hawking-Ellis
-  Type-IV eigenvalue pair is shown to be linear in the shift vorticity,
-  $f = \kappa\,\omega$ with slope $\kappa \approx 0.06$ in the controlled
-  construction (`analysis.vorticity_type_analytic`,
-  `derive_vorticity_type.py`; controlled pure-rotation fit $R^2 = 1$).
-- **Shear amplification of the Type-IV pair quantified**: the cross-metric
-  validation now records the shift expansion, shear, shear-to-vorticity ratio,
-  and the excess of the measured $f$ over the pure-rotation prediction
-  $\kappa\,\omega$ at the matched wall sample (`excess_over_pure_rotation` in
-  `analysis.vorticity_type_analytic`). The excess (x2.1 Van den Broeck, x3.7
-  Alcubierre, x31.8 Natário) grows with $\sigma/\omega$; the zero-expansion
-  Natário wall makes the symmetric gradient pure shear, and the irrotational
-  Rodal shift carries same-order shear with $f = 0$: shear amplifies the
-  imaginary pair that vorticity opens, but does not open one itself.
-- **Invariant exoticity ranking and $v_s$ scaling laws**: a boost-invariant
-  multi-axis figure of merit (NEC severity, Type-IV fraction, rigorous ANEC
-  minimum) plus power-law fits of the NEC severity, recovering the universal
-  $v_s^2$ scaling (`run_exoticity_ranking.py`).
-- **Universal $v_s$ scaling of the wall curvature invariants**: the wall-peak
-  Kretschmann, Weyl-squared and Ricci-squared invariants follow clean power
-  laws in the warp speed, split by shift vorticity: the vortical walls grow as
-  $v_s^2$, the irrotational Rodal wall as $v_s^4$ ($R^2 \ge 0.99$;
-  `run_curvature_scaling.py`).
-- **Santiago-Schuster-Visser no-go made quantitative**: the wall NEC
-  deficit follows the necessarily-quadratic $\min(\rho+p_i) = -C\,v_s^2$ form
-  with a geometry-fixed coefficient $C>0$, making the no-go theorem a measured
-  rather than asserted statement (`run_ssv_bound.py`).
-
----
+- `warpax.certify(metric)`: one-call all-observer certification from the
+  Hawking-Ellis eigenvalue test of $T^a{}_b$, valid at all warp speeds
+  including superluminal $v_s \ge 1$.
+- Closed-form Type-I worst observer, cross-checked against the BFGS optimizer.
+- Rigorous geodesic-integrated ANEC through a symplectic null integrator that
+  conserves $g_{ab}k^ak^b$ where the adaptive integrator drifts off the cone.
+- Shift vorticity controls the wall type: the Type-IV imaginary pair is linear
+  in it, and shear amplifies but does not open it.
+- Wall NEC deficit and curvature invariants as power laws in $v_s$, splitting
+  by vorticity ($v_s^2$ vortical, $v_s^4$ irrotational).
+- New `metrics.GarattiniMetric`, and cross-construction verification of the
+  Fuchs, WarpShell and Garattini-Zatrimaylov constructions.
 
 ## [1.0.0] - 2026-05-26
 
-Stable release: observer-robust energy-condition verification, source-first
-shell construction, autodiff curvature analysis, and a metric-design API.
+First stable release: Hawking-Ellis classification with exact Type-I margins,
+multistart BFGS observer optimization, source-first S-/T-shell construction from
+the Einstein constraints, a pure-JAX autodiff curvature chain, WarpFactory /
+Cactus / EinsteinFields IO, and a differentiable metric-design API.
 
-### Energy conditions
-
-- Full Hawking-Ellis classification (Types I-IV); exact Type-I eigenvalue margins.
-- Multistart BFGS observer optimization for NEC, WEC, SEC, and DEC.
-- `verify_grid` ships both `vmap` and `lax.map`-chunked paths for memory safety.
-- Optimizer supports `axis+gaussian` and Fibonacci-lattice starts.
-- Smooth `tanh` rapidity caps plus a projected-gradient hard bound.
-- Spatial-neighbor warm starts for grid sweeps.
-
-### Source-first shells
-
-- S-shell and T-shell derive metric potentials from the Hamiltonian and
-  momentum constraints rather than prescribing the shift.
-- Bernstein-parameterized source profiles via the standalone solvers in
-  `warpax.constraints`.
-- Fuchs construction ([CQG 2024, arXiv:2405.02709](https://arxiv.org/abs/2405.02709))
-  with iterative Gaussian-kernel smoothing and a moving-average variant for
-  exact-pipeline reproduction.
-
-### Curvature, IO, design
-
-- `compute_curvature_chain` and `evaluate_curvature_grid` are pure JAX with
-  `equinox.filter_jit` caching.
-- Source-consistency diagnostics, ADM mass via Gauss-Legendre angular
-  quadrature, Israel junction checks (covariant $\nabla n$ and $h^{ab}$ trace),
-  Ford-Roman quantum-inequality evaluator.
-- IO layer: WarpFactory, Cactus, and EinsteinFields exports through a shared
-  interpolated-base layer.
-- Metric design: `design_metric`, `ShapeFunction`, `OBJECTIVE_REGISTRY`,
-  `CONSTRAINT_REGISTRY`: define a differentiable shape function and search
-  parameters that satisfy chosen energy conditions.
-
-### Tooling
-
-- Test fixtures, example scripts, and golden artifacts deterministic under
-  `JAX_PLATFORMS=cpu` and the classifier's standard solver.
-- Fast suite parallelizes with `pytest -n auto -m "not slow"` (732 passing, 11 skipped).
-- Docs build under `mkdocs build --strict`; library targets Python 3.12+.
-
----
-
+[1.4.0]: https://github.com/anindex/warpax/releases/tag/v1.4.0
 [1.3.0]: https://github.com/anindex/warpax/releases/tag/v1.3.0
 [1.2.0]: https://github.com/anindex/warpax/releases/tag/v1.2.0
 [1.1.1]: https://github.com/anindex/warpax/releases/tag/v1.1.1

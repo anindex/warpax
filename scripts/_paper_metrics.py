@@ -1,8 +1,7 @@
 """The four compact constructions the paper sweeps, and their instantiation.
 
-This table was copied verbatim into nine scripts and the two-line
-``_instantiate`` into eight. ``analysis.construction_adapter.construction_registry``
-is a richer structure (grid bounds, wall radii, claims) and is not a drop-in.
+``analysis.construction_adapter.construction_registry`` carries the same four
+plus grid bounds, wall radii and claims, and is not a drop-in for this table.
 """
 
 from __future__ import annotations

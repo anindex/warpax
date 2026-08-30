@@ -16,7 +16,7 @@ The ``geodesic_complete`` flag and ``termination_reason`` field on
 
    ``tangent_norm='null_projected'`` (the default) rescales the spatial
    part of each sampled tangent so ``g(k, k) = 0`` exactly, making the
-   line integral a genuine null-cone average even when the underlying
+   line integral a true null-cone average even when the underlying
    integrator drifts off the cone. ``'renormalized'`` (the legacy
    default) is a near-identity rescale that protects against
    zero-``u^0`` numerical degeneracies but does **not** project onto
@@ -72,7 +72,7 @@ class ANECResult(NamedTuple):
         for an unrecognized result code.
     max_abs_g_kk : Float[Array, ""]
         Rigor witness: the worst off-cone deviation ``max_n |g_{ab} k^a k^b|``
-        over the sampled tangents. For a genuine null average this should be
+        over the sampled tangents. For a true null average this should be
         tiny; a large value flags that the integrated tangent drifted off the
         null cone (use the symplectic integrator or the ``null_projected``
         tangent norm). 0.0 by construction when ``tangent_norm='null_projected'``.
@@ -134,12 +134,17 @@ def _project_to_null(
     lam_a = jnp.where(a_ok, q / jnp.where(a_ok, A_s, 1.0), 1.0)
     lam_b = jnp.where(q_ok, A_t / jnp.where(q_ok, q, 1.0), 1.0)
 
-    # The two roots have opposite signs whenever g_00 < 0, and the negative one
-    # is the reflected ray. Keep the spatial direction, then closest to 1.
-    def score(lam):
-        return jnp.where(lam > 0.0, jnp.abs(lam - 1.0), jnp.inf)
-
-    lam = jnp.where(score(lam_a) <= score(lam_b), lam_a, lam_b)
+    # With g_00 < 0 the roots have opposite signs and the negative one is the
+    # reflected ray, so prefer the positive one. With g_00 > 0 (inside a
+    # superluminal bubble) both can be negative, and then neither is reflected:
+    # fall back to closest to 1 rather than tie on inf and take an arbitrary
+    # one, which picked the farther ray.
+    dist_a = jnp.abs(lam_a - 1.0)
+    dist_b = jnp.abs(lam_b - 1.0)
+    any_pos = (lam_a > 0.0) | (lam_b > 0.0)
+    score_a = jnp.where(any_pos & (lam_a <= 0.0), jnp.inf, dist_a)
+    score_b = jnp.where(any_pos & (lam_b <= 0.0), jnp.inf, dist_b)
+    lam = jnp.where(score_a <= score_b, lam_a, lam_b)
     return u_t * e0 + lam * u_s
 
 
@@ -163,7 +168,9 @@ def _anec_integrand_at_point(
 
 def _extract_trajectory(
     metric: MetricSpecification,
-    geodesic: GeodesicResult | Callable[[Float[Array, ""]], Float[Array, "4"]],
+    geodesic: GeodesicResult
+    | SymplecticGeodesicResult
+    | Callable[[Float[Array, ""]], Float[Array, "4"]],
     n_samples: int,
     affine_bounds: tuple[float, float],
 ) -> tuple[Float[Array, "N"], Float[Array, "N 4"], Float[Array, "N 4"], int]:
@@ -252,7 +259,7 @@ def anec(
         callable. Ignored when a ``GeodesicResult`` is passed.
     null_tol : float
         Threshold on the rigor witness ``max|g(k,k)|`` below which the
-        integral is certified as a genuine null-geodesic average
+        integral is certified as a true null-geodesic average
         (``null_preserved=True``). Default ``1e-8``.
 
     Returns
@@ -285,9 +292,8 @@ def anec(
     line_integral = jnp.trapezoid(integrand, lam)
 
     # Rigor witness on the TRAJECTORY tangent dx/dlambda, in every mode. Under
-    # 'null_projected' it used to be measured on the projected vector, which is
-    # null by construction, so a timelike path returned null_preserved=True
-    # while the integral contracted T on a null field unrelated to the curve.
+    # 'null_projected' the projected vector is null by construction, so measuring
+    # it there would pass any curve.
     g_kk = jax.vmap(lambda c, u: velocity_norm(metric, c, u))(positions, velocities)
     max_abs_g_kk = jnp.max(jnp.abs(g_kk))
     # Relative verdict: g(k,k) carries the square of the tangent scale, so an
@@ -389,7 +395,7 @@ def anec_rigorous(
         quadrature. On a span of 43.6 with 512 nodes the spacing is 0.085
         against a wall width of 0.27, i.e. three nodes across the feature that
         carries the integrand. Saving every step costs nothing measurable (the
-        symplectic scan dominates), so the default no longer subsamples.
+        symplectic scan dominates), so the default does not subsample.
     null_tol : float
         On-cone witness threshold for certifying the symplectic value.
     killing : Float[Array, "4"] or None

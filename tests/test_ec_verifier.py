@@ -16,8 +16,6 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-jax.config.update("jax_enable_x64", True)
-
 from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.energy_conditions import (
     ECGridResult,
@@ -211,7 +209,6 @@ class TestGeneralizedSolverIntegration:
         assert int(r.he_type) == 1
         assert float(r.wec_margin) >= 0
 
-    @pytest.mark.slow
     def test_verify_grid_generalized_small(self, alcubierre_grid_data):
         """verify_grid(..., solver='generalized') completes on a 5x5x5 Alcubierre grid."""
         result, grid = alcubierre_grid_data
@@ -444,17 +441,9 @@ class TestDECFutureDirectedness:
             _dec_objective,
         )
 
-        # Construct T_ab in Minkowski where Eulerian flux is past-directed:
-        # T_{ab} with T_{00} = -1, T_{11}=T_{22}=T_{33}=0.5
-        # rho = T_{ab} n^a n^b = T_{00} = -1 < 0 -> WEC violated.
-        # j^0 = -T^0_b n^b = -T^0_0 = -(g^{00} T_{00}) = -(-1)(-1) = -1
-        # So j^0 = -1 < 0, j_0 = g_{00} j^0 = (-1)(-1) = 1
-        # j.n = j_a n^a = j_0 * 1 = 1 > 0 -> past-directed
-        # future_margin = -j.n = -1 < 0 -> correctly detects violation
-        #
-        # Also flux_causality: j = (-1, 0, 0, 0)
-        # g_{ab} j^a j^b = -1 < 0 -> timelike -> flux_causality = 1 > 0
-        # So the past-directed check is the binding constraint here.
+        # Minkowski T_ab with T_00 = -1, T_ii = 0.5: rho = -1 violates WEC, and the
+        # energy flux j = (-1, 0, 0, 0) is timelike but past-directed, giving
+        # future_margin = -1. The past-directed check is the binding one here.
 
         T_ab = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
         g_ab = ETA

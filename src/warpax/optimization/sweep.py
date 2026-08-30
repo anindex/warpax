@@ -231,17 +231,12 @@ def _evaluate_point(
     mass = float(metric.total_mass)
 
     # Constraint residuals
-    from ..constraints.residuals import normalized_residuals
+    from ..constraints.residuals import squared_constraint_residual
 
     margin = 0.02 * (R_2 - R_1)
     r_probes = jnp.linspace(R_1 + margin, R_2 - margin, max(n_probes, 3))
 
-    def eval_constraint(r_val):
-        coords = jnp.array([0.0, r_val, 0.0, 0.0])
-        res = normalized_residuals(metric, coords)
-        return res["epsilon_H"] ** 2 + res["epsilon_M"] ** 2
-
-    constraint_vals = jax.vmap(eval_constraint)(r_probes)
+    constraint_vals = jax.vmap(lambda r: squared_constraint_residual(metric, r))(r_probes)
     constraint_residual = float(jnp.mean(constraint_vals))
 
     # Tidal force at passenger cabin
@@ -254,7 +249,7 @@ def _evaluate_point(
         )
     )
 
-    # EC certification: frame-free Hawking--Ellis verdict (cap-free Type-I
+    # EC certification: frame-free Hawking-Ellis verdict (cap-free Type-I
     # slacks + Type-IV detection), no observer search. Probes span the full
     # matter support including the smoothstep tails outside [R_1, R_2] where
     # the tilted shift drives the low-density edge Type-IV (criterion D).

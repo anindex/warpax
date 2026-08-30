@@ -22,7 +22,7 @@ import numpy as np
 def eigenvalues_mpmath(
     T_mixed: np.ndarray,
     precision: int = 50,
-) -> tuple[mpmath.mpc, mpmath.mpc, mpmath.mpc, mpmath.mpc]:
+) -> tuple[mpmath.mpf | mpmath.mpc, ...]:
     """Return the four eigenvalues of ``T_mixed`` at ``precision`` digits.
 
     Parameters
@@ -84,8 +84,8 @@ def classify_hawking_ellis_mpmath(
     evaluates eigenvalues (and, for real spectra, eigenvectors) at
     arbitrary precision before applying tolerances.
 
-    ``imag_rtol`` is retained for API compatibility and is no longer read:
-    the relative tier it controlled has been removed from both paths.
+    ``imag_rtol`` is retained for API compatibility and is not read: the
+    relative tier it controlled is absent from both paths.
 
     Parameters
     ----------
@@ -172,14 +172,9 @@ def classify_hawking_ellis_mpmath(
 
         is_type_iv = (not all_real) and (not near_vacuum)
         is_type_i = (all_real and n_timelike >= 1 and n_null == 0) or near_vacuum
-        # Type II and Type III are separated by the SIZE of the Jordan block on
-        # the defective eigenvalue, not by how many distinct eigenvalues there
-        # are. Requiring n_unique == 1 asked the whole spectrum to be degenerate,
-        # which the generic Type III, Segre [3,1] = J_3(lam) (+) [p] with
-        # p != lam, never satisfies, so it was returned as Type II at 50, 80 and
-        # 120 digits alike. The discriminator is the defect: algebraic minus
-        # geometric multiplicity of the repeated eigenvalue is 1 for [2,1,1] and
-        # 2 for [3,1].
+        # Type II and Type III are separated by the SIZE of the Jordan block, not by the
+        # number of distinct eigenvalues: the generic Type III, Segre [3,1], has two. The
+        # discriminator is the defect, 1 for [2,1,1] and 2 for [3,1].
         defect = (
             _jordan_defect(M, evals, tol * scale, precision)
             if (all_real and not near_vacuum and n_null >= 1)

@@ -19,24 +19,22 @@ This module closes it at a point, by composing two pieces that already exist:
 Run on a degenerate (point) box the first is an enclosure of the true tensor at
 that point, so the verdict is about the spacetime.
 
-All four conditions, not two. An earlier version of this module said SEC and DEC
-were out of reach because "the interval chain does not currently return ``Theta``
-and ``-(T^2)``". That was wrong about its own inputs: ``(rho, b, S)`` *is* the
-tetrad-frame ``That``, so both tensors are interval-algebraic rearrangements of
-what the chain already hands back (:func:`_trace_reversed`,
-:func:`_minus_t_squared`), and :mod:`.slemma` already established that SEC is the
-ball condition on ``Theta`` and DEC the ball condition on ``T`` and on ``-(T^2)``.
+All four conditions, not two. ``(rho, b, S)`` *is* the tetrad-frame ``That``, so
+``Theta`` and ``-(T^2)`` are interval-algebraic rearrangements of what the chain
+hands back (:func:`_trace_reversed`, :func:`_minus_t_squared`), and :mod:`.slemma`
+gives SEC as the ball condition on ``Theta`` and DEC as the ball condition on
+``T`` and on ``-(T^2)``.
 
-The real obstruction was on the witness side, and it is not the same one. For a
+The obstruction is on the witness side instead. For a
 null ``k`` the metric term drops out, so ``Theta(k,k) = T(k,k)``: the sphere
 witness that upper-bounds the NEC carries *no* information about the SEC. The
 timelike conditions need a witness from the closed ball, which is what
 :func:`_ball_upper` supplies, ``w = 0`` included, since ``rho < 0`` alone is a
 weak-energy violation and no direction search is needed to see it.
 
-The verdicts stay one-sided by nature, interval arithmetic refuses to certify
-rather than claiming the opposite, so a point can come back ``inconclusive``,
-which is the honest answer at a saturated one.
+The verdicts stay one-sided by nature: interval arithmetic refuses to certify
+rather than claiming the opposite, so a saturated point comes back
+``inconclusive``.
 
 The sign convention for ``b`` differs from :mod:`.slemma` (there ``q = rho - 2b.w
 + ...``, here ``q = rho + 2b.v + ...``). It does not matter, and it does not matter
@@ -212,7 +210,7 @@ def certify_point_from_metric(metric_dual_fn, point, *, prec: int = 80) -> dict:
     Every verdict is a statement about the spacetime at ``point``, not about a
     float64 snapshot of its stress-energy: the whole chain ``g -> Gamma -> Riem ->
     Ric -> G -> T`` is enclosed in interval arithmetic, and the acceptance test is
-    an interval ``LDL^T``. Nothing here consults a Hawking--Ellis type, an
+    an interval ``LDL^T``. Nothing here consults a Hawking-Ellis type, an
     eigendecomposition, a rapidity cap or a classification tolerance.
 
     Parameters

@@ -19,11 +19,13 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 # JAX's own cache key already covers the HLO, the jaxlib version, the backend
-# and the devices, so a directory is all this needs.
+# and the devices, so a directory is all this needs. Set it through the config
+# rather than the environment: JAX reads JAX_COMPILATION_CACHE_DIR when it is
+# imported, which has already happened by the time this runs.
 if os.environ.get("WARPAX_JIT_CACHE") == "1":
-    os.environ.setdefault(
-        "JAX_COMPILATION_CACHE_DIR",
-        os.path.expanduser("~/.cache/warpax/jax"),
+    jax.config.update(
+        "jax_compilation_cache_dir",
+        os.environ.get("JAX_COMPILATION_CACHE_DIR", os.path.expanduser("~/.cache/warpax/jax")),
     )
 
 if os.environ.get("WARPAX_BEARTYPE") == "1":
@@ -35,7 +37,10 @@ if os.environ.get("WARPAX_BEARTYPE") == "1":
     # resulting decorator exception to a warning lets beartype still check
     # all decorated functions while skipping NamedTuple class annotations.
     beartype_this_package(
-        conf=BeartypeConf(warning_cls_on_decorator_exception=UserWarning),
+        conf=BeartypeConf(
+            warning_cls_on_decorator_exception=UserWarning,
+            is_pep484_tower=True,
+        ),
     )
 
 __version__ = "1.4.0"

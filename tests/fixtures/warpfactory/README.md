@@ -1,8 +1,8 @@
 # WarpFactory fixture
 
 `alcubierre.mat` - MATLAB v7 export of an Alcubierre warp drive. Used
-by `tests/test_io_warpfactory.py` to exercise the `load_warpfactory`
-reader (, ).
+by `tests/test_io.py` to exercise the `load_warpfactory`
+reader.
 
 ## Schema
 

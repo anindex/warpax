@@ -22,6 +22,8 @@ from jaxtyping import Array, Float
 
 from warpax.geometry import christoffel_symbols, riemann_tensor
 
+from .integrator import _solve_geodesic_ode
+
 
 class DeviationResult(NamedTuple):
     """Result of geodesic integration with Jacobi deviation.
@@ -178,26 +180,17 @@ def integrate_geodesic_with_deviation(
     """
     y0 = jnp.concatenate([x0, v0, xi0, w0])  # (16,)
 
-    term = diffrax.ODETerm(geodesic_deviation_vector_field)
-    solver = diffrax.Tsit5()
-    controller = diffrax.PIDController(rtol=rtol, atol=atol)
-    save_ts = jnp.linspace(tau_span[0], tau_span[1], num_points)
-    saveat = diffrax.SaveAt(ts=save_ts)
-
-    sol = diffrax.diffeqsolve(
-        term,
-        solver,
-        t0=tau_span[0],
-        t1=tau_span[1],
-        dt0=dt0,
-        y0=y0,
-        args=metric,
-        saveat=saveat,
-        stepsize_controller=controller,
-        max_steps=max_steps,
-        throw=False,
-        event=event,
-        adjoint=diffrax.RecursiveCheckpointAdjoint(),
+    sol = _solve_geodesic_ode(
+        geodesic_deviation_vector_field,
+        y0,
+        metric,
+        tau_span,
+        dt0,
+        rtol,
+        atol,
+        num_points,
+        max_steps,
+        event,
     )
 
     # Unpack the 16-component state into 4 fields

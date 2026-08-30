@@ -32,9 +32,6 @@ from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
 from warpax.geometry import compute_curvature_chain
 
-jax.config.update("jax_enable_x64", True)
-
-
 # Helper: lower all Riemann indices
 
 

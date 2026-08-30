@@ -1,32 +1,30 @@
-"""Audit the type-based certification against the type-free LMI, at every grid point.
+"""How often the type-based certification and the type-free LMI agree, per grid point.
 
-Type-IV identification is tolerance dependent, and a
-finite grid missing the Type-II/III loci is not a continuum proof of their absence. Both
-are true of the *classification*. Neither is true of Theorem 1: the linear matrix
-inequality forms no eigendecomposition, consults no tolerance and never asks what the
-algebraic type is, so it decides every point of every grid on the same footing.
+Type-IV identification is tolerance dependent, and a finite grid missing the
+Type-II/III loci is no continuum proof of their absence. Both are properties of the
+*classification*. Neither holds for the linear matrix inequality, which forms no
+eigendecomposition, consults no tolerance and never asks what the algebraic type is,
+so it decides every point on the same footing.
 
-That makes the LMI an auditor rather than a competitor. The certification routing is
-unchanged, Type-I points are still decided by the eigenvalue inequalities, which are
-exact there, and this script simply runs the LMI everywhere as well and reports how
-often the two agree. What the agreement rate measures is the classification, not the
-energy conditions:
+The certification routing is unchanged: Type-I points are decided by the eigenvalue
+inequalities, which are exact there. This runs the LMI everywhere as well and reports
+the agreement rate, which measures the classification rather than the energy
+conditions:
 
   * At a Type-I point the two are provably equivalent, so a disagreement is a *label*
-    error: the point was called Type I and is not, or the eigen-decomposition of a
+    error: the point was called Type I and is not, or the eigendecomposition of a
     near-defective tensor moved the eigenvalues.
-  * At a Type-III or Type-IV point every standard energy condition fails (Martin-Moruno
-    & Visser 2017). An LMI margin that *certifies satisfaction* there is therefore a
-    certified misclassification, and this script counts those separately: they are the
-    honest error rate of the float64 classifier, reported rather than assumed away.
+  * At a Type-III or Type-IV point every standard energy condition fails
+    (Martin-Moruno & Visser 2017), so an LMI margin certifying satisfaction there is
+    a certified misclassification. Those are counted separately.
 
-Both comparisons are made against ``nec_noise_floor`` and not against zero. The LMI
-margin contract is one-sided, so a value inside the floor is inconclusive rather than a
-verdict, and thresholding at zero would report the float64 residual as classifier error.
+Both comparisons run against ``nec_noise_floor``, not against zero. The LMI margin
+contract is one-sided, so a value inside the floor is inconclusive rather than a
+verdict, and thresholding at zero would report the float64 residual as label error.
 
 Outputs
 -------
-- results/lmi_audit.json
+- results/lmi_agreement.json
 - ../warpax_arxiv/tables/lmi_typefree.tex
 """
 
@@ -111,15 +109,9 @@ def audit_one(name, v_s, N, batch_size=2048):
         out[f"typeI_{c}_n_decisive"] = int(both.sum())
         out[f"typeI_{c}_agree"] = float((a[both] == b[both]).mean()) if both.any() else None
 
-    # (b) Certified misclassification. Types III and IV violate every standard energy
-    #     condition, so an LMI margin that certifies satisfaction there cannot be
-    #     reconciled with the label. Counting them is the classifier's measured error
-    #     rate, the quantity that would otherwise be unquantified.
-    #     Types III and IV violate *every* condition, so certifying *any one* of them is
-    #     already a contradiction: the predicate is a disjunction, not a conjunction. An
-    #     earlier version initialised True and ANDed, which counted a point only when all
-    #     four were certified satisfied, strictly weaker than the claim it reports, and
-    #     an undercount by construction.
+    # (b) Certified misclassification: Types III and IV violate every condition, so an
+    #     LMI margin certifying any one of them contradicts the label. A disjunction,
+    #     not a conjunction, which would undercount by construction.
     bad_label = (he >= 3) & ~vac
     lmi_says_ok = np.zeros_like(bad_label)
     for c in CONDITIONS:
@@ -171,7 +163,7 @@ def write_lmi_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     write_tex_table(
-        out_path, lines, script="scripts/run_lmi_audit.py", sources="results/lmi_audit.json"
+        out_path, lines, script="scripts/run_lmi_agreement.py", sources="results/lmi_agreement.json"
     )
     print(f"  Wrote {out_path}")
 
@@ -207,7 +199,7 @@ def main():
                 flush=True,
             )
 
-    name = "lmi_audit_smoke.json" if args.smoke else "lmi_audit.json"
+    name = "lmi_agreement_smoke.json" if args.smoke else "lmi_agreement.json"
     dump_json({"config": vars(args), "rows": rows}, os.path.join(RESULTS_DIR, name))
     print(f"\nWrote {os.path.join(RESULTS_DIR, name)}")
     if not args.smoke:

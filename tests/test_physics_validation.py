@@ -17,6 +17,7 @@ from warpax.energy_conditions import (
     check_all,
     classify_hawking_ellis,
     compute_eulerian_ec,
+    verify_grid,
     verify_point,
 )
 from warpax.geodesics import (
@@ -552,7 +553,6 @@ class TestNatarioZeroExpansion:
     volume changes. This is the defining property of the Natario metric.
     """
 
-    @pytest.mark.slow
     def test_natario_zero_expansion_grid_50_cubed(self):
         """Natario expansion theta = 0 across a 50^3 grid (125,000 points).
 
@@ -775,7 +775,6 @@ class TestSantiagoObserverDependence:
     demonstration: Eulerian-frame-only checks are insufficient.
     """
 
-    @pytest.mark.slow
     def test_santiago_alcubierre_nec_violated_at_wall(self):
         """NEC violated for some observer at all 20 sampled Alcubierre wall points.
 
@@ -806,7 +805,6 @@ class TestSantiagoObserverDependence:
             f"points, but only {n_violated}/{n_points} show violation."
         )
 
-    @pytest.mark.slow
     def test_santiago_rodal_nec_violated_at_wall(self):
         """NEC violated for some observer at all 10 sampled Rodal wall points.
 
@@ -837,7 +835,6 @@ class TestSantiagoObserverDependence:
             f"wall points, but only {n_violated}/{n_points} show violation."
         )
 
-    @pytest.mark.slow
     def test_santiago_eulerian_may_miss_violations(self):
         """Observer-robust NEC margin is worse than Eulerian at majority of points.
 
@@ -1300,7 +1297,6 @@ class TestSchwarzschildADMMassFuchs:
     manuscript's Santiago-Schuster-Visser escape argument, require.
     """
 
-    @pytest.mark.slow
     def test_adm_mass_converges_to_volume_mass(self):
         from warpax.adm.mass import adm_mass
         from warpax.metrics.fuchs_construction import fuchs_default
@@ -1319,9 +1315,12 @@ class TestSchwarzschildADMMassFuchs:
         for lo, hi in pairwise(excess):
             npt.assert_allclose(hi / lo, 0.5, rtol=0.15)
 
-        # At the largest radius the surface integral is within 1.5% of the mass
-        # the density profile actually carries.
-        npt.assert_allclose(masses[-1], metric.total_mass, rtol=0.015)
+        # The finite-radius value still carries the 1/r tail the ratios above
+        # confirm, so asserting a tight bound on masses[-1] would contradict
+        # that law. Extrapolate it away instead: for a 1/r excess,
+        # M_inf = 2 M(2r) - M(r).
+        m_inf = 2.0 * masses[-1] - masses[-2]
+        npt.assert_allclose(m_inf, metric.total_mass, rtol=2e-3)
 
 
 class TestInterpolationOrderRegression:
@@ -1365,7 +1364,6 @@ class TestInterpolationOrderRegression:
         )
 
 
-@pytest.mark.slow
 class TestWarpShellBoundaryDEC:
     """WarpShellPhysical: DEC violated at shell transition bands."""
 
@@ -1376,31 +1374,20 @@ class TestWarpShellBoundaryDEC:
             shape=(15, 15, 15),
         )
         chain = evaluate_curvature_grid(metric, grid, batch_size=256)
-        flat_T = chain.stress_energy.reshape(-1, 4, 4)
-        flat_g = chain.metric.reshape(-1, 4, 4)
-        shape = grid.shape
-        xs = np.linspace(-25, 25, shape[0])
-        dec_margins = []
-        for i, x in enumerate(xs):
-            for j in range(shape[1]):
-                for k in range(shape[2]):
-                    y = -25.0 + j * (50.0 / (shape[1] - 1))
-                    z = -25.0 + k * (50.0 / (shape[2] - 1))
-                    rad = np.sqrt(x * x + y * y + z * z)
-                    if abs(rad - 10.0) > 1.2 and abs(rad - 20.0) > 1.2:
-                        continue
-                    idx = i * shape[1] * shape[2] + j * shape[2] + k
-                    r = verify_point(
-                        flat_T[idx],
-                        flat_g[idx],
-                        n_starts=8,
-                        solver="auto",
-                    )
-                    dec_margins.append(float(r.dec_margin))
-        assert len(dec_margins) >= 5
-        assert min(dec_margins) < 0.0, (
-            f"expected DEC violation at R1/R2 transitions; min={min(dec_margins)}"
+
+        axis = np.linspace(-25.0, 25.0, 15)
+        x, y, z = np.meshgrid(axis, axis, axis, indexing="ij")
+        rad = np.sqrt(x * x + y * y + z * z).ravel()
+        band = (np.abs(rad - 10.0) <= 1.2) | (np.abs(rad - 20.0) <= 1.2)
+        assert band.sum() >= 5
+
+        ec = verify_grid(
+            chain.stress_energy.reshape(-1, 4, 4)[band],
+            chain.metric.reshape(-1, 4, 4)[band],
+            n_starts=8,
         )
+        worst = float(jnp.min(ec.dec_margins))
+        assert worst < 0.0, f"expected DEC violation at R1/R2 transitions; min={worst}"
 
 
 # Bubble centers ((t, x, y, z) coords). Each metric's center moves with v_s*t,

@@ -8,9 +8,9 @@ number.
 
 Every EC margin returned by warpax is **signed**:
 
-- **Margin > 0** -- energy condition satisfied at this observer and point
-- **Margin = 0** -- on the violation boundary
-- **Margin < 0** -- energy condition violated. The magnitude indicates how
+- **Margin > 0**, energy condition satisfied at this observer and point
+- **Margin = 0**, on the violation boundary
+- **Margin < 0**, energy condition violated. The magnitude indicates how
   deep the violation is in stress-energy units.
 
 The robust margin is the minimum over a continuous observer search
@@ -25,12 +25,12 @@ found a boosted observer that the Eulerian-only pipeline would miss.
 The structured result types are defined in
 `warpax.energy_conditions.types`:
 
-- `ECPointResult` -- single-point result: four margins, worst observer,
+- `ECPointResult`, single-point result: four margins, worst observer,
   worst `(zeta, theta, phi)` parameters, and Hawking-Ellis type.
-- `ECGridResult` -- grid-level result: per-point margins, per-condition
+- `ECGridResult`, grid-level result: per-point margins, per-condition
   `ECSummary` (`fraction_violated`, `max_violation`, `min_margin`), and
   optional optimizer-convergence diagnostics.
-- `WallRestrictedStats` -- post-hoc stats object for the wall-filtered
+- `WallRestrictedStats`, post-hoc stats object for the wall-filtered
   subset (see below).
 
 ## Hawking-Ellis Type I-IV
@@ -51,13 +51,13 @@ Use `solver='generalized'` to force the pencil solve everywhere, or
 `solver='standard'` for a pure-JAX path when you know the metric is well
 conditioned.
 
-- **Type I** -- diagonalizable with four real eigenvalues (one timelike,
+- **Type I**, diagonalizable with four real eigenvalues (one timelike,
   three spacelike). The generic case; algebraic EC checks suffice.
-- **Type II** -- defective 2x2 null Jordan block, degenerate eigenvalue.
+- **Type II**, defective 2x2 null Jordan block, degenerate eigenvalue.
   Corresponds to pure radiation. Requires null-direction optimization for
   NEC.
-- **Type III** -- 3x3 null Jordan structure. Very rare in practice.
-- **Type IV** -- complex eigenvalue pair (no real timelike eigenvector).
+- **Type III**, 3x3 null Jordan structure. Very rare in practice.
+- **Type IV**, complex eigenvalue pair (no real timelike eigenvector).
   Requires full continuous observer optimization; cannot be reduced to an
   algebraic check.
 
@@ -120,31 +120,29 @@ Measured on a 50^3 grid
 | Statistic | Full grid | Wall-restricted |
 |-------------------|-----------|-----------------|
 | Grid points | 125000 | 416 |
-| Type I fraction | 97.95% | 1.92% |
-| Type IV fraction | 2.05% | 98.08% |
-| SEC miss rate | 0.32% | 23.08% |
+| Type I fraction | 84.51% | 0.00% |
+| Type IV fraction | 15.49% | 100.00% |
+| SEC miss rate | 7.19% | 15.38% |
 
-The wall-restricted view makes the concentration effect explicit:
-nearly all Type IV points live in the warp wall. The full-grid 2.05%
-is a volume-diluted version of the same phenomenon -- dividing
-`2560 / 125000` instead of `408 / 416`.
+Every wall point is Type IV. The full-grid 15.49% is a volume-diluted version
+of the same fact, dividing `19360 / 125000` rather than `416 / 416`: the
+exterior vacuum, which is Type I, is most of the box.
 
-The SEC miss rate jumps by two orders of magnitude on the wall: the
-full-grid rate of 0.32% hides a 23.08% miss rate in the transition region.
+The SEC miss rate doubles on the wall for the same reason.
 
 ## `WallRestrictedStats` fields
 
 Returned by `compute_wall_restricted_stats`. All counts and fractions are
 conditional on the supplied wall mask.
 
-- `n_type_i`, `n_type_ii`, `n_type_iii`, `n_type_iv` -- per-Type counts
-- `frac_type_i`, `frac_type_ii`, `frac_type_iii`, `frac_type_iv` -- Type
+- `n_type_i`, `n_type_ii`, `n_type_iii`, `n_type_iv`, per-Type counts
+- `frac_type_i`, `frac_type_ii`, `frac_type_iii`, `frac_type_iv`, Type
   fractions (each in `[0, 1]`)
-- `n_total` -- total points inside the wall mask
+- `n_total`, total points inside the wall mask
 - `nec_violated`, `wec_violated`, `sec_violated`, `dec_violated` --
   per-condition violation counts
 - `nec_frac_violated`, `wec_frac_violated`, `sec_frac_violated`,
-  `dec_frac_violated` -- per-condition violation fractions
+  `dec_frac_violated`, per-condition violation fractions
 - `nec_miss_rate`, `wec_miss_rate`, `sec_miss_rate`, `dec_miss_rate` --
   wall-conditional miss rates. Each is `None` if no violations exist for
   that condition in the wall.
@@ -160,10 +158,10 @@ Run these checks before reporting a warpax result:
    reports wall-width / `dx` / cells-per-wall-width per metric. If the
    cells-across-wall count is under 4, the metric is under-resolved and
    reported fractions are lower bounds.
-2. **Convergence tier.** Three tiers are flagged in the paper:
-   **Richardson** (2+ resolutions with extrapolation), **Stability-only**
-   (minimum margin stable under refinement), **Weakest** (single
-   resolution, no convergence evidence).
+2. **Convergence tier.** A result carries **Stability-only** when its
+   minimum margin is stable under refinement but no Richardson
+   extrapolation was run. A result with neither is a single-resolution
+   number and should be reported as such.
 3. **Hawking-Ellis Type distribution.** If more than ~1% Type-II or
    Type-III at interior grid points, investigate; this usually signals a
    numerical artifact at a transition zone rather than a physical
@@ -178,12 +176,11 @@ Run these checks before reporting a warpax result:
 
 Two metrics in the paper carry special caveats:
 
-- **Lentz** -- wall is analytically ~44x under-resolved at 50^3 (see
-  `results/lentz_wall_assessment.json`). Lentz fractions in
-  `wall_restricted_analysis.json` are flagged `unresolved_lower_bound`
-  and should be read as lower bounds, not point estimates. The full
-  assessment is in the accompanying paper Section 4.
-- **WarpShell** -- `C^2` quintic Hermite regularization of the
+- **Lentz**, wall is analytically ~44x under-resolved at 50^3 (see
+  `results/lentz_wall_assessment.json`). Note that Lentz is absent from
+  `results/wall_restricted_analysis.json` for that reason: any wall-restricted
+  fraction computed on that grid would be a lower bound, not a point estimate.
+- **WarpShell**, `C^2` quintic Hermite regularization of the
   thin-shell; curvature scales are extreme (max Kretschmann ~1e34).
   Results are physically valid for the regularized implementation but
   should be read as a stress-test of the EC pipeline, not as a claim
@@ -191,8 +188,8 @@ Two metrics in the paper carry special caveats:
 
 ## See also
 
-- [`quickstart.md`](../tutorials/quickstart.md) -- install-to-first-result path
-- [`custom_metric_tutorial.md`](custom_metric_tutorial.md) -- defining your
+- [`quickstart.md`](../tutorials/quickstart.md), install-to-first-result path
+- [`custom_metric_tutorial.md`](custom_metric_tutorial.md), defining your
   own metric
-- [`ARCHITECTURE.md`](../explanation/ARCHITECTURE.md) -- autodiff curvature pipeline
-- The accompanying paper Sections 3-5 -- methodology paper
+- [`ARCHITECTURE.md`](../explanation/ARCHITECTURE.md), autodiff curvature pipeline
+- The accompanying paper Sections 3-5, methodology paper

@@ -16,7 +16,6 @@ from manim import (
     DOWN,
     LEFT,
     RIGHT,
-    UL,
     UP,
     UR,
     WHITE,
@@ -25,7 +24,6 @@ from manim import (
     DashedVMobject,
     FadeIn,
     Group,
-    ImageMobject,
     MathTex,
     Scene,
     Text,
@@ -42,7 +40,11 @@ from warpax.visualization.manim._image_utils import (
     extract_contours,
     frame_to_rgba,
 )
-from warpax.visualization.manim._scene_utils import COLORS_3B1B
+from warpax.visualization.manim._scene_utils import (
+    COLORS_3B1B,
+    make_frame_image,
+    make_velocity_row,
+)
 
 _DARK_DIVERGE_THETA = LinearSegmentedColormap.from_list(
     "dark_diverge_theta",
@@ -71,7 +73,7 @@ class EulerianKinematics2D(Scene):
         animation_duration = 12.0
         hold_duration = 1.0
 
-        grid_n = 30
+        grid_n = 31  # odd: index N//2 is exactly z = 0
         grid_bounds = [(-3, 3), (-3, 3), (-3, 3)]
 
         img_height = config.frame_height - 2.2
@@ -117,7 +119,9 @@ class EulerianKinematics2D(Scene):
             theta_np = np.asarray(theta_grid)
             sigma_sq_np = np.asarray(sigma_sq_grid)
             omega_sq_np = np.asarray(omega_sq_grid)
-            max_abs = max(abs(float(np.nanmin(theta_np))), abs(float(np.nanmax(theta_np))))
+            max_abs = float(
+                np.nanpercentile(np.abs(theta_np), 99.5)
+            )  # not the raw extremum: the bubble centre is a regularity floor
             if not np.isfinite(max_abs) or max_abs < 1e-15:
                 max_abs = 1.0
             sigma_max = float(np.nanmax(sigma_sq_np))
@@ -125,7 +129,7 @@ class EulerianKinematics2D(Scene):
                 sigma_max = 1.0
 
             # Real analytic shape function f(r_s), so the f = 0.5 wall overlay
-            # is the genuine bubble wall rather than a heuristic circle.
+            # is the true bubble wall rather than a heuristic circle.
             f_grid = _shape_function_grid(metric_v, grid_spec, 0.0)
 
             scalar_fields = {
@@ -245,15 +249,9 @@ class EulerianKinematics2D(Scene):
         frame_idx = ValueTracker(0)
         heatmap_center = DOWN * 0.3
 
-        def _make_heatmap():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
-            img = ImageMobject(rgba_frames[idx])
-            img.height = img_height
-            img.move_to(heatmap_center)
-            return img
-
-        heatmap = always_redraw(_make_heatmap)
+        heatmap = always_redraw(
+            make_frame_image(rgba_frames, frame_idx, n_frames, img_height, heatmap_center)
+        )
 
         def _make_shear_contour():
             idx = int(frame_idx.get_value())
@@ -292,18 +290,7 @@ class EulerianKinematics2D(Scene):
 
         vs_mathtex = [MathTex(f"{f.v_s:.2f}", font_size=30, color=YELLOW) for f in frames]
 
-        def _make_param():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
-            row = VGroup(
-                MathTex(r"v_s", font_size=30, color=WHITE),
-                MathTex(r"=", font_size=30, color=WHITE),
-                vs_mathtex[idx].copy(),
-            ).arrange(RIGHT, buff=0.08)
-            row.to_corner(UL, buff=0.35)
-            return row
-
-        param_display = always_redraw(_make_param)
+        param_display = always_redraw(make_velocity_row(vs_mathtex, frame_idx, n_frames))
 
         # θ heatmap legend (diverging; quantitative SymLog ticks),
         from warpax.visualization.manim._scene_utils import make_colorbar_legend

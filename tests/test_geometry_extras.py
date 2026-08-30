@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -131,9 +130,6 @@ class TestInvariantConvenience:
         assert K.dtype == jnp.float64
         assert R2.dtype == jnp.float64
         assert W2.dtype == jnp.float64
-
-
-jax.config.update("jax_enable_x64", True)
 
 
 class TestRegularityDiagnostics:
@@ -422,8 +418,6 @@ class TestAutoChunk:
             evaluate_curvature_grid(metric, grid, auto_chunk_threshold=0)
 
 
-jax.config.update("jax_enable_x64", True)
-
 from warpax.energy_conditions.classification import classify_hawking_ellis
 from warpax.energy_conditions.filtering import determinant_guard_mask
 from warpax.energy_conditions.verifier import verify_point
@@ -457,7 +451,7 @@ class TestClassifierNearDegenerateInputs:
         assert int(result.he_type) == 1
 
     def test_type_i_iv_boundary_below_threshold(self):
-        """At unit scale a genuine complex pair is Type IV at any split.
+        """At unit scale a true complex pair is Type IV at any split.
 
         The relative imag tier only engages above the 1e6 scale floor,
         so lam=1, eps=0.002 (a real complex pair, 50-digit certified)
@@ -491,10 +485,9 @@ class TestClassifierNearDegenerateInputs:
     def test_large_scale_eigenvalues_with_tiny_imaginary(self):
         """A relative split of 1e-3 is Type IV at every scale.
 
-        It used to be absorbed above a 1e6 scale floor by a relative tier, so
-        the same physics read Type I at 1e9 and Type IV at unit scale. The test
-        is now scale-covariant, and the eigensolver noise the tier existed to
-        absorb is 1e-16 relative, thirteen orders below this split.
+        A relative tier above a 1e6 scale floor would absorb it, so the same
+        physics would read Type I at 1e9 and Type IV at unit scale. Eigensolver
+        noise is 1e-16 relative, thirteen orders below this split.
         """
         lam = 1e9
         eps = 0.001 * lam

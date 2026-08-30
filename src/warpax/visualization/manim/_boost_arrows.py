@@ -10,9 +10,10 @@ Two physically-distinct scenes share this module:
 - ``WorstCaseBoostDirections``, the Weak Energy Condition. The worst-case over
   *unbounded* timelike boosts is -inf wherever the NEC is violated, so a
   rapidity-capped value would just report the cutoff. Instead the heatmap is the
-  bounded invariant Type-I rest-frame WEC margin ``min(rho, rho+p_i)``, the arrow
-  is the closed-form worst-boost direction ``e_{i*}``, and ``zeta_th`` (the
-  threshold rapidity at which an observer first sees negative energy) is reported.
+  Eulerian energy density ``rho_Eul``, the arrow is the closed-form worst-boost
+  direction ``e_{i*}`` drawn only where the matter is Type I and ``rho_Eul < 0``,
+  and ``zeta_th`` (the threshold rapidity at which an observer first sees
+  negative energy) is reported.
 
 Usage:
     manim render -ql --format mp4 \\
@@ -101,7 +102,7 @@ def _worst_direction_field(
     *,
     metric_name: str = "Alcubierre",
     v_s: float = 0.5,
-    grid_shape: tuple[int, int, int] = (30, 30, 30),
+    grid_shape: tuple[int, int, int] = (31, 31, 31),
     bounds: list[tuple[float, float]] | None = None,
     n_theta: int = 13,
     n_phi: int = 24,
@@ -173,14 +174,9 @@ def _worst_direction_field(
         strength = np.abs(np.minimum(worst_margin, 0.0))  # violation depth
         field_name = "nec_margin_sweep"
     elif quantity == "wec":
-        # Cap-free WEC: the worst-case energy density over *unbounded* boosts is
-        # -inf wherever NEC is violated, so a rapidity-capped min carries only the
-        # cutoff. The invariant Type-I rest-frame WEC margin would be ideal, but
-        # the Alcubierre wall is overwhelmingly Type IV (no matter rest frame), so
-        # that margin, and the threshold rapidity zeta_th, are undefined there.
-        # Plot instead the always-defined Eulerian energy density rho_Eul (the WEC
-        # violation seen by the natural observer); show the closed-form worst-boost
-        # direction only where the matter is Type I.
+        # The worst-case energy density over unbounded boosts is -inf wherever NEC fails,
+        # and the Type-I rest-frame margin is undefined on a Type-IV wall, so plot the
+        # always-defined rho_Eul and show the worst-boost direction only where Type I.
         from warpax.visualization.common._conversion import eulerian_wec_fields
 
         wf = eulerian_wec_fields(result.stress_energy, result.metric, result.metric_inv)
@@ -315,7 +311,7 @@ class _ArrowFieldScene(Scene):
 
     metric_name: str = "Alcubierre"
     v_s: float = 0.5
-    grid_shape: tuple[int, int, int] = (30, 30, 30)
+    grid_shape: tuple[int, int, int] = (31, 31, 31)
     bounds: tuple[tuple[float, float], ...] = ((-3, 3), (-3, 3), (-3, 3))
     subsample: int = 4
     image_height: float = 5.5
@@ -348,7 +344,7 @@ class _ArrowFieldScene(Scene):
         x_range = (float(x_1d[0]), float(x_1d[-1]))
         y_range = (float(y_1d[0]), float(y_1d[-1]))
 
-        # Margin = 0 boundary. For WEC this is a genuine violation boundary;
+        # Margin = 0 boundary. For WEC this is a true violation boundary;
         # for NEC the worst-case margin is <= 0 everywhere, so mark the onset
         # of significant violation with a small negative threshold instead.
         margin_min = float(np.min(data_2d))
@@ -599,11 +595,11 @@ class WorstCaseNullDirections(_ArrowFieldScene):
 class WorstCaseBoostDirections(_ArrowFieldScene):
     """Worst-case timelike boost over the bounded WEC margin.
 
-    Heatmap = invariant Type-I rest-frame WEC margin min(rho, rho+p_i) (bounded,
-    cap-free). Arrow direction = closed-form worst-boost direction e_{i*}, drawn
-    only where matter is Type I and WEC is violated. The worst case over
-    *unbounded* boosts is -inf (= NEC), so the rest-frame margin and the
-    threshold rapidity, not a rapidity-capped value, carry the physics.
+    Heatmap = Eulerian energy density rho_Eul. Arrow direction = closed-form
+    worst-boost direction e_{i*}, drawn only where matter is Type I and
+    rho_Eul < 0, with length |rho_Eul|. The worst case over *unbounded* boosts is
+    -inf (= NEC), so rho_Eul and the threshold rapidity, not a rapidity-capped
+    value, carry the physics.
     """
 
     quantity = "wec"

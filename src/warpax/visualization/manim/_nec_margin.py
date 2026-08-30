@@ -17,7 +17,6 @@ from manim import (
     DOWN,
     LEFT,
     RIGHT,
-    UL,
     UP,
     UR,
     WHITE,
@@ -27,7 +26,6 @@ from manim import (
     Dot,
     FadeIn,
     Group,
-    ImageMobject,
     MathTex,
     Scene,
     Text,
@@ -46,7 +44,11 @@ from warpax.visualization.manim._image_utils import (
     extract_contours,
     frame_to_rgba,
 )
-from warpax.visualization.manim._scene_utils import COLORS_3B1B
+from warpax.visualization.manim._scene_utils import (
+    COLORS_3B1B,
+    make_frame_image,
+    make_velocity_row,
+)
 
 _DARK_DIVERGE = LinearSegmentedColormap.from_list(
     "dark_diverge_hc",
@@ -113,7 +115,7 @@ class NECMargin2D(Scene):
 
         grid_spec = GridSpec(
             bounds=[(-3, 3), (-3, 3), (-3, 3)],
-            shape=(30, 30, 30),
+            shape=(31, 31, 31),
         )
 
         metric = AlcubierreMetric(v_s=v_start)
@@ -147,7 +149,7 @@ class NECMargin2D(Scene):
         # topographic depth map instead of one boundary. Deepest line is drawn
         # brightest/thickest, shallow lines fainter/thinner.
         global_nec_min = min(
-            float(np.nanmin(f.scalar_fields[field_name][:, :, f.grid_shape[2] // 2]))
+            float(np.nanpercentile(f.scalar_fields[field_name][:, :, f.grid_shape[2] // 2], 0.5))
             for f in frames
         )
         level_fracs = [0.1, 0.3, 0.5, 0.7, 0.9]
@@ -215,15 +217,9 @@ class NECMargin2D(Scene):
         frame_idx = ValueTracker(0)
         heatmap_center = DOWN * 0.3
 
-        def _make_heatmap():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
-            img = ImageMobject(rgba_frames[idx])
-            img.height = img_height
-            img.move_to(heatmap_center)
-            return img
-
-        heatmap = always_redraw(_make_heatmap)
+        heatmap = always_redraw(
+            make_frame_image(rgba_frames, frame_idx, n_frames, img_height, heatmap_center)
+        )
 
         def _make_nec_contours():
             idx = int(frame_idx.get_value())
@@ -262,18 +258,7 @@ class NECMargin2D(Scene):
 
         vs_mathtex = [MathTex(f"{f.v_s:.2f}", font_size=30, color=YELLOW) for f in frames]
 
-        def _make_param():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
-            row = VGroup(
-                MathTex(r"v_s", font_size=30, color=WHITE),
-                MathTex(r"=", font_size=30, color=WHITE),
-                vs_mathtex[idx].copy(),
-            ).arrange(RIGHT, buff=0.08)
-            row.to_corner(UL, buff=0.35)
-            return row
-
-        param_display = always_redraw(_make_param)
+        param_display = always_redraw(make_velocity_row(vs_mathtex, frame_idx, n_frames))
 
         from warpax.visualization.manim._scene_utils import make_colorbar_legend
 

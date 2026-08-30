@@ -1,15 +1,14 @@
-"""T-shell outer-edge Type-IV: linear-in-v0 fit + three-solver / 50-digit gate.
+"""T-shell outer-edge Type-IV onset: linear-in-v0 fit and three-solver agreement.
 
-Backs two claims in the warpax_arxiv manuscript:
   (i)  the opened imaginary-eigenvalue scale grows linearly with the matter tilt
-       v0 at the genuine low-density OUTER edge (r >= R2), excluding the inner
+       v0 at the low-density OUTER edge (r >= R2), excluding the inner
        vacuum r < R1 (a uniform-shift gauge artifact);
-  (ii) the outer-edge Type-IV label survives a three-solver gate: the standard and
+  (ii) the outer-edge Type-IV label survives three solvers: the standard and
        generalized-pencil eigensolvers plus an independent mpmath 50-digit
        recomputation all return a complex-conjugate eigenvalue pair.
 
 Run (after `uv sync --extra design --extra solver`):
-    uv run python scripts/run_tshell_typeIV_gate.py
+    uv run python scripts/run_tshell_typeIV_onset.py
 """
 
 from __future__ import annotations
@@ -30,7 +29,7 @@ from warpax.metrics import tshell_default
 
 R1, R2 = 10.0, 20.0
 V0_GRID = [0.01, 0.05, 0.10, 0.20]
-# Genuine low-density outer edge only: r >= R2, excluding the inner vacuum r < R1.
+# Low-density outer edge only: r >= R2, excluding the inner vacuum r < R1.
 R_OUTER = np.linspace(R2, 26.0, 120)
 
 
@@ -121,7 +120,7 @@ out = {
     "linear_fit": {"slope": float(slope), "slope_stderr": s_err, "r2": float(r2), "rows": rows},
     "three_solver_gate": gate,
 }
-dest = os.path.join(os.path.dirname(__file__), "..", "results", "tshell_typeIV_gate.json")
+dest = os.path.join(os.path.dirname(__file__), "..", "results", "tshell_typeIV_onset.json")
 with open(dest, "w") as f:
     json.dump(out, f, indent=2)
 print(f"\nsaved {os.path.normpath(dest)}")

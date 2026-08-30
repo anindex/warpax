@@ -1,12 +1,13 @@
 .PHONY: test docs bench bench-compare lint reproduce numbers
 
-# Run the full test suite (CPU-canonical; skip slow marker).
+# Run the test suite (CPU-canonical; -n auto comes from pyproject).
 test:
-	JAX_PLATFORMS=cpu pytest -m "not slow" -n auto
+	JAX_PLATFORMS=cpu pytest
 
-# Lint source, tests, and scripts.
+# Lint and format-check everything CI checks.
 lint:
-	ruff check src tests scripts
+	ruff check src tests scripts benchmarks examples
+	ruff format --check src tests scripts benchmarks examples
 
 # Build the MkDocs site with strict mode (any warning fails the build).
 docs:

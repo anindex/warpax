@@ -39,7 +39,9 @@ def _stable_logcosh(x: Float[Array, "..."]) -> Float[Array, "..."]:
     return abs_x + jnp.log1p(jnp.exp(-2.0 * abs_x)) - jnp.log(2.0)
 
 
-def _rodal_g_paper(r: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
+def _rodal_g_paper(
+    r: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
+) -> Float[Array, "..."]:
     """Paper-convention irrotational angular profile g(r) from Rodal Eq. (42).
 
     Rewritten as:
@@ -77,7 +79,9 @@ def _rodal_g_paper(r: Float[Array, "..."], R: float, sigma: float) -> Float[Arra
     return g_paper
 
 
-def _rodal_G(r: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
+def _rodal_G(
+    r: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
+) -> Float[Array, "..."]:
     """Lab-frame irrotational angular profile G(r) = 1 - g_paper(r).
 
     G(0) = 1, G(inf) = 0. Matches Alcubierre far-field convention.

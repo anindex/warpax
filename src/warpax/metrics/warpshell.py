@@ -111,6 +111,15 @@ def _shell_indicator(
     return ramp_in * ramp_out
 
 
+def _warp_shape_at(metric, coords: Float[Array, "4"]) -> Float[Array, ""]:
+    """``S_warp(r)`` in the bubble frame, shared by both shell metrics."""
+    t, x, y, z = coords
+    r = _safe_radial_norm(x - metric.v_s * t, y, z)
+    return _warpshell_transition(
+        r, metric.R_1, metric.R_2, metric.R_b, order=metric.transition_order
+    )
+
+
 class WarpShellMetric(ADMMetric):
     """WarpShell warp drive metric via ADM 3+1 decomposition.
 
@@ -171,12 +180,7 @@ class WarpShellMetric(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
-        t, x, y, z = coords
-        x_rel = x - self.v_s * t
-        r = _safe_radial_norm(x_rel, y, z)
-
-        S_warp = _warpshell_transition(r, self.R_1, self.R_2, self.R_b, order=self.transition_order)
-        return jnp.array([-S_warp * self.v_s, 0.0, 0.0])
+        return jnp.array([-self.shape_function_value(coords) * self.v_s, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
@@ -204,10 +208,7 @@ class WarpShellMetric(ADMMetric):
     @jaxtyped(typechecker=beartype)
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Warp transition function S_warp(r): 1 inside, 0 outside."""
-        t, x, y, z = coords
-        x_rel = x - self.v_s * t
-        r = _safe_radial_norm(x_rel, y, z)
-        return _warpshell_transition(r, self.R_1, self.R_2, self.R_b, order=self.transition_order)
+        return _warp_shape_at(self, coords)
 
     def symbolic(self) -> SymbolicMetric:
         """Return SymPy symbolic form for inspection and cross-validation.
@@ -312,11 +313,7 @@ class WarpShellPhysical(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
-        t, x, y, z = coords
-        x_rel = x - self.v_s * t
-        r = _safe_radial_norm(x_rel, y, z)
-        S_warp = _warpshell_transition(r, self.R_1, self.R_2, self.R_b, order=self.transition_order)
-        return jnp.array([-S_warp * self.v_s, 0.0, 0.0])
+        return jnp.array([-self.shape_function_value(coords) * self.v_s, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
@@ -345,10 +342,8 @@ class WarpShellPhysical(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
-        t, x, y, z = coords
-        x_rel = x - self.v_s * t
-        r = _safe_radial_norm(x_rel, y, z)
-        return _warpshell_transition(r, self.R_1, self.R_2, self.R_b, order=self.transition_order)
+        """Warp transition function S_warp(r): 1 inside, 0 outside."""
+        return _warp_shape_at(self, coords)
 
     def symbolic(self) -> SymbolicMetric:
         """Same symbolic form as ``WarpShellMetric``; the floors are

@@ -155,12 +155,8 @@ def find_mp4(
     return None
 
 
-# The dual-layer ThreeDScenes overwhelm manim's *Cairo* 3D renderer (its
-# recursive camera projection corrupts/overflows the C heap on the heavy
-# 32x32 + 48x48 surfaces, segfaulting mid-render regardless of Python version or
-# stack size). The GPU OpenGL renderer projects on-device and is stable, so these
-# scenes render with ``--renderer=opengl`` under EGL (headless). 2D scenes keep
-# the Cairo renderer, whose output is already validated.
+# Cairo's recursive 3D projection segfaults on the heavy 32x32 + 48x48 surfaces,
+# so these scenes render with ``--renderer=opengl`` under EGL. 2D keeps Cairo.
 _OPENGL_SCENES = frozenset({"WallAndVelocitySweep", "VelocitySweep", "BoostRapiditySweep"})
 
 
@@ -260,7 +256,7 @@ def convert_to_gif(mp4_path: Path) -> Path | None:
     from warpax.visualization.manim._gif_utils import mp4_to_gif
 
     try:
-        gif_path = mp4_to_gif(mp4_path, width=1280, fps=20)
+        gif_path = mp4_to_gif(mp4_path, width=1280, fps=10, colors=64, lossy=120)
         logger.info("GIF: %s", gif_path)
         return gif_path
     except Exception:

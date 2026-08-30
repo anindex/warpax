@@ -25,7 +25,7 @@ _TIDAL_CMAP = "magma"
 def _save_or_return(fig: plt.Figure, save_path: str | None) -> plt.Figure | None:
     """Save figure as PDF if save_path given, otherwise return."""
     if save_path is not None:
-        fig.savefig(save_path, format="pdf")
+        fig.savefig(save_path)
         plt.close(fig)
         return None
     return fig

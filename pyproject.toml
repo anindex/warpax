@@ -31,7 +31,7 @@ dependencies = [
     "jaxtyping>=0.3.10",
     "beartype>=0.22.9,<0.23.0",
     "sympy>=1.14",
-    # mpmath is load-bearing for the 50-digit Type-IV certification gate
+    # mpmath drives the 50-digit Type-IV certification
     # (validate_superluminal_classification.py); pin it directly rather than
     # relying on the transitive resolution via sympy. Upper bound tracks
     # sympy 1.14, which requires mpmath<1.4; lift both together when a sympy
@@ -52,12 +52,13 @@ Author = "https://github.com/anindex"
 [project.optional-dependencies]
 dev = [
     "pytest>=9.0.0,<10.0.0",
-    "pytest-cov>=7.0.0,<8.0.0",
     "pytest-xdist>=3.6.0",
     "ruff>=0.15.16,<1.0.0",
 ]
 viz = [
     "scipy>=1.17.0",
+    # scripts/generate_showcase.py writes its GIF/MP4/PNG through imageio.
+    "imageio>=2.31",
 ]
 solver = [
     "scipy>=1.17.0",
@@ -94,9 +95,10 @@ packages = ["src/warpax"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --tb=short"
+# One tier: every test is fast enough to always run. -n auto because the suite is
+# JAX-compile bound, and a serial run is roughly the sum of its compiles.
+addopts = "-q --tb=short -n auto --dist loadgroup"
 markers = [
-    "slow: marks tests as slow (expensive grid tests)",
     "smoke: lightweight import/render smoke tests",
 ]
 

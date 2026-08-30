@@ -279,7 +279,7 @@ def analyze_metric(metric_cls, metric_name, config):
 def _find_g00_zero_crossing(g00_data):
     """Find the radius where g_00 crosses zero by linear interpolation.
 
-    Only detects genuine sign changes where one side is clearly negative
+    Only detects sign changes where one side is clearly negative
     and the other is clearly positive (both exceed a tolerance threshold).
     This avoids false crossings at v_s = 1.0 where g_00 ~ 0 throughout
     the bubble interior.
@@ -298,7 +298,7 @@ def _find_g00_zero_crossing(g00_data):
     for i in range(len(g00_data) - 1):
         g00_a = g00_data[i]["g_00"]
         g00_b = g00_data[i + 1]["g_00"]
-        # Require a genuine sign change with both sides clearly nonzero
+        # Require a sign change with both sides clearly nonzero
         if g00_a < -tol and g00_b > tol:
             r_a = g00_data[i]["r"]
             r_b = g00_data[i + 1]["r"]

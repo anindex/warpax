@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import jax
 import jax.numpy as jnp
 
 from warpax.transport import (
@@ -11,8 +10,6 @@ from warpax.transport import (
     null_coord_time_asymmetry,
     null_round_trip_asymmetry,
 )
-
-jax.config.update("jax_enable_x64", True)
 
 
 def test_null_round_trip_minkowski():

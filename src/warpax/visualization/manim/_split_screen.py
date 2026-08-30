@@ -70,10 +70,10 @@ def _contour_to_vmobject(
 def _build_eulerian_frames(
     metric_name: str = "Alcubierre",
     v_s_values: list[float] | None = None,
-    grid_shape: tuple[int, int, int] = (30, 30, 30),
+    grid_shape: tuple[int, int, int] = (31, 31, 31),
     bounds: list[tuple[float, float]] | None = None,
 ):
-    """Build FrameData list with *genuine* Eulerian-observer NEC margins.
+    """Build FrameData list with exact Eulerian-observer NEC margins.
 
     Uses ``compute_eulerian_ec`` (the single normal-observer baseline:
     ``min`` over the six axis-aligned null rays of the Eulerian tetrad) rather
@@ -122,6 +122,7 @@ def _build_eulerian_frames(
         nec_eul = np.asarray(ec["nec"]).reshape(grid_shape)
         energy_density = eulerian_energy_density_grid(curv.stress_energy, curv.metric_inv)
 
+        nec_eul = _mask_bubble_centre(nec_eul, grid_spec)
         scalar_fields = {
             "nec_margin": nec_eul,
             "energy_density": energy_density,
@@ -156,10 +157,28 @@ def _build_eulerian_frames(
     return frames
 
 
+def _mask_bubble_centre(field, grid_spec, radius: float = 0.15):
+    """NaN the coordinate-singular bubble centre out of *field*.
+
+    The spherical form carries a removable ``1/r_s`` at ``r_s = 0``, where the
+    autodiff regularity floor returns about ``-7e12``. That is a coordinate
+    artefact, not a violation, and on an odd grid it is sampled exactly. Left in,
+    it clips to the deepest colour and reads as the strongest violation in the
+    frame. ``frame_to_rgba`` maps NaN to 0, the satisfied end of the scale.
+    """
+    import numpy as _np
+
+    x, y, z = grid_spec.meshgrid
+    r = _np.sqrt(_np.asarray(x) ** 2 + _np.asarray(y) ** 2 + _np.asarray(z) ** 2)
+    out = _np.array(field, dtype=float, copy=True)
+    out[r < radius] = _np.nan
+    return out
+
+
 def _build_robust_frames(
     metric_name: str = "Alcubierre",
     v_s_values: list[float] | None = None,
-    grid_shape: tuple[int, int, int] = (30, 30, 30),
+    grid_shape: tuple[int, int, int] = (31, 31, 31),
     bounds: list[tuple[float, float]] | None = None,
 ):
     """Build FrameData list with observer-robust NEC margins."""
@@ -175,12 +194,19 @@ def _build_robust_frames(
     grid_spec = GridSpec(bounds=bounds, shape=grid_shape)
     metric = AlcubierreMetric(v_s=v_s_values[0])
 
-    return build_ec_frame_sequence(
+    frames = build_ec_frame_sequence(
         metric,
         grid_spec,
         v_s_values=v_s_values,
         progress=True,
     )
+    for frame in frames:
+        for name in ("nec_margin_sweep", "nec_margin"):
+            if name in frame.scalar_fields:
+                frame.scalar_fields[name] = _mask_bubble_centre(
+                    frame.scalar_fields[name], grid_spec
+                )
+    return frames
 
 
 class EulerianVsWorstCaseNEC(Scene):
@@ -252,14 +278,9 @@ class EulerianVsWorstCaseNEC(Scene):
             data_2d = np.nan_to_num(data_2d, nan=0.0)
             vmin, vmax, lt = clim
 
-            # Upsample 8x for smooth contour lines (matches _image_utils).
-            # Transpose (Nx,Ny)->(Ny,Nx) so imshow(origin="lower") draws
-            # physical x horizontal and y vertical (same x->horizontal,
-            # y->vertical convention as frame_to_rgba in _image_utils;
-            # origin="lower" replaces its row flip).
-            # Bilinear (order=1), not bicubic: bicubic overshoots/rings on the
-            # sharp wall ring, which the robust clim then renders as a visible
-            # checkerboard. Bilinear upsampling does not ring.
+            # Upsample 8x for smooth contours, transposed so imshow(origin="lower")
+            # draws x horizontal and y vertical, matching frame_to_rgba. Bilinear,
+            # not bicubic, which rings on the sharp wall into a visible checkerboard.
             up = _ndzoom(data_2d.T, 8, order=1)
             norm = mcolors.SymLogNorm(linthresh=lt, vmin=vmin, vmax=vmax)
             cmap = _mpl.colormaps[cmap_name]

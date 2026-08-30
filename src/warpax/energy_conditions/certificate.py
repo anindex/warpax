@@ -256,14 +256,9 @@ def find_multiplier(T: Mat, g: Mat, condition: str, sigma_hint: float) -> Fracti
     def ok(s: Fraction) -> bool:
         return _sigma_is_admissible(s, condition) and is_psd_exact(_add(A, g, s))
 
-    # At a saturated point the feasible set is the single multiplier the tensor forces,
-    # and no rounding of the float search will land on it: on the Type-II locus
-    # rho = S_par = 1, |j| = 1, p_t = 0.2 the SEC saturates at sigma = fl(0.2) exactly,
-    # while the ternary search returns 0.19999999256728812 and limit_denominator turns
-    # that into 1/5, a different rational, and infeasible. But fl(0.2) is right there
-    # in the tensor, as tr_g(T)/2 and as T_22, so the exact entries and the half-trace
-    # are tried before any rounding. Every candidate is only a guess; is_psd_exact
-    # decides.
+    # At a saturated point the feasible set is one multiplier and no rounding of the
+    # float search lands on it, but that multiplier is in the tensor: try the exact
+    # entries and the half-trace first. Every candidate is a guess; is_psd_exact decides.
     cands: list[Fraction] = [Fraction(sigma_hint)]
     ginv = _inverse(g)
     half_trace = sum(ginv[a][b] * T[a][b] for a in range(4) for b in range(4)) / 2
@@ -499,13 +494,9 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
             return alpha * _quad(A, k) + beta * _quad(A, l) < 0
         u = [Fraction(n, d) for n, d in cert["witness"]]
         return _quad(g, u) <= 0 and _quad(A, u) < 0
-    # "saturated" is the ABSENCE of a certificate, not a certified verdict, and
-    # verify() answers only one question: is this object a valid proof? Returning
-    # True here made a forged {"kind": "saturated"} verify against a tensor with a
-    # null deficit of -2, because no arithmetic was performed at all. It also let a
-    # search failure, certify() falls through to "saturated" whenever BOTH searches
-    # come up empty, which is not the same as the feasible multiplier set being a
-    # single point, present itself as a checked result.
+    # "saturated" is the ABSENCE of a certificate, not a verdict, and verify() answers
+    # only whether an object is a valid proof. Returning True would verify a forged
+    # saturated claim, and certify() also falls through to it when both searches fail.
     return False
 
 

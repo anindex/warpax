@@ -18,7 +18,6 @@ from manim import (
     DOWN,
     LEFT,
     RIGHT,
-    UL,
     UP,
     UR,
     WHITE,
@@ -26,7 +25,6 @@ from manim import (
     BackgroundRectangle,
     FadeIn,
     Group,
-    ImageMobject,
     MathTex,
     Scene,
     Text,
@@ -44,7 +42,11 @@ from warpax.visualization.manim._image_utils import (
     extract_bubble_contour,
     frame_to_rgba,
 )
-from warpax.visualization.manim._scene_utils import COLORS_3B1B
+from warpax.visualization.manim._scene_utils import (
+    COLORS_3B1B,
+    make_frame_image,
+    make_velocity_row,
+)
 
 # Dark-midpoint diverging colormap for the *signed* Kretschmann scalar (it is
 # sign-indefinite in Lorentzian signature): blue (negative) -> dark -> red.
@@ -112,7 +114,7 @@ class KretschmannInvariant2D(Scene):
 
         grid_spec = GridSpec(
             bounds=[(-3, 3), (-3, 3), (-3, 3)],
-            shape=(30, 30, 30),
+            shape=(31, 31, 31),
         )
 
         metric = AlcubierreMetric(v_s=v_start)
@@ -126,7 +128,7 @@ class KretschmannInvariant2D(Scene):
             compute_invariants=True,
             progress=True,
         )
-        # Attach the real shape function so the f = 0.5 wall overlay is genuine.
+        # Attach the real shape function so the f = 0.5 wall overlay is exact.
         for frame, v_s in zip(frames, v_values, strict=True):
             metric_v = AlcubierreMetric(v_s=float(v_s))
             f_grid = _shape_function_grid(metric_v, grid_spec, 0.0)
@@ -170,15 +172,9 @@ class KretschmannInvariant2D(Scene):
         frame_idx = ValueTracker(0)
         heatmap_center = DOWN * 0.3
 
-        def _make_heatmap():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
-            img = ImageMobject(rgba_frames[idx])
-            img.height = img_height
-            img.move_to(heatmap_center)
-            return img
-
-        heatmap = always_redraw(_make_heatmap)
+        heatmap = always_redraw(
+            make_frame_image(rgba_frames, frame_idx, n_frames, img_height, heatmap_center)
+        )
 
         def _make_bubble_contour():
             idx = int(frame_idx.get_value())
@@ -189,18 +185,7 @@ class KretschmannInvariant2D(Scene):
 
         vs_mathtex = [MathTex(f"{f.v_s:.2f}", font_size=30, color=YELLOW) for f in frames]
 
-        def _make_param():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
-            row = VGroup(
-                MathTex(r"v_s", font_size=30, color=WHITE),
-                MathTex(r"=", font_size=30, color=WHITE),
-                vs_mathtex[idx].copy(),
-            ).arrange(RIGHT, buff=0.08)
-            row.to_corner(UL, buff=0.35)
-            return row
-
-        param_display = always_redraw(_make_param)
+        param_display = always_redraw(make_velocity_row(vs_mathtex, frame_idx, n_frames))
 
         from warpax.visualization.manim._scene_utils import make_colorbar_legend
 

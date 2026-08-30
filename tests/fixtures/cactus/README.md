@@ -1,7 +1,7 @@
 # Cactus / Einstein Toolkit fixture
 
 `minkowski_slice.h5` - hand-synth ET-compatible HDF5 single-slice
-Minkowski fixture. Used by `tests/test_io_cactus.py` to exercise
+Minkowski fixture. Used by `tests/test_io.py` to exercise
 `warpax.io.load_cactus_slice`.
 
 ## Schema

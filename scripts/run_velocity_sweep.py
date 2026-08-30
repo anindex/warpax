@@ -96,9 +96,8 @@ def run_point(name, v_s, N):
         solver="standard",
         lmi_where=mask,
     )
-    # Proper volume, not coordinate volume: the manuscript calls every one of
-    # these fractions proper-volume weighted, and Van den Broeck's slice carries
-    # gamma_ij = B^2 delta_ij (sqrt(det gamma) = B^3 running over [1, 3.4]).
+    # Proper volume, not coordinate volume: Van den Broeck's slice carries
+    # gamma_ij = B^2 delta_ij, with sqrt(det gamma) = B^3 running over [1, 3.4].
     vol_w = proper_volume_weights(grid.volume_weights_array, curv.metric)
     fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
     mm = typeI_min_margins(ff, mask=np.asarray(jnp.reshape(mask, (-1,))).astype(bool))
@@ -242,10 +241,9 @@ def main():
         nargs="+",
         default=[0.1, 0.3, 0.5, 0.7, 0.9, 0.99, 1.0, 1.1, 1.3, 1.5, 2.0, 2.5],
     )
-    # This default IS the grid the manuscript reports. reproduce_all.sh invokes this
-    # script with no arguments, so a default that differs from the published grid
-    # makes the paper unreproducible from its own driver even when the released
-    # velocity_sweep.json is correct, which is exactly the state this repaired.
+    # This default IS the published grid. reproduce_all.sh invokes the script with
+    # no arguments, so a differing default makes the run unreproducible from its
+    # own driver.
     p.add_argument("--N", type=int, default=100)
     p.add_argument("--metrics", type=str, nargs="+", default=METRIC_ORDER)
     p.add_argument("--smoke", action="store_true")
@@ -293,12 +291,8 @@ def main():
                 flush=True,
             )
 
-    # A smoke run must not land on the production artifact. It used to: the dump was
-    # unconditional while only the table write was guarded, so `--smoke` replaced
-    # velocity_sweep.json with an N=24 two-metric run and left the N=100 table beside
-    # it. Nothing downstream would notice, the table is not regenerated, the JSON has
-    # no Natario or Van den Broeck rows for run_ssv_bound.py to fit, and the caption
-    # still says N=100. Separate filenames make that impossible instead of unlikely.
+    # A smoke run must not land on the production artifact: separate filenames, since
+    # an N=24 two-metric JSON beside an N=100 table is not detectable downstream.
     name = "velocity_sweep_smoke.json" if args.smoke else "velocity_sweep.json"
     out = os.path.join(RESULTS_DIR, name)
     dump_json({"config": vars(args), "rows": rows}, out)

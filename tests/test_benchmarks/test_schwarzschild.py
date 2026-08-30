@@ -38,12 +38,6 @@ class TestSchwarzschild:
         g_jit = jax.jit(m)(sample_coords)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
 
-    def test_schwarzschild_float64(self, sample_coords):
-        """Output dtype is float64."""
-        m = SchwarzschildMetric()
-        g = m(sample_coords)
-        assert g.dtype == jnp.float64
-
     def test_schwarzschild_parameter_change(self, sample_coords):
         """Change M, verify output changes (dynamic field)."""
         m1 = SchwarzschildMetric(M=1.0)

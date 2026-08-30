@@ -9,12 +9,9 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
-# Fork-safety for the 3D render: manim spawns ffmpeg while JAX's thread pool is
-# live, which deadlocks on fork under Python 3.14. When this module is the manim
-# render entrypoint (JAX not yet imported), enable gRPC fork handlers and drop
-# the CUDA-probe threads (the render runs JAX on CPU) before the warpax imports
-# below pull JAX in. Skipped when JAX is already loaded (imported as a library)
-# so it never mutates a live process's env. ``setdefault`` lets a caller override.
+# Fork-safety: manim spawns ffmpeg while JAX's thread pool is live, which deadlocks
+# on fork under Python 3.14. As a render entrypoint, set the gRPC fork handlers and
+# drop the CUDA probe before the imports below pull JAX in; skipped if JAX is live.
 import os as _os
 import sys as _sys
 
@@ -91,7 +88,7 @@ class VelocitySweep(ThreeDScene):
 
         grid_spec = GridSpec(
             bounds=[(-3, 3), (-3, 3), (-3, 3)],
-            shape=(30, 30, 30),
+            shape=(31, 31, 31),
         )
 
         all_frames = scene_velocity_ramp(
@@ -112,8 +109,13 @@ class VelocitySweep(ThreeDScene):
 
         # Global color limits (prevents flickering). rho_Eul and the NEC margin
         # are both <= 0 for Alcubierre -> one-sided depth scales (deepest -> 0).
-        ed_clim = (compute_global_clim(all_frames, "energy_density")[0], 0.0)
-        nec_clim = (compute_global_clim(all_frames, "nec_margin_sweep")[0], 0.0)
+        # The grid samples the bubble centre, where the regularity floor returns
+        # ~-7e12; a raw min would set the whole scale from that one artefact.
+        ed_clim = (compute_global_clim(all_frames, "energy_density", percentile=1.0)[0], 0.0)
+        nec_clim = (
+            compute_global_clim(all_frames, "nec_margin_sweep", percentile=1.0)[0],
+            0.0,
+        )
 
         # Auto-exaggeration for embedding
         exag = compute_auto_exaggeration(all_frames, "energy_density")

@@ -104,11 +104,9 @@ if [ "$KEEP_CACHE" = false ] && [ -z "$STAGE_ONLY" -o "$STAGE_ONLY" = "core" ]; 
     echo " Step 0: Clearing cached results and figures"
     echo "============================================================"
     find "${RESULTS_DIR}" -name '*.npz' -delete 2>/dev/null || true
-    # enclosures.json belongs to the `enclosures` stage, which this case does NOT run:
-    # a branch-and-bound over four drives is hours of search, so it is deliberately
-    # kept out of the default path. Deleting it here destroyed an artifact nothing
-    # downstream rebuilds, and the gate then reported it missing after what looked like
-    # a clean full reproduction. Keep it, and let `--stage enclosures` own it.
+    # enclosures.json belongs to the `enclosures` stage, which this case does NOT
+    # run: a branch-and-bound over four drives is hours of search. Nothing else
+    # rebuilds it, so keep it and let `--stage enclosures` own it.
     find "${RESULTS_DIR}" -name '*.json' ! -name 'enclosures.json' -delete 2>/dev/null || true
     find "${RESULTS_DIR}" -name '*.tex' -delete 2>/dev/null || true
     find "${FIGURES_DIR}" -name '*.pdf' -delete 2>/dev/null || true
@@ -186,16 +184,16 @@ run_core() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_rodal_sigma_resolved.py"
 
     echo ""
-    echo "[K16] run_classifier_audit.py Jordan displacement limit + LMI label audit"
-    $PYTHON "${SCRIPT_DIR}/scripts/run_classifier_audit.py"
+    echo "[K16] run_classifier_error_rate.py Jordan displacement limit + LMI label audit"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_classifier_error_rate.py"
 
     echo ""
-    echo "[K16b] run_type_transition_audit.py LMI across the Type-II locus (analytic)"
-    $PYTHON "${SCRIPT_DIR}/scripts/run_type_transition_audit.py"
+    echo "[K16b] run_type_transitions.py LMI across the Type-II locus (analytic)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_type_transitions.py"
 
     echo ""
-    echo "[K16c] run_lmi_audit.py Type-free LMI vs the type-based route, at every grid point"
-    $PYTHON "${SCRIPT_DIR}/scripts/run_lmi_audit.py"
+    echo "[K16c] run_lmi_agreement.py Type-free LMI vs the type-based route, at every grid point"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_lmi_agreement.py"
 
     echo ""
     echo "[K16d] run_closing_speed.py Momentum-channel closing speed vs the sweep (reads K1)"
@@ -241,8 +239,8 @@ run_core() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_diagnostic_convergence.py"
 
     echo ""
-    echo "[7/8] run_extra_convergence.py Exoticity index + ANEC-minimum convergence"
-    $PYTHON "${SCRIPT_DIR}/scripts/run_extra_convergence.py"
+    echo "[7/8] run_exoticity_anec_convergence.py Exoticity index + ANEC-minimum convergence"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_exoticity_anec_convergence.py"
 
     echo ""
     echo "[8/8] run_curvature_convergence.py Curvature-exponent resolution stability"
@@ -364,12 +362,9 @@ run_figures() {
     echo ""
 }
 
-# The consistency gate belongs AFTER everything, not inside core. It used to run as
-# K17, roughly two thirds of the way through the core stage -- before run_analysis.py
-# had written a single .npz, so write_manifest.check() reported all 41 cached grids
-# absent, the gate exited 1, and `set -e` tore the run down before the steps that
-# would have produced them. A gate placed where its inputs do not exist yet does not
-# check the pipeline; it just stops it.
+# The consistency check runs AFTER everything, not inside core: it reads the
+# cached grids and every table, so placed earlier it fails on inputs the run has
+# not written yet and `set -e` stops the pipeline it was meant to check.
 run_gate() {
     echo "============================================================"
     echo " Stage: Prose/table consistency gate"

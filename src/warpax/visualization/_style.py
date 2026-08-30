@@ -125,3 +125,11 @@ PHASE_COLORMAP: str = "viridis"
 def apply_style() -> None:
     """Apply matplotlib style settings."""
     plt.rcParams.update(STYLE_PARAMS)
+
+
+def extract_slice(data, slice_axis: int = 2):
+    """Middle 2D slice of a 3D array along ``slice_axis``."""
+    idx = data.shape[slice_axis] // 2
+    slc = [slice(None)] * data.ndim
+    slc[slice_axis] = idx
+    return data[tuple(slc)]

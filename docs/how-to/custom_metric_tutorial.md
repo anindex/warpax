@@ -6,7 +6,7 @@ pipeline with wall-restricted diagnostics. Full runnable script:
 
 ## What you will build
 
-A Gaussian warp bubble -- a minimal custom warp metric where the shift acts
+A Gaussian warp bubble, a minimal custom warp metric where the shift acts
 as a Gaussian envelope instead of the Alcubierre `tanh` top-hat. You will:
 
 1. Define a metric by subclassing `ADMMetric`
@@ -24,13 +24,13 @@ than seconds and is the right choice for publication-density figures.
 Every warp metric in warpax is an `ADMMetric` subclass. You implement six
 methods:
 
-- `lapse(coords) -> alpha(t, x, y, z)` -- ADM lapse function
-- `shift(coords) -> beta^i(t, x, y, z)` -- 3-vector shift
-- `spatial_metric(coords) -> gamma_{ij}(t, x, y, z)` -- 3x3 spatial metric
-- `symbolic -> SymbolicMetric` -- SymPy form for cross-validation against
+- `lapse(coords) -> alpha(t, x, y, z)`, ADM lapse function
+- `shift(coords) -> beta^i(t, x, y, z)`, 3-vector shift
+- `spatial_metric(coords) -> gamma_{ij}(t, x, y, z)`, 3x3 spatial metric
+- `symbolic -> SymbolicMetric`, SymPy form for cross-validation against
   the JAX autodiff pipeline
-- `name -> str` -- registry key (used for logging and result JSON keys)
-- `shape_function_value(coords) -> f(t, x, y, z)` -- the addition.
+- `name -> str`, registry key (used for logging and result JSON keys)
+- `shape_function_value(coords) -> f(t, x, y, z)`, the addition.
   Must return a value in `[0, 1]`. Consumed by `shape_function_mask` to
   build wall-restricted diagnostics (see Step 4).
 
@@ -85,12 +85,13 @@ Two patterns worth flagging:
   by the shift. This is the Alcubierre-style ADM shape, shared by the
   Natário, Lentz, and Rodal metrics. Several other built-ins depart from it:
   the shell metrics (WarpShell, S-shell, T-shell) and Fuchs carry a non-unit
-  lapse and a non-flat spatial metric, Van den Broeck adds a conformal
-  spatial factor, and Garattini sits on a de Sitter background.
+  lapse and a non-flat spatial metric, and Van den Broeck adds a conformal
+  spatial factor. Garattini keeps the shape and differs only in where the
+  bubble sits: its centre is $r_0 = v_s/H$, not the origin.
 
 ## Step 2: Verify at a single point
 
-Probe at `r_s ~ w` -- the bubble wall, where the gradient of the shape
+Probe at `r_s ~ w`, the bubble wall, where the gradient of the shape
 function is steep and violations concentrate.
 
 ```python
@@ -255,7 +256,7 @@ Default runtime ~22 seconds on a laptop CPU at `grid_n=16`. Edit the
 
 ## See also
 
-- [`interpreting_ec_results.md`](interpreting_ec_results.md) -- margin sign
+- [`interpreting_ec_results.md`](interpreting_ec_results.md), margin sign
   convention, Hawking-Ellis Type I-IV semantics, miss-rate definitions
-- [`quickstart.md`](../tutorials/quickstart.md) -- faster install-to-first-result path
-- [`ARCHITECTURE.md`](../explanation/ARCHITECTURE.md) -- curvature pipeline internals
+- [`quickstart.md`](../tutorials/quickstart.md), faster install-to-first-result path
+- [`ARCHITECTURE.md`](../explanation/ARCHITECTURE.md), curvature pipeline internals

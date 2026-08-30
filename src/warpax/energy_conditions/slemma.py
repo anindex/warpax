@@ -4,8 +4,7 @@ This decides the NEC, WEC, SEC and DEC over *every* observer at a point, with no
 rapidity cap, no optimizer, no eigen-decomposition of ``T^a_b`` and no
 classification tolerance. It is therefore independent of the Hawking-Ellis type:
 it decides Type II and Type III points, where the eigenvalue route in
-:mod:`.eigenvalue_checks` has no rest frame to work with and
-:func:`.frame_free._exact_margins` previously returned NaN.
+:mod:`.eigenvalue_checks` has no rest frame to work with.
 
 The construction. Let ``{n, e_i}`` be an orthonormal tetrad with ``n`` the unit
 slice normal. Every future timelike observer is ``u = gamma (n + w)`` with
@@ -68,22 +67,19 @@ from .observer import compute_orthonormal_tetrad
 # eta in the orthonormal tetrad frame; M(sigma) = That + sigma * ETA.
 _ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
-# Ternary search steps. Each step shrinks the bracket by 2/3, so n steps give
-# (2/3)^n; 80 takes a bracket of width ~1 to ~1e-14, and the margin error is
-# second order in the bracket at a smooth maximum. Measured against 120 steps over
-# 3000 random tensors: NEC/WEC/SEC agree to 5.3e-15 and DEC to 3.2e-13, both far
-# under noise_floor, at two thirds of the cost. Each step is two 4x4 eigensolves
-# and this search is the dominant cost of any grid that carries non-Type-I points.
+# Ternary search steps. Each step shrinks the bracket by 2/3, so 80 takes a
+# width-1 bracket to ~1e-14 and the margin error is second order there. Against
+# 120 steps over 3000 random tensors, NEC/WEC/SEC agree to 5.3e-15 and DEC to
+# 3.2e-13, both far under noise_floor, at two thirds of the cost.
 _TERNARY_STEPS = 80
 
 # Relative floor below which a negative margin is noise rather than a violation.
 # Set by the residual bracket and the eigvalsh error on M(sigma); see noise_floor.
 _NOISE_REL = 1e-12
 
-# Absolute floor. Zero: with the bracket unclamped it collapses to the single
-# point 0 at zero tensor scale, where lam_min(0) = 0 exactly, so no absolute
-# term is needed. A nonzero one dominates below scale ~1e-6 and reported a
-# violation of 100% of its own tensor scale as inconclusive.
+# Absolute floor. Zero: the unclamped bracket collapses to the point 0 at zero
+# tensor scale, where lam_min(0) = 0 exactly. A nonzero term dominates below
+# scale ~1e-6 and reads a violation of 100% of its own scale as inconclusive.
 _NOISE_ABS = 0.0
 
 # Projected-gradient steps for the violating-observer search in witness_observer.
@@ -121,33 +117,21 @@ def _lmi_margin(
     verdict is two-sided against :func:`noise_floor`, not one-sided against zero:
     ``> +floor`` says satisfied, ``< -floor`` says violated, in between says nothing.
 
-    An earlier version of this docstring claimed ``margin >= 0`` certifies
-    satisfaction outright. It does not, the eigensolver error alone can lift a
-    marginally violating tensor above zero, and the exact-arithmetic escape in
-    :mod:`.certificate` exists precisely for the band where no float64 search can
-    decide. On the exact vacuum ``T = 0`` the true maximum is ``0``; with the bracket
-    scaling to the tensor the search now returns exactly ``0`` there, but on a
-    saturated tensor it will still land inside the floor, and that is the honest
-    answer rather than a defect.
+    ``margin >= 0`` does not certify satisfaction outright: the eigensolver error
+    alone can lift a marginally violating tensor above zero, which is why the
+    exact-arithmetic escape in :mod:`.certificate` exists. On the exact vacuum
+    ``T = 0`` the bracket collapses and the search returns exactly ``0``; on a
+    saturated tensor it lands inside the floor.
 
     The maximum is always attained at finite ``sigma``, so there is no
     optimizer-at-infinity case to guard against: ``lambda_min(That + sigma eta)``
     is bounded above by ``That_00 - sigma`` and by ``That_ii + sigma``, hence tends
     to ``-inf`` in both directions.
     """
-    # The bracket must contain the argmax whether or not the LMI is feasible.
-    # The feasible-set argument (M(sigma) PSD forces every diagonal entry
-    # non-negative, so -max_i|S_ii| <= sigma <= rho) says nothing on a violated
-    # point, where no sigma is PSD.
-    #
-    # Unconditionally: lam_min(M(sigma)) <= That_00 - sigma <= scale - sigma and
-    # <= That_ii + sigma <= scale + sigma, while the maximum is at least
-    # lam_min(That) >= -4 scale by Gershgorin. Hence |sigma*| <= 5 scale.
-    #
-    # The scale is NOT clamped at 1, so the bracket collapses with the tensor:
-    # to the single point 0 on vacuum, where lam_min(0) = 0 exactly. Clamping
-    # made the residual absolute and convicted Minkowski of violating all four
-    # conditions.
+    # The bracket must hold the argmax whether or not the LMI is feasible, so it comes
+    # from an unconditional bound: lam_min(M(sigma)) <= scale -+ sigma while the maximum
+    # is at least lam_min(That) >= -4 scale by Gershgorin, hence |sigma*| <= 5 scale.
+    # Not clamped at 1, so the bracket collapses to the point 0 on vacuum.
     scale = _tensor_scale(T_hat)
     lo = jnp.maximum(sigma_lo, -5.0 * scale)
     hi = 5.0 * scale
@@ -234,13 +218,11 @@ def noise_floor(
     if condition not in ("nec", "wec", "sec", "dec"):
         raise ValueError(f"unknown condition {condition!r}")
     T_hat = tetrad_components(T_ab, g_ab)
-    # Clamping the scale at 1 made the floor ABSOLUTE below unit scale, which
-    # breaks covariance under T -> c T: on T = 1e-7 diag(1,2,0,0) the DEC fails by
-    # 100% of its own scale (margin -1.5e-14) and was reported inconclusive
-    # against a 1e-12 floor. The floor is now relative, plus a small absolute term
-    # that covers the residual ternary bracket at exact vacuum, where the true
-    # maximum is 0, the search returns about -6e-22, and a purely relative floor
-    # would convict Minkowski of violating all four conditions.
+    # Clamping the scale at 1 makes the floor ABSOLUTE below unit scale and breaks
+    # covariance under T -> c T: on T = 1e-7 diag(1,2,0,0) the DEC fails by 100% of
+    # its own scale and reads inconclusive against a 1e-12 floor. Relative, plus a
+    # small absolute term for the residual ternary bracket at exact vacuum, where
+    # the true maximum is 0 and the search returns about -6e-22.
     return _NOISE_REL * _tensor_scale(T_hat) + _NOISE_ABS
 
 

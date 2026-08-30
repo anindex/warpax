@@ -81,12 +81,9 @@ def _inv4(m):
             if r == col:
                 continue
             f = a[r][col]
-            # No zero-factor shortcut. Testing only the VALUE endpoints skips the
-            # elimination for a jet whose value is zero but whose derivative is not,
-            # which drops that derivative on the floor; and a genuinely nonzero
-            # magnitude below the binary64 range reads as zero, which would narrow
-            # the enclosure below the truth. A 4x4 inverse is far too small for the
-            # saving to be worth either hazard.
+            # No zero-factor shortcut: testing the VALUE endpoints alone drops the
+            # derivative of a jet whose value is zero, and reads a subnormal magnitude
+            # as zero, either of which narrows the enclosure below the truth.
             a[r] = [_sub(a[r][k], _mul(f, a[col][k])) for k in range(2 * n)]
     return [[a[i][n + j] for j in range(n)] for i in range(n)]
 

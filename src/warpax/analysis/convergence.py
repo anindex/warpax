@@ -167,7 +167,7 @@ def f_miss_stability(
     spread is within ``abs_tol_pp`` percentage points *or* the relative
     deviation is within ``rel_tol``. The absolute floor prevents
     false-instability on small-magnitude fractions while the relative
-    bound still catches genuine drift in large fractions.
+    bound still catches real drift in large fractions.
 
     Parameters
     ----------
@@ -246,10 +246,12 @@ def compute_convergence_quantity(
     if quantity == "min_margin":
         return float(np.nanmin(flat))
 
-    # Relative roundoff gate: an absolute -1e-10 reports zero violation for a
-    # grid whose margins are all of order 1e-12.
-    finite = flat[np.isfinite(flat)]
-    scale = float(np.max(np.abs(finite))) if finite.size else 0.0
+    # Relative roundoff gate, scaled by the negative margins themselves. An
+    # absolute -1e-10 reports zero violation for a grid whose margins are all
+    # of order 1e-12; scaling by max|margin| instead lets one large POSITIVE
+    # margin elsewhere set the floor and hide a real violation.
+    negatives = flat[np.isfinite(flat) & (flat < 0.0)]
+    scale = float(np.max(np.abs(negatives))) if negatives.size else 0.0
     cut = -1e-10 * scale
 
     if quantity == "l2_violation":

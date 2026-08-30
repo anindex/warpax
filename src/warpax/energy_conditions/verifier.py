@@ -63,13 +63,9 @@ def _classify_grid_batch(
             flat_T_mixed, flat_g
         )
 
-    # auto: standard everywhere, generalized pencil only on unreliable points.
-    #
-    # Do NOT vmap a lax.cond here: under vmap, lax.cond becomes a select that
-    # evaluates BOTH branches for every point, which would run the (slow,
-    # sequential pure_callback) generalized pencil on the entire grid. Instead,
-    # batch the generalized solve over just the unreliable subset and scatter
-    # the results back with a single vectorized ``.at[idx].set``.
+    # auto: standard everywhere, generalized pencil only on unreliable points. Do NOT
+    # vmap a lax.cond here, which becomes a select that evaluates both branches and
+    # runs the sequential pure_callback pencil on the whole grid; gather and scatter.
     cls_std = jax.vmap(lambda Tm, gg: classify_hawking_ellis(Tm, gg, tol=tol))(flat_T_mixed, flat_g)
     unreliable = np.asarray(
         _standard_solver_unreliable_mask(

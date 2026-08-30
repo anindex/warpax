@@ -452,6 +452,24 @@ class ProjectedBFGSSolver(optx.BFGS):
         return y_new * scale_factor, state_new, aux
 
 
+def _best_of_batch(objective_fn, solver, w0_batch, args, max_steps, to_physical):
+    """Run every start under ``optx.minimise`` and keep the lowest objective."""
+
+    def solve_one(w0):
+        sol = optx.minimise(objective_fn, solver, w0, args=args, max_steps=max_steps, throw=False)
+        return (
+            sol.value,
+            objective_fn(sol.value, args),
+            (sol.result == optx.RESULTS.successful).astype(jnp.float64),
+            sol.stats["num_steps"].astype(jnp.float64),
+            to_physical(sol.value),
+        )
+
+    raw, obj, converged, n_steps, physical = jax.vmap(solve_one)(w0_batch)
+    i = jnp.argmin(obj)
+    return obj[i], raw[i], physical[i], converged[i], n_steps[i]
+
+
 def _solve_multistart_3d(
     objective_fn,
     args,
@@ -498,24 +516,14 @@ def _solve_multistart_3d(
             warm_start,
         )
 
-    def solve_one(w0):
-        sol = optx.minimise(objective_fn, solver, w0, args=args, max_steps=max_steps, throw=False)
-        obj_val = objective_fn(sol.value, args)
-        converged = (sol.result == optx.RESULTS.successful).astype(jnp.float64)
-        n_steps = sol.stats["num_steps"].astype(jnp.float64)
-        physical = boost_vector_to_params(sol.value, zeta_max_arr)
-        return sol.value, obj_val, converged, n_steps, physical
-
-    raw_opt, obj_vals, convergeds, n_steps_all, physicals = jax.vmap(solve_one)(w0_batch)
-
-    best_idx = jnp.argmin(obj_vals)
-    best_obj = obj_vals[best_idx]
-    best_raw = raw_opt[best_idx]
-    best_physical = physicals[best_idx]
-    best_converged = convergeds[best_idx]
-    best_n_steps = n_steps_all[best_idx]
-
-    return best_obj, best_raw, best_physical, best_converged, best_n_steps
+    return _best_of_batch(
+        objective_fn,
+        solver,
+        w0_batch,
+        args,
+        max_steps,
+        lambda w: boost_vector_to_params(w, zeta_max_arr),
+    )
 
 
 def _solve_multistart_2d(
@@ -538,22 +546,9 @@ def _solve_multistart_2d(
         max_steps,
     )
 
-    def solve_one(w0):
-        sol = optx.minimise(objective_fn, solver, w0, args=args, max_steps=max_steps, throw=False)
-        obj_val = objective_fn(sol.value, args)
-        converged = (sol.result == optx.RESULTS.successful).astype(jnp.float64)
-        n_steps = sol.stats["num_steps"].astype(jnp.float64)
-        physical = stereo_to_params(sol.value)
-        return sol.value, obj_val, converged, n_steps, physical
-
-    raw_opt, obj_vals, convergeds, n_steps_all, physicals = jax.vmap(solve_one)(w0_batch)
-
-    best_idx = jnp.argmin(obj_vals)
-    best_obj = obj_vals[best_idx]
-    best_physical = physicals[best_idx]
-    best_converged = convergeds[best_idx]
-    best_n_steps = n_steps_all[best_idx]
-
+    best_obj, _raw, best_physical, best_converged, best_n_steps = _best_of_batch(
+        objective_fn, solver, w0_batch, args, max_steps, stereo_to_params
+    )
     return best_obj, best_physical, best_converged, best_n_steps
 
 
@@ -600,24 +595,14 @@ def _solve_multistart_3d_projected(
             warm_start,
         )
 
-    def solve_one(w0):
-        sol = optx.minimise(objective_fn, solver, w0, args=args, max_steps=max_steps, throw=False)
-        obj_val = objective_fn(sol.value, args)
-        converged = (sol.result == optx.RESULTS.successful).astype(jnp.float64)
-        n_steps = sol.stats["num_steps"].astype(jnp.float64)
-        physical = boost_vector_to_params(sol.value, zeta_max_arr)
-        return sol.value, obj_val, converged, n_steps, physical
-
-    raw_opt, obj_vals, convergeds, n_steps_all, physicals = jax.vmap(solve_one)(w0_batch)
-
-    best_idx = jnp.argmin(obj_vals)
-    best_obj = obj_vals[best_idx]
-    best_raw = raw_opt[best_idx]
-    best_physical = physicals[best_idx]
-    best_converged = convergeds[best_idx]
-    best_n_steps = n_steps_all[best_idx]
-
-    return best_obj, best_raw, best_physical, best_converged, best_n_steps
+    return _best_of_batch(
+        objective_fn,
+        solver,
+        w0_batch,
+        args,
+        max_steps,
+        lambda w: boost_vector_to_params(w, zeta_max_arr),
+    )
 
 
 def _dispatch_multistart_3d(

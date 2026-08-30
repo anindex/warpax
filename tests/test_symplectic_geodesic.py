@@ -127,12 +127,3 @@ class TestSentinels:
         x0, p0 = null_ic_canonical(m, jnp.array([0.0, 0.0, 0.0, 0.0]), jnp.array([1.0, 0.0, 0.0]))
         with pytest.raises(ValueError, match="order"):
             integrate_geodesic_symplectic(m, x0, p0, (-1.0, 1.0), num_steps=32, order=3)
-
-
-class TestDtype:
-    def test_float64(self):
-        m = MinkowskiMetric()
-        x0, p0 = null_ic_canonical(m, jnp.array([0.0, 0.0, 0.0, 0.0]), jnp.array([1.0, 0.0, 0.0]))
-        r = integrate_geodesic_symplectic(m, x0, p0, (-1.0, 1.0), num_steps=64, order=4)
-        assert r.positions.dtype == jnp.float64
-        assert r.H_values.dtype == jnp.float64

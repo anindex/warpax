@@ -29,25 +29,25 @@ introduces one layer of the stack before the next combines them.
 
 | # | Script | ~Runtime | What you learn |
 |---|--------|----------|----------------|
-| 01 | `01_minkowski_sanity.py` | 5 s | Curvature chain on flat space; `verify_point` on vacuum |
-| 02 | `02_schwarzschild_verification.py` | 5 s | Non-trivial curvature; analytical Kretschmann cross-check |
-| 03 | `03_alcubierre_analysis.py` | 5 s | **Core story**: robust vs Eulerian EC at a bubble-wall point |
-| 04 | `04_warp_drive_comparison.py` | 30 s | Six shipped warp metrics + Hawking--Ellis types + velocity scaling |
-| 05 | `05_grid_analysis.py` | 1-2 min | Grid workflow; 3-panel Eulerian vs robust figure |
-| 06 | `06_geodesic_through_warp_bubble.py` | 30 s | Diffrax geodesics, norm conservation, tidal eigenvalues |
-| 07 | `07_custom_warp_metric.py` | 20-30 s | Subclass `ADMMetric`; wall-restricted diagnostics |
-| 08 | `08_metric_design.py` | 10 s | Shape-function design via `design_metric` (B-spline reproduction) |
-| 09 | `09_admissibility_diagnostics.py` | 15 s | Fuchs shell: constraints, ADM mass, junction, transport |
-| 10 | `10_phase_diagram.py` | 5 min demo | T-shell parameter sweep + phase diagram (`--full` for paper quality) |
+| 01 | `01_minkowski_sanity.py` | 10 s | Curvature chain on flat space; `verify_point` on vacuum |
+| 02 | `02_schwarzschild_verification.py` | 10 s | Non-trivial curvature; analytical Kretschmann cross-check |
+| 03 | `03_alcubierre_analysis.py` | 10 s | Robust vs Eulerian EC at a bubble-wall point (the main result) |
+| 04 | `04_warp_drive_comparison.py` | 20 s | Six shipped warp metrics + Hawking-Ellis types + velocity scaling |
+| 05 | `05_grid_analysis.py` | 25 s | Grid workflow; the 76% of SEC violations a single frame misses |
+| 06 | `06_geodesic_through_warp_bubble.py` | 15 s | Diffrax geodesics, norm conservation, tidal eigenvalues |
+| 07 | `07_custom_warp_metric.py` | 40 s | Subclass `ADMMetric`; wall-restricted diagnostics |
+| 08 | `08_metric_design.py` | 7 s | Shape-function design via `design_metric` (B-spline reproduction) |
+| 09 | `09_admissibility_diagnostics.py` | 30 s | Fuchs shell: constraints, ADM mass, junction, transport |
+| 10 | `10_phase_diagram.py` | 2 min demo | T-shell parameter sweep + phase diagram (`--full` for paper quality) |
 
-After **03**, you have seen the main research result (observer-robust EC).
-**05** and **07** are the best next steps for publication-style figures.
-**09** and **10** cover the source-consistency and shell-design stack.
+After 03 you have seen the main result. 05 and 07 are the next steps for
+publication-style figures; 09 and 10 cover the source-consistency and
+shell-design stack.
 
 ## Quick commands
 
 ```bash
-# Fastest “does it work?” check
+# Fastest smoke check
 python examples/01_minkowski_sanity.py
 
 # Same entry point as docs/tutorials/quickstart.md
@@ -56,12 +56,12 @@ python examples/03_alcubierre_analysis.py
 # Custom metric + PDF comparison figure
 python examples/07_custom_warp_metric.py
 
-# Metric design golden path (writes tests/fixtures/alcubierre_optimal_parameters.npy)
+# Metric design (writes tests/fixtures/alcubierre_optimal_parameters.npy)
 python examples/08_metric_design.py
 
-# Phase diagram demo (8×6 grid)
+# Phase diagram demo (8x6 grid)
 python examples/10_phase_diagram.py
-python examples/10_phase_diagram.py --full   # 20×15, ~30 min on GPU
+python examples/10_phase_diagram.py --full   # 20x15, ~30 min on GPU
 ```
 
 ## Where outputs land
@@ -75,5 +75,5 @@ repository root. Check the header of any script you run for the exact path.
 - [Quickstart](../docs/tutorials/quickstart.md): install plus a walkthrough of example 03.
 - [Examples tour](../docs/tutorials/examples_tour.md): the MkDocs mirror of this page.
 - [Custom metric tutorial](../docs/how-to/custom_metric_tutorial.md): pairs with example 07.
-- [Interpreting EC results](../docs/how-to/interpreting_ec_results.md): how to read margins and Hawking--Ellis types.
+- [Interpreting EC results](../docs/how-to/interpreting_ec_results.md): how to read margins and Hawking-Ellis types.
 - [Architecture](../docs/explanation/ARCHITECTURE.md): package map and design decisions.

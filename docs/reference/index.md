@@ -41,3 +41,81 @@ than the raw `_ArrayMeta` repr).
 ::: warpax.analysis
     options:
       show_root_heading: false
+
+## warpax.averaged
+
+::: warpax.averaged
+    options:
+      show_root_heading: false
+
+## warpax.quantum
+
+::: warpax.quantum
+    options:
+      show_root_heading: false
+
+## warpax.bondi
+
+::: warpax.bondi
+    options:
+      show_root_heading: false
+
+## warpax.grids
+
+::: warpax.grids
+    options:
+      show_root_heading: false
+
+## warpax.junction
+
+::: warpax.junction
+    options:
+      show_root_heading: false
+
+## warpax.adm
+
+::: warpax.adm
+    options:
+      show_root_heading: false
+
+## warpax.constraints
+
+::: warpax.constraints
+    options:
+      show_root_heading: false
+
+## warpax.tov
+
+::: warpax.tov
+    options:
+      show_root_heading: false
+
+## warpax.transport
+
+::: warpax.transport
+    options:
+      show_root_heading: false
+
+## warpax.classify
+
+::: warpax.classify
+    options:
+      show_root_heading: false
+
+## warpax.io
+
+::: warpax.io
+    options:
+      show_root_heading: false
+
+## warpax.optimization
+
+::: warpax.optimization
+    options:
+      show_root_heading: false
+
+## warpax.design
+
+::: warpax.design
+    options:
+      show_root_heading: false

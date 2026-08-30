@@ -8,10 +8,10 @@ many had each of the null, weak, strong and dominant conditions *certified*
 violated, how many certified satisfied, and how many the interval arithmetic
 declined to decide.
 
-Why it is worth the compute. The verdicts here consult no Hawking--Ellis type, no
-eigendecomposition, no classification tolerance and no rapidity cap; the whole
-chain ``g -> Gamma -> Riem -> Ric -> G -> T`` is enclosed in interval arithmetic
-and the acceptance test is an interval ``LDL^T``. So the count is immune to the
+The verdicts consult no Hawking-Ellis type, no eigendecomposition, no
+classification tolerance and no rapidity cap; the whole chain
+``g -> Gamma -> Riem -> Ric -> G -> T`` is enclosed in interval arithmetic and
+the acceptance test is an interval ``LDL^T``. So the count is immune to the
 two standing objections to a type-based census, that Type IV identification is
 tolerance-dependent, and that a float64 eigensolver cannot separate the Type II
 and Type III strata. Whatever the algebraic type at a point is, the verdict does
@@ -110,9 +110,8 @@ def sample_points(n_r: int, n_theta: int) -> list[tuple[float, float]]:
     """Product grid in ``(r, theta)`` on the axisymmetry-reduced half-plane.
 
     Radial nodes are INTERIOR to the band. At an endpoint the interval enclosure of
-    ``f`` straddles the band boundary, so the point cannot be certified to be a wall
-    point at all and would have to be dropped, which is the honest outcome, but a
-    pointless one when moving half a step inward avoids it entirely.
+    ``f`` straddles the band boundary, so the point cannot be certified as a wall
+    point and would have to be dropped. Moving half a step inward avoids it.
     """
     import numpy as np
 

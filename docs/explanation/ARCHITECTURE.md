@@ -2,10 +2,11 @@
 
 ## Overview
 
-`warpax` verifies NEC, WEC, SEC, and DEC for warp-drive spacetimes using JAX
-autodiff and continuous observer optimization. Eulerian-frame checks miss
-violations that boosted observers detect; `warpax` searches the full timelike
-observer manifold via BFGS to find them.
+`warpax` decides NEC, WEC, SEC and DEC for warp-drive spacetimes over every
+observer at once, from exact JAX-autodiff curvature. Eulerian-frame checks miss
+violations that boosted observers see; a $4\times4$ linear matrix inequality
+settles all of them in one call, and a BFGS search over the observer manifold
+serves as the independent cross-check.
 
 ## Autodiff curvature pipeline
 
@@ -44,19 +45,25 @@ Core differential geometry: Christoffel symbols, curvature tensors, stress-energ
 invariants, grid evaluation. All tensors are JAX arrays with jaxtyping annotations.
 
 ### `energy_conditions`
-Frame-independent, all-velocity certification from the eigenstructure of `T^a_b`
-(`frame_free.py`, public `warpax.certify`); it never builds the Eulerian normal, so
-it is valid at all warp speeds including `v_s >= 1`. Two-tier verification strategy:
+Frame-independent, all-velocity certification (`frame_free.py`, public
+`warpax.certify`). It never builds the Eulerian normal, so it holds at all warp
+speeds including `v_s >= 1`.
 
-1. **Hawking-Ellis classification** (`solver='auto'` by default) determines the
-   algebraic type (I/II/III/IV). Ill-conditioned points fall back to the
-   generalized pencil solve when `warpax[solver]` is installed; Type-IV labels are
-   cross-checked against a 50-digit `mpmath` recomputation (`classification_mpmath.py`).
-2. **BFGS optimization** over the observer 4-velocity (rapidity-bounded), retained
-   as a one-sided diagnostic. Type I points use exact eigenvalue margins (and the
-   closed-form worst observer `sinh^2 zeta_th = rho/|rho+p_i|`,
-   `worst_observer_analytic.py`); `verify_grid` skips BFGS on Type I by default
-   (`skip_type_i_optimization=True`).
+- **The decision** (`slemma.py`): `T_hat + sigma eta >= 0` decides all four
+  conditions over every timelike and null observer, at Types I through IV alike,
+  with no rapidity cap and no classification tolerance.
+- **The evidence** (`certificate.py`): a rational multiplier when the condition
+  holds, a rational violating boost when it fails, checked over `Fraction`.
+  `enclosure.py` and `interval_lmi.py` supply verified continuum enclosures by
+  interval branch-and-bound over `mpmath.iv`.
+- **The label** (`classification.py`): the Hawking-Ellis type is a diagnostic,
+  audited against the inequality rather than trusted. Ill-conditioned points fall
+  back to the generalized pencil when `warpax[solver]` is installed, and Type-IV
+  labels are cross-checked at 50 digits (`classification_mpmath.py`).
+- **The cross-check** (`optimization.py`): rapidity-bounded BFGS over the
+  observer 4-velocity, one-sided. Type-I points use exact eigenvalue margins and
+  the closed-form worst observer `sinh^2 zeta_th = rho/|rho+p_i|`
+  (`worst_observer_analytic.py`), so `verify_grid` skips BFGS there by default.
 
 ### `metrics`
 Nine warp/shell drives in `warpax.metrics`, each implementing
@@ -81,10 +88,17 @@ Geodesic integration via Diffrax ODE solvers. Computes:
   extended phase space) that conserves `g(k,k)` to ~machine precision for the
   rigorous geodesic-integrated ANEC
 
+### `grids`
+Grid construction and diagnostics: wall-clustered node placement
+(`_clustered.py`), the worst-case wall-resolution witness (`_resolution.py`), and
+the proper-volume Jacobian `sqrt(det gamma) d^3x` that weights every reported
+fraction (`proper_volume_weights`).
+
 ### `analysis`
 Higher-level analysis utilities:
 - Eulerian vs robust EC comparison tables
-- Richardson extrapolation convergence analysis
+- Richardson extrapolation, which refuses a ladder it cannot fit
+- Off-grid polishing of a grid extremum (`extrema.refine_extremum`)
 - Kinematic scalars: expansion θ, shear σ², vorticity ω² (`shift_kinematics.py`)
 - Vorticity -> Type-IV mechanism `f = κ ω` (`vorticity_type_analytic.py`)
 - Cross-construction all-observer verification with a wall-resolution gate
@@ -144,10 +158,10 @@ sweep over (compactness, thickness) with `SweepResult` serialization.
 
 - **JAX 0.10.x** - `pmap` is in maintenance mode upstream and is not used
   by warpax. Multi-device fan-out, when needed, will go through
-  `jax.sharding.NamedSharding` / `shard_map`. The compile cache is opt-in
-  via `WARPAX_JIT_CACHE=1` and respects
-  `WARPAX_JIT_CACHE_MIN_ENTRY_SIZE_BYTES` and
-  `WARPAX_JIT_CACHE_MIN_COMPILE_TIME_SECS`.
+  `jax.sharding.NamedSharding` / `shard_map`. JAX's persistent compile cache
+  is opt-in via `WARPAX_JIT_CACHE=1`, applied through `jax.config.update`
+  because JAX reads its cache environment variables at import; tune it with
+  JAX's own `JAX_PERSISTENT_CACHE_*` variables.
 - **Optimistix 0.1** - `optx.minimise(fn, solver, y0, args=..., options=...,
   max_steps=...)` matches the projected-BFGS observer pipeline; tolerances
   are passed through the solver constructor (`rtol`, `atol`, `norm`) and

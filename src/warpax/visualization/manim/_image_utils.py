@@ -147,7 +147,7 @@ def compute_symlog_clim(
     # limits. Raw min/max let a single near-singular grid point (e.g. the
     # Eulerian NEC can blow up to ~-1e13 near the bubble centre) hijack the
     # whole scale and wash the structure out, the 0.5/99.5 percentiles reject
-    # such blow-ups while keeping the genuine wall-region extremes.
+    # such blow-ups while keeping the true wall-region extremes.
     pooled: list = []
     for frame in frames:
         if field_name not in frame.scalar_fields:

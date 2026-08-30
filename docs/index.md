@@ -33,6 +33,7 @@ Task-oriented recipes for readers who know what they want to do.
 - [Define a custom warp metric](how-to/custom_metric_tutorial.md)
 - [Interpret EC results](how-to/interpreting_ec_results.md)
 - [Load an external metric](how-to/loading_external_metrics.md)
+- [Reproduce the observer-robust paper](how-to/reproduce_observer_robust_paper.md)
 - [Reproduce the warp-shell admissibility paper](how-to/reproduce_warpshell_paper.md)
 
 ## Reference
@@ -49,6 +50,7 @@ Understanding-oriented background on the mathematics and architecture.
 
 - [Architecture overview](explanation/ARCHITECTURE.md)
 - [Theory: ADM 3+1 and Hawking-Ellis types](explanation/theory.md)
+- [Boundary cost of source-consistent shells](explanation/boundary_cost.md)
 - [Release notes](explanation/release_notes.md)
 
 ## Scripts

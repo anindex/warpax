@@ -56,7 +56,7 @@ def _deep_stats(vals, frac):
     """Peak/mean over the boundary-excluded subset r in [R_1+frac*dR, R_2-frac*dR].
 
     The source-consistency residual blows up at the source--vacuum endpoints
-    (source -> 0). This isolates the genuine deep-interior value.
+    (source -> 0). This isolates the deep-interior value.
     """
     dR = R_2 - R_1
     lo, hi = R_1 + frac * dR, R_2 - frac * dR

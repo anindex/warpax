@@ -14,38 +14,39 @@ from warpax.analysis.construction_adapter import (
 )
 from warpax.geometry.metric import MetricSpecification
 
+CONSTRUCTIONS = ("Alcubierre", "Rodal", "Fuchs", "WarpShell", "Garattini", "S-shell", "T-shell")
+
 
 class TestRegistry:
     def test_registry_has_all_constructions(self):
         reg = construction_registry()
-        expected = ("Alcubierre", "Rodal", "Fuchs", "WarpShell", "Garattini", "S-shell", "T-shell")
-        for name in expected:
+        for name in CONSTRUCTIONS:
             assert name in reg
             assert isinstance(reg[name], ConstructionSpec)
-        assert len(reg) == len(expected)
+        assert len(reg) == len(CONSTRUCTIONS)
 
-    def test_each_spec_builds_a_metric(self):
-        reg = construction_registry()
-        for name, spec in reg.items():
-            m = spec.metric()
-            assert isinstance(m, MetricSpecification), name
-            g = m(jnp.array([0.0, spec.bounds[0][1] * 0.4, 0.1, 0.0]))
-            assert bool(jnp.all(jnp.isfinite(g))), name
+    @pytest.mark.parametrize("name", CONSTRUCTIONS)
+    def test_each_spec_builds_a_metric(self, name):
+        spec = construction_registry()[name]
+        m = spec.metric()
+        assert isinstance(m, MetricSpecification)
+        g = m(jnp.array([0.0, spec.bounds[0][1] * 0.4, 0.1, 0.0]))
+        assert bool(jnp.all(jnp.isfinite(g)))
 
     def test_tshell_uses_v0_and_is_static(self):
-        reg = construction_registry()
-        ts = reg["T-shell"]
+        ts = construction_registry()["T-shell"]
         assert ts.speed_param == "v_0"
         assert ts.is_comoving is False
 
 
 class TestResolutionGate:
-    def test_all_constructions_resolve_at_default_n(self):
-        reg = construction_registry()
-        for name, spec in reg.items():
-            resolved, cells = is_resolved(spec)
-            assert resolved, f"{name} unresolved at default N ({cells} cells)"
-            assert cells >= MIN_WALL_CELLS
+    # One case per construction: each builds its own graded grid, so a single
+    # loop would hold one worker for the sum of all seven.
+    @pytest.mark.parametrize("name", CONSTRUCTIONS)
+    def test_construction_resolves_at_default_n(self, name):
+        resolved, cells = is_resolved(construction_registry()[name])
+        assert resolved, f"{name} unresolved at default N ({cells} cells)"
+        assert cells >= MIN_WALL_CELLS
 
     def test_coarse_grid_flags_unresolved(self):
         # A very coarse grid must fail the gate for a compact wall.
@@ -79,7 +80,7 @@ def test_garattini_wall_resolves_when_the_reduction_is_bubble_centred():
         metric = spec.metric()
         center = spec.center_of(metric)
         assert center == pytest.approx(metric.v_s / metric.H), "centre is r_0 = v_s / H"
-        assert center != 0.0, "the whole point is that the bubble is off-origin"
+        assert center != 0.0, "the bubble must be off-origin"
 
         grid = axisymmetric_grid(
             spec.r_max, 32, 32, wall_radius=spec.wall_radius, a=spec.cluster_a, center=center
@@ -87,7 +88,7 @@ def test_garattini_wall_resolves_when_the_reduction_is_bubble_centred():
         axis = center + np.concatenate([-grid.r[::-1], grid.r])
         assert wall_cells_on_axis(metric, axis).cells >= 4.0
 
-        # And the origin-centred axis is what it used to be measured on.
+        # The origin-centred axis does not resolve the same wall.
         origin_axis = np.concatenate([-grid.r[::-1], grid.r])
         assert wall_cells_on_axis(metric, origin_axis).cells < 4.0
 

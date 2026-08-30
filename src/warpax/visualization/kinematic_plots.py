@@ -13,25 +13,20 @@ import numpy as np
 from matplotlib.colors import TwoSlopeNorm
 from numpy.typing import NDArray
 
-from ._style import DOUBLE_COL, apply_style
+from ._style import DOUBLE_COL, apply_style, extract_slice
 
 apply_style()
 
 
 def _save_or_return(fig: plt.Figure, save_path: str | None) -> plt.Figure:
-    """Save figure as PDF if save_path given, otherwise return for interactive use."""
+    """Save to *save_path* if given, otherwise return the figure for interactive use.
+
+    The format follows the path extension; PDF when it has none.
+    """
     if save_path is not None:
-        fig.savefig(save_path, format="pdf")
+        fig.savefig(save_path)
         plt.close(fig)
     return fig
-
-
-def _extract_slice(data: NDArray, slice_axis: int = 2) -> NDArray:
-    """Extract the middle 2D slice along the given axis."""
-    idx = data.shape[slice_axis] // 2
-    slc = [slice(None)] * data.ndim
-    slc[slice_axis] = idx
-    return data[tuple(slc)]
 
 
 def plot_kinematic_scalars(
@@ -78,9 +73,9 @@ def plot_kinematic_scalars(
         extents.append(np.linspace(lo, hi, grid_shape[dim]))
     x_ax, y_ax = extents
 
-    theta_2d = _extract_slice(theta, slice_axis)
-    sigma_2d = _extract_slice(sigma_sq, slice_axis)
-    omega_2d = _extract_slice(omega_sq, slice_axis)
+    theta_2d = extract_slice(theta, slice_axis)
+    sigma_2d = extract_slice(sigma_sq, slice_axis)
+    omega_2d = extract_slice(omega_sq, slice_axis)
     omega_2d = np.maximum(omega_2d, 0.0)
 
     # GridSpec: 3 panel-colorbar groups
@@ -227,9 +222,9 @@ def plot_kinematic_comparison(
             extents.append(np.linspace(lo, hi, shape[dim]))
         x_ax, y_ax = extents
 
-        theta_2d = _extract_slice(theta, slice_axis)
-        sigma_2d = _extract_slice(sigma_sq, slice_axis)
-        omega_2d = _extract_slice(omega_sq, slice_axis)
+        theta_2d = extract_slice(theta, slice_axis)
+        sigma_2d = extract_slice(sigma_sq, slice_axis)
+        omega_2d = extract_slice(omega_sq, slice_axis)
         omega_2d = np.maximum(omega_2d, 0.0)
 
         # Expansion

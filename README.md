@@ -14,25 +14,26 @@ $T^a{}_b$, with exact curvature from JAX forward-mode autodiff. The decision use
 only the boost-invariant eigenvalues of $T^a{}_b$ and never requires the
 coordinate-stationary observer $\partial_t$ to be timelike, so it stays well-defined
 at all warp speeds, including superluminal $v_s \ge 1$ where $\partial_t$ turns
-spacelike and single-frame tools such as WarpFactory break down. Each Hawking--Ellis
-type is decided exactly: a Type-I point by the eigenvalue inequalities, and a
-Type-III or Type-IV point by the absence of a causal eigenvector, with a
-closed-form Eulerian null witness where the obstruction is in the momentum plane.
+spacelike and single-frame tools such as WarpFactory break down. Each Hawking-Ellis
+type is decided the same way: a $4\times4$ linear matrix inequality
+$\hat T + \sigma\eta \succeq 0$ over every timelike and null observer, with no
+rapidity cap and no classification tolerance, and each verdict backed by an exact
+rational certificate.
 
 <p align="center">
   <img src="./figures/wall_velocity_sweep.gif" width="760" alt="Alcubierre warp bubble: Eulerian energy density embedding and observer-robust NEC-margin slab"/>
 </p>
 
-<p align="center"><em>An Alcubierre warp bubble, straight out of warpax's autodiff curvature pipeline. The wireframe on top is the energy density an Eulerian observer measures, negative everywhere across the wall, &rho;<sub>Eul</sub> &le; 0. The flat slab underneath is the NEC margin once you minimize over the whole null sphere; it never rises above zero, which is the exotic-matter problem drawn in a single frame. The sweep first sharpens the wall (&sigma;: 1 &rarr; 16), then eases the velocity back down toward flat space. Geometric units, signature (&minus;,+,+,+); and every frame is a frozen metric, a parameter sweep rather than a time evolution.</em></p>
+<p align="center"><em>An Alcubierre warp bubble. The wireframe is the Eulerian energy density, negative everywhere across the wall (&rho;<sub>Eul</sub> &le; 0); the slab beneath is the NEC margin minimized over the whole null sphere, which never rises above zero. The sweep sharpens the wall (&sigma;: 1 &rarr; 16), then eases the velocity toward flat space.</em></p>
 
-## Highlights
+## Features
 
-- Frame-independent, all-observer energy-condition certification at every warp speed (including superluminal $v_s \ge 1$), from the eigenstructure of $T^a{}_b$, exact and cap-free for every Hawking--Ellis type.
-- Hawking--Ellis classification (Type I--IV) with explicit Type-IV detection, cross-checked by three eigensolvers and a 50-digit `mpmath` reference.
+- Frame-independent, all-observer energy-condition certification at every warp speed (including superluminal $v_s \ge 1$), from the eigenstructure of $T^a{}_b$, exact and cap-free for every Hawking-Ellis type.
+- Hawking-Ellis classification (Type I-IV) with explicit Type-IV detection, cross-checked by two eigensolver backends against a 50-digit `mpmath` reference.
 - Exact decision at Type-III/IV points from the absence of a causal eigenvector, with a closed-form Eulerian null witness for the momentum-sourced case; a closed-form Type-I worst observer and a multistart BFGS optimizer serve only to display violation severity.
 - Momentum-density control of the wall type through the discriminant $\Delta=(\rho+S_\parallel)^2-4|j|^2$: a negative discriminant sends a point to Type IV, and the same momentum density sets the wall NEC deficit and curvature scaling.
-- Rigorous geodesic-integrated ANEC via a symplectic null integrator (with an on-cone witness), plus a Ford--Roman quantum-inequality diagnostic.
-- Bondi four-momentum radiated-flux and Newman--Penrose peeling at null infinity (`warpax.bondi`).
+- Rigorous geodesic-integrated ANEC via a symplectic null integrator (with an on-cone witness), plus a Ford-Roman quantum-inequality diagnostic.
+- Bondi four-momentum radiated-flux and Newman-Penrose peeling at null infinity (`warpax.bondi`).
 - Exact curvature via forward-mode JAX autodiff, no finite-difference stencils.
 - Ten warp/shell metrics, constraint residuals, anisotropic TOV, ADM mass with falloff, Israel junctions, transport diagnostics, and source-first S-/T-shell construction with a five-criterion admissibility standard.
 
@@ -65,7 +66,7 @@ python examples/01_minkowski_sanity.py
 See [`examples/README.md`](examples/README.md) for a numbered learning path (01-10)
 and which optional extras each script needs.
 
-For a 5--10 minute walkthrough from install to seeing an energy condition violation,
+For a 5-10 minute walkthrough from install to seeing an energy condition violation,
 see the [Quickstart tutorial](docs/tutorials/quickstart.md).
 
 ## Key results
@@ -73,17 +74,17 @@ see the [Quickstart tutorial](docs/tutorials/quickstart.md).
 ### Frame-independent type map across the luminal transition
 
 On matched, wall-resolved grids, the Rodal irrotational geometry is globally
-Hawking--Ellis Type I at every speed from $v_s = 0.1$ to $2.5$, while the
+Hawking-Ellis Type I at every speed from $v_s = 0.1$ to $2.5$, while the
 Alcubierre/Natário/Van den Broeck bubble walls are Type-IV dominated (no rest
 frame, no invariant energy density) at every speed. The split is controlled by the
 Eulerian momentum density through the discriminant
 $\Delta=(\rho+S_\parallel)^2-4|j|^2$: an irrotational shift carries no wall momentum
 and stays globally Type I, while a vortical shift drives $\Delta<0$ and the wall to
 Type IV. For Rodal's globally Type-I drive the Eulerian frame does not register
-~72% of the wall weak-energy and ~73% of the wall dominant-energy violations seen
-by boosted observers, an exact
-eigenvalue statement rather than an optimizer artifact. A rigorous geodesic-integrated
-ANEC (symplectic integrator with an on-cone witness) and a Ford--Roman comparison
+~73% of the wall weak-energy and ~74% of the wall dominant-energy violations seen
+by boosted observers, an exact eigenvalue statement rather than an optimizer
+artifact. A rigorous geodesic-integrated
+ANEC (symplectic integrator with an on-cone witness) and a Ford-Roman comparison
 preserve the ordering: every drive violates, and the irrotational Rodal geometry is
 the mildest by one to two orders of magnitude.
 
@@ -91,28 +92,29 @@ the mildest by one to two orders of magnitude.
 
 A composite exoticity ranking on the benchmark slice, from observer-independent
 inputs (NEC severity, Type-IV fraction, rigorous ANEC minimum), places the
-irrotational Rodal drive about a factor of seventy below the bubble-wall drives,
-driven by its vanishing Type-IV fraction and tiny averaged-null energy, not by a
-milder pointwise NEC. The wall NEC deficit follows the two-term law
+irrotational Rodal drive nearly two orders of magnitude below the bubble-wall
+drives (index 0.010 against 0.70 to 1.00), driven by its vanishing Type-IV
+fraction and tiny averaged-null energy, not by a milder pointwise NEC. The wall NEC deficit follows the two-term law
 $\min(\rho+p_i) = -C\,v_s^2 - D\,v_s$, single-term for the irrotational Rodal drive
 ($D=0$) and with a vorticity-set linear correction for the vortical walls, in line
-with the Santiago--Schuster--Visser no-go. The wall curvature splits by the same
+with the Santiago-Schuster-Visser no-go. The wall curvature splits by the same
 vorticity: vortical walls grow as $v_s^2$, the irrotational Rodal wall as $v_s^4$
 ($R^2 \ge 0.99$).
 
 ### Observer-robust vs Eulerian
 
-Across the tested warp drives, 15--28% of DEC-violating grid points are invisible
-to the Eulerian observer. The Fuchs constant-velocity shell hides 92% of its
-shell-interior violations from an Eulerian-only check.
+Conditional on a violation existing, the Eulerian frame misses up to 29% of the
+DEC-violating points and 76% of the SEC-violating points across the tested
+drives (`results/comparison_table.json`).
 
 ### Custom metrics
 
 Subclass `ADMMetric` and run the full pipeline. The figure below validates a
 Gaussian warp bubble on a 24x24x4 grid: SEC margins from the Eulerian observer
-(left), from the worst-case boosted observer found by BFGS (center), and 356 grid
-points the Eulerian frame reports as SEC-satisfied while the boosted observer
-sees them violated (right).
+(left), from the worst-case boosted observer found by BFGS (center), and the 1496
+grid points the Eulerian frame reports as SEC-satisfied while the boosted observer
+sees them violated (right). Regenerate it with
+`python examples/07_custom_warp_metric.py --readme-figure`.
 
 ![Gaussian Warp Grid Comparison](./figures/gaussian_warp_grid_comparison.png)
 
@@ -129,15 +131,15 @@ See [`examples/07_custom_warp_metric.py`](examples/07_custom_warp_metric.py).
 | A. Regularity | $C^2$ metric continuity (thick) or Israel conditions (thin) |
 | B. Constraints | Hamiltonian + momentum residuals $\epsilon_{\mathcal{H}}$, $\epsilon_{\mathcal{M}}$ |
 | C. Matter model | Identifiable source (anisotropic fluid, elastic shell) |
-| D. EC margins | Frame-free NEC/WEC/DEC from Hawking--Ellis eigenvalue slacks (exact, cap-free at Type-I; valid at all $v_s$) |
+| D. EC margins | Frame-free NEC/WEC/DEC from Hawking-Ellis eigenvalue slacks (exact, cap-free at Type-I; valid at all $v_s$) |
 | E. Global | Positive ADM mass, asymptotic falloff, tidal forces, invariant transport |
 
 Fuchs constant-velocity shell: source-aware $\epsilon_{\mathcal{H}} \approx
 3\times10^{-8}$; the bulk shell interior is Type-I and EC-compliant (0 of 13
 probes violate), while the smoothing tail turns Type-IV. The source-first S-/
-T-shells likewise pass criteria A--C and E with positive interior margins; the
+T-shells likewise pass criteria A-C and E with positive interior margins; the
 binding cost is a cap-free Type-I dominant-energy deficit at the inner shell edge
-($\approx -4.4\times10^{-4}$), localized at the smooth source--vacuum transition,
+($\approx -4.4\times10^{-4}$), localized at the smooth source-vacuum transition,
 and the tilted T-shell's shift vorticity drives a Type-IV onset at its
 low-density edge. These shell results belong to the companion note; see
 [The boundary cost of source consistency](docs/explanation/boundary_cost.md).
@@ -162,7 +164,7 @@ and a suggested order for new users.
 
 ```bash
 python examples/01_minkowski_sanity.py
-python examples/10_phase_diagram.py          # 8x6 demo (~5 min)
+python examples/10_phase_diagram.py          # 8x6 demo (~2 min)
 python examples/10_phase_diagram.py --full   # 20x15 sweep (~30 min GPU)
 ```
 
@@ -171,7 +173,7 @@ python examples/10_phase_diagram.py --full   # 20x15 sweep (~30 min GPU)
 ```
 metrics -> geometry -> energy_conditions -> analysis
               |              |
-          geodesics    classification (Hawking--Ellis)
+          geodesics    classification (Hawking-Ellis)
               |
          transport / tidal / blueshift
 ```
@@ -179,8 +181,8 @@ metrics -> geometry -> energy_conditions -> analysis
 | Package | Description |
 |---------|-------------|
 | `geometry` | JAX autodiff pipeline: metric $\to$ Christoffel $\to$ Riemann $\to$ Ricci $\to$ Einstein $\to$ $T_{\mu\nu}$; ADM 3+1 split; $C^2$ regularity diagnostics |
-| `energy_conditions` | NEC/WEC/SEC/DEC via Hawking--Ellis classification, eigenvalue algebra, multi-start BFGS observer optimization |
-| `metrics` | Nine warp/shell metrics: Natário, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, Garattini--Zatrimaylov (Alcubierre, Minkowski, and Schwarzschild ship in `benchmarks`, making ten warp metrics total) |
+| `energy_conditions` | NEC/WEC/SEC/DEC via Hawking-Ellis classification, eigenvalue algebra, multi-start BFGS observer optimization |
+| `metrics` | Nine warp/shell metrics: Natário, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, Garattini-Zatrimaylov (Alcubierre, Minkowski, and Schwarzschild ship in `benchmarks`, making ten warp metrics total) |
 | `constraints` | Hamiltonian + momentum constraint residuals; S-shell and T-shell constraint solvers (pure JAX) |
 | `tov` | Anisotropic TOV equilibrium checker |
 | `adm` | ADM mass with surface integral and asymptotic falloff verification |
@@ -192,9 +194,9 @@ metrics -> geometry -> energy_conditions -> analysis
 | `analysis` | Eulerian vs. robust comparison, convergence tools (stability spreads + continuum polishing of wall extrema, `analysis.extrema`), kinematic scalars |
 | `io` | External metric loaders: WarpFactory (.mat), EinFields (checkpoint), Cactus (HDF5) |
 | `visualization` | Matplotlib publication figures, Manim animations, phase diagram plots |
-| `classify` | Bobrick--Martire subluminal/superluminal taxonomy |
+| `classify` | Bobrick-Martire subluminal/superluminal taxonomy |
 | `averaged` | ANEC/AWEC null-ray and geodesic line integrals |
-| `quantum` | Ford--Roman quantum inequality evaluator |
+| `quantum` | Ford-Roman quantum inequality evaluator |
 
 All metrics implement a common `MetricFunction` interface: a callable `(4,) -> (4,4)` mapping
 coordinates $x^\mu$ to the covariant metric tensor $g_{\mu\nu}$.
@@ -202,54 +204,13 @@ coordinates $x^\mu$ to the covariant metric tensor $g_{\mu\nu}$.
 ## Running tests
 
 ```bash
-pytest                      # Full suite (1000+ tests across 39 modules)
-pytest -m "not slow"        # Skip @slow grid tests (~50 s with -n auto)
+pytest                      # Whole suite, ~3 min (1089 tests, parallel by default)
 pytest -m smoke             # Visualization import / render smoke tests
-pytest -n auto              # Parallel execution
+pytest tests/test_slemma.py # One module
 ```
 
-## Symbolic certificates
-
-The analytic results behind the paper are checked symbolically in SageMath,
-independently of the JAX code. The certificates ship with the manuscript source
-rather than with this package, since they verify its algebra and never run against
-it:
-
-```bash
-cd ../warpax_arxiv && bash verify/run_certs.sh   # non-zero exit on any failure
-```
-
-Each `verify/*.sage` file proves one result. The two principal certificates are
-`slemma_certificate` and `lmi_rational_certificate`: the linear matrix inequality
-`T_ab + sigma g_ab >= 0` decides the null, weak, strong and dominant conditions
-over every observer at Hawking-Ellis Types I, II, III and IV alike, with no
-rapidity cap, no eigendecomposition and no classification tolerance, and each
-reported verdict reduces to exact rational arithmetic -- a rational multiplier
-`sigma` when the condition holds, a rational boost `w` with `|w| <= 1` and
-`q(w) < 0` when it fails.
-
-The rest: the per-observer Type-I eigenvalue criteria for all four conditions
-(the dominant-energy bound is `rho >= |p_i|`); the momentum discriminant
-`Delta = (rho + S_par)^2 - 4|j|^2` and the closed-form null witness; the Type-II
-wall at `Delta = 0` separating the Type-I and Type-IV momentum-channel regions,
-so the two types do not exhaust it; the momentum-curl identity
-`8 pi |j| = (1/2)|curl(curl beta)|`; the two-term wall NEC law
-`W = a v_s^2 - 2 d v_s` with its linear coefficient proportional to `|j|`, so it
-vanishes exactly in the irrotational case, together with the proof of which real
-eigenvector is timelike on each sign branch of `a = rho_n + S_par`; that same law
-evaluated on the actual divergence-free but vortical Natário shift; the exactly
-quadratic irrotational deficit with `C > 0`; the curvature power laws (the Ricci,
-Weyl and Kretschmann wall-peak exponents), including the explicit witness showing
-that a nonzero shift vorticity does not by itself force `q = 2` for `C^2`; the
-conformal Type-IV case (discriminant sufficient but not necessary), with its
-closed-form transverse-channel criterion `D(rho, Sx, Sy, |j|, m) < 0` and an
-explicit null witness `T(k,k) < 0` at such a point; the exact `v_s^2` scaling of
-the integrated negative energy `E_-(v_s) = v_s^2 E_-(1)`, in both the scalar and
-the vectorial shift; and the total Eulerian energy of a compact slice being
-non-positive, `int rho_n dV = -(1/16 pi) int omega_ij omega^ij dV <= 0` (minus
-the integrated shift vorticity). Two certificates from the first revision are
-retired in `verify/retired/`, with the reasons stated there. See
-`../warpax_arxiv/verify/README.md` for the per-file summary.
+There is one tier: `-n auto` comes from `pyproject.toml`, and no test is excluded by
+default.
 
 ## Reproducing results
 
@@ -273,16 +234,12 @@ Use `--keep-cache` to skip cache deletion and only recompute missing results.
 Per-paper reproduction guides map every figure, table and quoted number to the
 script that produces it:
 
-- [**Reproducing the observer-robust energy condition paper**](docs/how-to/reproduce_observer_robust_paper.md)
-  (*Observer-robust energy condition verification for warp drive spacetimes*) --
-  stage list, table- and figure-to-script maps, the two consistency gates, and the
-  certificate inventory.
-- [**Reproducing the warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md)
-  (*On the boundary cost of source-consistent warp shells*).
+- [**Observer-robust energy condition paper**](docs/how-to/reproduce_observer_robust_paper.md) - stage list, table- and figure-to-script maps, and the two consistency checks
+- [**Warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md) - per-figure, per-claim mapping to scripts and outputs
 
 The outer-edge ($r \ge R_2$) Type-IV verification (log-log slope $1.01 \pm 0.01$) and
 the ANEC impact-parameter scan are reproduced by
-`scripts/run_tshell_typeIV_gate.py` and `scripts/run_anec_impact_scan.py`.
+`scripts/run_tshell_typeIV_onset.py` and `scripts/run_anec_impact_scan.py`.
 
 ## Documentation
 
@@ -290,13 +247,13 @@ warpax ships full documentation in [`docs/`](docs/), organized following the [Di
 
 ### Tutorials
 
-- [**Quickstart**](docs/tutorials/quickstart.md) - 5--10 minutes from install to seeing an energy condition violation
+- [**Quickstart**](docs/tutorials/quickstart.md) - 5-10 minutes from install to seeing an energy condition violation
 - [**First curvature computation**](docs/tutorials/first_curvature_computation.md) - full curvature chain on Minkowski as a warm-up
 
 ### How-to guides
 
 - [**Define a custom warp metric**](docs/how-to/custom_metric_tutorial.md) - subclass `ADMMetric` and run the verification pipeline
-- [**Interpret EC results**](docs/how-to/interpreting_ec_results.md) - read margin signs, Hawking--Ellis types, and worst-case observers
+- [**Interpret EC results**](docs/how-to/interpreting_ec_results.md) - read margin signs, Hawking-Ellis types, and worst-case observers
 - [**Load an external metric**](docs/how-to/loading_external_metrics.md) - use WarpFactory, EinFields, or Cactus data
 - [**Reproduce the warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md) - per-figure, per-claim mapping to scripts and outputs
 
@@ -309,14 +266,14 @@ warpax ships full documentation in [`docs/`](docs/), organized following the [Di
 ### Explanation
 
 - [**Architecture**](docs/explanation/ARCHITECTURE.md) - package structure and design decisions
-- [**Theory: ADM 3+1 and Hawking--Ellis types**](docs/explanation/theory.md) - mathematical background
-- [**Release notes**](docs/explanation/release_notes.md) - version history and release summary
+- [**Theory: ADM 3+1 and Hawking-Ellis types**](docs/explanation/theory.md) - mathematical background
+- [**Release notes**](docs/explanation/release_notes.md) - pre-1.0 history
 
 ## Manim visualizations
 
-Every scene below comes straight from the same autodiff curvature and
-energy-condition code that backs the papers. Everything is in geometric units (G = c = 1, signature
-−,+,+,+) on the z = 0 slice, and each frame is a frozen metric - a parameter sweep, not a time evolution.
+Every scene comes from the same curvature and energy-condition code as the papers.
+Geometric units on the z = 0 slice; each frame is a frozen metric, a parameter
+sweep rather than a time evolution.
 
 <div align="center">
 <table>
@@ -326,25 +283,22 @@ energy-condition code that backs the papers. Everything is in geometric units (G
 <td width="33%"><img src="./figures/eulerian_vs_worstcase_nec.gif" alt="Eulerian vs observer-robust NEC margin"/></td>
 </tr>
 <tr>
-<td align="center"><em><strong>Eulerian kinematics.</strong> Expansion θ = −K - space stretches behind the ship (red) and squeezes in front of it (blue), the kinematics Alcubierre is famous for. Shear σ² rides along as iso-contours, with the f = 0.5 wall traced on top.</em></td>
-<td align="center"><em><strong>Kretschmann invariant.</strong> The curvature scalar K = R<sub>abcd</sub>R<sup>abcd</sup> - the same number for every observer. It is sign-indefinite in Lorentzian signature, so it dips negative, and it spikes hard on the wall.</em></td>
-<td align="center"><em><strong>Observer-robust NEC.</strong> Six axis-aligned Eulerian nulls on the left, the dense worst case over the whole null sphere on the right (k·n<sub>Eul</sub> = −1). The gap between the panels is exactly what observer-robust verification buys you.</em></td>
+<td align="center"><em><strong>Eulerian kinematics.</strong> Expansion θ = −K: space stretches behind the ship (red) and squeezes in front (blue). Shear σ² as iso-contours, with the f = 0.5 wall on top.</em></td>
+<td align="center"><em><strong>Kretschmann invariant.</strong> K = R<sub>abcd</sub>R<sup>abcd</sup>, the same for every observer. Sign-indefinite in Lorentzian signature, so it dips negative, and spikes on the wall.</em></td>
+<td align="center"><em><strong>Observer-robust NEC.</strong> Six axis-aligned Eulerian nulls on the left, the worst case over the whole null sphere on the right (k·n<sub>Eul</sub> = −1). The gap is what observer-robust verification buys.</em></td>
 </tr>
 </table>
 </div>
 
-The full scene set spans 3D embedding diagrams and 2D heatmaps:
-
-- **WallAndVelocitySweep** / **VelocitySweep** - dual-layer 3D: Eulerian energy density ρ<sub>Eul</sub> embedding above a flat NEC-margin slab, sweeping wall steepness σ then velocity v<sub>s</sub>.
-- **BoostRapiditySweep** - the energy density a boosted observer measures vs rapidity ζ; it deepens as cosh²ζ and diverges to −∞ (the worst case over unbounded boosts is exactly the NEC).
-- **EulerianKinematics2D** - expansion θ = −K, shear σ², vorticity ω² ≡ 0 (hypersurface-orthogonal).
-- **KretschmannInvariant2D** - the observer-independent curvature invariant.
-- **NECMargin2D** / **EulerianVsWorstCaseNEC** - observer-robust null-energy-condition margins.
-- **WorstCaseNullDirections** / **WorstCaseBoostDirections** - worst-case null / timelike-boost direction fields.
+The full set: **WallAndVelocitySweep** / **VelocitySweep** (dual-layer 3D,
+ρ<sub>Eul</sub> above a NEC-margin slab), **BoostRapiditySweep** (energy density
+vs rapidity ζ, deepening as cosh²ζ), **EulerianKinematics2D**,
+**KretschmannInvariant2D**, **NECMargin2D** / **EulerianVsWorstCaseNEC**, and
+**WorstCaseNullDirections** / **WorstCaseBoostDirections**.
 
 ```bash
 # System dependencies (Ubuntu/Debian)
-sudo apt install texlive-latex-extra texlive-fonts-recommended dvipng cm-super ffmpeg
+sudo apt install texlive-latex-extra texlive-fonts-recommended dvipng cm-super ffmpeg gifsicle
 
 # Python dependencies (Python <= 3.13 recommended for the renderer)
 pip install -e ".[manim]"

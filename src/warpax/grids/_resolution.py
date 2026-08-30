@@ -6,8 +6,7 @@ the resolution criterion is only met if *every* crossing is resolved. This modul
 therefore reports the **minimum** over crossings, measured on the grid actually
 used.
 
-Three things it deliberately does not do, each of which inflated the number in a
-previous revision:
+Three things it deliberately does not do, each of which inflates the number:
 
 - it does not divide by the *smallest* node spacing in the band (that is the
   best case, at the one crossing the grid happens to favour);
@@ -110,10 +109,9 @@ def wall_cells_on_axis(
     Parameters
     ----------
     metric : exposes ``shape_function_value(coords)``.
-    xs : the *actual* 1-D node positions of the axis under test. Passing the
-        grid that will be used is the whole point, reconstructing the
-        coordinate map by hand is how the witness drifted out of sync with the
-        grid generator in a previous revision.
+    xs : the *actual* 1-D node positions of the axis under test. Pass the grid
+        that will be used; reconstructing the coordinate map by hand lets the
+        witness drift out of sync with the grid generator.
     """
     xs = np.asarray(xs, dtype=float)
     dense = np.linspace(float(xs[0]), float(xs[-1]), _DENSE)

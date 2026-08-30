@@ -1,6 +1,6 @@
-r"""Newman--Penrose Weyl scalars and the peeling-falloff verification.
+r"""Newman-Penrose Weyl scalars and the peeling-falloff verification.
 
-This module builds the five Newman--Penrose Weyl scalars
+This module builds the five Newman-Penrose Weyl scalars
 :math:`\Psi_0,\dots,\Psi_4` on the asymptotic outgoing null tetrad of
 :mod:`warpax.bondi.extract`, and verifies the *peeling property*
 
@@ -39,7 +39,7 @@ numerical :math:`\Psi_4` only probes the pipeline floor (:math:`\sim10^{-18}`),
 not a physical :math:`1/r` tail.  Such scalars are flagged ``above_floor=False``
 (relative to the Coulombic :math:`\Psi_2`) and are *not* slope-fit.  The robust,
 universal peeling certificate across all test spacetimes is the Coulombic
-:math:`\Psi_2\sim r^{-3}` (slope :math:`-3`); a genuine :math:`\Psi_4\sim r^{-1}`
+:math:`\Psi_2\sim r^{-3}` (slope :math:`-3`); a true :math:`\Psi_4\sim r^{-1}`
 tail is demonstrated on a deliberately *non-silent* (e.g. :math:`\ell\ge2`)
 emission used as a positive control.
 

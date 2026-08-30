@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from warpax.analysis.extrema import refine_extremum
 from warpax.benchmarks import AlcubierreMetric
@@ -12,14 +11,14 @@ from warpax.geometry import evaluate_curvature_grid
 from warpax.grids import wall_clustered
 
 
-@pytest.mark.slow
 def test_polished_imaginary_peak_beats_the_grid_and_sits_on_the_wall():
     """Polishing raises the sampled max|Im lambda| and lands on the wall.
 
-    Moved here from a module __main__ block that never ran.
+    The seed grid only has to bracket the peak; the polish is what is under test,
+    so it is kept coarse.
     """
     metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
-    grid = wall_clustered(metric, [(-3.0, 3.0)] * 3, (60, 60, 60), a=2.0)
+    grid = wall_clustered(metric, [(-3.0, 3.0)] * 3, (32, 32, 32), a=2.0)
     curv = evaluate_curvature_grid(metric, grid, batch_size=4096)
     ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv)
 

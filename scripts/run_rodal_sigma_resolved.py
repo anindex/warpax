@@ -8,8 +8,8 @@ widths that is
     width  = 174.30  72.53   21.97   7.32
     cells  = 14.23    5.92    1.79    0.598
 
-and the last two rows sit below the four-cell criterion the manuscript enforces
-everywhere else, while carrying the top end of the reported trend. Reaching
+and the last two rows sit below the four-cell criterion enforced everywhere else,
+while carrying the top end of the reported trend. Reaching
 four cells at ``sigma = 0.3`` on a uniform Cartesian grid needs ``N >= 329``,
 i.e. 3.6e7 points, which is not affordable with an observer search at every one.
 

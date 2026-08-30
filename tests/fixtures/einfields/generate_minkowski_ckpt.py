@@ -44,7 +44,7 @@ def main() -> None:
     eta = np.diag([-1.0, 1.0, 1.0, 1.0]).astype(np.float64)
     state = {"eta_metric": eta}
 
-    # The save is asynchronous under the hood; wait for it to finalize
+    # The save is asynchronous; wait for it to finalize
     # before the interpreter shuts down, or the checkpoint is left as an
     # unfinalized tmp dir.
     checkpointer = ocp.StandardCheckpointer()

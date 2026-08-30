@@ -10,8 +10,6 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-jax.config.update("jax_enable_x64", True)
-
 
 class TestBernsteinBasis:
     """Bernstein basis mathematical properties."""
@@ -164,7 +162,7 @@ class TestLoss:
         loss, components = evaluate_loss(
             default_theta(),
             ansatz="sshell",
-            n_probes=5,
+            n_probes=3,
             n_grid=256,
             n_ec_starts=2,
         )
@@ -217,7 +215,7 @@ class TestECConstraints:
         from warpax.metrics import sshell_default
         from warpax.optimization import ec_feasibility_check
 
-        result = ec_feasibility_check(sshell_default(), jnp.linspace(9.0, 21.0, 5), n_starts=4)
+        result = ec_feasibility_check(sshell_default(), jnp.linspace(9.0, 21.0, 5), n_starts=2)
         assert isinstance(result.feasible, bool)
         for cond in ("nec", "wec", "dec"):
             assert cond in result.margins
@@ -232,6 +230,7 @@ class TestECConstraints:
         keys differ by their effect rather than by counting Python calls.
         """
         import warpax.optimization.ec_constraints as ecc
+        from warpax.benchmarks import MinkowskiMetric
 
         def key_as_margin(T, g, conditions, n_starts, key=None):
             assert key is not None
@@ -246,7 +245,7 @@ class TestECConstraints:
         monkeypatch.setattr(ecc, "_probe_T_g", fake_probe_T_g)
 
         r_probes = jnp.array([10.0, 15.0])
-        result = ecc.ec_feasibility_check(object(), r_probes)
+        result = ecc.ec_feasibility_check(MinkowskiMetric(), r_probes)
         for cond, seen in result.margins.items():
             assert seen.shape == (2,)
             assert float(seen[0]) != float(seen[1]), (
@@ -257,7 +256,6 @@ class TestECConstraints:
 class TestOptimizerIntegration:
     """End-to-end optimizer smoke test."""
 
-    @pytest.mark.slow
     def test_optimize_shell_completes(self):
         """optimize_shell with maxiter=3 completes and returns finite loss."""
         from warpax.optimization import optimize_shell

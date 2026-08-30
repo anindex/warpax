@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -72,7 +71,7 @@ class TestDarmois:
         np.testing.assert_allclose(
             float(result.second_form_discontinuity), 0.07215228609795868, rtol=1e-6
         )
-        # Genuine matter shell: the jump exceeds tolerance, so not physical.
+        # Matter shell: the jump exceeds tolerance, so not physical.
         assert bool(result.physical) is False
 
         # S_ab is nonzero here, so symmetry is actually informative.
@@ -86,7 +85,7 @@ class TestDarmois:
 
         The Alcubierre wall has strong but smooth curvature at r~1; the
         discontinuity is then finite-difference-limited rather than a
-        genuine shell discontinuity.
+        true shell discontinuity.
         """
         boundary_fn = lambda c: c[1] - 1.0
         result = darmois(AlcubierreMetric(), boundary_fn)
@@ -104,9 +103,6 @@ class TestDarmois:
         assert float(r1.first_form_discontinuity) == float(r2.first_form_discontinuity)
         assert float(r1.second_form_discontinuity) == float(r2.second_form_discontinuity)
         assert bool(r1.physical) == bool(r2.physical)
-
-
-jax.config.update("jax_enable_x64", True)
 
 
 def test_surface_stress_energy_vacuum():

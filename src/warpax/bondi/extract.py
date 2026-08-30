@@ -26,7 +26,7 @@ What is computed here
   ``Psi_4 = C_{abcd} n^a mbar^b n^c mbar^d`` is the outgoing Weyl scalar built on
   an asymptotic null tetrad.  For a gravitational-wave-silent maneuver (e.g. the
   Damour/Kinnersley dipole photon rocket) this vanishes; nonzero ``psi4_rms``
-  flags genuine gravitational radiation.
+  flags gravitational radiation.
 
 Conventions match :mod:`warpax.geometry.geometry`: ``riemann`` is
 ``R^a_{bcd}`` (``[upper, lower, lower, lower]``); ``stress_energy`` is

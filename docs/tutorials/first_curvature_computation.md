@@ -35,11 +35,11 @@ Expected output: every non-metric quantity is zero to $\le 10^{-10}$.
 
 ## What just happened
 
-1. `MinkowskiMetric` is an ``ADMMetric`` subclass with
-   lapse $\alpha=1$, shift $\beta^i=0$, and spatial metric $\gamma_{ij}
-   =\delta_{ij}$. Its pointwise
-   call $g_{ab}(t,x,y,z)$ returns the Minkowski metric
-   $\eta_{ab} = \mathrm{diag}(-1,1,1,1)$ at every point.
+1. `MinkowskiMetric` returns the metric directly rather than through an ADM
+   split: its pointwise call $g_{ab}(t,x,y,z)$ is
+   $\eta_{ab} = \mathrm{diag}(-1,1,1,1)$ at every point. In ADM terms that is
+   lapse $\alpha=1$, shift $\beta^i=0$, spatial metric
+   $\gamma_{ij}=\delta_{ij}$.
 2. `compute_curvature_chain` applies `jax.jacfwd` at two differentiation
    stages: first on the metric to obtain the Christoffel symbols, then a
    nested `jax.jacfwd` on the Christoffel map for the Riemann tensor

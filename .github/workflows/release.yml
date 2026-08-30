@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release, e.g. v1.4.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.10.9"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Resolve the tag and check it against the package version
+        id: v
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          version=$(python3 -c 'import tomllib, pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')
+          if [ "$tag" != "v$version" ]; then
+            echo "tag $tag does not match the pyproject version $version" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build the sdist and wheel
+        run: uv build
+
+      # The release body is the CHANGELOG section for this version, so the two
+      # cannot drift: a tag with no section is a tag that was never written up.
+      - name: Extract the changelog section
+        run: |
+          awk -v v="## [${{ steps.v.outputs.version }}]" \
+            'index($0, v) == 1 { p = 1; next } p && /^## \[/ { exit } p' \
+            CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG.md has no section for ${{ steps.v.outputs.version }}" >&2
+            exit 1
+          fi
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.v.outputs.tag }}" dist/* \
+            --title "${{ steps.v.outputs.tag }}" \
+            --notes-file release-notes.md

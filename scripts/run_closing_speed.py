@@ -1,7 +1,7 @@
 """The Type-IV closing speed: one speed-independent field bounds the whole sweep.
 
 For a flat-slice unit-lapse drive the Eulerian decomposition scales exactly:
-``rho_n, S_par ~ v_s^2`` and ``|j| ~ v_s`` (verify/vs2_scaling_vectorial.sage).
+``rho_n, S_par ~ v_s^2`` and ``|j| ~ v_s``.
 Writing ``rho_n + S_par = a v_s^2`` and ``|j| = d v_s``, the momentum
 discriminant is
 
@@ -143,7 +143,7 @@ def main():
         # content. gap = measured - predicted = the transverse channel's share.
         gaps = [measured[(name, v)] - pred[v] for v in speeds if (name, v) in measured]
         # Flat-slice drives must satisfy the bound; a negative gap there would
-        # falsify it. Van den Broeck is exempt and is flagged, not gated.
+        # falsify it. Van den Broeck is exempt and is flagged, not excluded.
         flat_slice = a_dev < 1e-9
         rows.append(
             {

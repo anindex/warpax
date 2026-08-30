@@ -13,6 +13,11 @@ Produces:
 
 import os
 
+# Non-interactive backend (before any other matplotlib import)
+import matplotlib
+
+matplotlib.use("Agg")
+
 import numpy as np
 
 from warpax.analysis import compare_eulerian_vs_robust
@@ -61,7 +66,9 @@ comparison = compare_eulerian_vs_robust(
 # Step 3: Print statistics
 print("\n[3/3] Results\n")
 
-for cond in ("nec", "wec"):
+CONDITIONS = ("nec", "wec", "sec", "dec")
+
+for cond in CONDITIONS:
     eul_min = float(np.min(comparison.eulerian_margins[cond]))
     rob_min = float(np.min(comparison.robust_margins[cond]))
     n_missed = int(np.sum(comparison.missed[cond]))
@@ -77,7 +84,7 @@ for cond in ("nec", "wec"):
     print(f"    Conditional miss rate:    {cond_miss:.1f}%")
     print()
 
-# Hawking–Ellis classification breakdown
+# Hawking-Ellis classification breakdown
 stats = comparison.classification_stats
 he_types = np.asarray(comparison.he_types).ravel()
 print("  Hawking-Ellis classification:")
@@ -91,18 +98,23 @@ output_dir = os.path.join(os.path.dirname(__file__), "output")
 os.makedirs(output_dir, exist_ok=True)
 save_path = os.path.join(output_dir, "alcubierre_grid_comparison.pdf")
 
+# Plot the condition the Eulerian frame misses most. On the Alcubierre wall that
+# is the SEC: the trace line fails for a boosted observer while the Eulerian one
+# reads it as satisfied. NEC, WEC and DEC are violated in both frames at once, so
+# their missed panel would be empty and would demonstrate nothing.
+plotted = max(CONDITIONS, key=lambda c: comparison.conditional_miss_rate[c])
+
 fig = plot_comparison_panel(
-    eulerian_margin=np.asarray(comparison.eulerian_margins["nec"]),
-    robust_margin=np.asarray(comparison.robust_margins["nec"]),
-    missed=np.asarray(comparison.missed["nec"]),
+    eulerian_margin=np.asarray(comparison.eulerian_margins[plotted]),
+    robust_margin=np.asarray(comparison.robust_margins[plotted]),
+    missed=np.asarray(comparison.missed[plotted]),
     grid_bounds=grid.bounds,
     grid_shape=grid.shape,
-    title=f"Alcubierre NEC (v_s = {v_s}): Eulerian vs Robust",
+    title=f"Alcubierre {plotted.upper()} (v_s = {v_s}): Eulerian vs Robust",
     save_path=save_path,
 )
 
-print(f"\n  Figure saved: {save_path}")
-print("\nDone! The figure shows three panels:")
-print(" Left: Eulerian NEC margin (what standard analysis sees)")
-print(" Center: Robust NEC margin (worst-case over all observers)")
-print(" Right: Missed violations (red = Eulerian misses, robust catches)")
+print(f"\n  Figure saved: {save_path}  (condition: {plotted.upper()})")
+print(f" Left:   Eulerian {plotted.upper()} margin, what a single-frame analysis sees")
+print(" Center: robust margin, the worst case over every observer")
+print(f" Right:  the {int(np.sum(comparison.missed[plotted]))} points the Eulerian frame misses")

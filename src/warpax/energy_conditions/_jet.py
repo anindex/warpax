@@ -1,7 +1,5 @@
 r"""First-order jets over mpmath intervals, for the centered (mean-value) bound.
 
-Why this exists
----------------
 :mod:`._intervalcurv` evaluates ``g -> Gamma -> Riemann -> Ricci -> G_ab -> T_ab``
 in interval arithmetic, which is rigorous but loose: the same derivative of the
 shift enters many terms that largely cancel, and interval arithmetic cannot see the

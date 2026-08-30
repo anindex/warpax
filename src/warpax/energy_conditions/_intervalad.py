@@ -190,7 +190,7 @@ def sqrt(d: Dual2) -> Dual2:
     PRECONDITION: the caller must know the radicand is non-negative on the true box.
     Every use here is a norm or a sum of squares, where a negative lower endpoint is
     outward rounding and nothing else, and clamping it recovers tightness without
-    losing enclosure. The clamp is NOT a domain repair: handed a box that genuinely
+    losing enclosure. The clamp is NOT a domain repair: handed a box that truly
     straddles zero, this returns the square root of its non-negative part and says
     nothing about the rest. Callers that cannot establish the precondition must bracket
     the sign themselves before calling.

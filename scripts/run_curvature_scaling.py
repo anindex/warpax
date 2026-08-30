@@ -187,7 +187,7 @@ def fit_power_law(rows, metric, key, v_max=1.0):
 def fit_exact_exponents(rows, metric, key, powers=(2.0, 4.0), v_max=1.0):
     """Fit X_max = sum_p C_p v_s^p at the exponents the theorem fixes.
 
-    verify/weyl_scaling.sage fixes the exponents: an irrotational shift starts
+    The exponents are fixed in closed form: an irrotational shift starts
     at v_s^4, a vortical one carries a nonzero v_s^2 term. Fitting the
     coefficients at those exponents makes C_2 a measurement of that statement.
     """
@@ -365,8 +365,7 @@ def main():
                 + (f"  [{fl['n_dropped']} point(s) dropped]" if fl.get("n_dropped") else "")
             )
     print(
-        "\n  Fixed-exponent law X_max = C2 v_s^2 + C4 v_s^4 "
-        "(C2 = 0 iff the shift is irrotational, verify/weyl_scaling.sage):"
+        "\n  Fixed-exponent law X_max = C2 v_s^2 + C4 v_s^4 (C2 = 0 iff the shift is irrotational):"
     )
     for name in args.metrics:
         for key, sym in INVARIANTS:

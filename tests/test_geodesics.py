@@ -994,7 +994,7 @@ class TestInitialConditionsOnTheNullLocus:
         assert float(k @ (eta @ k)) == pytest.approx(0.0, abs=1e-12)
 
     def test_no_real_root_still_returns_nan(self):
-        """The genuine no-real-root case must remain a NaN signal.
+        """The no-real-root case must remain a NaN signal.
 
         A large spatial component is not that case, ``v_spatial`` is the
         coordinate component of a 4-vector, so ``(2, 0, 0)`` just means

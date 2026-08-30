@@ -103,6 +103,6 @@ def plot_alignment_histogram(
             ax.set_ylabel("Count", fontsize=8)
 
     if save_path is not None:
-        fig.savefig(save_path, format="pdf", bbox_inches="tight", dpi=300)
+        fig.savefig(save_path, bbox_inches="tight", dpi=300)
 
     return fig

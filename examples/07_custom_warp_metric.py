@@ -29,10 +29,17 @@ Usage
 
 from __future__ import annotations
 
+import argparse
 import os
+
+# Non-interactive backend (before any other matplotlib import)
+import matplotlib
+
+matplotlib.use("Agg")
 
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sp
 from beartype import beartype
@@ -192,6 +199,7 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
 def run_grid_comparison(
     metric: GaussianWarpMetric,
     grid_n: int = 16,
+    shape: tuple[int, int, int] | None = None,
 ) -> tuple:
     """Run the full grid EC + Eulerian comparison.
 
@@ -203,7 +211,7 @@ def run_grid_comparison(
     """
     grid = GridSpec(
         bounds=[(-3.0, 3.0), (-3.0, 3.0), (-3.0, 3.0)],
-        shape=(grid_n, grid_n, grid_n),
+        shape=shape if shape is not None else (grid_n, grid_n, grid_n),
     )
     print("\n" + "=" * 55)
     print(f"Grid Analysis: Eulerian vs Observer-Robust (grid_n={grid_n})")
@@ -347,19 +355,60 @@ def save_figure(
         save_path=out_path,
     )
     print(f"\nSaved figure: {out_path}")
-    # Close the figure so the script exits cleanly in headless mode.
-    try:
-        import matplotlib.pyplot as plt
-
-        plt.close(fig)
-    except Exception:
-        pass
+    plt.close(fig)
 
 
 # Main
 
 
+def render_readme_figure() -> None:
+    """Regenerate ``figures/gaussian_warp_grid_comparison.png``, the README asset.
+
+    A thin 24 x 24 x 4 slab rather than the cube above: the panels show one
+    z-slice, so depth buys nothing, and the condition is the SEC, the one the
+    Eulerian frame actually misses on this metric.
+    """
+    metric = GaussianWarpMetric(v_s=0.5, w=1.0)
+    grid, _, comparison = run_grid_comparison(metric, shape=(24, 24, 4))
+    missed = int(np.asarray(comparison.missed["sec"]).sum())
+    print(f"\nSEC points the Eulerian frame reports satisfied but a boost sees violated: {missed}")
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "figures")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "gaussian_warp_grid_comparison.png")
+    fig = plot_comparison_panel(
+        eulerian_margin=np.asarray(comparison.eulerian_margins["sec"]),
+        robust_margin=np.asarray(comparison.robust_margins["sec"]),
+        missed=np.asarray(comparison.missed["sec"]),
+        grid_bounds=grid.bounds,
+        grid_shape=grid.shape,
+        title="Gaussian Warp SEC: Eulerian vs Robust",
+        save_path=out_path,
+    )
+    plt.close(fig)
+
+    # matplotlib writes at rcParam dpi 300; the README shows the panel at 1432 px,
+    # so downscale rather than commit four times the pixels the page ever uses.
+    from PIL import Image
+
+    img = Image.open(out_path).convert("RGB")
+    img.resize((1432, round(img.height * 1432 / img.width)), Image.LANCZOS).save(
+        out_path, optimize=True
+    )
+    print(f"Saved figure: {out_path}")
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Custom warp metric walkthrough.")
+    parser.add_argument(
+        "--readme-figure",
+        action="store_true",
+        help="regenerate figures/gaussian_warp_grid_comparison.png and exit",
+    )
+    if parser.parse_args().readme_figure:
+        render_readme_figure()
+        return
+
     metric = GaussianWarpMetric(v_s=0.5, w=1.0)
     run_single_point(metric)
     grid, grid_result, comparison = run_grid_comparison(metric, grid_n=16)

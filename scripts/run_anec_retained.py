@@ -89,12 +89,9 @@ def _anec_along(metric, b: float, span: float) -> float:
     return float(res.line_integral)
 
 
-# Same truncation radius and doubling margin as run_anec_symplectic.py. This
-# table sits beside the geodesic one in the paper, so the two must share a window
-# rule; they did not. This script used converged_window, "double until the
-# on-axis integral is stationary", which is exactly the rule the geodesic run
-# had to abandon, because past the crossing a longer window adds no physics and
-# does add drift, so stationarity is reached before the crossing is covered.
+# Same truncation radius and doubling margin as run_anec_symplectic.py: the two
+# tables sit side by side, so they share one window rule. Stationarity of the
+# on-axis integral is reached before the crossing is covered, so it is not it.
 WALL_SUPPORT_R = 3.0
 PROBE_SPAN = 128.0
 N_PROBE = 4096

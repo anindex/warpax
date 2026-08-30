@@ -62,7 +62,7 @@ def null_coord_time_asymmetry(
     from emitter to receiver, and ``t_backward`` is the return trip.
 
     For static, symmetric spacetimes, :math:`\\Delta t_{coord} = 0`.
-    For warp bubbles with genuine transport, :math:`\\Delta t_{coord} \\neq 0`.
+    For warp bubbles with net transport, :math:`\\Delta t_{coord} \\neq 0`.
 
     .. warning::
 

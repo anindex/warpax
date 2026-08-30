@@ -41,9 +41,6 @@ from warpax.energy_conditions.optimization import (
 )
 from warpax.energy_conditions.verifier import _eulerian_ec_point
 
-# Ensure float64 is active
-assert jnp.array(1.0).dtype == jnp.float64, "Float64 not enabled"
-
 # Flat Minkowski metric: eta = diag(-1, 1, 1, 1)
 ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
@@ -55,135 +52,66 @@ def _orthonormality_check(tetrad: jnp.ndarray, g_ab: jnp.ndarray) -> jnp.ndarray
     return product - ETA
 
 
-# Tetrad tests
+def _at(metric, coords):
+    return metric(jnp.array(coords))
 
 
-class TestTetradMinkowski:
-    """Tetrad construction for Minkowski (flat) metric."""
-
-    def test_minkowski_tetrad_is_identity(self):
-        """For flat metric diag(-1,1,1,1), tetrad should be identity."""
-        g = ETA
-        tetrad = compute_orthonormal_tetrad(g)
-        np.testing.assert_allclose(tetrad, jnp.eye(4), atol=1e-14)
-
-    def test_minkowski_orthonormality(self):
-        """Verify g_{ab} e_I^a e_J^b = eta_{IJ} for Minkowski."""
-        g = ETA
-        tetrad = compute_orthonormal_tetrad(g)
-        deviation = _orthonormality_check(tetrad, g)
-        np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-14)
-
-
-class TestTetradSchwarzschild:
-    """Tetrad construction for Schwarzschild metric at r=3M."""
-
-    @pytest.fixture
-    def schwarzschild_metric_at_3M(self):
-        """Schwarzschild metric evaluated at r_iso=3M (x=3, y=0, z=0)."""
-        metric = SchwarzschildMetric(M=1.0)
-        coords = jnp.array([0.0, 3.0, 0.0, 0.0])
-        return metric(coords)
-
-    def test_schwarzschild_orthonormality(self, schwarzschild_metric_at_3M):
-        """Verify g_{ab} e_I^a e_J^b = eta_{IJ} for Schwarzschild at r=3M."""
-        g = schwarzschild_metric_at_3M
-        tetrad = compute_orthonormal_tetrad(g)
-        deviation = _orthonormality_check(tetrad, g)
-        np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-12)
-
-    def test_schwarzschild_e0_timelike(self, schwarzschild_metric_at_3M):
-        """e_0 should be timelike: g_{ab} e_0^a e_0^b = -1."""
-        g = schwarzschild_metric_at_3M
-        tetrad = compute_orthonormal_tetrad(g)
-        norm = jnp.einsum("a,ab,b->", tetrad[0], g, tetrad[0])
-        np.testing.assert_allclose(norm, -1.0, atol=1e-12)
-
-    def test_schwarzschild_spatial_spacelike(self, schwarzschild_metric_at_3M):
-        """e_1, e_2, e_3 should be spacelike: g_{ab} e_i^a e_i^b = +1."""
-        g = schwarzschild_metric_at_3M
-        tetrad = compute_orthonormal_tetrad(g)
-        for i in range(1, 4):
-            norm = jnp.einsum("a,ab,b->", tetrad[i], g, tetrad[i])
-            np.testing.assert_allclose(norm, 1.0, atol=1e-12)
+# Every regime the certifier points the tetrad at: flat, curved, inside a bubble,
+# across the wall as v_s approaches 1, and the superluminal centre.
+TETRAD_CASES = {
+    "minkowski": ETA,
+    "schwarzschild-3M": _at(SchwarzschildMetric(M=1.0), [0.0, 3.0, 0.0, 0.0]),
+    "alcubierre-interior": _at(
+        AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0), [0.0, 0.1, 0.1, 0.0]
+    ),
+    "alcubierre-wall-v0.3": _at(
+        AlcubierreMetric(v_s=0.3, R=1.0, sigma=8.0, x_s=0.0), [0.0, 1.0, 0.1, 0.0]
+    ),
+    "alcubierre-wall-v0.7": _at(
+        AlcubierreMetric(v_s=0.7, R=1.0, sigma=8.0, x_s=0.0), [0.0, 1.0, 0.1, 0.0]
+    ),
+    "alcubierre-wall-v0.95": _at(
+        AlcubierreMetric(v_s=0.95, R=1.0, sigma=8.0, x_s=0.0), [0.0, 1.0, 0.1, 0.0]
+    ),
+    "alcubierre-superluminal-centre": _at(
+        AlcubierreMetric(v_s=2.0, R=1.0, sigma=8.0, x_s=0.0), [0.0, 0.0, 0.0, 0.0]
+    ),
+}
 
 
-class TestTetradAlcubierre:
-    """Tetrad construction for Alcubierre metric inside the bubble."""
-
-    @pytest.fixture
-    def alcubierre_metric_inside(self):
-        """Alcubierre metric at a point inside the bubble (near center)."""
-        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
-        # Inside the bubble: near center
-        coords = jnp.array([0.0, 0.1, 0.1, 0.0])
-        return metric(coords)
-
-    def test_alcubierre_orthonormality(self, alcubierre_metric_inside):
-        """Verify g_{ab} e_I^a e_J^b = eta_{IJ} for Alcubierre."""
-        g = alcubierre_metric_inside
-        tetrad = compute_orthonormal_tetrad(g)
-        deviation = _orthonormality_check(tetrad, g)
-        np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-12)
-
-
-class TestTetradSuperluminal:
-    """Tetrad validity boundary across the luminal transition."""
-
-    @pytest.mark.parametrize("v_s", [0.3, 0.7, 0.95])
-    def test_orthonormal_across_subluminal_sweep(self, v_s):
-        """g_{ab} e_I^a e_J^b = eta_{IJ} at the wall for every v_s < 1, where a
-        timelike normal exists (g^{00} < 0)."""
-        metric = AlcubierreMetric(v_s=v_s, R=1.0, sigma=8.0, x_s=0.0)
-        g = metric(jnp.array([0.0, 1.0, 0.1, 0.0]))
-        tetrad = compute_orthonormal_tetrad(g)
-        deviation = _orthonormality_check(tetrad, g)
+class TestTetrad:
+    @pytest.mark.parametrize("name", list(TETRAD_CASES))
+    def test_orthonormality(self, name):
+        """g_{ab} e_I^a e_J^b = eta_{IJ}."""
+        g = TETRAD_CASES[name]
+        deviation = _orthonormality_check(compute_orthonormal_tetrad(g), g)
         np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-10)
 
-    def test_orthonormal_at_superluminal_center(self):
-        """At the center of a superluminal bubble the coordinate-time direction
-        turns spacelike (g_{00} > 0), yet the slice normal stays timelike
-        (g^{00} = -1/alpha^2 = -1) so the tetrad remains orthonormal. This pins
-        the all-velocity validity of the ADM-normal frame the certifier relies
-        on (and guards against confusing g_{00} with g^{00})."""
-        metric = AlcubierreMetric(v_s=2.0, R=1.0, sigma=8.0, x_s=0.0)
-        g = metric(jnp.array([0.0, 0.0, 0.0, 0.0]))  # center: f=1, g_00=+3
-        assert float(g[0, 0]) > 0.0  # coordinate time spacelike
-        assert float(jnp.linalg.inv(g)[0, 0]) < 0.0  # slice normal still timelike
+    def test_flat_tetrad_is_the_identity(self):
+        np.testing.assert_allclose(compute_orthonormal_tetrad(ETA), jnp.eye(4), atol=1e-14)
+
+    def test_frame_is_one_timelike_leg_and_three_spacelike(self):
+        g = TETRAD_CASES["schwarzschild-3M"]
         tetrad = compute_orthonormal_tetrad(g)
-        deviation = _orthonormality_check(tetrad, g)
-        np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-10)
+        norms = jnp.einsum("Ia,ab,Ib->I", tetrad, g, tetrad)
+        np.testing.assert_allclose(norms, jnp.array([-1.0, 1.0, 1.0, 1.0]), atol=1e-12)
 
+    def test_superluminal_centre_keeps_a_timelike_slice_normal(self):
+        """At v_s = 2 the coordinate-time direction turns spacelike (g_00 > 0) while
+        the slice normal stays timelike (g^00 = -1/alpha^2 = -1). That is what makes
+        the ADM-normal frame valid at every speed, and it guards against reading
+        ``g_00`` where ``g^00`` is meant."""
+        g = TETRAD_CASES["alcubierre-superluminal-centre"]
+        assert float(g[0, 0]) > 0.0
+        assert float(jnp.linalg.inv(g)[0, 0]) < 0.0
 
-class TestTetradJITVmap:
-    """JIT and vmap compatibility for tetrad construction."""
-
-    def test_jit_compilation(self):
-        """jax.jit(compute_orthonormal_tetrad) runs without error."""
-        g = ETA
-        jit_fn = jax.jit(compute_orthonormal_tetrad)
-        tetrad = jit_fn(g)
-        np.testing.assert_allclose(tetrad, jnp.eye(4), atol=1e-14)
-
-    def test_vmap_batch(self):
-        """jax.vmap(compute_orthonormal_tetrad) over batch of metrics."""
-        metrics = jnp.stack(
-            [
-                ETA,
-                SchwarzschildMetric(M=1.0)(jnp.array([0.0, 3.0, 0.0, 0.0])),
-                ETA,
-            ]
-        )
-        vmap_fn = jax.vmap(compute_orthonormal_tetrad)
-        tetrads = vmap_fn(metrics)
-        assert tetrads.shape == (3, 4, 4)
-        # Each should be orthonormal
-        for i in range(3):
-            deviation = _orthonormality_check(tetrads[i], metrics[i])
-            np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-12)
-
-
-# Timelike vector tests
+    def test_jit_and_vmap_over_every_case(self):
+        batch = jnp.stack(list(TETRAD_CASES.values()))
+        tetrads = jax.jit(jax.vmap(compute_orthonormal_tetrad))(batch)
+        assert tetrads.shape == (len(TETRAD_CASES), 4, 4)
+        for tetrad, g in zip(tetrads, batch, strict=True):
+            deviation = _orthonormality_check(tetrad, g)
+            np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-10)
 
 
 class TestTimelikeFromRapidity:
@@ -300,14 +228,11 @@ class TestBoundedParam:
         assert result.dtype == jnp.float64
 
 
-jax.config.update("jax_enable_x64", True)
-
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import LentzMetric, RodalMetric, WarpShellMetric
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize(
     "MetricCls,kwargs,grid_bounds",
     [
@@ -367,8 +292,6 @@ def test_robust_leq_eulerian(MetricCls, kwargs, grid_bounds):
                 f"Eulerian={eul[worst_idx]:.6e}, Robust={rob[worst_idx]:.6e}"
             )
 
-
-jax.config.update("jax_enable_x64", True)
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions import WallRestrictedStats
@@ -446,9 +369,6 @@ def _make_synthetic_ec_result(
     )
 
 
-# TestShapeFunctionMask
-
-
 class TestShapeFunctionMask:
     """Tests for shape_function_mask with AlcubierreMetric."""
 
@@ -513,9 +433,6 @@ class TestShapeFunctionMask:
         assert mask.shape == grid_2d, f"Expected shape {grid_2d}, got {mask.shape}"
 
 
-# TestFrobeniusNormMask
-
-
 class TestFrobeniusNormMask:
     """Tests for frobenius_norm_mask with synthetic stress-energy fields."""
 
@@ -561,9 +478,6 @@ class TestFrobeniusNormMask:
         T = jnp.ones((2, 4, 4))
         mask = frobenius_norm_mask(T)
         assert mask.dtype == jnp.bool_, f"Expected bool dtype, got {mask.dtype}"
-
-
-# TestDeterminantGuardMask
 
 
 class TestDeterminantGuardMask:
@@ -631,9 +545,6 @@ class TestDeterminantGuardMask:
         assert jnp.array_equal(mask, expected), f"Expected {expected}, got {mask}"
 
 
-# TestMaskComposability
-
-
 class TestMaskComposability:
     """Tests that masks compose correctly via logical AND/OR."""
 
@@ -662,9 +573,6 @@ class TestMaskComposability:
         mask_b = jnp.zeros(shape_3d, dtype=bool)
         assert (mask_a & mask_b).shape == shape_3d
         assert (mask_a | mask_b).shape == shape_3d
-
-
-# TestWallRestrictedStats
 
 
 class TestWallRestrictedStats:
@@ -720,9 +628,6 @@ class TestWallRestrictedStats:
         stats = compute_wall_restricted_stats(self.ec_result, self.mask)
         assert isinstance(stats, WallRestrictedStats)
         assert len(stats) == 21, f"Expected 21 fields, got {len(stats)}"
-
-
-# TestWallRestrictedStatsMissRate
 
 
 class TestWallRestrictedStatsMissRate:
@@ -796,9 +701,6 @@ class TestWallRestrictedStatsMissRate:
         assert stats.dec_miss_rate is None
 
 
-# TestWallRestrictedStatsEdgeCases
-
-
 class TestWallRestrictedStatsEdgeCases:
     """Edge case tests for compute_wall_restricted_stats."""
 
@@ -853,26 +755,37 @@ class TestWallRestrictedStatsEdgeCases:
 
 
 def _spacelike_normal_metric() -> jnp.ndarray:
-    """g_{ab} whose slice normal is spacelike (-g^{00} < 0): CTC/numerical
-    noise input. Without the lapse guard, alpha = 1/sqrt(-g^{00}) is NaN."""
+    """g_{ab} whose slice normal is spacelike (-g^{00} < 0).
+
+    Euclidean signature: there is no timelike normal, so there is no Eulerian
+    observer and no tetrad. Flooring ``-g^{00}`` produced a finite tetrad that
+    looked orthonormal and was not, which is the silent-wrong-answer case.
+    """
     return jnp.diag(jnp.array([1e-2, 1.0, 1.0, 1.0]))
 
 
 class TestEulerianMarginsLapseGuard:
-    def test_spacelike_normal_no_nan(self):
+    def test_spacelike_normal_gives_no_verdict(self):
         g = _spacelike_normal_metric()
-        g_inv = jnp.linalg.inv(g)
-        T = jnp.zeros((4, 4))
-        out = _eulerian_ec_point(T, g, g_inv)
-        for key, val in out.items():
-            assert jnp.all(jnp.isfinite(val)), f"{key} -> {val}"
+        out = _eulerian_ec_point(jnp.zeros((4, 4)), g, jnp.linalg.inv(g))
+        assert not jnp.isfinite(out["nec"])
 
 
 class TestObserverTetradLapseGuard:
-    def test_spacelike_normal_no_nan(self):
-        g = _spacelike_normal_metric()
-        tetrad = compute_orthonormal_tetrad(g)
-        assert jnp.all(jnp.isfinite(tetrad))
+    def test_spacelike_normal_gives_no_verdict(self):
+        tetrad = compute_orthonormal_tetrad(_spacelike_normal_metric())
+        assert not jnp.all(jnp.isfinite(tetrad))
+
+    def test_every_paper_metric_keeps_a_timelike_normal(self):
+        """The NaN branch above must be unreachable on a published grid."""
+        from warpax.geometry import evaluate_curvature_grid
+        from warpax.grids import wall_clustered
+
+        for metric in (AlcubierreMetric(v_s=0.5), AlcubierreMetric(v_s=2.0)):
+            grid = wall_clustered(metric, [(-3.0, 3.0)] * 3, (15, 15, 15), a=1.2)
+            g = evaluate_curvature_grid(metric, grid, batch_size=512)
+            tetrads = jax.vmap(compute_orthonormal_tetrad)(g.metric.reshape(-1, 4, 4))
+            assert bool(jnp.all(jnp.isfinite(tetrads)))
 
 
 class TestKinematicScalarsLapseGuard:
@@ -994,10 +907,6 @@ class TestStartsFibonacciPool:
         npt.assert_allclose(r1.worst_observer, d["worst_observer"], rtol=1e-6)
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-
-
 class TestSpatialNeighborWarmStart:
     """warm_start kwarg contract tests."""
 
@@ -1110,12 +1019,6 @@ class TestSpatialNeighborWarmStart:
             assert float(r.margin) <= -1.0
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-
-
-jax.config.update("jax_enable_x64", True)
-
 from warpax.energy_conditions.classification import (
     classify_with_solver,
 )
@@ -1126,7 +1029,6 @@ N_SEEDS = 10
 SEEDS = [20260418 + i for i in range(N_SEEDS)]
 
 
-@pytest.mark.slow
 class TestGeneralizedSolverStability:
     """Integration: WarpShell idx=8 10-seed stability + cond_V diagnostic."""
 
@@ -1360,10 +1262,8 @@ class TestMpmathClassifier:
         assert mp_result["max_imag_abs"] > 1.0e-6
 
     def test_type_iv_agrees_with_mpmath_at_large_scale(self) -> None:
-        # This used to be the float64 blind spot: above the relative tier's
-        # 1e6 scale floor the tier absorbed a genuine 2e-5 relative split and
-        # float64 said Type I while the 50-digit gate said Type IV. The tier is
-        # gone, both paths agree, and the gate has nothing to flip.
+        # A scale-floored relative tier would absorb a real 2e-5 split here and
+        # read Type I where the 50-digit path reads Type IV. Both must agree.
         scale = 1.0e11
         T = scale * _type_iv_block_diag(imag=2.0e-5)
 
@@ -1421,7 +1321,7 @@ class TestVerifyClassificationAtPoints:
         T_flip = np.asarray(_type_iv_block_diag(imag=2.0e-5))
         T_fluid = np.asarray(_perfect_fluid(rho=1.0, p=0.3))
 
-        # Two points: one Type-I-in-float64 (actually Type IV), one genuine Type I.
+        # Two points: one Type-I-in-float64 (actually Type IV), one true Type I.
         T_batch = np.stack([T_flip, T_fluid], axis=0)
         g_batch = np.stack([np.asarray(MINKOWSKI)] * 2, axis=0)
         float64_types = np.array([1, 1], dtype=np.int32)

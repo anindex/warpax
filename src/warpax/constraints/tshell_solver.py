@@ -20,6 +20,8 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
+from ._radial_solve import hamiltonian_and_lapse
+
 
 class TShellPotentials(NamedTuple):
     """Metric potentials solved from tilted-flow source profiles.
@@ -102,49 +104,12 @@ def solve_tshell_potentials(
     E_grid = Gamma_sq_grid * (rho_grid + p_r_grid * v_sq_grid)
     S_x_grid = Gamma_sq_grid * (rho_grid + p_r_grid) * v_x_grid
 
-    # Hamiltonian constraint: m(r) from Eulerian E(r)
-    integrand_m = 4.0 * jnp.pi * E_grid * r_grid**2
-    m_grid = jnp.concatenate(
-        [
-            jnp.array([0.0]),
-            jnp.cumsum(0.5 * (integrand_m[:-1] + integrand_m[1:]) * dr),
-        ]
+    # Tilted-flow effective pressure p_eff = Gamma^2 (rho + p) v^2 + p.
+    p_eff_grid = Gamma_sq_grid * (rho_grid + p_r_grid) * v_sq_grid + p_r_grid
+    m_grid, Lambda_grid, Phi_grid, dPhi_dr, compactness_safe = hamiltonian_and_lapse(
+        E_grid, p_eff_grid, r_grid, dr, R_1, r_max
     )
     total_mass = float(m_grid[-1])
-
-    compactness_max = float(jnp.max(2.0 * m_grid / jnp.maximum(r_grid, 1e-30)))
-    if compactness_max >= 1.0:
-        raise ValueError(
-            f"Shell compactness 2m(r)/r reaches {compactness_max:.4f} >= 1. "
-            "Reduce rho_0 or widen the shell to avoid a trapped surface."
-        )
-
-    compactness = 2.0 * m_grid / jnp.maximum(r_grid, 1e-30)
-    compactness_safe = jnp.minimum(compactness, 1.0 - 1e-12)
-    Lambda_grid = -0.5 * jnp.log(1.0 - compactness_safe)
-
-    # TOV/lapse ODE with tilted-flow effective pressure
-    # p_eff = Gamma^2 (rho + p) v^2 + p
-    p_eff_grid = Gamma_sq_grid * (rho_grid + p_r_grid) * v_sq_grid + p_r_grid
-
-    numerator = m_grid + 4.0 * jnp.pi * r_grid**3 * p_eff_grid
-    denominator = r_grid * (r_grid - 2.0 * m_grid)
-    denom_safe = jnp.where(
-        jnp.abs(denominator) < 1e-30,
-        jnp.where(denominator >= 0.0, 1e-30, -1e-30),
-        denominator,
-    )
-    dPhi_dr = numerator / denom_safe
-    dPhi_dr = jnp.where(r_grid < R_1 * 0.5, 0.0, dPhi_dr)
-
-    Phi_boundary = 0.5 * jnp.log(1.0 - 2.0 * total_mass / r_max)
-    forward_integral = jnp.concatenate(
-        [
-            jnp.array([0.0]),
-            jnp.cumsum(0.5 * (dPhi_dr[:-1] + dPhi_dr[1:]) * dr),
-        ]
-    )
-    Phi_grid = Phi_boundary - (forward_integral[-1] - forward_integral)
 
     # Momentum constraint BVP for beta^x(r)
     alpha_grid = jnp.exp(Phi_grid)
@@ -158,15 +123,9 @@ def solve_tshell_potentials(
     # Source: 8pi alpha S_x (the e^{2Lambda} factors cancel in index raising)
     source_beta = 8.0 * jnp.pi * alpha_grid * S_x_grid
 
-    # KNOWN DEFECT, not certified by the manuscript (see main.tex Sec. 2: the
-    # S- and T-shell constructions are the companion note's, "we neither
-    # construct nor certify those shells here"). This ODE is not the momentum
-    # constraint for the Cartesian ansatz beta^i = b(r) delta^i_x that
-    # TShellMetric actually uses: the geometric S^i of the constructed metric
-    # comes out 2-3 orders below the prescribed S_x and flips sign across the
-    # shell. Do not read the T-shell output as a source-consistent solution
-    # until the constraint is rederived for this ansatz.
-    #
+    # KNOWN DEFECT: this ODE is not the momentum constraint for the Cartesian ansatz
+    # beta^i = b(r) delta^i_x that TShellMetric uses, so its output is not a
+    # source-consistent solution until the constraint is rederived for that ansatz.
     # ODE coefficients: A(r) = 2/r + 2 Phi' - 2 Lambda',  B(r) = -2/r^2
     A_coeff = 2.0 / r_safe + 2.0 * dPhi_dr - 2.0 * dLambda_dr
     A_coeff = jnp.where(r_grid < 1e-6, 0.0, A_coeff)
@@ -229,7 +188,7 @@ def _solve_shift_bvp(
     A: Float[Array, "N"],
     B: Float[Array, "N"],
     source: Float[Array, "N"],
-    dr: float,
+    dr: float | Float[Array, ""],
     n_pts: int,
 ) -> Float[Array, "N"]:
     """Solve beta'' + A beta' + B beta = source via tridiagonal FD.

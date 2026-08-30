@@ -42,7 +42,9 @@ from ..geometry.metric import ADMMetric, SymbolicMetric
 from ._common import alcubierre_shape
 
 
-def _natario_n(r_s: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
+def _natario_n(
+    r_s: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
+) -> Float[Array, "..."]:
     """Natario shape function n(r_s).
 
     n(r_s) = (1/2) * (1 - f_Alc(r_s))
@@ -52,7 +54,9 @@ def _natario_n(r_s: Float[Array, "..."], R: float, sigma: float) -> Float[Array,
     return 0.5 * (1.0 - alcubierre_shape(r_s, R, sigma))
 
 
-def _natario_dn_dr(r_s: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
+def _natario_dn_dr(
+    r_s: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
+) -> Float[Array, "..."]:
     """Derivative dn/dr_s of the Natario shape function.
 
     dn/dr_s = -(1/2) * df_Alc/dr_s
@@ -64,7 +68,9 @@ def _natario_dn_dr(r_s: Float[Array, "..."], R: float, sigma: float) -> Float[Ar
     return -sigma * (sech2_plus - sech2_minus) / (4.0 * jnp.tanh(sigma * R))
 
 
-def _natario_d2n_dr2(r_s: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
+def _natario_d2n_dr2(
+    r_s: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
+) -> Float[Array, "..."]:
     """Second derivative d2n/dr_s^2 of the Natario shape function.
 
     d2n/dr2 = -(1/2) * d2f_Alc/dr^2
@@ -125,12 +131,8 @@ class NatarioMetric(ADMMetric):
         n_val = _natario_n(r_s, self.R, self.sigma)
         dn_val = _natario_dn_dr(r_s, self.R, self.sigma)
 
-        # Direct Cartesian shift satisfying div(beta) = 0 exactly.
-        #
-        # Derived from coordinate-basis spherical shift:
-        # beta^r = -2*v_s*n(r)*cos(theta)
-        # beta^theta_coord = v_s*(2n + r*dn/dr)*sin(theta)
-        # converted via Jacobian to Cartesian.
+        # Direct Cartesian shift satisfying div(beta) = 0 exactly, from the spherical
+        # beta^r = -2 v_s n(r) cos(theta), beta^theta = v_s (2n + r dn/dr) sin(theta).
         sin_theta_sq = (y**2 + z**2) / r_s**2
 
         beta_x = -self.v_s * (2.0 * n_val + r_s * dn_val * sin_theta_sq)

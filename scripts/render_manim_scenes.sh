@@ -10,11 +10,9 @@
 
 set -euo pipefail
 
-# Manim's 3D Cairo render overflows the default 8 MB main-thread stack under
-# Python 3.14 and segfaults. Raise the stack before rendering (best-effort;
-# render_all_scenes.py also raises it per-subprocess and the scene modules cap
-# the recursion limit, so this is belt-and-suspenders).
-ulimit -s unlimited 2>/dev/null || ulimit -s 65536 2>/dev/null || true
+# No stack raise here. The 3D scenes render through OpenGL, not Cairo, and
+# render_all_scenes.py records that an unlimited main-thread stack destabilises
+# the EGL driver threads; the child would inherit whatever this sets.
 
 # Fork-safety for the 3D scenes: manim spawns ffmpeg while JAX's thread pool is
 # live, which deadlocks on fork under Python 3.14. Constrain JAX/BLAS to a small

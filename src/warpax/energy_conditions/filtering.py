@@ -30,7 +30,7 @@ import warnings
 
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float
+from jaxtyping import Array, Bool, Float
 
 from ..geometry.metric import MetricSpecification
 from .types import ECGridResult, WallRestrictedStats
@@ -42,7 +42,7 @@ def shape_function_mask(
     grid_shape: tuple[int, ...],
     f_low: float = 0.1,
     f_high: float = 0.9,
-) -> Float[Array, "..."]:
+) -> Bool[Array, "..."]:
     """Boolean mask: True where shape function is in [f_low, f_high].
 
     Parameters
@@ -72,7 +72,7 @@ def shape_function_mask(
 def frobenius_norm_mask(
     stress_energy: Float[Array, "... 4 4"],
     threshold: float = 1e-12,
-) -> Float[Array, "..."]:
+) -> Bool[Array, "..."]:
     """Boolean mask: True where ``||T_ab||_F > threshold``.
 
     Parameters
@@ -96,7 +96,7 @@ def frobenius_norm_mask(
 def determinant_guard_mask(
     g_field: Float[Array, "... 4 4"],
     threshold: float = 1e-10,
-) -> Float[Array, "..."]:
+) -> Bool[Array, "..."]:
     """Boolean mask: True where the metric is non-degenerate.
 
     The determinant is taken on the scale-normalised metric, so the test
@@ -141,7 +141,7 @@ def determinant_guard_mask(
 
 def compute_wall_restricted_stats(
     ec_result: ECGridResult,
-    mask: Float[Array, "..."],
+    mask: Bool[Array, "..."],
     atol: float = 1e-10,
     eulerian_margins: dict[str, Float[Array, "..."]] | None = None,
     volume_weights: Float[Array, "..."] | None = None,

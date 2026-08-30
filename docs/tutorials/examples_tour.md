@@ -1,53 +1,36 @@
 # Examples tour
 
-The `examples/` directory ships ten numbered scripts that walk through the
-toolkit, from flat-space sanity checks to a full design-space phase diagram.
-Each example is self-contained and runnable on CPU; `examples/README.md` lists
-runtime estimates and which optional extras you need.
-
-This page is a guided walkthrough: read the script header, run it, look at
-the output, then move to the next one.
-
-## Install once
+Ten numbered scripts under `examples/`, from a flat-space sanity check to a
+design-space phase diagram. Each is self-contained and runs on CPU.
+[`examples/README.md`](https://github.com/anindex/warpax/blob/main/examples/README.md)
+lists them all with runtimes and the extras each one needs.
 
 ```bash
 pip install -e ".[dev,viz,design,solver]"
 ```
 
-If a GPU is installed but you want bit-identical CPU runs, prefix any command
-with `JAX_PLATFORMS=cpu`.
+Prefix any command with `JAX_PLATFORMS=cpu` for bit-identical CPU runs on a
+machine with a GPU.
 
 ## First three runs
 
 ```bash
-python examples/01_minkowski_sanity.py      # ~5 s
-python examples/03_alcubierre_analysis.py   # ~5 s, same as the quickstart
-python examples/07_custom_warp_metric.py    # ~30 s, custom metric + figure
+python examples/01_minkowski_sanity.py      # ~10 s
+python examples/03_alcubierre_analysis.py   # ~10 s, same as the quickstart
+python examples/07_custom_warp_metric.py    # ~40 s, custom metric + figure
 ```
 
-After **01** you have verified the curvature chain returns exact zero on flat
-space. **03** is the core result: at a bubble-wall point of the Alcubierre
-metric, the Eulerian observer says WEC is satisfied while the worst-case
-boosted observer finds a violation. **07** lifts the same machinery onto a
-custom `ADMMetric` subclass and produces a publication-style comparison figure.
+01 verifies the curvature chain returns exact zero on flat space. 03 is the main
+result: at an Alcubierre bubble-wall point the Eulerian observer already reads
+the WEC as violated, at -1.7e-03, while the worst-case boosted observer puts the
+same point at -4.6e+02, five orders deeper. 07 lifts the same machinery onto a
+custom `ADMMetric` subclass.
 
-## What the rest cover
+## Next
 
-| # | Script | Purpose |
-|---|--------|---------|
-| 02 | `02_schwarzschild_verification.py` | Non-trivial curvature; analytical Kretschmann cross-check |
-| 04 | `04_warp_drive_comparison.py` | Six warp drives side-by-side with Hawking--Ellis types |
-| 05 | `05_grid_analysis.py` | Grid workflow; three-panel Eulerian vs robust figure |
-| 06 | `06_geodesic_through_warp_bubble.py` | Diffrax geodesics, norm conservation, tidal eigenvalues |
-| 08 | `08_metric_design.py` | Shape-function design via `design_metric` (B-spline) |
-| 09 | `09_admissibility_diagnostics.py` | Fuchs shell: constraints, ADM mass, junction, transport |
-| 10 | `10_phase_diagram.py` | T-shell parameter sweep + phase diagram (`--full` for paper-quality) |
-
-## Where to go next
-
-- After **03**: [Interpreting EC results](../how-to/interpreting_ec_results.md)
-  for what margin signs and Hawking--Ellis types mean.
-- After **07**: [Define a custom warp metric](../how-to/custom_metric_tutorial.md)
-  for the full subclassing recipe.
-- After **09** or **10**: [Reproducing the warp-shell admissibility paper](../how-to/reproduce_warpshell_paper.md)
-  for the figure-by-figure mapping back to the published results.
+- [Interpreting EC results](../how-to/interpreting_ec_results.md): margin signs
+  and Hawking-Ellis types.
+- [Define a custom warp metric](../how-to/custom_metric_tutorial.md): the full
+  subclassing recipe.
+- [Reproducing the warp-shell admissibility paper](../how-to/reproduce_warpshell_paper.md):
+  figure-by-figure mapping back to the published results.

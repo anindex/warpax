@@ -28,23 +28,29 @@ evaluates curvature at a single bubble-wall point, computes the observer-robust
 EC margins via BFGS optimization over the timelike observer manifold, and
 prints the result alongside the Eulerian-frame comparison.
 
-Approximate output:
+Output:
 
 ```
 Alcubierre warp drive analysis
 ========================================
 Parameters: v_s=0.5, R=1.0, sigma=8.0
 Point: (t, x, y, z) = (0.0, 1.0, 0.5, 0.0)
+Distance from bubble center: r_s = 1.1180
+
+Ricci scalar:       -5.924607e+00
+Kretschmann scalar: -8.004342e+00
+Max |T_ab|:         1.211840e-01
 
 Observer-robust EC margins (negative = violated):
-  NEC: -1.23e-01
-  WEC: -1.23e-01
-  SEC: -4.56e-02
-  DEC: -2.34e-01
+  NEC: -8.283962e-02
+  WEC: -4.561904e+02
+  SEC: -4.560725e+02
+  DEC: -4.561904e+02
+  Worst observer params (zeta, theta, phi): [5. 1.57079633 0.90539087]
 
 Eulerian-frame EC margins:
-  NEC: -1.05e-02
-  WEC: -1.05e-02
+  NEC: -6.488822e-02
+  WEC: -1.658823e-03
 
 NEC/WEC violation confirmed.
 The Alcubierre warp drive requires exotic (negative-energy) matter.
@@ -56,9 +62,9 @@ The Alcubierre warp drive requires exotic (negative-energy) matter.
   observer.
 - The **robust** margin is always less than or equal to the **Eulerian**
   margin: the extra violation is what axis-aligned ADM analysis misses.
-- In this run the Eulerian NEC margin is about an order of magnitude less
-  negative than the robust NEC margin -- a boosted observer sees a
-  substantially worse violation than an Eulerian one.
+- The gap widens with the condition. Here the Eulerian and robust NEC margins
+  differ by a factor of 1.3, while the WEC margins differ by five orders of
+  magnitude: the worst observer is a boost the Eulerian frame cannot see.
 
 For a full grid-level view of regions where the Eulerian frame misses violations, try:
 
@@ -72,16 +78,16 @@ PDF comparison at `examples/output/gaussian_warp_comparison.pdf`.
 
 ## 4. What next
 
-- [`custom_metric_tutorial.md`](../how-to/custom_metric_tutorial.md) -- define your own
+- [`custom_metric_tutorial.md`](../how-to/custom_metric_tutorial.md), define your own
   warp spacetime by subclassing `ADMMetric` and run the full verification
   pipeline (single-point, grid, and wall-restricted diagnostics).
-- [`interpreting_ec_results.md`](../how-to/interpreting_ec_results.md) -- deeper
+- [`interpreting_ec_results.md`](../how-to/interpreting_ec_results.md), deeper
   reference: margin sign convention, Hawking-Ellis Type I-IV semantics,
   `f_miss` vs `f_miss|viol`, wall-restricted vs full-grid statistics, and
   when to trust a number.
-- `examples/07_custom_warp_metric.py` in the repo -- the runnable
+- `examples/07_custom_warp_metric.py` in the repo, the runnable
   custom-metric walkthrough referenced above.
-- [`ARCHITECTURE.md`](../explanation/ARCHITECTURE.md) -- how the autodiff
+- [`ARCHITECTURE.md`](../explanation/ARCHITECTURE.md), how the autodiff
   curvature pipeline turns a metric function into stress-energy and
   observer-robust margins.
 

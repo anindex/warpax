@@ -125,12 +125,9 @@ def _grid_diagnostics(metric, N):
     vor = float((wv * np.asarray(omega_sq).reshape(-1)).sum() / wsum)
     r_omega = vor / (exp + she + vor + 1e-300)
 
-    # Wall-restricted conditional WEC/DEC miss rates: the volume-weighted
-    # fraction of wall violations that a single-frame Eulerian reading misses
-    # relative to the eigenvalue-robust decision. No optimizer: at a Type-I point
-    # the robust margin equals the eigenvalue inequality, and Type-IV is flagged
-    # by the frame-free certifier, so no observer search is needed. The Eulerian
-    # margins are the single-frame contractions from _eulerian_ec_point.
+    # Wall-restricted conditional WEC/DEC miss rates: the volume-weighted fraction of
+    # wall violations a single-frame Eulerian reading misses. No optimizer is needed,
+    # since Type I is exact by eigenvalue and Type IV is flagged by the certifier.
     eul = jax.vmap(_eulerian_ec_point)(
         jnp.reshape(curv.stress_energy, (-1, 4, 4)),
         jnp.reshape(curv.metric, (-1, 4, 4)),

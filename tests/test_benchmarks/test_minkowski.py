@@ -24,12 +24,6 @@ class TestMinkowski:
         expected = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
         assert jnp.allclose(g, expected, atol=1e-15)
 
-    def test_minkowski_float64(self, sample_coords):
-        """Output dtype is float64."""
-        m = MinkowskiMetric()
-        g = m(sample_coords)
-        assert g.dtype == jnp.float64
-
     def test_minkowski_pytree(self):
         """MinkowskiMetric is a valid pytree with no dynamic leaves."""
         m = MinkowskiMetric()

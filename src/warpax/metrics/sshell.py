@@ -25,6 +25,7 @@ from jaxtyping import Array, Float
 from ..constraints.constraint_solver import SShellPotentials, solve_sshell_potentials
 from ..geometry.metric import ADMMetric
 from ..geometry.transitions import smoothstep_c2
+from ._interp import cubic_on_grid
 from .sshell_profiles import SShellSourceProfiles, constant_density_profiles
 
 
@@ -73,11 +74,7 @@ class SShellMetric(ADMMetric):
     total_mass: Float[Array, ""]
 
     def _interp(self, r: Float[Array, ""], grid_vals: Float[Array, "N"]) -> Float[Array, ""]:
-        """Cubic interpolation on the stored grid."""
-        import interpax
-
-        r_clamped = jnp.clip(r, self._r_grid[0], self._r_grid[-1])
-        return interpax.interp1d(r_clamped, self._r_grid, grid_vals, method="cubic")
+        return cubic_on_grid(r, self._r_grid, grid_vals)
 
     def _Phi(self, r: Float[Array, ""]) -> Float[Array, ""]:
         return self._interp(r, self._Phi_grid)

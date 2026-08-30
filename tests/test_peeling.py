@@ -1,4 +1,4 @@
-r"""Tests for the Newman--Penrose peeling-falloff extractor (warpax.bondi.peeling).
+r"""Tests for the Newman-Penrose peeling-falloff extractor (warpax.bondi.peeling).
 
 Verifies the asymptotic structure underlying the model-independent
 no-reactionless-steering theorem (T1-GR): along outgoing null cones the five NP
@@ -12,7 +12,7 @@ spacetimes:
     gravitational-wave-silent).
   * Vaidya monopole (isotropic mass loss), ``Psi_2`` peels.
 
-The genuine radiative ``Psi_4 ~ r^{-1}`` tail (slope -1) is exhibited on a
+The radiative ``Psi_4 ~ r^{-1}`` tail (slope -1) is exhibited on a
 deliberately non-silent linearized transverse-traceless wave, the positive
 control proving the instrument reads real radiative peeling, not a pipeline
 artifact.
@@ -21,8 +21,6 @@ artifact.
 from __future__ import annotations
 
 import jax
-
-jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
@@ -141,7 +139,7 @@ def test_vaidya_psi2_peels():
 
 
 def test_wave_psi4_peels_minus1():
-    """Linearized TT wave: genuine radiative Psi_4 ~ r^-1 (the positive control)."""
+    """Linearized TT wave: radiative Psi_4 ~ r^-1 (the positive control)."""
     res = peeling_slopes(_wave_metric, _wave_cone, radii=(50.0, 100.0, 200.0, 400.0, 800.0))
     assert res.above_floor[4]
     assert abs(res.slopes[4] - (-1.0)) < 0.05

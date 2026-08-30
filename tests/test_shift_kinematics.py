@@ -6,11 +6,8 @@ Analytic checks on synthetic shift fields plus physics checks on the Rodal
 
 from __future__ import annotations
 
-import jax
 import jax.numpy as jnp
 import pytest
-
-jax.config.update("jax_enable_x64", True)
 
 from warpax.analysis import (
     compute_shift_kinematics,

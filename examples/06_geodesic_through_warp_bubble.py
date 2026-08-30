@@ -1,4 +1,4 @@
-"""Example 06 - Timelike geodesic through an Alcubierre warp bubble.
+"""Timelike geodesic through an Alcubierre warp bubble.
 
 Demonstrates the geodesic integration pipeline:
 1. Build timelike initial conditions for a test particle.
@@ -16,6 +16,12 @@ from __future__ import annotations
 import os
 import time
 
+# Non-interactive backend (before any other matplotlib import)
+import matplotlib
+
+matplotlib.use("Agg")
+
+import diffrax
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -72,7 +78,8 @@ sol = integrate_geodesic(
     max_steps=65536,
 )
 elapsed = time.perf_counter() - t0
-print(f"Integration completed in {elapsed:.2f} s  (result code = {sol.result})")
+ok = bool(sol.result == diffrax.RESULTS.successful)
+print(f"Integration completed in {elapsed:.2f} s  (solver succeeded: {ok})")
 
 # 4. Conservation check
 norms = monitor_conservation(metric, sol)
@@ -116,4 +123,4 @@ x_start = float(sol.positions[0, 1])
 x_end = float(sol.positions[-1, 1])
 print(f"\nTrajectory x-range: {x_start:.3f} -> {x_end:.3f}")
 print(f"Coordinate time elapsed: {float(sol.positions[-1, 0]):.2f}")
-print("\nExample 06 complete - geodesic + tidal analysis through warp bubble.")
+print("\nGeodesic and tidal analysis through the warp bubble complete.")

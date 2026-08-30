@@ -3,7 +3,7 @@
 Each test names the confirmed finding it pins:
 
 - near-vacuum modulus gate (classification.py / classification_mpmath.py):
-  a purely imaginary eigenvalue spectrum is genuine Type IV, never vacuum.
+  a purely imaginary eigenvalue spectrum is Type IV, never vacuum.
 - scale-aware violation gate (verifier._compute_summary, filtering):
   the violated/satisfied threshold carries a relative term ``rtol * max|lambda|``
   so float64 eigensolver noise at large ||T|| cannot mint violations.
@@ -295,3 +295,132 @@ class TestDECNecessaryOnly:
         rho, p = 1.0, (0.5, -0.2, 0.3)
         m = float(check_wec(jnp.array(rho), jnp.array(p)))
         assert m == pytest.approx(min(rho, *(rho + pi for pi in p)))
+
+
+class TestScaleCovariance:
+    """Absolute floors that a uniform coordinate rescaling could break."""
+
+    @pytest.mark.parametrize("g00", [1.0, 1e13, 1e-13, 1e40, 1e-70])
+    def test_tetrad_is_orthonormal_at_any_lapse_scale(self, g00):
+        """-g^{00} is 1/alpha^2 and must never be floored.
+
+        An absolute floor broke g = 1e40 eta; a relative one broke
+        diag(-1e13, 1, 1, 1), which came back with e_0 . e_0 = -10.
+        """
+        from warpax.energy_conditions.observer import compute_orthonormal_tetrad
+
+        g = jnp.diag(jnp.array([-g00, 1.0, 1.0, 1.0]))
+        e = compute_orthonormal_tetrad(g)
+        np.testing.assert_allclose(
+            np.diag(np.asarray(e @ g @ e.T)), [-1.0, 1.0, 1.0, 1.0], rtol=1e-12
+        )
+
+    @pytest.mark.parametrize("scale", [1.0, 1e-24, 1e12])
+    def test_classifier_type_is_scale_invariant(self, scale):
+        """diag(-1, 2, 3, 4) is Type I at every metric scale."""
+        eta = np.diag([-1.0, 1.0, 1.0, 1.0])
+        g = scale * eta
+        T_mixed = np.diag([-1.0, 2.0, 3.0, 4.0])
+        res = classify_hawking_ellis(
+            jnp.asarray(T_mixed), jnp.asarray(g), T_ab=jnp.asarray(g @ T_mixed)
+        )
+        assert float(res.he_type) == 1.0
+
+    def test_levi_civita_survives_a_tiny_metric(self):
+        """scale**4 underflows below |g| ~ 1e-77; the normalised form does not."""
+        from warpax.geometry.invariants import _levi_civita_4d
+
+        g = 1e-100 * jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+        assert float(_levi_civita_4d(g)[0, 1, 2, 3]) == pytest.approx(1e-200, rel=1e-12)
+
+
+class TestNoVerdictOnInvalidInput:
+    """Non-finite input must not produce a confident label."""
+
+    @pytest.mark.parametrize(
+        "T_mixed, g_ab",
+        [
+            (np.diag([np.inf, 0.0, 0.0, 0.0]), np.diag([-1.0, 1.0, 1.0, 1.0])),
+            (np.diag([-1.0, 1.0, 2.0, 3.0]), np.diag([np.nan, 1.0, 1.0, 1.0])),
+        ],
+        ids=["inf-tensor", "nan-metric"],
+    )
+    def test_classifier_reports_no_verdict(self, T_mixed, g_ab):
+        res = classify_hawking_ellis(
+            jnp.asarray(T_mixed),
+            jnp.asarray(g_ab),
+            T_ab=jnp.asarray(g_ab @ T_mixed),
+        )
+        assert not np.isfinite(float(res.he_type))
+
+    def test_mpmath_classifier_agrees(self):
+        T = np.zeros((4, 4))
+        T[0, 1] = np.nan
+        out = classify_hawking_ellis_mpmath(T, np.diag([-1.0, 1.0, 1.0, 1.0]))
+        assert not np.isfinite(out["he_type"])
+        assert out["near_vacuum"] is False
+
+    def test_verify_point_does_not_crash_on_a_nan_tensor(self):
+        from warpax.energy_conditions.verifier import verify_point
+
+        T = jnp.zeros((4, 4)).at[0, 0].set(jnp.nan)
+        res = verify_point(T, jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0])), n_starts=1, zeta_max=1.0)
+        assert not np.isfinite(float(res.he_type))
+        assert not np.isfinite(float(res.nec_margin))
+
+    def test_nan_margins_leave_the_violated_fraction(self):
+        """A NaN is no verdict, so it belongs in neither side of the fraction."""
+        s = _compute_summary(jnp.array([-1.0, jnp.nan]))
+        assert float(s.fraction_violated) == 1.0
+        assert float(s.min_margin) == -1.0
+
+
+class TestNullProjection:
+    """``_project_to_null`` must return the ray the curve actually travels."""
+
+    def test_nearly_timelike_tangent_projects_exactly(self):
+        from warpax.averaged.anec import _project_to_null
+
+        eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+        k = _project_to_null(eta, jnp.array([1.0, 1e-16, 0.0, 0.0]))
+        assert float(jnp.abs(jnp.einsum("ab,a,b->", eta, k, k))) < 1e-30
+
+    def test_tipped_cone_picks_the_nearer_ray(self):
+        """With g_00 > 0 both roots are negative and neither is reflected."""
+        from warpax.averaged.anec import _project_to_null
+
+        g = jnp.array(
+            [
+                [3.0, -2.0, 0.0, 0.0],
+                [-2.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
+        k = _project_to_null(g, jnp.array([1.0, -0.5, 0.0, 0.0]))
+        np.testing.assert_allclose(np.asarray(k), [1.0, 1.0, 0.0, 0.0], atol=1e-12)
+
+
+class TestConvergenceQuantities:
+    def test_a_large_positive_margin_does_not_hide_a_violation(self):
+        from warpax.analysis.convergence import compute_convergence_quantity
+
+        margins = np.array([1e6, -1e-6])
+        for q in ("l2_violation", "integrated_violation"):
+            got = compute_convergence_quantity(margins, q, cell_volume=1.0)
+            assert got == pytest.approx(1e-6, rel=1e-9), q
+
+    def test_richardson_needs_the_endpoint_inclusive_spacing(self):
+        """Exact second-order data extrapolates to zero on a geometric ladder."""
+        from warpax.analysis.convergence import richardson_extrapolation
+
+        N = [25, 49, 97]
+        out = richardson_extrapolation([1.0 / (n - 1) ** 2 for n in N], N)
+        assert out["observed_order"] == pytest.approx(2.0, abs=1e-9)
+        assert out["extrapolated_value"] == pytest.approx(0.0, abs=1e-15)
+
+    def test_a_non_geometric_ladder_is_refused(self):
+        from warpax.analysis.convergence import richardson_extrapolation
+
+        with pytest.raises(ValueError, match="geometric refinement ladder"):
+            richardson_extrapolation([1.0, 0.5, 0.25], [25, 50, 100])

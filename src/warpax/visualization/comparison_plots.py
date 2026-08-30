@@ -17,15 +17,18 @@ import numpy as np
 from matplotlib.colors import SymLogNorm, TwoSlopeNorm
 from numpy.typing import NDArray
 
-from ._style import COLORS, DOUBLE_COL, LINE_STYLES, SINGLE_COL, apply_style
+from ._style import COLORS, DOUBLE_COL, LINE_STYLES, SINGLE_COL, apply_style, extract_slice
 
 apply_style()
 
 
 def _save_or_return(fig: plt.Figure, save_path: str | None) -> plt.Figure:
-    """Save figure as PDF if save_path given, otherwise return for interactive use."""
+    """Save to *save_path* if given, otherwise return the figure for interactive use.
+
+    The format follows the path extension; PDF when it has none.
+    """
     if save_path is not None:
-        fig.savefig(save_path, format="pdf")
+        fig.savefig(save_path)
         plt.close(fig)
     return fig
 
@@ -133,14 +136,6 @@ def _feature_extent(
     return xlim, ylim
 
 
-def _extract_slice(data: NDArray, slice_axis: int = 2) -> NDArray:
-    """Extract the middle 2D slice along the given axis."""
-    idx = data.shape[slice_axis] // 2
-    slc = [slice(None)] * data.ndim
-    slc[slice_axis] = idx
-    return data[tuple(slc)]
-
-
 def plot_comparison_panel(
     eulerian_margin: NDArray,
     robust_margin: NDArray,
@@ -193,9 +188,9 @@ def plot_comparison_panel(
     x_ax, y_ax = extents
 
     # Extract 2D slices
-    eul_2d = _extract_slice(eulerian_margin, slice_axis)
-    rob_2d = _extract_slice(robust_margin, slice_axis)
-    miss_2d = _extract_slice(missed.astype(float), slice_axis)
+    eul_2d = extract_slice(eulerian_margin, slice_axis)
+    rob_2d = extract_slice(robust_margin, slice_axis)
+    miss_2d = extract_slice(missed.astype(float), slice_axis)
 
     # Compute auto-zoom extent from the union of both margin fields
     union_2d = np.maximum(np.abs(eul_2d), np.abs(rob_2d))
@@ -432,9 +427,9 @@ def plot_comparison_grid(
         rob = data[f"{cond}_robust"]
         missed = data[f"{cond}_missed"]
 
-        eul_2d = _extract_slice(eul, slice_axis)
-        rob_2d = _extract_slice(rob, slice_axis)
-        miss_2d = _extract_slice(missed.astype(float), slice_axis)
+        eul_2d = extract_slice(eul, slice_axis)
+        rob_2d = extract_slice(rob, slice_axis)
+        miss_2d = extract_slice(missed.astype(float), slice_axis)
 
         eul_norm = _diverging_norm(eul_2d)
         rob_norm = _diverging_norm(rob_2d)

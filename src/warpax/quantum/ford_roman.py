@@ -133,12 +133,9 @@ def ford_roman(
     if sampling != "lorentzian":
         raise ValueError(f"sampling must be 'lorentzian' (only supported kernel), got {sampling!r}")
 
-    # The kernel width, the measure and the sampling span are PROPER time; the
-    # caller's worldline is parameterized by whatever it likes. Integrate in the
-    # caller's parameter and carry the Jacobian dtau/dlambda, so no inversion is
-    # needed and a proper-time worldline (rate == 1) reduces to the previous code
-    # exactly. A coordinate-static observer in Alcubierre has
-    # rate = sqrt(1 - v_s^2 f^2) < 1 inside the wall.
+    # The kernel width, measure and span are PROPER time, but the worldline carries the
+    # caller's parameter, so integrate there and carry dtau/dlambda. A coordinate-static
+    # observer in Alcubierre has rate = sqrt(1 - v_s^2 f^2) < 1 inside the wall.
     span = 10.0 * tau0
     half = span
     for _ in range(3):

@@ -12,7 +12,7 @@ Output: prints knot rel_err and writes ``tests/fixtures/alcubierre_optimal_param
 
 With ``--probe-grid dense``, also measures mid-interval spline error at 100
 uniform probe points and writes ``results/design_dense_probe.json`` (measurement
-only, not a gating check).
+only, not a pass/fail check).
 
 Requires: ``pip install -e ".[design]"`` (interpax).
 """
@@ -108,7 +108,7 @@ def main(argv=None):
 
     if args.probe_grid == "dense":
         # Dense probe grid rel_err: 100-point uniform 1D grid on [0, 12].
-        # Measurement only; not a gating check.
+        # Measurement only; not a pass/fail check.
         n_probe = args.probe_grid_size
         x_probe = jnp.linspace(0.0, 12.0, n_probe)
         f_true_probe = 1.0 - jnp.tanh((x_probe - R) / sigma) ** 2

@@ -31,6 +31,7 @@ from jaxtyping import Array, Float
 
 from ..constraints.tshell_solver import TShellPotentials, solve_tshell_potentials
 from ..geometry.metric import ADMMetric
+from ._interp import cubic_on_grid
 from .tshell_profiles import (
     TShellSourceProfiles,
     constant_velocity_profiles,
@@ -67,11 +68,7 @@ class TShellMetric(ADMMetric):
     total_mass: Float[Array, ""]
 
     def _interp(self, r: Float[Array, ""], grid_vals: Float[Array, "N"]) -> Float[Array, ""]:
-        """Cubic interpolation on the stored grid."""
-        import interpax
-
-        r_clamped = jnp.clip(r, self._r_grid[0], self._r_grid[-1])
-        return interpax.interp1d(r_clamped, self._r_grid, grid_vals, method="cubic")
+        return cubic_on_grid(r, self._r_grid, grid_vals)
 
     def _Phi(self, r: Float[Array, ""]) -> Float[Array, ""]:
         return self._interp(r, self._Phi_grid)

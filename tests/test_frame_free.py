@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import jax
-
-jax.config.update("jax_enable_x64", True)
-
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -112,10 +109,10 @@ def test_conformal_type_iv_positive_witness_uses_lmi():
 def test_nonI_nec_is_the_full_null_deficit_not_the_witness():
     """The NEC slot is one quantity at every type: min_{|s|=1} q(s).
 
-    It used to be the momentum witness wherever that happened to be negative and
-    ``lmi["nec"]`` otherwise, three different scales in one array, since the
-    witness probes a single direction (an upper bound on the deficit) and
-    ``lmi["nec"]`` is half of it. Now non-Type-I always reports ``2*lmi["nec"]``,
+    Mixing the momentum witness with ``lmi["nec"]`` would put three scales in one
+    array, since the witness probes a single direction (an upper bound on the
+    deficit) and ``lmi["nec"]`` is half of it. Non-Type-I always reports
+    ``2*lmi["nec"]``,
     which is ``slemma.null_deficit`` and the same quantity as the Type-I
     ``min_i(rho + p_i)``.
     """
@@ -234,8 +231,8 @@ class TestTypeIIMarginsAreDecidedNotOverclaimed:
             q(w)        = -1 + 2 w_1 + 3|w|^2      -> -1 at w = 0, WEC VIOLATED
             q + T(1-|w|^2)/2 = 4 + 2 w_1 - 2|w|^2  ->  0 at w = (-1,0,0), SEC SATURATED
 
-        so the WEC and DEC fail while the SEC holds with equality. A single null
-        contraction cannot express that, which is why it used to be NaN.
+        so the WEC and DEC fail while the SEC holds with equality, which a single
+        null contraction cannot express.
         """
         T, eta = self._canonical_type_ii()
         assert float(T[0, 0]) < 0.0

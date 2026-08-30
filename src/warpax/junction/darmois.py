@@ -131,7 +131,15 @@ def _one_sided_limit(
     gives ``-s h'`` , first order in the separation, so a smooth metric
     reported a jump proportional to its own gradient and never passed.
     """
-    on_sigma = 0.5 * (probe + opposite)
+    # Locate Sigma on the segment by a secant step on boundary_fn instead of
+    # assuming the probes straddle it symmetrically. Asymmetric probes put the
+    # assumed midpoint off the surface and biased both one-sided limits.
+    f_p = boundary_fn(probe)
+    f_o = boundary_fn(opposite)
+    denom = f_p - f_o
+    t = jnp.where(jnp.abs(denom) > 0.0, f_p / jnp.where(denom != 0.0, denom, 1.0), 0.5)
+    t = jnp.clip(t, 0.0, 1.0)
+    on_sigma = probe + t * (opposite - probe)
     near = 0.5 * (probe + on_sigma)
     h_far, K_far, _ = _induced_and_extrinsic(metric, boundary_fn, probe)
     h_near, K_near, eps = _induced_and_extrinsic(metric, boundary_fn, near)
@@ -175,7 +183,7 @@ def darmois(
     Pointwise probe test (not a full Sigma integral). Each side is
     extrapolated to Sigma from two probes, so a smooth metric
     (Alcubierre-family) gives a jump that vanishes with the probe separation
-    (measured: a factor 8 per halving), while a genuine shell metric
+    (measured: a factor 8 per halving), while a true shell metric
     (WarpShell at the shell boundary) keeps a finite ``[[K]]``. The verdict is
     therefore a statement about the separation used: shrink it until
     ``first_form_discontinuity`` stops falling.

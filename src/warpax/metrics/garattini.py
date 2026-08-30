@@ -38,17 +38,15 @@ parametrisation rather than a condition on it, so ``curl beta`` vanishes
 *identically* at every ``v_s``, ``R``, ``sigma`` and ``H``, an algebraic fact
 about the shift, not a numerical result. What the autodiff pipeline returns is
 that fact through float64: the realised values are rounding noise at 1e-18 to
-1e-22, not the literal 0.0 an earlier version of this docstring claimed. No
-irrotationality tolerance appears anywhere downstream because the vanishing is
-structural, not because the measurement is exact.
+1e-22, not a literal 0.0. No irrotationality tolerance appears anywhere
+downstream because the vanishing is structural, not because the measurement is
+exact.
 
-Two consequences worth stating plainly, because an earlier version of this docstring
-got both wrong. First, ``v_s`` fixes the bubble's position at ``t = 0`` as well as its
-speed there: ``r_0 = v_s / H`` and ``|N(x_s)| = v_s``. Second, the un-matched case is
-NOT implemented, so no claim about it is tested here; the previous text quoted a
-measurement (``|curl beta| ~ 0.29``) from a configuration this class cannot produce.
-``matched()`` is the inverse parametrisation, specify ``r_0`` and get ``v_s = H r_0``
--- not a different spacetime.
+Two consequences. First, ``v_s`` fixes the bubble's position at ``t = 0`` as well
+as its speed there: ``r_0 = v_s / H`` and ``|N(x_s)| = v_s``. Second, the
+un-matched case is NOT implemented, so no claim about it is tested here.
+``matched()`` is the inverse parametrisation: specify ``r_0`` and get
+``v_s = H r_0``, not a different spacetime.
 
 At ``H = 0`` with the matching relaxed this reduces to Alcubierre.
 
@@ -60,12 +58,10 @@ Notes
 -----
 The slices are flat by construction, ``spatial_metric`` returns the identity at
 every ``t``, because this is de Sitter in Painleve-Gullstrand form, where the
-expansion is carried entirely by the background shift ``-x^i/L``. An earlier version
-of this note described ``gamma_ij`` as growing like ``e^{2 H t}``; that was the
-superseded exponential-slicing implementation, not this one. The H-dependence enters
-through the shift and through its time derivative in the curvature chain. ANEC along a complete geodesic
-should be conditional on ``geodesic_complete`` because dS geodesics can leave the
-integration box.
+expansion is carried entirely by the background shift ``-x^i/L``. The
+H-dependence enters through the shift and through its time derivative in the
+curvature chain. ANEC along a complete geodesic should be conditional on
+``geodesic_complete`` because dS geodesics can leave the integration box.
 """
 
 from __future__ import annotations

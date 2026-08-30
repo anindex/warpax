@@ -10,12 +10,9 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
-# Fork-safety for the 3D render: manim spawns ffmpeg while JAX's thread pool is
-# live, which deadlocks on fork under Python 3.14. When this module is the manim
-# render entrypoint (JAX not yet imported), enable gRPC fork handlers and drop
-# the CUDA-probe threads (the render runs JAX on CPU) before the warpax imports
-# below pull JAX in. Skipped when JAX is already loaded (imported as a library)
-# so it never mutates a live process's env. ``setdefault`` lets a caller override.
+# Fork-safety: manim spawns ffmpeg while JAX's thread pool is live, which deadlocks
+# on fork under Python 3.14. As a render entrypoint, set the gRPC fork handlers and
+# drop the CUDA probe before the imports below pull JAX in; skipped if JAX is live.
 import os as _os
 import sys as _sys
 
@@ -61,6 +58,7 @@ from warpax.visualization.manim._scene_utils import (
     compute_auto_exaggeration,
     compute_global_clim,
     format_metric_equation,
+    frame_getter,
     make_axes_for_frames,
     make_violation_indicator,
 )
@@ -90,7 +88,7 @@ class WallAndVelocitySweep(ThreeDScene):
         # Tighter domain to focus on bubble wall structure
         grid_spec = GridSpec(
             bounds=[(-2, 2), (-2, 2), (-2, 2)],
-            shape=(30, 30, 30),
+            shape=(31, 31, 31),
         )
 
         sigma_frames = self._build_sigma_frames(grid_spec)
@@ -119,8 +117,13 @@ class WallAndVelocitySweep(ThreeDScene):
         # Alcubierre (rho_Eul and the NEC margin), so use one-sided depth scales
         # (deepest -> 0): a diverging +/- scale would imply a positive half the
         # data never reaches.
-        ed_clim = (compute_global_clim(all_frames, "energy_density")[0], 0.0)
-        nec_clim = (compute_global_clim(all_frames, "nec_margin_sweep")[0], 0.0)
+        # The grid samples the bubble centre, where the regularity floor returns
+        # ~-7e12; a raw min would set the whole scale from that one artefact.
+        ed_clim = (compute_global_clim(all_frames, "energy_density", percentile=1.0)[0], 0.0)
+        nec_clim = (
+            compute_global_clim(all_frames, "nec_margin_sweep", percentile=1.0)[0],
+            0.0,
+        )
 
         # Auto-exaggeration for embedding
         exag = compute_auto_exaggeration(all_frames, "energy_density")
@@ -143,18 +146,13 @@ class WallAndVelocitySweep(ThreeDScene):
         self.add(header)
 
         frame_idx = ValueTracker(0)
+        at_frame = frame_getter(frame_idx, n_total)
 
         def _make_surface():
             """Wireframe embedding surface: always energy_density."""
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_total - 1))
-            frame = all_frames[idx].with_clim("energy_density", ed_clim)
+            frame = all_frames[at_frame()].with_clim("energy_density", ed_clim)
             return framedata_to_surface(
-                frame,
-                "energy_density",
-                axes,
-                exaggeration=exag,
-                resolution=(32, 32),
+                frame, "energy_density", axes, exaggeration=exag, resolution=(32, 32)
             )
 
         def _make_heatmap():

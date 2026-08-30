@@ -1,7 +1,6 @@
 """Emit the diagnostic/ablation LaTeX tables from cached results JSONs.
 
-Regenerates the table bodies that previously lived inline in the manuscript,
-so every printed number traces to results/*.json and cannot drift:
+Every printed number traces to results/*.json and cannot drift:
 
 - tables/missed_uniform.tex        <- results/comparison_table.json (v_s = 0.5)
 - tables/type_breakdown.tex        <- results/wall_restricted_analysis.json

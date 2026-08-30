@@ -5,8 +5,8 @@ subluminal branch (run_curvature_scaling.py). The exponent q is not merely a
 fit: it is a closed-form theorem. On a flat unit-lapse slice the order-``v_s``
 Riemann tensor is pure gauge for an irrotational shift and survives for a
 vortical one, forcing ``q = 4`` for the irrotational (Rodal) wall and ``q = 2``
-for the vortical (Alcubierre, Natario) walls (verify/weyl_scaling.sage,
-verify/curvature_scaling.sage). This script refits q on the wall-resolved graded
+for the vortical (Alcubierre, Natario) walls. This script refits q on the
+wall-resolved graded
 ladder (N = 80, 100, 120, giving 5.9 / 7.6 / 8.9 cells across the 10-90% wall) and
 reports its spread across resolutions, confirming the closed-form value is
 resolution-stable and not a single-grid artifact.
@@ -47,7 +47,7 @@ VELOCITIES = [0.1, 0.2, 0.3, 0.5, 0.7, 0.9]
 # "closed form" column: only the q=4 irrotational side has an analytic
 # derivation (the pure-gauge reduction); the q=2 values are empirical fits.
 INVARIANTS = (("weyl_squared", r"Weyl $C^2$"), ("ricci_squared", r"Ricci $|R_{ab}R^{ab}|$"))
-# Closed-form q per metric (weyl_scaling.sage): irrotational -> 4, vortical -> 2.
+# Closed-form q per metric: irrotational -> 4, vortical -> 2.
 THEORY_Q = {"Rodal": 4.0, "Alcubierre": 2.0, "Natário": 2.0}
 
 

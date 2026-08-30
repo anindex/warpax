@@ -36,7 +36,9 @@ from jaxtyping import Array, Float, jaxtyped
 from ..geometry.metric import ADMMetric, SymbolicMetric
 
 
-def _diamond_shape(d: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
+def _diamond_shape(
+    d: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
+) -> Float[Array, "..."]:
     """Diamond-pattern shape function using L1 (Manhattan) distance.
 
     f(d) = [tanh(sigma*(d + R)) - tanh(sigma*(d - R))] / [2*tanh(sigma*R)]

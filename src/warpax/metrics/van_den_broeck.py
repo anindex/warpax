@@ -34,9 +34,9 @@ from ._common import alcubierre_shape
 
 def _van_den_broeck_B(
     r_s: Float[Array, "..."],
-    R_tilde: float,
-    alpha_vdb: float,
-    sigma_B: float,
+    R_tilde: float | Float[Array, ""],
+    alpha_vdb: float | Float[Array, ""],
+    sigma_B: float | Float[Array, ""],
 ) -> Float[Array, "..."]:
     """Van Den Broeck conformal factor B(r_s).
 

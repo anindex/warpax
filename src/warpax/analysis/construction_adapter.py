@@ -64,14 +64,11 @@ class ConstructionSpec:
     wall_radius: float = 1.0
     # Outer radius of the sampled ball for the axisymmetric ladder.
     r_max: float = 3.0
-    # Axial position of the bubble at t = 0. The axisymmetric reduction is taken
-    # about this point, not about the coordinate origin: the reduction is exact
-    # either way (the configuration is axisymmetric about the propagation axis,
-    # which passes through both), but the radial clustering only lands on the wall
-    # when the two agree. A callable is resolved against the built metric, which is
-    # what the Garattini-Zatrimaylov drive needs, its bubble sits at r_0 = v_s / H
-    # by the matching condition, so the centre moves with the parameters and cannot
-    # be a constant.
+    # Axial position of the bubble at t = 0. The axisymmetric reduction is exact
+    # about either this point or the origin, but the radial clustering only lands
+    # on the wall when the two agree. A callable is resolved against the built
+    # metric, which the Garattini-Zatrimaylov drive needs: its bubble sits at
+    # r_0 = v_s / H, so the centre moves with the parameters.
     grid_center: float | Callable[[MetricSpecification], float] = 0.0
 
     def center_of(self, metric: MetricSpecification) -> float:
@@ -110,11 +107,8 @@ def construction_registry() -> dict[str, ConstructionSpec]:
     """All registered constructions keyed by name (compact references + shells)."""
     specs = [
         # Compact references (baseline + the irrotational global-Type-I claim).
-        # grid_n = 64 for the compact drives: under the corrected worst-case
-        # resolution witness the old N = 50 spans only 3.57 cells across the
-        # 10-90% wall, below MIN_WALL_CELLS. (The superseded witness reported
-        # 6.0 for the same grid because it summed the +x and -x crossings.)
-        # N = 64 gives 4.72.
+        # grid_n = 64: the worst-case resolution witness gives 4.72 cells across
+        # the 10-90% wall, against 3.57 at N = 50, below MIN_WALL_CELLS.
         ConstructionSpec(
             "Alcubierre",
             _alcubierre,
@@ -175,11 +169,10 @@ def construction_registry() -> dict[str, ConstructionSpec]:
             claim="Bobrick-Martire / Fell-Heisenberg shell; WEC/NEC/SEC at wall, DEC violated",
         ),
         ConstructionSpec(
-            # N = 192, not 64: the published bubble co-moves with the Hubble flow
-            # and therefore sits at r_0 = v_s/H = 1 rather than at the origin, so
-            # a grid whose radial clustering is anchored on the origin spends its
-            # resolution on the bubble centre instead of its wall. At N = 64 the
-            # wall spans 1.42 cells; the four-cell floor needs N >= 181.
+            # N = 192, not 64: the bubble co-moves with the Hubble flow and sits
+            # at r_0 = v_s/H = 1, so origin-anchored clustering spends its
+            # resolution on the centre. At N = 64 the wall spans 1.42 cells; the
+            # four-cell floor needs N >= 181.
             "Garattini",
             _garattini,
             0.1,
@@ -223,39 +216,24 @@ def construction_registry() -> dict[str, ConstructionSpec]:
     return {s.name: s for s in specs}
 
 
-# ---------------------------------------------------------------------------
-# Matched panel: common shift kinematics
-# ---------------------------------------------------------------------------
+# Matched panel: common shift kinematics.
 #
-# Fuchs' energy-condition compliance is designed at v_s = 0.02 and Garattini's
-# averaged-condition regime pins v_s = H R, so a matched comparison must be
-# matched *to them*, not to the R_b = 1, sigma = 8, v_s = 0.5 family.
-#
-# The only invariants all four constructions share are the dimensionless shift
-# kinematics. From the published Fuchs sigmoid with R_1 = 10, R_2 = 20 the
-# 10-90% crossings are 12.790029 and 17.209971, so
-#
-#     R_c = 15,   W_10-90 = 4.419943,   W / R_c = 0.294663.
-#
-# MATCHED_SIGMA is the tanh-family sigma reproducing that width at R = R_c. It
-# is solved numerically from the exact finite-R profile rather than from the
-# asymptotic 2 atanh(0.8)/sigma, which is not valid at sigma*R ~ 1.
+# Fuchs is designed at v_s = 0.02 and Garattini pins v_s = H R, so the match is to
+# them, on the only shared invariants: the dimensionless shift kinematics. The
+# Fuchs sigmoid (R_1 = 10, R_2 = 20) crosses 10-90% at 12.790029 and 17.209971, so
+# R_c = 15, W = 4.419943, W/R_c = 0.294663. MATCHED_SIGMA reproduces that width at
+# R = R_c, solved from the exact finite-R profile since 2 atanh(0.8)/sigma is not
+# valid at sigma*R ~ 1.
 MATCHED_V_S = 0.02
 MATCHED_R_C = 15.0
 MATCHED_WIDTH = 4.419943
 MATCHED_SIGMA = 0.497115373
 MATCHED_R_MAX = 2.0 * MATCHED_R_C
 
-# What cannot be matched, and is therefore not claimed to be:
-#   - Fuchs carries a two-boundary matter shell (R_1/R_2 = 0.5, compactness
-#     2M/R_2 = 0.3334); Alcubierre and Rodal have no mass parameter at all.
-#   - Garattini necessarily carries Lambda R^2 = 3 (H R)^2; the others are
-#     asymptotically Minkowski.
-#   - Fuchs' material stress is velocity-independent, while the flat-slice
-#     drives' stress scales as v_s^2.
-# Type fractions and single-frame miss rates are comparable under common
-# sampling; raw stress severity and energy positivity are not like-for-like
-# matter comparisons, and the panel says so.
+# Matter content, background curvature and compactness are NOT matched: Fuchs
+# carries a two-boundary shell, Garattini a Lambda R^2, and only Fuchs' stress is
+# velocity-independent. Type fractions and miss rates are comparable under common
+# sampling; raw stress severity and energy positivity are not.
 MATCHING_CAVEAT = (
     "Common shift kinematics only (v_s, R_c, W/R_c, box, wall band). Matter "
     "content, background curvature and compactness are construction-specific "

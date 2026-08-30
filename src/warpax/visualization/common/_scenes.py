@@ -335,21 +335,23 @@ def scene_observer_sweep(
             "nec_margin_sweep": worst_nec,
         }
 
-        # NEC/WEC worst-case margins are <= 0 (0 in flat space, negative in the
-        # wall): a one-sided violation-depth ramp is correct; a diverging +/-
-        # scale would imply a positive "satisfied" half the data never reaches.
+        # Only the Eulerian energy density is non-positive here. The worst-case
+        # NEC and WEC margins are signed: over this sweep 26% and 21% of the
+        # samples are positive, reaching +0.15 and +804. A one-sided depth ramp
+        # pinned at vmax = 0 paints every satisfied point the same colour as an
+        # exactly saturated one, so those two get a diverging scale.
         colormaps = {
             "energy_density": "nec_depth",
             "T_00_covariant": "RdBu_r",
-            "wec_margin_sweep": "nec_depth",
-            "nec_margin_sweep": "nec_depth",
+            "wec_margin_sweep": "RdBu_r",
+            "nec_margin_sweep": "RdBu_r",
         }
 
         clim = {
             "energy_density": _oneside_neg_clim(energy_density),
             "T_00_covariant": _symmetric_clim(T_00_covariant),
-            "wec_margin_sweep": _oneside_neg_clim(worst_wec),
-            "nec_margin_sweep": _oneside_neg_clim(worst_nec),
+            "wec_margin_sweep": _symmetric_clim(worst_wec),
+            "nec_margin_sweep": _symmetric_clim(worst_nec),
         }
 
         frame = FrameData(

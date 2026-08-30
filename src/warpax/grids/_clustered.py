@@ -14,10 +14,12 @@ Scope. The map is applied to each Cartesian axis independently, so it refines
 the three coordinate *slabs* ``|x| \\approx R``, ``|y| \\approx R``,
 ``|z| \\approx R`` rather than the sphere ``r = R``. Along any axis crossing
 (the wall normal that the resolution criterion measures) this is exact; for a
-genuinely spherical refinement use a radial/angular grid instead.
+spherical refinement use a radial/angular grid instead.
 """
 
 from __future__ import annotations
+
+from collections.abc import Sequence
 
 import jax
 import jax.numpy as jnp
@@ -65,9 +67,7 @@ def _cosh_stretch(u: Float[Array, "N"], u_wall: float, a: float) -> Float[Array,
     return jnp.where(u <= q, lower, upper)
 
 
-def _infer_wall_radius(
-    metric: MetricSpecification, bounds: tuple[tuple[float, float], ...]
-) -> float:
+def _infer_wall_radius(metric: MetricSpecification, bounds: Sequence[tuple[float, float]]) -> float:
     """Best-effort wall-radius inference via ``shape_function_value`` scan.
 
     Samples ``metric.shape_function_value`` along the positive x-axis and
@@ -100,10 +100,10 @@ def _infer_wall_radius(
     except NotImplementedError:
         return 0.5 * (bounds[0][0] + bounds[0][1]) + 1.0
 
-    # If the shape function never crosses the transition band on the scanned axis, the
-    # argmax below is the argmax of rounding noise and the returned radius is
-    # meaningless, GarattiniMetric(v_s=0.5, H=0.1) on bounds (-3, 3) has its walls at
-    # x = 4 and x = 6, entirely outside the window, and this used to return 2.82.
+    # If the shape function never crosses the transition band on the scanned axis,
+    # the argmax below is the argmax of rounding noise. GarattiniMetric(v_s=0.5,
+    # H=0.1) on bounds (-3, 3) has its walls at x = 4 and x = 6, outside the
+    # window entirely.
     f_lo, f_hi = float(jnp.min(f_values)), float(jnp.max(f_values))
     if f_hi - f_lo < 0.1:
         raise ValueError(
@@ -122,7 +122,7 @@ def _infer_wall_radius(
 
 def wall_clustered(
     metric: MetricSpecification,
-    bounds: tuple[tuple[float, float], ...],
+    bounds: Sequence[tuple[float, float]],
     shape: tuple[int, ...],
     clustering: str = "cosh",
     wall_radius: float | None = None,

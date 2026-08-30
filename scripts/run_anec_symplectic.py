@@ -67,13 +67,9 @@ NULL_TOL = 1e-6
 # and Rodal's minimum sat on it; "b_bracketed" below records interiority.
 B_SCAN = np.linspace(1.0e-3, 5.0, 50)
 SENTINEL_TOL = 1.0e-6
-# The coarse scan has db = 0.102, and a minimum narrower than that sitting between
-# two nodes is missed: on Natario it is, and the coarse grid understates the deepest
-# line integral by a factor of two. So the argmin bracket is refined until the
-# minimum stops moving, and both the coarse and the refined values are recorded.
-# The witness is carried through the refinement because the refined Natario minimum
-# is a narrow feature whose off-cone deviation is orders worse than its neighbours';
-# a deeper value on a worse-conditioned ray is not straightforwardly a better number.
+# The coarse scan has db = 0.102 and misses a narrower minimum between nodes, by a
+# factor of two on Natario, so the argmin bracket is refined until it stops moving.
+# Both values are kept, with the witness, since the refined ray is worse conditioned.
 B_REFINE_POINTS = 21
 B_REFINE_LEVELS = 4
 B_REFINE_RTOL = 1.0e-4

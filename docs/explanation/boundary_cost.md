@@ -27,7 +27,7 @@ diagnostics).
 
 ## Certification is frame-free
 
-Verdicts use the Hawking--Ellis classification of $T^a{}_b$ with the Type-I
+Verdicts use the Hawking-Ellis classification of $T^a{}_b$ with the Type-I
 eigenvalue slacks
 $\mathrm{NEC}=\min_i(\rho+p_i)$, $\mathrm{WEC}=\min(\rho,\min_i(\rho+p_i))$,
 $\mathrm{DEC}=\min_i(\rho-|p_i|)$. These are **exact and cap-free**: the certifier
@@ -42,7 +42,7 @@ one-sided severity *diagnostic*.
 ## Three results
 
 **1. The bulk is clean; the cost is at the boundary.** Every source-prescribed
-shell is Hawking--Ellis Type-I and energy-condition compliant in the
+shell is Hawking-Ellis Type-I and energy-condition compliant in the
 matter-filled interior (Fuchs: 0/13 interior probes violate). The single
 observer-independent violation is a **Type-I dominant-energy deficit at the inner
 shell edge**, $\approx-4.4\times10^{-4}$.
@@ -52,16 +52,16 @@ independent of the bubble velocity *and* of the metric smoothing width; it
 depends only on the **regularity class of the source profile**:
 $-4.4\times10^{-4}$ (smoothstep), $-2.2\times10^{-4}$ (parabolic),
 $-1.2\times10^{-4}$ (Bernstein), a factor $\sim3.7$, and no finite-regularity
-polynomial family removes it. It is a cap-free Type-I slack, hence a genuine
+polynomial family removes it. It is a cap-free Type-I slack, hence a true
 invariant rather than an optimizer artifact.
 
 **3. Transport carries a change of algebraic type (vorticity $\to$ Type-IV).**
 The T-shell's constraint-derived shift $\beta^i=\beta(r)\hat x^i$ is **not
 curl-free**; its vorticity $\propto\beta'$ drives the stress-energy to
-**Hawking--Ellis Type-IV** (no rest frame) wherever the matter density thins and
+**Hawking-Ellis Type-IV** (no rest frame) wherever the matter density thins and
 the momentum flux dominates the energy block, i.e. in the low-density transition
 edges. The opened imaginary eigenvalue part is **linear in the matter tilt
-$v_0$** (log--log slope $1.01$, vanishing at $v_0=0$) and is confirmed by the
+$v_0$** (log-log slope $1.01$, vanishing at $v_0=0$) and is confirmed by the
 three-solver gate. This instantiates, in a source-consistent shell, the
 shift-vorticity $\to$ type control ($f=\kappa\omega$) the certification paper
 establishes for metric-first drives: the boundary cost of transport is a
@@ -73,19 +73,19 @@ $-7.9\times10^{-3}$ there is the $\zeta_{\max}=5$ diagnostic, not an invariant.
 
 A rigorous symplectic geodesic-integrated ANEC (Tao-2016 extended phase space,
 Yoshida-4; on-cone witness $\lesssim10^{-4}$, versus $O(0.1)$ drift for adaptive
-Runge--Kutta) is **positive for every source-prescribed shell**: Fuchs
+Runge-Kutta) is **positive for every source-prescribed shell**: Fuchs
 $+1.9\times10^{-3}$, S-shell $+2.9\times10^{-3}$, T-shell $+4.6\times10^{-3}$
 ($v_0=0.1$). Only the sign is invariant under $k^a\to\lambda k^a$, and it is
-robustly positive across resolution and impact parameter. So the pointwise
+positive across resolution and impact parameter. So the pointwise
 transition failures need not appear in the average. A full average over a
 geodesic family, and a curved-space (Fewster-type) quantum inequality, remain
-open; the Ford--Roman comparison is an explicitly flat-space estimate.
+open; the Ford-Roman comparison is an explicitly flat-space estimate.
 
 ## Verdict
 
-A $20\times15$ compactness–thickness scan finds **0 of 600** configurations
+A $20\times15$ compactness-thickness scan finds **0 of 600** configurations
 strictly admissible in either shell class: source consistency is achievable
-(criteria A–C, E), but the smooth source–vacuum transition exacts an
+(criteria A-C, E), but the smooth source-vacuum transition exacts an
 energy-condition cost that this family of profiles does not remove. The result
-is consistent with the Lobo--Visser obstruction across the surveyed family; it is
+is consistent with the Lobo-Visser obstruction across the surveyed family; it is
 not a no-go theorem.

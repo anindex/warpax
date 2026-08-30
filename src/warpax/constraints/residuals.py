@@ -28,6 +28,21 @@ from jaxtyping import Array, Float
 from ..geometry.adm_split import adm_split
 
 
+def _spatial_metric_of(metric_fn, t, dtype):
+    """``gamma_ij(x)`` on the slice at coordinate time ``t``, as a function of ``x``."""
+
+    def spatial_metric_fn(xyz: Float[Array, "3"]) -> Float[Array, "3 3"]:
+        return metric_fn(jnp.concatenate([jnp.array([t], dtype=dtype), xyz]))[1:, 1:]
+
+    return spatial_metric_fn
+
+
+def squared_constraint_residual(metric, r: Float[Array, ""]) -> Float[Array, ""]:
+    """``epsilon_H^2 + epsilon_M^2`` on the x-axis at radius ``r``."""
+    res = normalized_residuals(metric, jnp.array([0.0, r, 0.0, 0.0]))
+    return res["epsilon_H"] ** 2 + res["epsilon_M"] ** 2
+
+
 def _spatial_ricci_scalar(
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
     coords: Float[Array, "4"],
@@ -41,11 +56,7 @@ def _spatial_ricci_scalar(
     t = coords[0]
     spatial_coords = coords[1:]
 
-    def spatial_metric_fn(xyz: Float[Array, "3"]) -> Float[Array, "3 3"]:
-        full_coords = jnp.concatenate([jnp.array([t], dtype=coords.dtype), xyz])
-        g = metric_fn(full_coords)
-        return g[1:, 1:]
-
+    spatial_metric_fn = _spatial_metric_of(metric_fn, t, coords.dtype)
     gamma = spatial_metric_fn(spatial_coords)
     gamma_inv = jnp.linalg.inv(gamma)
 
@@ -138,11 +149,7 @@ def _spatial_div_A(
     t = coords[0]
     spatial_coords = coords[1:]
 
-    def spatial_metric_fn(xyz: Float[Array, "3"]) -> Float[Array, "3 3"]:
-        full_coords = jnp.concatenate([jnp.array([t], dtype=coords.dtype), xyz])
-        g = metric_fn(full_coords)
-        return g[1:, 1:]
-
+    spatial_metric_fn = _spatial_metric_of(metric_fn, t, coords.dtype)
     gamma_val = spatial_metric_fn(spatial_coords)
     gamma_inv_val = jnp.linalg.inv(gamma_val)
     dg = jax.jacfwd(spatial_metric_fn)(spatial_coords)

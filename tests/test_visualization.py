@@ -86,7 +86,6 @@ def test_direction_fields_smoke():
     assert ax is not None
 
 
-@pytest.mark.smoke
 def test_dark_diverge_colormaps_register() -> None:
     """All four ``dark_diverge_*`` colormaps register without error."""
     pytest.importorskip("manim")
@@ -114,7 +113,6 @@ def test_dark_diverge_colormaps_register() -> None:
         assert max(rgba_hot[:3]) > 0.5
 
 
-@pytest.mark.smoke
 def test_eulerian_energy_density_matches_alcubierre_analytic() -> None:
     """``eulerian_energy_density_grid`` recovers the analytical Alcubierre rho.
 
@@ -156,7 +154,6 @@ def test_eulerian_energy_density_matches_alcubierre_analytic() -> None:
     )
 
 
-@pytest.mark.smoke
 def test_eulerian_density_differs_from_T00_with_shift() -> None:
     """For Alcubierre with non-zero v_s, rho_Eul != T_{00}.
 
@@ -184,7 +181,6 @@ def test_eulerian_density_differs_from_T00_with_shift() -> None:
     )
 
 
-@pytest.mark.smoke
 def test_eulerian_density_equals_T00_for_minkowski() -> None:
     """For Minkowski (alpha=1, beta=0), rho_Eul == T_{00}."""
     from warpax.benchmarks import MinkowskiMetric
@@ -203,7 +199,6 @@ def test_eulerian_density_equals_T00_for_minkowski() -> None:
     np.testing.assert_allclose(rho_eul, T_00, atol=1e-12)
 
 
-@pytest.mark.smoke
 def test_freeze_curvature_exposes_both_fields() -> None:
     """``freeze_curvature`` exposes ``energy_density`` and ``T_00_covariant``."""
     from warpax.benchmarks import AlcubierreMetric
@@ -225,7 +220,6 @@ def test_freeze_curvature_exposes_both_fields() -> None:
     assert "energy_density" in frame.clim
 
 
-@pytest.mark.smoke
 def test_observer_robust_nec_nonpositive_dense_sampling() -> None:
     """Dense null sampling makes the observer-robust NEC <= 0 everywhere.
 
@@ -259,7 +253,6 @@ def test_observer_robust_nec_nonpositive_dense_sampling() -> None:
     assert nec_coarse.max() > nec_dense.max() + 1e-3
 
 
-@pytest.mark.smoke
 def test_ec_frames_expose_real_shape_function() -> None:
     """EC frames carry the true f(r_s) field, not a circular fallback (B3)."""
     from warpax.benchmarks import AlcubierreMetric
@@ -277,13 +270,12 @@ def test_ec_frames_expose_real_shape_function() -> None:
     X, Y, Z = grid_spec.meshgrid
     r_s = np.sqrt(np.asarray(X) ** 2 + np.asarray(Y) ** 2 + np.asarray(Z) ** 2)
     f_analytic = np.asarray(alcubierre_shape(jnp.asarray(r_s), 1.0, 8.0))
-    # The field is the genuine f(r_s), so it matches the analytic form, a
+    # The field is the exact f(r_s), so it matches the analytic form, a
     # circular fallback (radius x_extent/4 = 1.5) would not.
     np.testing.assert_allclose(f, f_analytic, atol=1e-5)
     assert f.max() > 0.99 and f.min() < 0.01
 
 
-@pytest.mark.smoke
 def test_image_contour_orientation_x_horizontal() -> None:
     """Contours place physical x on the horizontal axis, y on the vertical.
 
@@ -306,7 +298,6 @@ def test_image_contour_orientation_x_horizontal() -> None:
     assert vy[:, 0].max() > 1.0 and vy[:, 0].min() < -1.0
 
 
-@pytest.mark.smoke
 def test_extract_contours_multi_level() -> None:
     """``extract_contours`` returns one path-group per level, nested and NaN-safe.
 
@@ -352,7 +343,6 @@ def test_extract_contours_multi_level() -> None:
     assert isinstance(zc, list) and zc and zc[0].shape[1] == 2
 
 
-@pytest.mark.smoke
 def test_eulerian_kinematics_shape_function_is_real() -> None:
     """EulerianKinematics2D's bubble wall uses the real f(r_s), not a circle.
 
@@ -380,7 +370,6 @@ def test_eulerian_kinematics_shape_function_is_real() -> None:
     assert f.min() < 0.5 < f.max()
 
 
-@pytest.mark.smoke
 def test_oneside_neg_clim_for_nonpositive_field() -> None:
     """``_oneside_neg_clim`` returns ``(vmin, 0)`` for a strictly-non-positive field."""
     from warpax.visualization.common._conversion import _oneside_neg_clim
@@ -391,7 +380,6 @@ def test_oneside_neg_clim_for_nonpositive_field() -> None:
     assert vmin == -3.0
 
 
-@pytest.mark.smoke
 def test_eulerian_wec_fields_bounded_and_cap_free() -> None:
     """Bounded WEC fields are well-posed; zeta_th is degenerate for Alcubierre.
 
@@ -422,7 +410,6 @@ def test_eulerian_wec_fields_bounded_and_cap_free() -> None:
     assert wf["boost_dir"].shape == (*grid_spec.shape, 3)
 
 
-@pytest.mark.smoke
 def test_kretschmann_invariant_is_signed_and_finite() -> None:
     """K = R_abcd R^abcd is finite, structured, and sign-indefinite (Lorentzian).
 

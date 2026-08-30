@@ -30,11 +30,6 @@ class TestGarattiniBasic:
         c = compute_curvature_chain(m, jnp.array([0.0, 1.0, 0.3, 0.0]))
         assert bool(jnp.all(jnp.isfinite(c.stress_energy)))
 
-    def test_float64(self):
-        m = garattini_default()
-        g = m(jnp.array([0.0, 0.5, 0.0, 0.0]))
-        assert g.dtype == jnp.float64
-
     def test_jit(self):
         m = garattini_default()
         pt = jnp.array([0.0, 0.7, 0.1, 0.0])

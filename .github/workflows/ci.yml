@@ -7,16 +7,26 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+# A new push to the same branch supersedes the run in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   JAX_PLATFORMS: cpu
   WARPAX_JIT_CACHE: "1"
+  UV_VERSION: "0.10.9"
 
 jobs:
-  # Full fast suite on the primary Python; cross-version compatibility is
-  # covered by the cheaper core job below (version breaks are API/typing
-  # breaks, not physics breaks).
+  # The whole suite on the primary Python. Cross-version compatibility is covered
+  # by the cheaper core job below: version breaks are API and typing breaks, not
+  # physics breaks.
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +34,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
-          version: "0.10.9"
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
@@ -42,20 +52,22 @@ jobs:
           restore-keys: |
             jax-cache-3.13-
 
-      - name: Fast test suite (parallel)
-        run: uv run pytest -m "not slow" -n auto -q --tb=short --maxfail=10
+      - name: Test suite
+        run: uv run pytest --maxfail=10
 
+      # jaxtyping and beartype annotations are only enforced when this is set, so
+      # without a run under it a wrong shape annotation ships silently.
       - name: Beartype smoke (EC modules)
         env:
           WARPAX_BEARTYPE: "1"
-        run: uv run pytest -q tests/test_classification.py tests/test_ec_verifier.py --tb=short
+        run: uv run pytest tests/test_classification.py tests/test_ec_verifier.py
 
-  # Cross-version compatibility: the critical tier only: certification
-  # engine, frame-free path, regression nets, and the
-  # benchmark sentinels. Catches import/typing/API breakage per version
-  # without re-running the whole suite three times.
+  # Cross-version compatibility: the certification engine, the frame-free path and
+  # the regression nets. Catches import and typing breakage per version without
+  # running the whole suite three times.
   core-compat:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -67,7 +79,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
-          version: "0.10.9"
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
@@ -85,9 +97,9 @@ jobs:
           restore-keys: |
             jax-cache-${{ matrix.python-version }}-
 
-      - name: Core test tier (parallel)
+      - name: Core test tier
         run: >
-          uv run pytest -m "not slow" -n auto -q --tb=short --maxfail=10
+          uv run pytest --maxfail=10
           tests/test_classification.py
           tests/test_frame_free.py
           tests/test_worst_observer_analytic.py
@@ -98,13 +110,14 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
-          version: "0.10.9"
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
@@ -121,22 +134,21 @@ jobs:
         run: uv run ruff format --check src/ tests/ scripts/ benchmarks/ examples/
 
       - name: Bash syntax check
-        run: |
-          bash -n reproduce_all.sh
+        run: bash -n reproduce_all.sh
 
       - name: Script import smoke
         run: uv run python scripts/run_analysis.py --help
 
-
   docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
-          version: "0.10.9"
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 

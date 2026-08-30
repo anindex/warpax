@@ -200,7 +200,7 @@ class TestTypeIIIClassification:
         equal, which a ``J_2(lam) (+) [lam] (+) [lam]`` satisfies. Equal
         eigenvalues are not the criterion. The Hawking-Ellis type is fixed by the
         Jordan *chain length*: Segre ``[2,1,1]`` is Type II, and Type III needs a
-        genuine ``J_3``, Segre ``[3,1]``. The classifier now discriminates them by
+        a ``J_3``, Segre ``[3,1]``. The classifier now discriminates them by
         the defect ``multiplicity - dim ker(A - lam I)``, which is 1 here and 2 for
         a ``J_3``; see ``test_type_iii_3x3_block`` for the real thing.
         """
@@ -290,7 +290,6 @@ class TestStandardSolverBitExact:
         assert jnp.array_equal(r_default.eigenvalues, r_standard.eigenvalues)
         assert jnp.array_equal(r_default.eigenvectors, r_standard.eigenvectors)
 
-    @pytest.mark.slow
     def test_warpshell_bitexact_vs_v11(self):
         """10^3 WarpShell sample: solver='standard' matches pre-fixture."""
         import pathlib
@@ -655,7 +654,7 @@ class TestScaleAwareImaginaryTolerance:
         # Build T_mixed with known real eigenvalues, then add tiny imaginary
         # perturbation via an antisymmetric off-diagonal term. The (1,2)
         # diagonal entries must be EQUAL: an antisymmetric eps on a 2x2
-        # block diag(a, a) gives a genuine complex pair a +/- i*eps,
+        # block diag(a, a) gives a true complex pair a +/- i*eps,
         # whereas on unequal entries the spectrum stays exactly real.
         T_mixed = jnp.diag(jnp.array([-1e3, 5e2, 5e2, 1e2]))
 
@@ -672,7 +671,7 @@ class TestScaleAwareImaginaryTolerance:
             f"Scale-aware tolerance should classify this as real."
         )
 
-    # Genuine Type IV on this matrix is pinned (with NaN assertions) by
+    # Type IV on this matrix is pinned (with NaN assertions) by
     # TestTypeIVClassification::test_complex_eigenvalues; Type-IV preservation
     # under the scale-aware tolerance is covered by
     # test_imag_rtol_threshold_boundary below.
@@ -680,11 +679,10 @@ class TestScaleAwareImaginaryTolerance:
     def test_imag_tolerance_is_scale_covariant(self):
         """The real-spectrum test must be invariant under T -> cT.
 
-        There used to be a second, relative tier (|Im| < 3e-3 max|Re| above a
-        1e6 scale floor) that made the verdict depend on the overall scale: the
-        same relative split read Type IV at unit scale and Type I at 1e11. It
-        fired at zero points on every published grid and could only produce
-        false Type-I labels, so it is gone and the single test is relative."""
+        A second, absolute-floored tier (|Im| < 3e-3 max|Re| above a 1e6 scale
+        floor) would make the verdict scale-dependent: the same relative split
+        would read Type IV at unit scale and Type I at 1e11, and only ever
+        produce false Type-I labels. One relative test, no tier."""
 
         def _classify(imag, scale=1.0):
             T_mixed = scale * jnp.array(
@@ -927,7 +925,7 @@ class TestTypeIIISyntheticBenchmark:
         A defective ``J_m`` block is not a continuous function of its entries: a
         perturbation ``delta`` moves the eigenvalues by ``delta^(1/m)``. Rounding
         supplies ``delta ~ eps``, so a ``J_3`` splits by ``eps^(1/3) ~ 6e-6``, and
-        generically into a *complex* triple. The spectrum genuinely comes back
+        generically into a *complex* triple. The spectrum does come back
         non-real at the 1e-6 level, so the point is reported Type IV however small
         ``tol`` is made.
 
@@ -1093,9 +1091,6 @@ class TestBobrickMartire:
         assert sfs is result.shape_function_supported
 
 
-jax.config.update("jax_enable_x64", True)
-
-
 def _g_minkowski():
     return jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
@@ -1115,8 +1110,8 @@ def test_exact_vacuum_is_tagged_vacuum():
 def test_only_exact_vacuum_is_tagged_vacuum():
     """The vacuum tag needs T == 0, not merely small.
 
-    An absolute 1e-10 on the components gated 58-72% of a real Alcubierre grid,
-    and the far tail it swallowed is genuinely Type IV: those points were
+    An absolute 1e-10 on the components excludes 58-72% of a real Alcubierre grid,
+    and the far tail it swallows is Type IV: those points were
     published as Type I with margins exactly +0.0 while the LMI resolves the
     violation six orders above its floor. A tiny perfect fluid is still Type I,
     just not vacuum."""
@@ -1131,7 +1126,7 @@ def test_only_exact_vacuum_is_tagged_vacuum():
 
 
 def test_genuine_type_i_perfect_fluid_is_not_tagged_vacuum():
-    """A perfect fluid with rho=p=1 is genuine Type-I, not vacuum."""
+    """A perfect fluid with rho=p=1 is Type-I, not vacuum."""
     T = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
     res = classify_hawking_ellis(T, _g_minkowski())
     assert float(res.he_type) == 1.0
@@ -1197,7 +1192,7 @@ def test_grid_vacuum_count_matches_n_vacuum():
 def test_nilpotent_stress_energy_is_not_mistaken_for_vacuum():
     """Negative null dust is finite, Type II, and violates every condition.
 
-    Its mixed tensor is nilpotent, so its spectrum is identically zero. Gating the
+    Its mixed tensor is nilpotent, so its spectrum is identically zero. Testing the
     near-vacuum bypass on the spectrum alone therefore labelled it vacuum and hence
     Type I, and a Type-I label routes the point away from the linear matrix
     inequality that is supposed to decide every non-Type-I point. The LMI margins

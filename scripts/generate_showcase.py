@@ -48,11 +48,11 @@ from warpax.visualization.common import (
 
 # Production settings
 PROD_FRAMES = {"rampdown": 90, "ramp": 90, "observer": 60}
-PROD_GRID = 40
+PROD_GRID = 41  # odd, so index N//2 lands exactly on z = 0
 
 # Quick settings
 QUICK_FRAMES = {"rampdown": 15, "ramp": 15, "observer": 10}
-QUICK_GRID = 20
+QUICK_GRID = 21
 
 # Resolution settings
 GIF_RES = (720, 720)  # Square for social media
@@ -162,8 +162,21 @@ def _write_png(images, directory, basename):
 # Scene renderers (matplotlib-based 2D slices)
 
 
-def _render_2d_frame(frame_data, field="energy_density", title=""):
-    """Render a single FrameData as a 2D z=0 slice using matplotlib.
+# What each swept field is, for the colourbar. Geometric units: [rho, T_ab] = 1/length^2.
+_FIELD_LABEL = {
+    "energy_density": r"$\rho_{\rm Eul} = T_{ab}n^an^b$  [1/length$^2$]",
+    "T_00_covariant": r"$T_{00}$  [1/length$^2$]",
+    "wec_margin_sweep": r"WEC margin, worst boosted observer  [1/length$^2$]",
+    "nec_margin_sweep": r"NEC margin, worst null direction  [1/length$^2$]",
+}
+
+
+def _render_2d_frame(frame_data, field="energy_density", title="", clim=None):
+    """Render one FrameData as the z = 0 slice.
+
+    ``clim`` overrides the frame's own limits. A sweep must pass one taken over
+    every frame: re-deriving it per frame renormalises each image to its own
+    extremum, and the growth the sweep exists to show disappears.
 
     Returns an RGBA numpy array.
     """
@@ -176,7 +189,8 @@ def _render_2d_frame(frame_data, field="energy_density", title=""):
 
     color_field = field if field in frame_data.scalar_fields else "energy_density"
     cmap = resolve_cmap(frame_data, color_field)
-    clim = resolve_clim(frame_data, color_field)
+    if clim is None:
+        clim = resolve_clim(frame_data, color_field)
 
     # Extract z=0 mid-slice
     arr = frame_data.scalar_fields[color_field]
@@ -199,12 +213,13 @@ def _render_2d_frame(frame_data, field="energy_density", title=""):
             float(frame_data.y.max()),
         ],
     )
-    ax.set_xlabel("x", color="white")
-    ax.set_ylabel("y", color="white")
+    ax.set_xlabel("x  [length]", color="white")
+    ax.set_ylabel("y  [length]", color="white")
     ax.tick_params(colors="white")
     if title:
         ax.set_title(title, color="white", fontsize=14, fontweight="bold")
     cbar = fig.colorbar(im, ax=ax, shrink=0.8)
+    cbar.set_label(_FIELD_LABEL.get(color_field, color_field), color="white")
     cbar.ax.yaxis.set_tick_params(color="white")
     cbar.ax.yaxis.label.set_color("white")
     for label in cbar.ax.yaxis.get_ticklabels():
@@ -219,15 +234,36 @@ def _render_2d_frame(frame_data, field="energy_density", title=""):
     return frame_img
 
 
+def _sweep_clim(frames, field):
+    """One colour limit over the whole sweep, symmetric when the field is signed.
+
+    The point of these scenes is that the field grows with the swept parameter.
+    A per-frame limit hides exactly that.
+    """
+    import numpy as np
+
+    vals = np.concatenate([np.asarray(f.scalar_fields[field]).ravel() for f in frames])
+    vals = vals[np.isfinite(vals)]
+    lo, hi = float(vals.min()), float(vals.max())
+    if hi > 0.0 and lo < 0.0:
+        m = max(abs(lo), hi)
+        return (-m, m)
+    return (lo, 0.0) if hi <= 0.0 else (0.0, hi)
+
+
 def render_scene_rampdown(grid_spec, n_frames, output_dir, formats, quick):
     """Render velocity ramp-down scene: Alcubierre v_s ramps down."""
     print(" Building frames...")
     frames = scene_velocity_rampdown(grid_spec, n_frames=n_frames)
 
+    clim = _sweep_clim(frames, "energy_density")
     images = []
-    for i, fd in enumerate(frames):
+    for fd in frames:
         img = _render_2d_frame(
-            fd, field="energy_density", title=f"Velocity Ramp-Down  v_s = {fd.v_s:.3f}"
+            fd,
+            field="energy_density",
+            title=f"Velocity Ramp-Down  v_s = {fd.v_s:.3f}",
+            clim=clim,
         )
         images.append(img)
 
@@ -246,10 +282,15 @@ def render_scene_ramp(grid_spec, n_frames, output_dir, formats, quick):
     print(" Building frames...")
     frames = scene_velocity_ramp(grid_spec, n_frames=n_frames)
 
+    field = (
+        "wec_margin_sweep" if "wec_margin_sweep" in frames[0].scalar_fields else "energy_density"
+    )
+    clim = _sweep_clim(frames, field)
     images = []
-    for i, fd in enumerate(frames):
-        field = "wec_margin_sweep" if "wec_margin_sweep" in fd.scalar_fields else "energy_density"
-        img = _render_2d_frame(fd, field=field, title=f"Velocity Ramp  v_s = {fd.v_s:.3f}")
+    for fd in frames:
+        img = _render_2d_frame(
+            fd, field=field, title=f"Velocity Ramp  v_s = {fd.v_s:.3f}", clim=clim
+        )
         images.append(img)
 
     _export_images(
@@ -267,10 +308,15 @@ def render_scene_observer(grid_spec, n_frames, output_dir, formats, quick):
     print(" Building frames...")
     frames = scene_observer_sweep(grid_spec, n_frames=n_frames)
 
+    field = (
+        "wec_margin_sweep" if "wec_margin_sweep" in frames[0].scalar_fields else "energy_density"
+    )
+    clim = _sweep_clim(frames, field)
     images = []
-    for i, fd in enumerate(frames):
-        field = "wec_margin_sweep" if "wec_margin_sweep" in fd.scalar_fields else "energy_density"
-        img = _render_2d_frame(fd, field=field, title=f"Observer Sweep  \u03b6 = {fd.t:.2f}")
+    for fd in frames:
+        img = _render_2d_frame(
+            fd, field=field, title=f"Observer Sweep  \u03b6 = {fd.t:.2f}", clim=clim
+        )
         images.append(img)
 
     _export_images(

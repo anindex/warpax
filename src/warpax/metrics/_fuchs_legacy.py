@@ -113,12 +113,8 @@ def _constant_density_shell_profiles(
         m_shell = M_total * (r_clamp**3 - R_1**3) / shell_volume_factor
         return jnp.where(r < R_1, 0.0, jnp.where(r > R_2, M_total, m_shell))
 
-    # Radial pressure via TOV (isotropic approximation)
-    # For constant density, integrated analytically (Oppenheimer-Volkoff):
-    #   P(r) = rho * [sqrt(1-2m(r)/r) - sqrt(1-2M/R_2)] /
-    #          [sqrt(1-2M/R_2) - sqrt(1-2m(r)/r)]
-    # This is a simplified form; the full paper uses numerical integration.
-    # We use a simpler approximation: quadratic falloff with P(R_2) = 0.
+    # Radial pressure: quadratic falloff with P(R_2) = 0, in place of the
+    # Oppenheimer-Volkoff constant-density integral the paper solves numerically.
     def radial_pressure(r: Float[Array, ""]) -> Float[Array, ""]:
         in_shell = (r >= R_1) & (r <= R_2)
         m_r = cumulative_mass(r)

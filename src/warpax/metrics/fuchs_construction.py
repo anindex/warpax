@@ -32,6 +32,8 @@ import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 from ..geometry.metric import ADMMetric
+from ._interp import cubic_on_grid
+from ._tov_scan import integrate_tov_inward
 
 
 def _gaussian_smooth(
@@ -167,45 +169,8 @@ def _solve_tov_inward(
     r_grid : radial grid (ascending order).
     R_1 : inner shell radius (p_r = 0 for r < R_1).
     """
-    # Reverse grid for inward integration; r_rev[0] is the outer boundary.
-    r_rev = jnp.flip(r_grid)
-    rho_rev = jnp.flip(rho_grid)
-    m_rev = jnp.flip(m_grid)
-    h = r_rev[1] - r_rev[0]  # Negative (integrating inward)
-
-    # Linearly interpolated midpoint samples (i + 1/2).
-    rho_mid = 0.5 * (rho_rev[:-1] + rho_rev[1:])
-    m_mid = 0.5 * (m_rev[:-1] + m_rev[1:])
-
-    def tov_rhs(r, p, rho, m):
-        r_safe = jnp.maximum(jnp.abs(r), 1e-30)
-        denom = r_safe * (r_safe - 2.0 * m)
-        denom_safe = jnp.where(
-            jnp.abs(denom) < 1e-30,
-            jnp.where(denom >= 0.0, 1e-30, -1e-30),
-            denom,
-        )
-        numer = -(rho + p) * (m + 4.0 * jnp.pi * r_safe**3 * p)
-        return numer / denom_safe
-
-    def scan_step(p_current, inputs):
-        r_a, rho_a, m_a, r_b, rho_b, m_b, rho_m, m_m = inputs
-        r_mid = r_a + 0.5 * h
-        k1 = tov_rhs(r_a, p_current, rho_a, m_a)
-        k2 = tov_rhs(r_mid, p_current + 0.5 * h * k1, rho_m, m_m)
-        k3 = tov_rhs(r_mid, p_current + 0.5 * h * k2, rho_m, m_m)
-        k4 = tov_rhs(r_b, p_current + h * k3, rho_b, m_b)
-        dp = (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
-        p_next = jnp.maximum(p_current + dp, 0.0)
-        return p_next, p_next
-
-    _, p_scan = jax.lax.scan(
-        scan_step,
-        jnp.float64(0.0),
-        (r_rev[:-1], rho_rev[:-1], m_rev[:-1], r_rev[1:], rho_rev[1:], m_rev[1:], rho_mid, m_mid),
-    )
-
-    p_rev = jnp.concatenate([jnp.array([0.0]), p_scan])
+    # Descending grid for inward integration; r_rev[0] is the outer boundary.
+    p_rev = integrate_tov_inward(jnp.flip(r_grid), jnp.flip(rho_grid), jnp.flip(m_grid))
     p_grid = jnp.flip(p_rev)
 
     # Zero out pressure outside the shell
@@ -442,16 +407,8 @@ class FuchsMetric(ADMMetric):
     R_b: float
     total_mass: float
 
-    def _interp(
-        self,
-        r: Float[Array, ""],
-        grid_vals: Float[Array, "N"],
-    ) -> Float[Array, ""]:
-        """Cubic interpolation on the stored grid."""
-        import interpax
-
-        r_clamped = jnp.clip(r, self._r_grid[0], self._r_grid[-1])
-        return interpax.interp1d(r_clamped, self._r_grid, grid_vals, method="cubic")
+    def _interp(self, r: Float[Array, ""], grid_vals: Float[Array, "N"]) -> Float[Array, ""]:
+        return cubic_on_grid(r, self._r_grid, grid_vals)
 
     def _potentials(self, r: Float[Array, ""]) -> tuple[Float[Array, ""], Float[Array, ""]]:
         """``(a(r), b(r))``, continued analytically as Schwarzschild outside.
@@ -579,9 +536,7 @@ def fuchs_default(
     Smoothing defaults to the published boxcar (MATLAB ``smooth()``) with
     ``sigma_rho/sigma_P ~ 1.72``, applied 4 times, matching the paper's
     iterative construction procedure. Pass ``kernel_type="gaussian"`` for the
-    spectrally cleaner variance-matched substitute; the difference between the
-    two is the kernel sensitivity reported by
-    ``scripts/fuchs_kernel_comparison.py``.
+    spectrally cleaner variance-matched substitute.
     """
     construction = build_fuchs_construction(
         R_1=R_1,

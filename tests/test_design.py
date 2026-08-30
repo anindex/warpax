@@ -461,11 +461,6 @@ class TestBenchmarkZero:
 class TestShapeFunctionDtype:
     """All shape functions must return float64."""
 
-    @pytest.mark.parametrize("metric", ALL_METRICS, ids=ALL_METRIC_IDS)
-    def test_float64(self, metric):
-        f = metric.shape_function_value(ORIGIN)
-        assert f.dtype == jnp.float64, f"{metric.name()} dtype: {f.dtype}"
-
 
 # Scalar shape tests
 

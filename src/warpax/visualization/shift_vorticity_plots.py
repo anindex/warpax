@@ -102,6 +102,6 @@ def plot_shift_vorticity(
 
     fig.tight_layout()
     if save_path is not None:
-        fig.savefig(save_path, format="pdf")
+        fig.savefig(save_path)
         plt.close(fig)
     return fig

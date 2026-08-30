@@ -37,6 +37,22 @@ def is_diverging(field: str) -> bool:
     return field in _DIVERGING_FIELDS
 
 
+# The manim backend reads ``nec_depth`` as a stop list; matplotlib needs a
+# registered colormap under the same name, or ``imshow`` raises on it. Same five
+# stops either way: bright blue at the deepest violation, near-black at zero.
+_NEC_DEPTH_STOPS = ("#CFE0FF", "#7FA0FF", "#3B4CC0", "#27306E", "#15151F")
+
+
+def _register_nec_depth() -> None:
+    """Register ``nec_depth`` with matplotlib once, on first use."""
+    import matplotlib as mpl
+    from matplotlib.colors import LinearSegmentedColormap
+
+    if "nec_depth" in mpl.colormaps:
+        return
+    mpl.colormaps.register(LinearSegmentedColormap.from_list("nec_depth", _NEC_DEPTH_STOPS))
+
+
 def resolve_cmap(frame: "FrameData", field: str) -> str:
     """Resolve the colormap name for *field* from *frame* hints.
 
@@ -59,7 +75,10 @@ def resolve_cmap(frame: "FrameData", field: str) -> str:
     """
     # Explicit hint from freeze-time
     if field in frame.colormaps:
-        return frame.colormaps[field]
+        name = frame.colormaps[field]
+        if name == "nec_depth":
+            _register_nec_depth()
+        return name
 
     # Physics-aware fallbacks
     if field in MARGIN_FIELDS or field.endswith("_margin"):

@@ -1,15 +1,9 @@
 #!/usr/bin/env python
 """Fail loudly when the manuscript prose disagrees with the generated tables.
 
-Round 2 of review shipped with the same quantity stated two different ways in a
-single sentence, and with three prose figures that appear in no table at all.
-Every one of those was a value quoted by hand next to a number the pipeline
-regenerates. This script pins the quoted copies to the generated ones.
-
-It is deliberately explicit rather than clever: each check names a table cell and
-the prose that must agree with it. A generic "find every number in the prose"
-scanner would be almost all false positives and would be switched off within a
-week. Adding a check is three lines; that is the point.
+Every number quoted by hand is pinned to the generated one it copies. Each check
+names a table cell and the prose that must agree with it; a generic "find every
+number" scanner would be almost all false positives.
 
     python scripts/check_paper_numbers.py [--paper DIR]
 
@@ -28,9 +22,8 @@ from pathlib import Path
 
 RESULTS = Path(__file__).resolve().parents[1] / "results"
 
-# Artifacts that a table in the manuscript is generated from. Listed explicitly, in
-# the same spirit as the checks below: adding one is a line, and a generic scan would
-# be mostly false positives.
+# Artifacts a manuscript table is generated from. Listed explicitly: adding one is
+# a line, and a generic scan would be mostly false positives.
 _TABLE_ARTIFACTS = (
     "velocity_sweep.json",
     "invariant_verification.json",
@@ -42,13 +35,13 @@ _TABLE_ARTIFACTS = (
     "construction_verification.json",
     "diagnostic_convergence.json",
     "curvature_convergence.json",
-    "extra_convergence.json",
+    "exoticity_anec_convergence.json",
     "rodal_sigma_resolved.json",
     "wall_restricted_analysis.json",
-    "classifier_audit.json",
+    "classifier_error_rate.json",
     "enclosures.json",
-    "type_transition_audit.json",
-    "lmi_audit.json",
+    "type_transitions.json",
+    "lmi_agreement.json",
     "interval_lmi_census.json",
     # Declared by a shipped table's provenance header, so a stale one is a stale
     # published number even though no check below reads it.
@@ -60,9 +53,8 @@ _TABLE_ARTIFACTS = (
     "clustered_convergence_alcubierre.json",
     "vorticity_type_analytic.json",
     "wall_resolution.json",
-    # Read by a check below, or generating a shipped table, but omitted here until an
-    # audit pointed out that a missing one takes its check down with it silently,
-    # which is the failure this list exists to prevent.
+    # Read by a check below, or generating a shipped table. A missing entry takes
+    # its check down with it silently, which is what this list prevents.
     "rodal_dec_diagnosis.json",
     "comparison_table.json",
     "nstarts_ablation.json",
@@ -171,12 +163,9 @@ def main() -> int:
 
     # ---- prose numbers pinned directly to the JSON artifacts -----------------
     #
-    # The checks above compare prose against generated TABLES. Round 2 shipped a
-    # second failure mode the tables cannot catch: prose quoting a number that
-    # exists in no table at all, and in several cases in no artifact either
-    # (superluminal Type-I fractions, the Rodal minimum at v_s=2.5, a severity
-    # ratio, a ray-convergence study the script never ran). These pin the
-    # survivors straight to results/*.json.
+    # The checks above compare prose against generated TABLES. Prose can also quote
+    # a number that appears in no table, and sometimes in no artifact. These pin
+    # those straight to results/*.json.
     sweep = artifact("velocity_sweep.json")
     if sweep is not None:
         rows = {(r["metric"], r["v_s"]): r for r in sweep["rows"]}
@@ -205,9 +194,8 @@ def main() -> int:
         )
         # The grid the sweep actually ran on must be the grid the captions claim.
         n_run = sweep["config"]["N"]
-        # The caption wording moved from "velocity sweep ($N=...$)" to
-        # "benchmark grid ($N=...$)" in an editorial pass, and the old pattern then
-        # matched nothing and checked nothing. Match the grid claim itself.
+        # Match the grid claim itself, not the surrounding caption wording, which
+        # an editorial pass can move out from under the pattern.
         for caption_n in re.findall(r"benchmark grid\s*\(\$N=(\d+)\$", tex):
             if int(caption_n) != n_run:
                 failures_pre.append(
@@ -216,10 +204,9 @@ def main() -> int:
                     + f"$ but velocity_sweep.json ran at N={n_run}"
                 )
 
-    # The geodesic ANEC ordering is an argument, not just a number: it reversed this
-    # round when the affine window was measured instead of assumed. Pin the ordering
-    # and the four values together, so a future window change cannot leave the prose
-    # asserting a ranking the data no longer supports.
+    # The geodesic ANEC ordering is an argument, not just a number, and it turns on
+    # the affine window. Pin the ordering and the four values together, so a window
+    # change cannot leave the prose asserting a ranking the data contradicts.
     anec = artifact("anec/retained_symplectic.json")
     if anec is not None:
         m = anec["metrics"]
@@ -238,9 +225,8 @@ def main() -> int:
         )
 
     # The coordinate-ray minima of Section 3.4 are a SECOND list, from a different
-    # artifact, and they were not pinned. Rodal's drifted from -0.0134 to -0.0136 when
-    # the quadrature was fixed, which turns -0.013 into -0.014 at the two significant
-    # figures its companions carry, and the prose kept the old digit.
+    # artifact. At the two significant figures its companions carry, Rodal's turns
+    # over between -0.0134 and -0.0136, so a quadrature change moves the digit.
     ray = artifact("anec/retained.json")
     if ray is not None:
         r = ray["metrics"]
@@ -292,8 +278,8 @@ def main() -> int:
                 f"{order[0]}, but Section 3.4 names Natário"
             )
 
-    # The Rodal single-frame miss rates are the paper's main observer-dependence
-    # number and are quoted in five places, none of them a table. Pin every one.
+    # The Rodal single-frame miss rates are quoted in five places, none of them a
+    # table. Pin every one.
     inv = artifact("invariant_verification.json")
     if inv is not None:
         rod = next(r for r in inv["rows"] if r["metric"] == "Rodal")
@@ -302,9 +288,8 @@ def main() -> int:
         vdb_wec = f"{vdb['miss_wec_pct']:.0f}"
         vdb_dec = f"{vdb['miss_dec_pct']:.0f}"
         # These patterns run against the wrapped LaTeX source, so every literal
-        # space is relaxed to \s+ below. An editorial pass reflows paragraphs, and a
-        # pattern that breaks on a moved line break reports a defect that is not one
-        # while saying nothing about the number it is supposed to pin.
+        # space is relaxed to \s+ below: a reflowed paragraph must not read as a
+        # defect.
         for desc, pattern, expected in (
             (
                 "abstract",
@@ -336,13 +321,9 @@ def main() -> int:
                 r"\$\{\\approx\}(\d+)\\%\$ WEC;",
                 (dec, wec),
             ),
-            # The Conclusion used to quote both fractions again, six lines after the
-            # Discussion does, and the Discussion quoted them a third time. Both
-            # restatements were cut in the final editorial passes, the Discussion now
-            # saying "the majority" and pointing at Section 3.1 for the values. So
-            # there is nothing left to pin in either place; the pair is still pinned
-            # at Section 1, Section 2 and the Appendix C cross-reference above, which
-            # is where the numbers are actually printed.
+            # The Discussion and Conclusion point at Section 3.1 rather than
+            # restating the fractions, so there is nothing to pin in either. The pair
+            # is pinned at Section 1, Section 2 and the Appendix C cross-reference.
         ):
             # Literal spaces match any run of whitespace, newlines included.
             pattern = re.sub(r"(?<!\\s)(?<!\\n) ", r"\\s+", pattern)
@@ -380,9 +361,8 @@ def main() -> int:
             (
                 "Table 15 caption uncapped NEC severity ratio vs exoticity_ranking.json",
                 (f"{ratio:.0f}",),
-                # The caption says "~13x" rather than "13x", because the ratio is not an
-                # integer and the caption no longer restates the two tabulated values it
-                # is formed from. Allow the tilde; the digits are still pinned.
+                # The caption says "~13x": the ratio is not an integer. Allow the tilde,
+                # the digits are still pinned.
                 r"severity is \$(?:\{\\sim\})?(\d+)\\times\$ the Alcubierre\s*\n?\s*baseline",
             )
         )
@@ -428,14 +408,14 @@ def main() -> int:
     # Appendix H quotes the type-transition audit in prose rather than only through a
     # table, and those are the numbers that carry the answer to the exhaustiveness
     # objection. Pin them to the artifact.
-    tt = artifact("type_transition_audit.json")
+    tt = artifact("type_transitions.json")
     if tt is not None:
         fam = tt["families"]["momentum_aligned"]
         t3 = tt["type_iii_chain"]
         n_iv_at_tight = sum(1 for r in t3["rows"] if r["labels"]["tol_1e-10"] == 4)
         checks.append(
             (
-                "Appendix H momentum-family sample count vs type_transition_audit.json",
+                "Appendix H momentum-family sample count vs type_transitions.json",
                 (str(fam["n"]),),
                 r"Across \$(\d+)\$ samples\s+the\s+inequality's margin is Lipschitz",
             )
@@ -463,17 +443,16 @@ def main() -> int:
 
         checks.append(
             (
-                "Appendix H Type-III tolerance sweep vs type_transition_audit.json",
+                "Appendix H Type-III tolerance sweep vs type_transitions.json",
                 tol_counts("tol_2e-06") + tol_counts("tol_5e-06"),
                 r"Type~II at \$(\d+)\$, Type~III at \$(\d+)\$ and Type~IV at \$(\d+)\$, "
                 r"and at \$5\\times10\^\{-6\}\$ it\s*\n?returns \$(\d+)\$, \$(\d+)\$ and \$(\d+)\$",
             )
         )
 
-    # tab:rodal_ablation is the last table in the manuscript whose numbers are typed
-    # into an inline tabular rather than \input from a generated file. Its values do
-    # exist in the artifact, so the only thing missing was a check; a table that is
-    # right today and unpinned is the exact shape of the defect the report caught.
+    # tab:rodal_ablation is the only manuscript table whose numbers are typed into
+    # an inline tabular rather than \input from a generated file. Its values exist
+    # in the artifact, so pin them.
     rodal_abl = artifact("rodal_dec_diagnosis.json")
     if rodal_abl is not None:
         # The sweep is stored as two parallel lists, not as a mapping keyed by N.
@@ -497,12 +476,9 @@ def main() -> int:
 
     failures: list[str] = list(failures_pre)
     for desc, expected, pattern in checks:
-        # Every literal space is relaxed to \s+ before matching. These patterns run
-        # against the wrapped LaTeX source, so an editorial pass that reflows a
-        # paragraph moves a line break into the middle of a pinned phrase and the
-        # check reports a defect that is not one, saying nothing about the number it
-        # exists to pin. The Rodal miss-rate patterns already did this locally; doing
-        # it here covers every check instead of one.
+        # Every literal space is relaxed to \s+ before matching, so a reflowed
+        # paragraph cannot move a line break into a pinned phrase and read as a
+        # defect.
         pattern = re.sub(r"(?<!\\s)(?<!\\n) ", r"\\s+", pattern)
         m = re.search(pattern, tex)
         if m is None:
@@ -519,10 +495,9 @@ def main() -> int:
             f"    {nat_exo_iv} (as a fraction) != {nat_iv_sweep}% for Natario"
         )
 
-    # The wall-cell ladder must be quoted with one range everywhere it appears, and the
-    # range has to come from the artifact rather than from three constants typed here.
-    # Pinning prose against a hard-coded triple lets a stale paper and a stale gate
-    # agree with each other while the data says something else.
+    # The wall-cell ladder is quoted with one range everywhere it appears, and the
+    # range comes from the artifact. A hard-coded triple lets a stale paper and a
+    # stale check agree with each other while the data says something else.
     diag = artifact("diagnostic_convergence.json")
     if diag is not None:
         cells = diag["wall_info"]["Alcubierre"]
@@ -540,10 +515,8 @@ def main() -> int:
                 )
 
     # The census and the branch-and-bound both bound the same infimum from above, by
-    # disjoint routes. Appendix H.2 once claimed the census endpoint had to sit at or
-    # BELOW the search's achieved upper end; it sits above it, for all four drives, and
-    # must, since a 33x129 sample cannot beat a 120,000-box search. Pin the direction
-    # that is actually true, so the sentence cannot drift back.
+    # disjoint routes. The census endpoint sits ABOVE the search's achieved upper
+    # end for all four drives, and must: a 33x129 sample cannot beat 120,000 boxes.
     cen, enc2 = artifact("interval_lmi_census.json"), artifact("enclosures.json")
     if cen is not None and enc2 is not None:
         alias = {
@@ -567,10 +540,9 @@ def main() -> int:
                     f"cannot beat the search, so re-read Appendix H.2"
                 )
 
-    # The hand-maintained macros in paper_numbers.tex are quoted numbers that no
-    # table carries, and nothing read this file at all: emit_paper_numbers.py rewrites
-    # the auto-sourced block and leaves these five alone, so they were the only figures
-    # in the submission with no check between them and the artifact they cite.
+    # The hand-maintained macros in paper_numbers.tex are quoted numbers no table
+    # carries. emit_paper_numbers.py rewrites only the auto-sourced block, so
+    # without this check nothing stands between those five and their artifacts.
     pn_path = args.paper / "paper_numbers.tex"
     wall_restricted = artifact("wall_restricted_analysis.json")
     if pn_path.exists() and wall_restricted is not None:
@@ -599,20 +571,9 @@ def main() -> int:
             f"Rodal DEC: {rodal_dec_conv} vs {rodal_dec_missed}"
         )
 
-    # Provenance, not arithmetic: no artifact feeding a table may predate the code
-    # that produced it. Three fixes landed after most tables had been generated,
-    # the near-vacuum gate (which moves Type-I *labels*), the Type-I SEC trace
-    # inequality (which moves Type-I *margins*) and the LMI noise floor, and the
-    # resulting mixture put two fits of the same law in the manuscript with
-    # different coefficients. A file mtime is a weak check, but it is the one that
-    # would have caught that.
-    #
-    # The watch was src/warpax/energy_conditions/ only, which is where the labels
-    # and margins live but not where the quadrature weights, the fits or the
-    # generators do: a proper-volume fix in src/warpax/grids/ or a polished
-    # extremum in scripts/ would have left every artifact "fresh". Watch the whole
-    # library and every generator, excluding this file so that editing the gate
-    # does not condemn the data it is checking.
+    # No artifact feeding a table may predate the code that produced it. Watch the
+    # whole library and every generator, since a quadrature weight or a polished
+    # extremum moves numbers too; exclude this file, which checks rather than makes.
     src_dir = RESULTS.parent / "src" / "warpax"
     scripts_dir = pathlib.Path(__file__).resolve().parent
     if src_dir.is_dir():
@@ -622,11 +583,9 @@ def main() -> int:
         newest_code = max((q.stat().st_mtime for q in watched), default=0.0)
         for name in sorted(_TABLE_ARTIFACTS):
             path = RESULTS / name
-            # A MISSING artifact is a failure, not a skip. Every JSON-pinned check in
-            # this file already returns early when its input is absent, so on a wiped
-            # results/ the gate reported "all checks passed" while checking almost
-            # nothing, which is how a broken pipeline survived a round of review.
-            # The gate has to be loudest exactly when there is no data.
+            # A MISSING artifact is a failure, not a skip. Every JSON-pinned check
+            # returns early when its input is absent, so without this a wiped results/
+            # passes while checking almost nothing.
             if not path.exists():
                 failures.append(
                     f"results/{name} is missing; every check that reads it was "
@@ -651,12 +610,9 @@ def main() -> int:
                 pass
 
         # The same rule for the cached grids. run_analysis.py skips any .npz that
-        # already exists, existence only, no mtime and no hash, so a re-run after a
-        # source edit rebuilds every JSON from grids computed before it, and each JSON
-        # then carries a fresh mtime and passes the loop above. The staleness was one
-        # layer below where anyone was looking. reproduce_all.sh deletes the grids
-        # unless --keep-cache is passed, so a clean full run satisfies this; a partial
-        # one no longer looks like one.
+        # already exists, on existence alone, so a re-run after a source edit rebuilds
+        # every JSON from older grids and each JSON then carries a fresh mtime.
+        # reproduce_all.sh deletes the grids unless --keep-cache is passed.
         stale_npz = sorted(q.name for q in RESULTS.glob("*.npz") if q.stat().st_mtime < newest_code)
         if stale_npz:
             failures.append(
@@ -666,15 +622,11 @@ def main() -> int:
                 f"WITHOUT --keep-cache"
             )
 
-    # Every table must say which script wrote it and which artifact it read. Nine of
-    # the twenty-seven did; the rest were indistinguishable from hand-typed values,
-    # and "the hardcoded values are entirely fabricated or disconnected from the data"
-    # is the charge a table with no provenance invites. tables/wall_resolution.tex was
-    # in fact hand-maintained, which is how it came to display a width of 0.27 and a
-    # spacing of 0.20 beside a quotient of 1.35: right from the unrounded 0.2747 and
-    # 10/49, wrong from the digits shown. It is generated now, and the generated file
-    # reproduces every previously published value.
+    # Every table must say which script wrote it and which artifact it read, and
+    # both must still exist: a header naming a renamed script reads as provenance
+    # while pointing at nothing.
     tables_dir = RESULTS.parent.parent / "warpax_arxiv" / "tables"
+    repo = RESULTS.parent
     if tables_dir.is_dir():
         for tex_path in sorted(tables_dir.glob("*.tex")):
             head = tex_path.read_text(errors="replace").lstrip().split("\n", 1)[0]
@@ -683,10 +635,13 @@ def main() -> int:
                     f"tables/{tex_path.name} has no provenance header; emit it through "
                     f"_json_io.write_table, or mark it '% Hand-written: <why>'"
                 )
+                continue
+            for ref in re.findall(r"(?:scripts|results)/[\w./-]+", head):
+                if not (repo / ref).exists():
+                    failures.append(f"tables/{tex_path.name} provenance names a missing {ref}")
 
-    # Both ANEC tables sit side by side in the paper, so they must share a window
-    # rule. Table 11's columns were generated on the superseded "double until the
-    # on-axis integral is stationary" rule long after the geodesic run abandoned it.
+    # Both ANEC tables sit side by side in the paper, so they must share one affine
+    # window rule.
     try:
         for fn in ("anec/retained.json", "anec/retained_symplectic.json"):
             note = artifact(fn)["params"]["affine_span_note"]
@@ -740,9 +695,7 @@ def main() -> int:
         for f in failures:
             print(f"  - {f}\n")
         return 1
-    # The non-`checks` gates, counted by name rather than by a constant. The previous
-    # version claimed to be computed and was a literal 6, against a comment listing ten
-    # and a body containing more than that.
+    # The non-`checks` gates, counted by name rather than by a constant.
     extra_gates = (
         "caption-N pin",
         "ANEC ordering",

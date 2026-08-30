@@ -51,7 +51,6 @@ def _violation_centroid(x_s: float) -> tuple[int, int, float, float]:
     )
 
 
-@pytest.mark.slow
 def test_violation_centroid_translates_with_the_bubble():
     sampled_0, viol_0, cx_0, cy_0 = _violation_centroid(0.0)
     sampled_1, viol_1, cx_1, cy_1 = _violation_centroid(1.0)
@@ -63,8 +62,3 @@ def test_violation_centroid_translates_with_the_bubble():
     # The centroid moves by the displacement, and by nothing else.
     assert cx_1 - cx_0 == pytest.approx(1.0, abs=1e-8)
     assert cy_1 - cy_0 == pytest.approx(0.0, abs=1e-8)
-
-
-if __name__ == "__main__":  # pragma: no cover - manual run
-    for x_s in (0.0, 1.0):
-        print(x_s, _violation_centroid(x_s))

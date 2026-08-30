@@ -166,9 +166,9 @@ def ec_feasibility_check(
 
 
 class FrameFreeFeasibility(NamedTuple):
-    """Frame-free (Hawking--Ellis) EC feasibility at a set of radial probes.
+    """Frame-free (Hawking-Ellis) EC feasibility at a set of radial probes.
 
-    feasible : True iff every probe is Hawking--Ellis Type I with non-negative
+    feasible : True iff every probe is Hawking-Ellis Type I with non-negative
         cap-free NEC/WEC/DEC slacks. A Type-IV probe (no rest frame) is
         infeasible by construction.
     worst_margin : signed severity for the heatmap. At Type-I probes it is the
@@ -192,7 +192,7 @@ def ec_feasibility_frame_free(
     *,
     conditions: tuple[str, ...] = ("nec", "wec", "dec"),
 ) -> FrameFreeFeasibility:
-    """Frame-free EC feasibility via the Hawking--Ellis certifier.
+    """Frame-free EC feasibility via the Hawking-Ellis certifier.
 
     Unlike :func:`ec_feasibility_check` (rapidity-capped BFGS optimizer), the
     verdict here is observer-independent: the algebraic Type of ``T^a_b`` plus

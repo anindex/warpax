@@ -1,8 +1,8 @@
 # Metric catalog
 
-warpax ships ten warp/shell drives -- nine under ``warpax.metrics`` (Natario,
+warpax ships ten warp/shell drives, nine under ``warpax.metrics`` (Natario,
 Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell,
-Garattini--Zatrimaylov) and Alcubierre under ``warpax.benchmarks`` -- plus the
+Garattini-Zatrimaylov) and Alcubierre under ``warpax.benchmarks``, plus the
 Minkowski and Schwarzschild reference spacetimes (also under
 ``warpax.benchmarks``).
 
@@ -36,7 +36,7 @@ useful as a stress-test of the curvature chain at large Kretschmann values.
 ### `LentzMetric`
 
 Lentz (2020) shift-only, positive-energy candidate. See the paper for
-under-resolution caveats -- the wall is thinly sampled at low grid
+under-resolution caveats, the wall is thinly sampled at low grid
 resolutions.
 
 ::: warpax.metrics.LentzMetric
@@ -63,7 +63,8 @@ Fuchs et al. (2024) constant-velocity physical warp shell
 isotropic-pressure TOV intermediate, with metric functions $a(r)$ and
 $b(r)$ recovered from Carroll Eqs. 5.143 / 5.152 on a uniform radial
 grid. Default factory ``fuchs_default()`` matches the paper parameters
-($R_1 = 10$, $R_2 = 20$, $v_s = 0.02$, $r_s = 5$).
+($R_1 = 10$, $R_2 = 20$, $R_b = 1$, $v_s = 0.02$), with the shell mass solved
+from the constraints rather than set.
 
 The pre-smoothing analytical intermediate (constant-density shell + TOV
 pressure, steps 1-2 only) is retained in ``warpax.metrics._fuchs_legacy``
@@ -93,7 +94,7 @@ source-consistency critique. Achieves $\epsilon_{\mathcal{H}} \approx 3
 
 ### `GarattiniMetric`
 
-Garattini--Zatrimaylov (2025) warp bubble on a de Sitter background. Faithful
+Garattini-Zatrimaylov (2025) warp bubble on a de Sitter background. Faithful
 closed-form `.symbolic()` that reduces exactly to Alcubierre at $H=0$, used to
 study how a cosmological background reshapes the energy-condition structure.
 
@@ -104,7 +105,7 @@ study how a cosmological background reshapes the energy-condition structure.
 ### `MinkowskiMetric`
 
 Pure Minkowski: $g_{ab}=\eta_{ab}=\mathrm{diag}(-1,1,1,1)$. The
-ground-truth sanity check -- all curvature tensors vanish.
+ground-truth sanity check, all curvature tensors vanish.
 
 ::: warpax.benchmarks.MinkowskiMetric
 

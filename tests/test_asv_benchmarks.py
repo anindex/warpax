@@ -1,8 +1,8 @@
-"""The asv harness runs, so a perf regression can actually be measured.
+"""The asv harness runs, so a perf regression can be measured.
 
-asv itself is never invoked in CI, so nothing caught the benchmark API
-drifting away from the library. This runs every ``setup`` and one ``time_*``
-method per class at import cost only.
+asv itself is not invoked in CI, so this runs every ``setup`` and one
+``time_*`` method per class, at import cost only, to catch the benchmark API
+drifting away from the library.
 """
 
 from __future__ import annotations
@@ -30,7 +30,6 @@ def test_every_benchmark_module_is_discovered():
     assert len(BENCH_MODULES) == 7, BENCH_MODULES
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize("name", BENCH_MODULES)
 def test_benchmark_class_runs(name):
     module = importlib.import_module(f"benchmarks.{name}")

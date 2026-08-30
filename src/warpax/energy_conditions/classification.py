@@ -23,7 +23,7 @@ In float64, rounding alone supplies ``delta ~ eps``, so a ``J_2`` splits by
 ``eps^(1/2) ~ 1.5e-8`` and a ``J_3`` by ``eps^(1/3) ~ 6e-6``, and the split is
 generically into a *complex* pair. No choice of ``tol`` repairs this: at
 ``tol = 1e-10`` every generic Type III is returned as Type IV, because its
-eigenvalues genuinely come back complex at the ``1e-6`` level.
+eigenvalues do come back complex at the ``1e-6`` level.
 
 Two consequences, both deliberate:
 
@@ -48,7 +48,7 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Bool, Float, Int
+from jaxtyping import Array, Bool, Float
 
 from warpax.energy_conditions.types import ClassificationResult
 
@@ -84,7 +84,7 @@ def _standard_solver_unreliable_scalar(
 
 
 def _standard_solver_unreliable_mask(
-    he_types: Int[Array, "N"],
+    he_types: Float[Array, "N"],
     eigenvalues: Float[Array, "N 4"],
     eigenvalues_imag: Float[Array, "N 4"],
     *,
@@ -102,7 +102,7 @@ def _standard_solver_unreliable_mask(
 
 
 def _is_unreliable_single(
-    he_type: Int[Array, ""],
+    he_type: Float[Array, ""],
     eigenvalues: Float[Array, "4"],
     eigenvalues_imag: Float[Array, "4"],
     *,
@@ -256,7 +256,7 @@ def classify_hawking_ellis(
     # them so the solver survives, but remember: a zeroed point used to come out
     # as a confident he_type=1 vacuum with margins exactly 0.0. Infinities count
     # as invalid too; only NaN did, so diag(inf,0,0,0) returned he_type=4.
-    has_nan = jnp.any(~jnp.isfinite(T_mixed))
+    has_nan = jnp.any(~jnp.isfinite(T_mixed)) | jnp.any(~jnp.isfinite(g_ab))
     T_safe = jnp.where(jnp.isfinite(T_mixed), T_mixed, 0.0)
 
     if solver == "standard":
@@ -278,51 +278,27 @@ def classify_hawking_ellis(
     evecs_real = eigenvectors.real
     evals_imag = eigenvalues.imag
 
-    # Scale for the relative imaginary-part and degeneracy tests. The floor was
-    # 1.0, which makes both tests ABSOLUTE for any tensor smaller than that: an
-    # exactly complex spectrum of size 9e-12 read as real, and the far tail of
-    # every drive was published as Type I with margins exactly +0.0 while the
-    # LMI resolves the violation. Scaling by the tensor itself is covariant under
-    # T -> cT and costs nothing: measured, it flips 0 of 704 wall points on all
-    # four constructions and only far-tail points outside the band. Exact vacuum
-    # takes the near_vacuum branch below, so a zero scale is never reached.
+    # Scale for the relative imaginary-part and degeneracy tests. A 1.0 floor
+    # would make both ABSOLUTE below unit norm, reading an exactly complex
+    # spectrum of size 9e-12 as real. Scaling by the tensor is covariant under
+    # T -> cT; exact vacuum takes the near_vacuum branch, so scale is never 0.
     scale = jnp.maximum(jnp.maximum(jnp.max(jnp.abs(evals_real)), jnp.max(jnp.abs(T_safe))), 1e-300)
 
-    # Real spectrum: |Im| < tol * scale.
-    #
-    # A second, relative tier (|Im| < 3e-3 * max|Re| above a 1e6 scale floor)
-    # used to be OR-ed in for split-degenerate pairs at large ||T||. It fires at
-    # zero points on every published grid (max|Re| = 0.045 on the WarpShell 50^3
-    # census), and where it does fire it is unsound: 3e-3 is five orders above
-    # any eig rounding error, so an exactly complex spectrum, a momentum flux
-    # +/- i b against a large transverse pressure, was declared real, labelled
-    # Type I, and published as NEC = +0.0 against a true null deficit of -2e4.
+    # Real spectrum: |Im| < tol * scale. A looser relative tier for
+    # split-degenerate pairs at large ||T|| would sit orders above any eig
+    # rounding error and declare an exactly complex spectrum real.
     imag_parts = jnp.abs(evals_imag)
     all_real = jnp.all(imag_parts < tol * scale)
 
-    # Near-vacuum bypass: eigenvectors are noise there, so force Type I.
-    # Gate on the modulus |lambda|, not |Re|: a pure momentum flux has
-    # eigenvalues +/- iq (genuine Type IV) and must not pass as vacuum.
-    #
-    # The spectrum alone is NOT sufficient. A nilpotent stress-energy has an
-    # identically zero spectrum while being finite and far from vacuum: negative
-    # null dust T_ab = -k_a k_b with k null is Type II, violates all four
-    # conditions with LMI margins -2, and has max|lambda| = 0. Gating on the
-    # spectrum alone labelled it vacuum and hence Type I, so it never reached the
-    # linear matrix inequality that decides non-Type-I points. Require the tensor
-    # itself to be small as well.
-    # The tensor test is EXACT, not an epsilon. An absolute 1e-10 on the
-    # components gated 58-72% of a real grid, and the far tail it swallowed is
-    # genuinely Type IV: a point with max|T| = 9.2e-12 has an LMI null deficit
-    # of -4.5e-13 against a noise floor of 1e-18, and was published as +0.0
-    # because Type-I points never reach the LMI. Every point the published grids
-    # actually gate has max|T| identically zero, so this changes no number.
+    # Near-vacuum bypass: eigenvectors are noise there, so force Type I. Test |lambda|,
+    # not |Re|, and require the tensor itself to be small, since negative null dust has
+    # an identically zero spectrum yet is Type II. That second test is EXACT: an
+    # absolute 1e-10 excludes 58-72% of a real grid, whose far tail is Type IV.
     near_vacuum = (jnp.max(jnp.abs(eigenvalues)) < tol) & (jnp.max(jnp.abs(T_safe)) == 0.0)
 
     # Causal character g_{ab} v^a v^b per eigenvector, on a relative sign
-    # threshold. Clamping the scale at 1.0 made it absolute below unit scale:
-    # at g = 1e-24 eta every quadratic reads as null and a Type-I tensor came
-    # back Type II with NaN pressures.
+    # threshold. Clamping the scale at 1.0 would make it absolute below unit
+    # scale, where every quadratic reads as null.
     causal = jnp.einsum("ab,ak,bk->k", g_ab, evecs_real, evecs_real)
     g_quad_scale = jnp.max(jnp.abs(causal))
     relative_g_quad = jnp.where(g_quad_scale > 0.0, causal / g_quad_scale, causal)
@@ -361,14 +337,11 @@ def classify_hawking_ellis(
     in_run = (idx >= run_start) & (idx < run_start + max_multiplicity)
     lam_bar = jnp.sum(jnp.where(in_run, sorted_evals, 0.0)) / max_multiplicity
 
-    # Jordan chain length, not multiplicity. Type III needs a J_3 block; a cluster
-    # of multiplicity >= 3 is necessary but nowhere near sufficient, because
-    # J_2(lam) (+) [lam] (+) [q] has the same multiplicity and is Type II. The
-    # discriminator is the defect
+    # Jordan chain length, not multiplicity: J_2(lam) (+) [lam] (+) [q] shares
+    # the multiplicity of a J_3 but is Type II. The discriminator is
     #     defect = (algebraic multiplicity) - dim ker(A - lam I),
-    # which is 1 for a single J_2 and 2 for a J_3. Two independent J_2 blocks would
-    # also give 2, but they need two negative metric directions and Lorentz index is
-    # one, so within this class defect >= 2 means a J_3.
+    # 1 for a single J_2 and 2 for a J_3. Two independent J_2 blocks also give 2
+    # but need two negative metric directions, and Lorentz index is one.
     nilpotent = T_safe - lam_bar * jnp.eye(4, dtype=evals_real.dtype)
     svals = jnp.linalg.svd(nilpotent, compute_uv=False)
     # Rank threshold sits at the defective splitting scale, not at tol: a J_m block
@@ -378,15 +351,9 @@ def classify_hawking_ellis(
     kernel_dim = jnp.sum(svals <= rank_tol)
     defect = max_multiplicity - kernel_dim
 
-    # Defective (Jordan) degeneracy: eig splits the pair by O(sqrt(eps*||T||))
-    # and returns two nearly parallel eigenvectors whose causal character is
-    # O(split) rather than 0, so a null eigenvector fails the tol
-    # test at large ||T||. Detect the collapse by eigenvector parallelism
-    # (a diagonalizable degeneracy keeps well-separated eigenvectors, so a
-    # Lambda-like T = lam*delta is untouched) and, only then, admit causal
-    # characters up to a few times the observed split as null. Gated by the
-    # multiplicity and defect tests above, so it never fires when tol resolves the
-    # split.
+    # Defective degeneracy: eig splits the pair by O(sqrt(eps*||T||)) into nearly
+    # parallel eigenvectors, so a null one fails the tol test at large ||T||. Detect
+    # the collapse by parallelism, then admit a few times the observed split as null.
     unit_evecs = evecs_real / jnp.maximum(
         jnp.linalg.norm(evecs_real, axis=0, keepdims=True), 1e-300
     )
@@ -414,15 +381,9 @@ def classify_hawking_ellis(
     # which every consumer already treats as "no verdict here" via isfinite.
     he_type = jnp.where(has_nan, jnp.nan, he_type.astype(evals_real.dtype))
 
-    # Type I extraction: ``rho = -eigenvalue(timelike)``, pressures = the
-    # spacelike eigenvalues sorted. Pick the most-timelike eigenvector by its
-    # NORMALIZED causal character ``relative_g_quad`` (in roughly [-1, 1]),
-    # with a tiny scale-free bias toward the most-negative eigenvalue to break
-    # ties when two causal characters are degenerate. The bias is normalized by
-    # ``scale`` so it stays ~1e-12 regardless of ||T||: the previous
-    # ``1e-15 * evals_real`` form grew to ~1e-4 at ||T|| ~ 1e11 (e.g. WarpShell),
-    # large enough to mis-select the timelike eigenvector on near-degenerate
-    # points and flip the sign of ``rho``.
+    # Type I extraction: ``rho = -eigenvalue(timelike)``, pressures sorted. Pick the
+    # most-timelike eigenvector by NORMALIZED causal character, with a scale-free tie
+    # break; unnormalized it reaches ~1e-4 at ||T|| ~ 1e11 and mis-selects.
     timelike_idx = jnp.argmin(relative_g_quad + 1e-12 * (evals_real / scale))
 
     indices = jnp.arange(4)

@@ -12,12 +12,9 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
-# Fork-safety for the 3D render: manim spawns ffmpeg while JAX's thread pool is
-# live, which deadlocks on fork under Python 3.14. When this module is the manim
-# render entrypoint (JAX not yet imported), enable gRPC fork handlers and drop
-# the CUDA-probe threads (the render runs JAX on CPU) before the warpax imports
-# below pull JAX in. Skipped when JAX is already loaded (imported as a library)
-# so it never mutates a live process's env. ``setdefault`` lets a caller override.
+# Fork-safety: manim spawns ffmpeg while JAX's thread pool is live, which deadlocks
+# on fork under Python 3.14. As a render entrypoint, set the gRPC fork handlers and
+# drop the CUDA probe before the imports below pull JAX in; skipped if JAX is live.
 import os as _os
 import sys as _sys
 
@@ -64,6 +61,7 @@ from warpax.visualization.manim._scene_utils import (
     compute_auto_exaggeration,
     compute_global_clim,
     format_metric_equation,
+    frame_getter,
     make_axes_for_frames,
     make_violation_indicator,
 )
@@ -82,8 +80,8 @@ class BoostRapiditySweep(ThreeDScene):
 
     - Upper: translucent wireframe embedding (Eulerian energy density rho_Eul,
       <= 0 everywhere -> one-sided blue depth scale)
-    - Lower: flat colored slab (boosted-observer energy density, one-sided
-      violation-depth ``nec_depth`` colormap)
+    - Lower: flat colored slab (boosted-observer WEC margin, which changes sign
+      across the slice -> symmetric diverging scale)
 
     Live rapidity counter, static v_s label, boost direction arrow,
     defining equation overlay, violation status indicator, dual color
@@ -101,7 +99,7 @@ class BoostRapiditySweep(ThreeDScene):
 
         grid_spec = GridSpec(
             bounds=[(-3, 3), (-3, 3), (-3, 3)],
-            shape=(30, 30, 30),
+            shape=(31, 31, 31),
         )
 
         all_frames = scene_observer_sweep(
@@ -120,20 +118,16 @@ class BoostRapiditySweep(ThreeDScene):
         # Build axes from energy_density range (static curvature reference)
         axes = make_axes_for_frames(all_frames, "energy_density")
 
-        # Global color limits (prevents flickering). The boosted-observer energy
-        # density deepens as cosh²(ζ) with rapidity, so raw min/max would
-        # compress moderate-rapidity contrast -> use the 2nd–98th percentile.
-        # rho_Eul (ζ=0) and the boosted density are both <= 0 in the violated
-        # region: one-sided depth scales (deepest -> 0).
-        ed_clim = (compute_global_clim(all_frames, "energy_density")[0], 0.0)
-        wec_clim = (
-            compute_global_clim(
-                all_frames,
-                "wec_margin_sweep",
-                percentile=2.0,
-            )[0],
-            0.0,
-        )
+        # Global color limits (prevents flickering). rho_Eul is non-positive, so a
+        # one-sided depth scale is right for it. The boosted WEC margin is NOT:
+        # over this sweep it is positive on about two thirds of the slice and
+        # reaches +1875, so pinning vmax at 0 would paint every satisfied point
+        # the colour of an exactly saturated one. It gets a symmetric scale, with
+        # the tails clipped because the margin deepens as cosh^2(zeta).
+        ed_clim = (compute_global_clim(all_frames, "energy_density", percentile=1.0)[0], 0.0)
+        wec_lo, wec_hi = compute_global_clim(all_frames, "wec_margin_sweep", percentile=2.0)
+        wec_span = max(abs(wec_lo), abs(wec_hi))
+        wec_clim = (-wec_span, wec_span)
 
         # Auto-exaggeration for embedding
         exag = compute_auto_exaggeration(all_frames, "energy_density")
@@ -156,18 +150,13 @@ class BoostRapiditySweep(ThreeDScene):
         self.add(header)
 
         frame_idx = ValueTracker(0)
+        at_frame = frame_getter(frame_idx, n_total)
 
         def _make_surface():
             """Wireframe embedding surface: always energy_density."""
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_total - 1))
-            frame = all_frames[idx].with_clim("energy_density", ed_clim)
+            frame = all_frames[at_frame()].with_clim("energy_density", ed_clim)
             return framedata_to_surface(
-                frame,
-                "energy_density",
-                axes,
-                exaggeration=exag,
-                resolution=(32, 32),
+                frame, "energy_density", axes, exaggeration=exag, resolution=(32, 32)
             )
 
         def _make_heatmap():
@@ -181,7 +170,9 @@ class BoostRapiditySweep(ThreeDScene):
                 axes,
                 z_offset=-z_extent * 0.85,
                 resolution=(48, 48),
-                colormap="nec_depth",
+                # Signed field: nec_depth is a one-sided ramp and would collapse
+                # the satisfied half onto one colour.
+                colormap="RdBu_r",
             )
 
         embedding = always_redraw(_make_surface)
@@ -299,8 +290,8 @@ class BoostRapiditySweep(ThreeDScene):
             aligned_edge=LEFT,
         )
 
-        # WEC margin legend: one-sided violation-depth ramp (matches the slab).
-        wec_colors = ["#CFE0FF", "#7FA0FF", "#3B4CC0", "#27306E", "#15151F"]
+        # WEC margin legend: diverging, matching the slab. The margin is signed.
+        wec_colors = ["#3B4CC0", "#8CA9DC", "#F2F2F2", "#E08A72", "#B40426"]
         wec_strips = VGroup(
             *[
                 Rectangle(
@@ -315,17 +306,17 @@ class BoostRapiditySweep(ThreeDScene):
             ]
         ).arrange(RIGHT, buff=0)
         wec_title = Text(
-            "Boosted-observer ρ (single +x, ζ; ≤ 0)",
+            "Boosted-observer WEC margin (single +x, ζ)",
             font_size=16,
             color=WHITE,
             weight="LIGHT",
         )
         wec_lo = MathTex(
-            r"\text{deepest}",
+            r"\text{violated}",
             font_size=14,
-            color="#7FA0FF",
+            color="#3B4CC0",
         )
-        wec_hi = MathTex(r"0", font_size=14, color=WHITE)
+        wec_hi = MathTex(r"\text{satisfied}", font_size=14, color="#B40426")
         wec_bar_row = VGroup(wec_lo, wec_strips, wec_hi).arrange(
             RIGHT,
             buff=0.06,

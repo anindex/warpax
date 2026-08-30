@@ -63,12 +63,9 @@ TAU0_GRID = np.geomspace(0.1, 40.0, 200)
 F_LOW, F_HIGH = 0.1, 0.9
 
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
-# The Ford--Roman threshold requires a smooth, resolution-stable wall energy
-# density. The Type-IV-walled Natário/VdB have no invariant energy density and
-# their steep-wall Eulerian density is oscillatory and resolution-marginal, so a
-# static-observer QI threshold is not a robust observable there; the ANEC
-# line-integral diagnostic (resolution-converged) is used for them instead. The
-# QI threshold is reported only for the smooth-wall drives.
+# The Ford--Roman threshold needs a smooth, resolution-stable wall energy density,
+# which the Type-IV-walled Natário and VdB do not have. Reported for the
+# smooth-wall drives only; the others carry the ANEC line integral instead.
 QI_METRICS = ["Alcubierre", "Rodal"]
 
 

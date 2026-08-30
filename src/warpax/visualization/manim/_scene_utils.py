@@ -60,7 +60,7 @@ def cap_recursion_for_3d_render(limit: int = 600) -> None:
     default 8 MB main-thread stack and segfault inside a numpy C call
     (``get_view_from_index``) instead of raising a catchable ``RecursionError``.
 
-    The render's genuine recursion depth is < 250, so capping at *limit* keeps a
+    The render's actual recursion depth is < 250, so capping at *limit* keeps a
     wide safety margin while ensuring the runaway path recovers before the C
     stack is exhausted. Process-global but only invoked from a render, so it
     does not perturb library callers. No-op if the limit is already lower.
@@ -440,3 +440,41 @@ def make_violation_indicator(
     group = VGroup(dot, label).arrange(RIGHT, buff=0.15)
 
     return group
+
+
+def frame_getter(frame_idx, n_frames: int):
+    """Clamped integer index from a ``ValueTracker``, for ``always_redraw``."""
+
+    def get() -> int:
+        return max(0, min(int(frame_idx.get_value()), n_frames - 1))
+
+    return get
+
+
+def make_frame_image(rgba_frames, frame_idx, n_frames: int, height: float, center):
+    """``always_redraw`` factory for the flat heatmap image of the current frame."""
+    at = frame_getter(frame_idx, n_frames)
+
+    def build() -> ImageMobject:
+        img = ImageMobject(rgba_frames[at()])
+        img.height = height
+        img.move_to(center)
+        return img
+
+    return build
+
+
+def make_velocity_row(vs_mathtex, frame_idx, n_frames: int):
+    """``always_redraw`` factory for the ``v_s = ...`` corner label."""
+    at = frame_getter(frame_idx, n_frames)
+
+    def build() -> VGroup:
+        row = VGroup(
+            MathTex(r"v_s", font_size=30, color=WHITE),
+            MathTex(r"=", font_size=30, color=WHITE),
+            vs_mathtex[at()].copy(),
+        ).arrange(RIGHT, buff=0.08)
+        row.to_corner(UL, buff=0.35)
+        return row
+
+    return build

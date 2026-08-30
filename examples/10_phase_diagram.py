@@ -1,4 +1,4 @@
-"""Example 10: EC-admissible transport over shell design space.
+"""EC-admissible transport over the shell design space.
 
 Sweeps (compactness, thickness) for T-shell and generates
 a publication-quality phase diagram and 2x2 summary figure.
@@ -76,7 +76,17 @@ def main():
             f"M={best.mass:.2f}"
         )
     else:
-        print("  No EC-admissible points found.")
+        # The negative result is the point: a source-consistent shell carries an
+        # energy-condition deficit everywhere in this design space. Report how
+        # close it gets, so the boundary cost is a number rather than a verdict.
+        closest = max(result.points, key=lambda pt: pt.worst_ec_margin)
+        print("  None admissible. Closest approach:")
+        print(
+            f"    C={closest.compactness:.3f}, "
+            f"dR/R={closest.thickness_ratio:.3f}, "
+            f"worst EC margin={closest.worst_ec_margin:+.3e}, "
+            f"|beta^x|={closest.transport:.5f}"
+        )
 
     plot_phase_diagram(
         result,

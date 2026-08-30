@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import jax
 import jax.numpy as jnp
 import pytest
 
 from warpax.adm import adm_mass, falloff_check
-
-jax.config.update("jax_enable_x64", True)
 
 
 def test_adm_mass_schwarzschild():
@@ -47,9 +44,6 @@ def test_falloff_check_schwarzschild():
     result = falloff_check(metric, r_test=200.0, expected_order=1)
     assert result["g_tt"] is True
     assert result["g_xx"] is True
-
-
-jax.config.update("jax_enable_x64", True)
 
 
 # 3+1 ADM decomposition
@@ -184,8 +178,6 @@ class TestConstraints:
         )
         assert jnp.allclose(M_i, 0.0, atol=1e-14)
 
-
-jax.config.update("jax_enable_x64", True)
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import LentzMetric, NatarioMetric, RodalMetric, VanDenBroeckMetric

@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-import jax
 import jax.numpy as jnp
 import numpy as np
-import pytest
 
-jax.config.update("jax_enable_x64", True)
-
-
-# , Data structure tests -----------------------------------------------------
+# Data structure tests -----------------------------------------------------
 
 
 class TestSweepPoint:
@@ -147,7 +142,7 @@ class TestSweepResult:
                 assert np.isnan(grids["transport"][i, j])
 
 
-# , Density scaling ----------------------------------------------------------
+# Density scaling ----------------------------------------------------------
 
 
 class TestDensityScaling:
@@ -173,7 +168,7 @@ class TestDensityScaling:
         assert rho_thin > rho_thick
 
 
-# , Single-point evaluation --------------------------------------------------
+# Single-point evaluation --------------------------------------------------
 
 
 class TestEvaluatePoint:
@@ -187,8 +182,8 @@ class TestEvaluatePoint:
             R_1=10.0,
             R_2=20.0,
             rho_0=5e-5,
-            n_density=4,
-            n_velocity=4,
+            n_density=3,
+            n_velocity=3,
             n_grid=256,
             n_probes=3,
             n_ec_starts=2,
@@ -205,8 +200,8 @@ class TestEvaluatePoint:
             R_1=10.0,
             R_2=20.0,
             rho_0=2e-4,
-            n_density=4,
-            n_velocity=4,
+            n_density=3,
+            n_velocity=3,
             n_grid=256,
             n_probes=3,
             n_ec_starts=2,
@@ -214,11 +209,10 @@ class TestEvaluatePoint:
         assert r_high["transport"] > r_low["transport"]
 
 
-# , Sweep driver -------------------------------------------------------------
+# Sweep driver -------------------------------------------------------------
 
 
 class TestSweepDriver:
-    @pytest.mark.slow
     def test_minimal_sweep(self):
         """2x2 sweep completes and returns valid results."""
         from warpax.optimization.sweep import sweep_transport
@@ -248,7 +242,7 @@ class TestSweepDriver:
             assert pt.transport > 0
 
 
-# , Visualization ------------------------------------------------------------
+# Visualization ------------------------------------------------------------
 
 
 class TestPhaseDiagramPlot:

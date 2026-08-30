@@ -135,7 +135,7 @@ def verify_shell(name, metric, *, R_1=10.0, R_2=20.0, adm_r=20.0):
         lambda: blueshift_hazard(metric, cavity, tau_max=100.0, num_points=200), reason="blueshift"
     )
 
-    # delta_tau: straddle the shell along x (matches run_delta_tau_scan.py).
+    # delta_tau: straddle the shell along x.
     emitter = jnp.array([0.0, -25.0, 0.0, 0.0], dtype=jnp.float64)
     receiver = jnp.array([0.0, 25.0, 0.0, 0.0], dtype=jnp.float64)
     dtau, d_note = _safe(

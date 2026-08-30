@@ -359,7 +359,7 @@ class TestDefaultTangentNorm:
         Measuring the projected vector instead made it null by construction,
         so any curve at all, timelike ones included, reported
         ``null_preserved=True``. An Alcubierre coordinate ray at y=0.5 is
-        genuinely off the cone and must say so.
+        clearly off the cone and must say so.
         """
         m = AlcubierreMetric(v_s=0.5)
         ray = lambda lam: jnp.array([lam, lam, 0.5, 0.0])

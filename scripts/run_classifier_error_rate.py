@@ -1,24 +1,20 @@
-"""Audit the Hawking-Ellis labels against the LMI, and measure the resolution limit.
-
-Two things are measured here, and the manuscript quotes both.
+"""Error rate of the float64 Hawking-Ellis labels, and the limit that sets it.
 
 **1. The intrinsic limit.** A defective Jordan block of size ``m`` is not a
 continuous function of the matrix entries: perturbing it by ``delta`` moves its
 eigenvalues by ``O(delta^(1/m))``. Float64 rounding supplies ``delta ~ eps``, so a
 ``J_2`` splits by ``eps^(1/2) ~ 1.5e-8`` and a ``J_3`` by ``eps^(1/3) ~ 6e-6``,
 generically into a *complex* pair. No choice of tolerance repairs this, so the
-numerical Type II / Type III labels carry an error rate that has to be measured
-rather than assumed away.
+numerical Type II / Type III labels carry an error rate that has to be measured.
 
-**2. The audit.** Hawking-Ellis Types III and IV violate *every* standard energy
+**2. The rate.** Hawking-Ellis Types III and IV violate *every* standard energy
 condition (Martin-Moruno & Visser, arXiv:1702.05915; a general Type III is
 ``zeta (l (x) m + m (x) l) + lambda g`` and ``lambda g`` contributes nothing on the
 null cone). The S-lemma LMI decides the conditions without forming an
-eigendecomposition at all, so it is independent of the classifier. Any point the
-classifier labels III or IV at which the LMI *certifies* satisfaction is therefore a
-certified classification error, and counting them measures the rate.
+eigendecomposition, so it is independent of the classifier. Any point labelled III
+or IV at which the LMI *certifies* satisfaction is a certified label error.
 
-Run:  JAX_PLATFORMS=cpu python scripts/run_classifier_audit.py
+Run:  JAX_PLATFORMS=cpu python scripts/run_classifier_error_rate.py
 """
 
 from __future__ import annotations
@@ -34,10 +30,8 @@ from warpax import certify
 from warpax.energy_conditions.classification import classify_hawking_ellis
 from warpax.metrics.warpshell import WarpShellMetric
 
-# The manuscript's WarpShell case. Bounds are recorded here because the previous
-# revision quoted a census without them, which made the number unreproducible even
-# in principle: WarpShell's shell sits at radius R_1=10 to R_2=20, so the default
-# +/-3 box used elsewhere in the pipeline contains no shell at all.
+# WarpShell's shell sits at R_1=10 to R_2=20, so the +/-3 box used elsewhere in
+# the pipeline contains no shell at all. The bounds are recorded in the output.
 V_S = 0.5
 SHAPE = (50, 50, 50)
 BOUNDS = [(-25.0, 25.0)] * 3
@@ -51,12 +45,9 @@ def jordan_split_scale():
     eta = np.diag([-1.0, 1, 1, 1])
     rng = np.random.default_rng(0)
 
-    # The claim is about CONDITIONING, so measure conditioning: perturb the tensor by
-    # a symmetric delta and watch how far the eigenvalues move. For a J_m block the
-    # response is delta^(1/m), so the fitted slope of log(displacement) against
-    # log(delta) is 1/m. Reading a single unperturbed split instead would understate
-    # it, for a block-diagonal J_2 with dyadic entries LAPACK returns the pair
-    # exactly real, which says something about that matrix, not about the method.
+    # Measure conditioning: perturb by a symmetric delta and fit the eigenvalue
+    # displacement, whose slope in log-log is 1/m for a J_m block. A single
+    # unperturbed split understates it, since LAPACK can return dyadic entries exactly.
     def exponent(builder, lam_of, m, n=48):
         """Fitted slope of log(eigenvalue displacement) against log(perturbation).
 
@@ -192,7 +183,7 @@ def main():
             f"{v['wec_violated_percent']:.1f}%"
         )
 
-    out = pathlib.Path(__file__).resolve().parents[1] / "results" / "classifier_audit.json"
+    out = pathlib.Path(__file__).resolve().parents[1] / "results" / "classifier_error_rate.json"
     out.parent.mkdir(exist_ok=True)
     payload = {
         "v_s": V_S,
@@ -200,7 +191,7 @@ def main():
         "bounds": BOUNDS[0],
         "resolution_limit": split,
         "counts": counts,
-        "lmi_audit": audit,
+        "lmi_agreement": audit,
     }
     out.write_text(json.dumps(payload, indent=2))
     print(f"\nwrote {out}")

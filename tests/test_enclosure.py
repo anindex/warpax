@@ -32,8 +32,6 @@ from warpax.metrics import RodalMetric
 from warpax.metrics.natario import NatarioMetric
 from warpax.metrics.van_den_broeck import VanDenBroeckMetric
 
-jax.config.update("jax_enable_x64", True)
-
 _PT = [0.0, 0.62, 0.81, 0.0]
 
 
@@ -105,14 +103,10 @@ def test_interval_chain_matches_jax_at_a_point(name, builder, reference):
     rho_iv, b_iv, S_iv = eulerian_fields_interval(builder(), box)
     rho_j, b_j, S_j = _jax_reference(reference())
 
-    # The property that makes the appendix's bounds mean anything is CONTAINMENT:
-    # the JAX value must lie inside the interval enclosure. The pad absorbs the
-    # rounding a degenerate box still accumulates; measured, the worst excess is
-    # 2.7e-17 (Rodal), 1.5e-16 (Alcubierre), 1.0e-15 (Natario), so 1e-12 is three
-    # orders of headroom. It used to be 1e-9, which was loose enough to hide a
-    # genuine transcription mismatch: the interval Rodal regularised the direction
-    # divisor with 1e-60 where the JAX metric uses 1e-12, so the two were
-    # different spacetimes agreeing to within the pad.
+    # CONTAINMENT is the property the bounds rest on: the JAX value must lie inside
+    # the enclosure. The pad absorbs a degenerate box's rounding, worst measured
+    # excess 1.0e-15, so 1e-12 is three orders of headroom and no looser, or it
+    # hides a transcription mismatch between the two metrics.
     def contains(c, v, pad=1e-12):
         return float(mpmath.mpf(c.a)) - pad <= v <= float(mpmath.mpf(c.b)) + pad
 
@@ -137,19 +131,6 @@ def test_rodal_momentum_vanishes():
     box = [iv.mpf([v, v]) for v in _PT]
     _, b_iv, _ = eulerian_fields_interval(rodal_metric(0.5, 1.0, 8.0), box)
     assert max(abs(float(mpmath.mpf(c.a))) for c in b_iv) < 1e-10
-
-
-@pytest.mark.slow
-def test_enclosure_brackets_are_ordered():
-    enc = certify_nec_deficit(
-        alcubierre_metric(0.5, 1.0, 8.0),
-        shape_interval(1.0, 8.0),
-        x_range=(-3.0, 3.0),
-        s_range=(0.0, 3.0),
-        tol=5e-2,
-        max_boxes=1500,
-    )
-    assert enc.lower <= enc.upper
 
 
 def test_conformal_slice_null_deficit_uses_the_physical_sphere():
@@ -178,16 +159,9 @@ def test_conformal_slice_null_deficit_uses_the_physical_sphere():
     assert n_min > 0.05, f"expected the physical deficit ~ +0.0706, got {n_min}"
 
 
-# ---------------------------------------------------------------------------
-# The centered (mean-value) bound
-#
-# ``enclosure._make_objective`` tightens its lower bound with a mean-value form
-# built from jet gradients. That form is the difference between a branch and bound
-# that closes and one that exhausts its budget, and it is also the one place where a
-# sign or index error would silently produce a bound that is tighter than the truth
-# , which would make every "certified" number in the paper wrong in the dangerous
-# direction. These tests check containment directly rather than trusting the algebra.
-# ---------------------------------------------------------------------------
+# The centered (mean-value) bound. ``enclosure._make_objective`` builds it from jet
+# gradients, and it is the one place where a sign or index error yields a bound
+# tighter than the truth, so these check containment rather than the algebra.
 
 _ENCLOSURE_METRICS = [
     ("Alcubierre", lambda: alcubierre_metric(0.5, 1.0, 8.0), (-0.003, 0.932)),
@@ -318,34 +292,33 @@ def test_jet_gradient_matches_autodiff():
     assert np.isclose(mid(rho_j.d[2]), float(gy), rtol=1e-7, atol=1e-9)
 
 
-@pytest.mark.slow
 def test_certified_lower_never_exceeds_a_brute_force_minimum():
-    """The certified bracket must contain the true minimum on the searched region.
+    """The branch and bound must return an ordered bracket below the true minimum.
 
-    A tighter bound that is not sound would be fatal, and it would not be caught by
-    any test that only checks ``lower <= upper``. This samples the objective over the
-    same region the branch and bound searches and asserts the certificate is below
-    every sampled value.
+    This drives the whole certification path, box selection, discard rules and tail
+    bound included, and asserts the returned bound against the objective sampled over
+    the same region. The tight containment check is
+    :func:`test_centered_form_encloses_every_interior_point`; what this adds is that
+    the driver assembles those bounds into a sound bracket. The box budget is what it
+    costs, roughly a quarter second per box, so it is set to catch a sign or index
+    error in the assembly rather than to reproduce a published enclosure.
     """
     import numpy as np
 
     mpmath.mp.prec = 80
-    enc = certify_nec_deficit(
-        alcubierre_metric(0.5, 1.0, 8.0),
-        shape_interval(1.0, 8.0),
-        x_range=(-3.0, 3.0),
-        s_range=(0.0, 3.0),
-        tol=5e-2,
-        max_boxes=4000,
-    )
-    rng = np.random.default_rng(7)
     metric = alcubierre_metric(0.5, 1.0, 8.0)
     shape = shape_interval(1.0, 8.0)
+    enc = certify_nec_deficit(
+        metric, shape, x_range=(-3.0, 3.0), s_range=(0.0, 3.0), tol=5e-2, max_boxes=300
+    )
+    assert enc.lower <= enc.upper
+
+    rng = np.random.default_rng(7)
     v = rng.normal(size=(4000, 3))
     v /= np.linalg.norm(v, axis=1, keepdims=True)
     mid = lambda c: 0.5 * (float(mpmath.mpf(c.a)) + float(mpmath.mpf(c.b)))
     checked = 0
-    for x, s in zip(rng.uniform(-3.0, 3.0, 1200), rng.uniform(0.0, 3.0, 1200), strict=True):
+    for x, s in zip(rng.uniform(-3.0, 3.0, 800), rng.uniform(0.0, 3.0, 800), strict=True):
         f = shape(iv.mpf([x, x]), iv.mpf([s, s]))
         if not (0.1 <= mid(f) <= 0.9):
             continue
@@ -367,16 +340,9 @@ def test_certified_lower_never_exceeds_a_brute_force_minimum():
     assert checked > 20, "the sampler found too few wall points to be a real check"
 
 
-# ---------------------------------------------------------------------------
-# Soundness regressions found by an external audit of the interval pipeline.
-#
-# Each of these three was a place where the implementation of a valid inequality
-# was not itself rigorous, so the returned "lower bound" could sit ABOVE the true
-# minimum. None was caught by the containment or brute-force tests above, because
-# those exercise the paper's four metrics at moderate coefficient scales, where the
-# outward padding happened to absorb the error. A bound that is only accidentally
-# sound is not certified, so the counterexamples are pinned here.
-# ---------------------------------------------------------------------------
+# Soundness regressions: three places where a valid inequality was implemented
+# non-rigorously, so the returned lower bound could sit ABOVE the true minimum.
+# The four paper metrics do not reach them, so the counterexamples are pinned here.
 
 
 def _set_prec(bits=60):
@@ -440,12 +406,12 @@ def test_inv4_keeps_a_derivative_through_a_zero_valued_pivot_factor():
 def test_decoupled_bound_stays_below_the_truth_under_heavy_cancellation():
     """The decoupled bound must not exceed the true deficit at any coefficient scale.
 
-    It used to be evaluated in binary64 from round-to-nearest endpoints, with
-    ``lambda_min`` read off ``numpy.linalg.eigvalsh`` of the midpoint matrix, which
-    carries no certified error bound. Every one of those errors moves the result
-    upward, and the bound is max'd against the verified LMI value, so an upward
-    error wins. At the coefficients below it returned roughly six times the true
-    deficit, above an achieved upper bound, hence not a lower bound at all.
+    Evaluating it in binary64 from round-to-nearest endpoints, with ``lambda_min``
+    from ``numpy.linalg.eigvalsh`` of the midpoint matrix, carries no certified
+    error bound. Every such error moves the result upward and the bound is max'd
+    against the verified LMI value, so an upward error wins: at the coefficients
+    below that gives roughly six times the true deficit, above an achieved upper
+    bound and hence no lower bound at all.
     """
     import numpy as np
 

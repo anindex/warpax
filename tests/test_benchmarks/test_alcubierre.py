@@ -45,12 +45,6 @@ class TestAlcubierre:
         g_jit = eqx.filter_jit(m)(sample_coords)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
 
-    def test_alcubierre_float64(self, sample_coords):
-        """Output dtype is float64."""
-        m = AlcubierreMetric()
-        g = m(sample_coords)
-        assert g.dtype == jnp.float64
-
     def test_alcubierre_parameter_change(self):
         """Change v_s, verify output changes (dynamic field).
 

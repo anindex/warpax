@@ -111,14 +111,9 @@ def evaluate_loss(
 
     r_probes = jnp.linspace(R_1, R_2, n_probes)
 
-    from ..constraints.residuals import normalized_residuals
+    from ..constraints.residuals import squared_constraint_residual
 
-    def eval_constraint(r_val):
-        coords = jnp.array([0.0, r_val, 0.0, 0.0])
-        res = normalized_residuals(metric, coords)
-        return res["epsilon_H"] ** 2 + res["epsilon_M"] ** 2
-
-    constraint_vals = jax.vmap(eval_constraint)(r_probes)
+    constraint_vals = jax.vmap(lambda r: squared_constraint_residual(metric, r))(r_probes)
     constraint_loss = jnp.mean(constraint_vals)
 
     if skip_ec:

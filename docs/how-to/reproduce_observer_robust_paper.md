@@ -56,9 +56,9 @@ curvature chain is unaffected, and the GPU timings quoted in the paper are for i
 | K13 | `run_delta_crosscheck.py` | momentum discriminant against the eigensolver |
 | K14 | `run_integrated_negative_energy.py` | slice-integrated negative energy |
 | K15 | `run_rodal_sigma_resolved.py` | wall-resolved Rodal sigma sweep |
-| K16 | `run_classifier_audit.py` | Jordan displacement limit, label check |
-| K16b | `run_type_transition_audit.py` | LMI across the Type-II locus, analytic families |
-| K16c | `run_lmi_audit.py` | type-free LMI against the type-based route, every grid point |
+| K16 | `run_classifier_error_rate.py` | Jordan displacement limit, label check |
+| K16b | `run_type_transitions.py` | LMI across the Type-II locus, analytic families |
+| K16c | `run_lmi_agreement.py` | type-free LMI against the type-based route, every grid point |
 | K16d | `run_closing_speed.py` | momentum-channel closing speed (reads K1) |
 | K16e | `run_interval_lmi_spotcheck.py` | verdicts certified from the metric, 12 points |
 | K16f | `run_interval_lmi_census.py` | 17,028 wall points, all four conditions |
@@ -93,7 +93,7 @@ gate below refuses any table that lacks one.
 | Curvature scaling | `curvature_scaling` | `run_curvature_scaling.py` |
 | Curvature convergence | `curvature_convergence` | `run_curvature_convergence.py` |
 | Per-diagnostic convergence | `diagnostic_convergence` | `run_diagnostic_convergence.py` |
-| Extra convergence | `extra_convergence` | `run_extra_convergence.py` |
+| Extra convergence | `extra_convergence` | `run_exoticity_anec_convergence.py` |
 | Clustered convergence | `clustered_convergence` | `run_clustered_convergence.py` |
 | Richardson triplet | `convergence_richardson` | `emit_diagnostic_tables.py` |
 | `N_starts` ablation | `nstarts` | `emit_diagnostic_tables.py` |
@@ -101,8 +101,8 @@ gate below refuses any table that lacks one.
 | `C1`/`C2` comparison | `c1_vs_c2` | `emit_diagnostic_tables.py` |
 | Rodal native resolution | `rodal_resolution` | `run_rodal_native_resolution.py` |
 | Rodal sigma sweep | `rodal_sigma_resolved` | `run_rodal_sigma_resolved.py` |
-| LMI label check | `lmi_typefree` | `run_lmi_audit.py` |
-| Type transition | `type_transition` | `run_type_transition_audit.py` |
+| LMI label check | `lmi_typefree` | `run_lmi_agreement.py` |
+| Type transition | `type_transition` | `run_type_transitions.py` |
 | Interval spot check | `interval_lmi_spotcheck` | `run_interval_lmi_spotcheck.py` |
 | Interval census | `interval_lmi_census` | `run_interval_lmi_census.py` |
 | Global enclosures | `enclosures` | `run_enclosures.py` (stage `enclosures`) |
@@ -120,12 +120,12 @@ All figures are produced by the `figures` stage.
 | `shift_vorticity.pdf` | `run_shift_vorticity.py` |
 | `curvature_scaling.pdf` | `run_curvature_scaling.py` |
 | `averaged_quantum.pdf` | `run_quantum_inequality.py` |
-| `velocity_convergence_merged.pdf` | `emit_diagnostic_figures.py` |
-| `alcubierre_nec_comparison.pdf`, `alcubierre_wec_comparison.pdf` | `emit_diagnostic_figures.py` |
-| `vdb_nec_comparison.pdf`, `vdb_sec_comparison.pdf` | `emit_diagnostic_figures.py` |
-| `missed_violations_vs_velocity.pdf` | `emit_diagnostic_figures.py` |
-| `fibonacci_vs_bfgs_dec.pdf` | `emit_diagnostic_figures.py` |
-| `alcubierre_tidal_forces.pdf`, `alcubierre_blueshift.pdf` | `emit_diagnostic_figures.py` |
+| `velocity_convergence_merged.pdf` | `reproduce_figures.py` |
+| `alcubierre_nec_comparison.pdf`, `alcubierre_wec_comparison.pdf` | `reproduce_figures.py` |
+| `vdb_nec_comparison.pdf`, `vdb_sec_comparison.pdf` | `reproduce_figures.py` |
+| `missed_violations_vs_velocity.pdf` | `reproduce_figures.py` |
+| `fibonacci_vs_bfgs_dec.pdf` | `reproduce_figures.py` |
+| `alcubierre_tidal_forces.pdf`, `alcubierre_blueshift.pdf` | `reproduce_figures.py` |
 | `rodal_dec_ablation.pdf` | `rodal_dec_ablation.py` |
 
 ## The two gates
@@ -145,8 +145,8 @@ mismatch. It does two things.
    it fails the gate. The check excludes itself, so editing the gate does not condemn
    the data it is checking.
 
-A missing artifact is a failure, not a skip. On a wiped `results/` an earlier version
-reported "all checks passed" while checking almost nothing.
+A missing artifact is a failure, not a skip: on a wiped `results/` a check that
+skips on absence passes while checking almost nothing.
 
 ## Reproducibility record
 
@@ -155,55 +155,3 @@ certified enclosures to the last printed digit, and regenerates 28 of the 31 shi
 tables byte for byte. The three that differ are the two averaged-condition tables,
 whose affine window and quadrature were corrected, and the convergence ladder that
 follows them.
-
-## Symbolic certificates
-
-Every algebraic statement in the paper is proved in the paper. The certificates below
-are an independent check of that algebra in SageMath, not a substitute for it: the
-manuscript neither cites nor depends on them, and a reader can verify every theorem,
-lemma and corollary from the printed text alone.
-
-They ship with the manuscript source rather than with this package, since they verify
-its algebra and never run against this code:
-
-```bash
-cd ../warpax_arxiv && bash verify/run_certs.sh   # non-zero exit on any failure
-```
-
-Each `verify/*.sage` file proves one result and exits non-zero on a failed assertion.
-Twenty-two run in the suite; `one_complex_pair`, `discriminant_sign_classifier` and
-`vorticity_rigidity` support a separate document and are excluded from both the suite
-and the submitted archive. Two more from the first revision are retired under
-`verify/retired/` with the reasons stated there.
-
-The two that carry the most weight are `slemma_certificate` and
-`lmi_rational_certificate`: the linear matrix inequality `T_ab + sigma g_ab >= 0`
-decides the null, weak, strong and dominant conditions over every observer at
-Hawking-Ellis Types I, II, III and IV alike, with no rapidity cap, no
-eigendecomposition and no classification tolerance, and each reported verdict reduces
-to exact rational arithmetic: a rational multiplier `sigma` when the condition holds,
-a rational boost `w` with `|w| <= 1` and `q(w) < 0` when it fails.
-
-The rest cover the per-observer Type-I eigenvalue criteria for all four conditions
-(the dominant bound is `rho >= |p_i|`); the momentum discriminant
-`Delta = (rho + S_par)^2 - 4|j|^2` and the closed-form null witness; the Type-II wall
-at `Delta = 0` separating the Type-I and Type-IV momentum-channel regions, so the two
-types do not exhaust it; that this locus is inert, the LMI margin being 1-Lipschitz
-in `T` and so unable to jump where the label does; the momentum-curl identity
-`8 pi |j| = (1/2)|curl(curl beta)|`; the two-term wall law
-`W = a v_s^2 - 2 d v_s`, whose linear coefficient is proportional to `|j|` and so
-vanishes exactly in the irrotational case, together with which real eigenvector is
-timelike on each sign branch of `a = rho_n + S_par`; the same law on the actual
-divergence-free but vortical Natário shift; the exactly quadratic irrotational
-deficit with `C > 0`; the curvature power laws, including the closed forms
-`[K]^(2) = -8||M||^2` and `[C^2]^(2) = -8||sym M||^2` with `M_il = d_i upsilon_l`,
-and the explicit witness showing that nonzero shift vorticity does not by itself
-force `q = 2` for `C^2`; the conformal Type-IV case, where the discriminant is
-sufficient but not necessary, with its transverse-channel criterion and an explicit
-null witness, and the converse counterexample showing `Delta < 0` does not force
-Type IV once the splitting hypothesis fails; the exact `v_s^2` scaling of the
-integrated negative energy in both the scalar and the vectorial shift; and the total
-Eulerian energy of a compact slice being non-positive,
-`int rho_n dV = -(1/16 pi) int omega_ij omega^ij dV <= 0`.
-
-See `../warpax_arxiv/verify/README.md` for the per-file summary.

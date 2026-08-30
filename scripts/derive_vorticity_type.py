@@ -10,7 +10,7 @@ vorticity* for the unit-lapse, flat-slice warp family:
      (both independent of ``c``, so the sweep scales shear and vorticity
      together and cannot by itself separate them; the exact statement that
      isolates the vorticity is Lemma jcurl, ``j = curl(beta)/2``, proved to all
-     orders in verify/momentum_curl.sage). Sweeping ``c`` shows
+     orders). Sweeping ``c`` shows
      ``max|Im lambda|`` proportional to ``omega`` (fit ``kappa``, ``R^2 ~ 1``)
      and the type flips Type I (c=0) -> Type IV (c>0).
 
