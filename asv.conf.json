@@ -5,7 +5,7 @@
     "project_url": "https://github.com/anindex/warpax",
     "repo": ".",
     "branches": ["main"],
-    "install_command": ["in-dir={env_dir} python -mpip install {build_dir}"],
+    "install_command": ["in-dir={env_dir} python -mpip install {build_dir}[solver,design]"],
     "uninstall_command": ["return-code=any python -mpip uninstall -y {project}"],
     "environment_type": "virtualenv",
     "matrix": {

@@ -115,7 +115,10 @@ jobs:
         run: uv sync --extra dev
 
       - name: Ruff check
-        run: uv run ruff check src/ tests/ scripts/
+        run: uv run ruff check src/ tests/ scripts/ benchmarks/ examples/
+
+      - name: Ruff format check
+        run: uv run ruff format --check src/ tests/ scripts/ benchmarks/ examples/
 
       - name: Bash syntax check
         run: |

@@ -2,7 +2,7 @@
 
 This top-level `benchmarks/` directory hosts the
 [airspeed velocity (`asv`)](https://asv.readthedocs.io) regression harness.
-It tracks commit-to-commit performance deltas across the 13 benchmarks
+It tracks commit-to-commit performance deltas across the 18 benchmarks
 defined below.
 
 ## Naming collision

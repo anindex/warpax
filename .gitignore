@@ -70,5 +70,5 @@ output/**
 results/**/*.npz
 results/**/*.pdf
 
-# uv lock file (deterministic deps are in requirements-lock.txt)
-uv.lock
+# TeX and renderer logs
+*.log
