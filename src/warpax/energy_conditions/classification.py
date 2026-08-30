@@ -5,12 +5,43 @@ Classifies ``T^a_b`` by its eigenvalue structure into four types:
 - **Type I:** one timelike eigenvector and three spacelike eigenvectors;
   diagonalizable with real eigenvalues ``{-rho, p1, p2, p3}``. Covers
   perfect fluids, electromagnetism, and most physically reasonable matter.
-- **Type II:** one null eigenvector (non-diagonalizable), degenerate eigenvalue.
-- **Type III:** single eigenvalue of multiplicity four with a null eigenvector.
+- **Type II:** one null eigenvector (non-diagonalizable), degenerate eigenvalue;
+  Segre ``[2,1,1]``, a ``J_2`` block.
+- **Type III:** Segre ``[3,1]``, a ``J_3`` block with a null eigenvector. The
+  repeated eigenvalue need *not* have multiplicity four: generic Type III is
+  ``J_3(lambda) (+) [p]`` with ``p != lambda``.
 - **Type IV:** complex eigenvalue pair.
 
 All control flow uses ``jnp.where`` rather than Python ``if`` on traced
 values, so the classifier is JIT- and vmap-safe.
+
+Resolution limit -- read this before trusting a Type II or Type III label
+--------------------------------------------------------------------------
+A defective Jordan block of size ``m`` is not a continuous function of the matrix
+entries: perturbing it by ``delta`` moves its eigenvalues by ``O(delta^(1/m))``.
+In float64, rounding alone supplies ``delta ~ eps``, so a ``J_2`` splits by
+``eps^(1/2) ~ 1.5e-8`` and a ``J_3`` by ``eps^(1/3) ~ 6e-6`` -- and the split is
+generically into a *complex* pair. No choice of ``tol`` repairs this: at
+``tol = 1e-10`` every generic Type III is returned as Type IV, because its
+eigenvalues genuinely come back complex at the ``1e-6`` level.
+
+Two consequences, both deliberate:
+
+1. The Type II and Type III labels from this module are **diagnostics carrying a
+   measurable error rate**, not certificates. Re-verify with
+   :mod:`.classification_mpmath`, where 50-digit arithmetic puts the same split at
+   ``1e-17`` and the structure is resolvable, and use its ``cond_V`` (Bauer-Fike)
+   output to flag points where even that is ill-conditioned.
+2. The energy conditions do **not** depend on any of it. :mod:`.slemma` decides
+   NEC/WEC/SEC/DEC by a single linear matrix inequality that never forms an
+   eigendecomposition and never consults the type, and it returns the right answer
+   at exactly the points this classifier cannot resolve. The type is reported
+   because it is physically informative, not because the certification needs it.
+
+Because Type III and Type IV violate every standard energy condition
+(Martin-Moruno & Visser 2017), the LMI also *audits* these labels: a point labelled
+III or IV whose LMI margin certifies satisfaction is a classification error, and
+counting them measures the rate rather than assuming it away.
 """
 from __future__ import annotations
 
@@ -250,7 +281,17 @@ def classify_hawking_ellis(
     # Near-vacuum bypass: eigenvectors are noise there, so force Type I.
     # Gate on the modulus |lambda|, not |Re|: a pure momentum flux has
     # eigenvalues +/- iq (genuine Type IV) and must not pass as vacuum.
-    near_vacuum = jnp.max(jnp.abs(eigenvalues)) < tol
+    #
+    # The spectrum alone is NOT sufficient. A nilpotent stress-energy has an
+    # identically zero spectrum while being finite and far from vacuum: negative
+    # null dust T_ab = -k_a k_b with k null is Type II, violates all four
+    # conditions with LMI margins -2, and has max|lambda| = 0. Gating on the
+    # spectrum alone labelled it vacuum and hence Type I, so it never reached the
+    # linear matrix inequality that decides non-Type-I points. Require the tensor
+    # itself to be small as well.
+    near_vacuum = (jnp.max(jnp.abs(eigenvalues)) < tol) & (
+        jnp.max(jnp.abs(T_safe)) < tol
+    )
 
     # Causal character g_{ab} v^a v^b per eigenvector, with a relative
     # sign threshold (floored at 1.0 to keep Minkowski behavior).
@@ -263,7 +304,44 @@ def classify_hawking_ellis(
 
     sorted_evals = jnp.sort(evals_real)
     gaps = jnp.abs(jnp.diff(sorted_evals))
-    n_unique = 1 + jnp.sum(gaps > tol * scale)
+
+    # Algebraic multiplicity of the largest eigenvalue cluster, as the longest run
+    # of consecutive small gaps, plus the index of the cluster's first member.
+    close = gaps <= tol * scale
+    longest_run = jnp.where(
+        close[0] & close[1] & close[2], 3,
+        jnp.where((close[0] & close[1]) | (close[1] & close[2]), 2,
+                  jnp.where(close[0] | close[1] | close[2], 1, 0)),
+    )
+    max_multiplicity = 1 + longest_run
+    run_start = jnp.where(
+        close[0] & close[1] & close[2], 0,
+        jnp.where(close[0] & close[1], 0,
+                  jnp.where(close[1] & close[2], 1,
+                            jnp.where(close[0], 0, jnp.where(close[1], 1, 2)))),
+    )
+    # Mean of the cluster is the stable estimate of the repeated eigenvalue: a
+    # defective block splits symmetrically about it.
+    idx = jnp.arange(4)
+    in_run = (idx >= run_start) & (idx < run_start + max_multiplicity)
+    lam_bar = jnp.sum(jnp.where(in_run, sorted_evals, 0.0)) / max_multiplicity
+
+    # Jordan chain length, not multiplicity. Type III needs a J_3 block; a cluster
+    # of multiplicity >= 3 is necessary but nowhere near sufficient, because
+    # J_2(lam) (+) [lam] (+) [q] has the same multiplicity and is Type II. The
+    # discriminator is the defect
+    #     defect = (algebraic multiplicity) - dim ker(A - lam I),
+    # which is 1 for a single J_2 and 2 for a J_3. Two independent J_2 blocks would
+    # also give 2, but they need two negative metric directions and Lorentz index is
+    # one, so within this class defect >= 2 means a J_3.
+    nilpotent = T_safe - lam_bar * jnp.eye(4, dtype=evals_real.dtype)
+    svals = jnp.linalg.svd(nilpotent, compute_uv=False)
+    # Rank threshold sits at the defective splitting scale, not at tol: a J_m block
+    # perturbed by eps has singular values down at eps^(1/m), so a tol-sized cut
+    # would count them as nonzero and report every defective block as regular.
+    rank_tol = jnp.maximum(jnp.sqrt(tol), 1e-7) * scale
+    kernel_dim = jnp.sum(svals <= rank_tol)
+    defect = max_multiplicity - kernel_dim
 
     # Defective (Jordan) degeneracy: eig splits the pair by O(sqrt(eps*||T||))
     # and returns two nearly parallel eigenvectors whose causal character is
@@ -271,8 +349,9 @@ def classify_hawking_ellis(
     # test at large ||T||. Detect the collapse by eigenvector parallelism
     # (a diagonalizable degeneracy keeps well-separated eigenvectors, so a
     # Lambda-like T = lam*delta is untouched) and, only then, admit causal
-    # characters up to a few times the observed split as null. Conditional on
-    # n_unique == 1, so it never fires when tol resolves the split.
+    # characters up to a few times the observed split as null. Gated by the
+    # multiplicity and defect tests above, so it never fires when tol resolves the
+    # split.
     unit_evecs = evecs_real / jnp.maximum(
         jnp.linalg.norm(evecs_real, axis=0, keepdims=True), 1e-300
     )
@@ -282,7 +361,7 @@ def classify_hawking_ellis(
     n_null_split = jnp.sum(jnp.abs(relative_g_quad) <= split_null_tol)
 
     is_type_iv = ~all_real & ~near_vacuum
-    is_type_iii = all_real & ~near_vacuum & (n_unique == 1) & (
+    is_type_iii = all_real & ~near_vacuum & (max_multiplicity >= 3) & (defect >= 2) & (
         (n_null >= 1) | (evecs_collapsed & (n_null_split >= 1))
     )
     is_type_i = (

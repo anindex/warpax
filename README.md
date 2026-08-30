@@ -210,11 +210,13 @@ pytest -n auto              # Parallel execution
 
 ## Symbolic certificates
 
-The analytic results behind the propositions are checked symbolically in SageMath,
-independently of the JAX code:
+The analytic results behind the paper are checked symbolically in SageMath,
+independently of the JAX code. The certificates ship with the manuscript source
+rather than with this package, since they verify its algebra and never run against
+it:
 
 ```bash
-bash verify/run_certs.sh    # runs all certificates; exits non-zero on any failure
+cd ../warpax_arxiv && bash verify/run_certs.sh   # non-zero exit on any failure
 ```
 
 Each `verify/*.sage` file proves one result: the per-observer Type-I eigenvalue
@@ -229,13 +231,13 @@ conformal Type-IV case (discriminant sufficient but not necessary), with its
 closed-form transverse-channel criterion `D(rho, Sx, Sy, |j|, m) < 0` and an
 explicit null witness `T(k,k) < 0` at such a point; the complete criterion for the
 full flat-slice tensor, Type-IV exactly when the quartic discriminant is negative
-(`Delta4 < 0`); the Type-I wall margin being quadratic up
+; the Type-I wall margin being quadratic up
 to a constant, with no term linear in `v_s`; the exactly
 quadratic irrotational deficit with `C > 0`; the exact `v_s^2` scaling of the
 integrated negative energy `E_-(v_s) = v_s^2 E_-(1)`; and the total Eulerian energy
 of a compact slice being non-positive, `int rho_n dV = -(1/16 pi) int omega_ij
-omega^ij dV <= 0` (minus the integrated shift vorticity). See `verify/README.md`
-for the per-file summary.
+omega^ij dV <= 0` (minus the integrated shift vorticity). See
+`../warpax_arxiv/verify/README.md` for the per-file summary.
 
 ## Reproducing results
 

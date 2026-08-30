@@ -99,6 +99,36 @@ def _make_point_fn(metric_fn, compute_invariants: bool) -> Callable:
 
 
 @eqx.filter_jit
+def evaluate_curvature_points(
+    metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
+    coords: Float[Array, "N 4"],
+    *,
+    batch_size: int | None = None,
+    compute_invariants: bool = True,
+) -> GridCurvatureResult | CurvatureResult:
+    """Evaluate the curvature chain on an explicit batch of 4-coordinates.
+
+    :func:`evaluate_curvature_grid` requires a Cartesian-product grid, which
+    cannot express a curvilinear sampling. An axisymmetric ``(r, mu)`` sweep,
+    for instance, needs ``x = r*mu`` and ``y = r*sqrt(1-mu^2)`` -- not a product
+    of per-axis coordinate arrays. This is the underlying primitive; the grid
+    entry point flattens onto it.
+
+    Parameters
+    ----------
+    coords : ``(N, 4)`` array of ``(t, x, y, z)`` rows.
+
+    Returns
+    -------
+    Fields of shape ``(N, ...)``.
+    """
+    point_fn = _make_point_fn(metric_fn, compute_invariants)
+    if batch_size is not None:
+        return lax.map(point_fn, coords, batch_size=batch_size)
+    return jax.vmap(point_fn)(coords)
+
+
+@eqx.filter_jit
 def evaluate_curvature_grid(
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
     grid_spec: GridSpec,

@@ -47,10 +47,14 @@ class TestFitBound:
             {"metric": "R", "v_s": 0.3, "typeI_nec_min": 0.20, "n_type_i_wall": 10},
             {"metric": "R", "v_s": 0.2, "typeI_nec_min": -0.05, "n_type_i_wall": 0},
         ]
-        vs, deficits = mod._subluminal_deficits(rows, "R")
+        vs, deficits, n_type_i = mod._subluminal_deficits(rows, "R")
         # Only the v_s=0.5 violating, resolved, subluminal point survives.
         assert list(np.round(vs, 6)) == [0.5]
         assert list(np.round(deficits, 6)) == [0.10]
+        # The Type-I node count travels with the point, because the reported
+        # deviation is meaningless without it: on a vortical wall the branch is a
+        # residual that contracts as the speed falls.
+        assert list(n_type_i) == [10]
 
     def test_cached_rodal_coefficient(self):
         import json
@@ -58,6 +62,29 @@ class TestFitBound:
         path = os.path.join(_SCRIPTS, "..", "results", "ssv_bound.json")
         if not os.path.exists(path):
             pytest.skip("results/ssv_bound.json not present")
-        fits = json.load(open(path))["fits"]
-        assert abs(fits["Rodal"]["C"] - 0.773) < 0.01
+        data = json.load(open(path))
+        fits = data["fits"]
+        # Rodal's wall is Type I in its entirety at every sampled speed, so the law
+        # is exact and the coefficient is a pure function of the grid. Rather than
+        # pin a hand-typed number that goes stale the moment the sweep is rerun --
+        # 0.773, then 0.719, then 0.768, each pinned and each superseded -- derive it
+        # from the sweep the fit actually read.
+        sweep_path = os.path.join(_SCRIPTS, "..", "results", "velocity_sweep.json")
+        if not os.path.exists(sweep_path):
+            pytest.skip("results/velocity_sweep.json not present")
+        sweep = json.load(open(sweep_path))
+        ratios = [
+            abs(r["typeI_nec_min"]) / r["v_s"] ** 2
+            for r in sweep["rows"]
+            if r["metric"] == "Rodal" and r["v_s"] < 1.0
+            and r.get("typeI_nec_min") is not None
+        ]
+        assert ratios, "no subluminal Rodal rows in the sweep"
+        # Exact law => every speed gives the same ratio, to machine precision.
+        assert max(ratios) - min(ratios) < 1e-12
+        assert abs(fits["Rodal"]["C"] - ratios[0]) < 1e-9
         assert fits["Rodal"]["r_squared_fixed"] > 0.999
+        assert fits["Rodal"]["max_rel_dev"] < 1e-9
+        # And the fit must record which sweep it read, so a stale pairing is visible
+        # in the artifact rather than only in a file mtime.
+        assert data["source"]["config"]["N"] == sweep["config"]["N"]

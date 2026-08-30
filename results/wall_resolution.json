@@ -60,21 +60,6 @@
     "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
   },
   {
-    "metric": "warpshell",
-    "shape_function": "hermite",
-    "sigma": null,
-    "wall_width": 0.06,
-    "domain": [
-      -5,
-      5
-    ],
-    "grid_n": 50,
-    "dx": 0.2041,
-    "cells_resolving_wall": 0.29,
-    "resolved": false,
-    "notes": "Hermite smoothstep transition; smooth_width = 0.12 * (R_2 - R_1) = 0.0600"
-  },
-  {
     "metric": "schwarzschild",
     "shape_function": null,
     "sigma": null,

@@ -111,8 +111,24 @@ def worst_observer_typeI(
         worst_axis = jnp.argmax(score)
         p_star = eigenvalues[worst_axis]
         margin = rho - jnp.abs(p_star)
+    elif condition == "sec":
+        # The SEC is NOT the NEC on the same axes. For Type I it is
+        #     rho + p_i >= 0 for every i   AND   rho + sum_i p_i >= 0,
+        # and the trace line can fail while every axis line holds: rho = 1,
+        # p_i = -1/2 gives min_i(rho + p_i) = +1/2 but rho + sum p_i = -1/2.
+        # Returning only the axis minimum reported that tensor as satisfying the
+        # SEC with an infinite threshold rapidity.
+        p_sum = jnp.sum(jnp.where(is_spacelike, eigenvalues, 0.0))
+        slack = jnp.where(is_spacelike, rho + eigenvalues, jnp.inf)
+        worst_axis = jnp.argmin(slack)
+        axis_margin = rho + eigenvalues[worst_axis]
+        trace_margin = rho + p_sum
+        # Report the binding one; p_star stays the axis eigenvalue because the
+        # threshold rapidity below is defined by the axis contraction.
+        p_star = eigenvalues[worst_axis]
+        margin = jnp.minimum(axis_margin, trace_margin)
     else:
-        # Worst NEC/WEC/SEC axis: most-negative (rho + p_i).
+        # Worst NEC/WEC axis: most-negative (rho + p_i).
         slack = jnp.where(is_spacelike, rho + eigenvalues, jnp.inf)
         worst_axis = jnp.argmin(slack)
         p_star = eigenvalues[worst_axis]
@@ -129,6 +145,11 @@ def worst_observer_typeI(
         jnp.arcsinh(jnp.sqrt(jnp.maximum(ratio, 0.0))),
         jnp.where(violated, 0.0, jnp.inf),  # rho<=0: already violated at rest
     )
+    # A negative SEC trace margin is a violation at rest, whatever the axis line
+    # does, so the threshold rapidity is zero rather than infinite. Without this
+    # rho = 1, p_i = -1/2 reported "SEC satisfied out to arbitrary boosts".
+    if condition == "sec":
+        zeta_th = jnp.where(margin < -atol, jnp.minimum(zeta_th, 0.0), zeta_th)
     asymptotic_sign = jnp.sign(rho_plus_p)
 
     # Normalized boost frame (no Eulerian normal): e_0 timelike, e_i* spacelike.

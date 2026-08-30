@@ -29,7 +29,7 @@ from __future__ import annotations
 import argparse
 import os
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 from _benchmark_grid import benchmark_grid, wall_cells, N_DEFAULT
 
 import jax
@@ -163,8 +163,7 @@ def write_table(rows, out_path):
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/run_invariant_verification.py", sources="results/invariant_verification.json")
     print(f"  Wrote {out_path}")
 
 

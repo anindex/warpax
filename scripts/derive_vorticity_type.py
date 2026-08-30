@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import os
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -215,8 +215,7 @@ def write_table(cross, out_path):
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/derive_vorticity_type.py", sources="results/vorticity_type_analytic.json")
     print(f"  Wrote {out_path}")
 
 

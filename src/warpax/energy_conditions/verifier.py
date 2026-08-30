@@ -37,17 +37,25 @@ def _classify_grid_batch(
     flat_T,
     *,
     solver: str,
+    tol: float = 1e-10,
 ):
-    """Classify a flattened grid with optional auto generalized fallback."""
+    """Classify a flattened grid with optional auto generalized fallback.
+
+    ``tol`` is threaded through to :func:`classify_hawking_ellis`. It used not to
+    be, so a caller asking for a looser classification tolerance silently got the
+    default and could see a point typed differently on a grid than on its own.
+    """
     if solver == "generalized":
         def _classify_gen(T_mixed_i, g_i, T_ab_i):
             return classify_hawking_ellis(
-                T_mixed_i, g_i, solver="generalized", T_ab=T_ab_i,
+                T_mixed_i, g_i, solver="generalized", T_ab=T_ab_i, tol=tol,
             )
         return jax.vmap(_classify_gen)(flat_T_mixed, flat_g, flat_T)
 
     if solver == "standard":
-        return jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
+        return jax.vmap(lambda Tm, gg: classify_hawking_ellis(Tm, gg, tol=tol))(
+            flat_T_mixed, flat_g
+        )
 
     # auto: standard everywhere, generalized pencil only on unreliable points.
     #
@@ -56,7 +64,9 @@ def _classify_grid_batch(
     # sequential pure_callback) generalized pencil on the entire grid. Instead,
     # batch the generalized solve over just the unreliable subset and scatter
     # the results back with a single vectorized ``.at[idx].set``.
-    cls_std = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
+    cls_std = jax.vmap(lambda Tm, gg: classify_hawking_ellis(Tm, gg, tol=tol))(
+        flat_T_mixed, flat_g
+    )
     unreliable = np.asarray(
         _standard_solver_unreliable_mask(
             cls_std.he_type,
@@ -72,7 +82,7 @@ def _classify_grid_batch(
 
     def _classify_gen(T_mixed_i, g_i, T_ab_i):
         return classify_hawking_ellis(
-            T_mixed_i, g_i, solver="generalized", T_ab=T_ab_i,
+            T_mixed_i, g_i, solver="generalized", T_ab=T_ab_i, tol=tol,
         )
 
     sub = jax.vmap(_classify_gen)(

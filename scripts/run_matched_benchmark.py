@@ -2,7 +2,7 @@
 
 Every *resolved* warp metric is evaluated at the
 SAME family parameters (R = 1, sigma = 8) on identical compact bounds, using the
-canonical wall-resolved graded grid (N = [80, 100, 120] -> 4.5 / 5.6 / 6.7 cells
+canonical wall-resolved graded grid (N = [80, 100, 120] -> 5.9 / 7.6 / 8.9 cells
 across the 10-90% wall, every level clearing the four-cell criterion; see
 scripts/_benchmark_grid.py), and the reported statistic
 is the volume-weighted, WALL-RESTRICTED conditional miss rate (missed violations
@@ -38,7 +38,7 @@ import os
 import time
 from types import SimpleNamespace
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -46,7 +46,7 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from _benchmark_grid import benchmark_grid, N_LADDER
+from _benchmark_grid import CLUSTER_A, benchmark_grid, N_LADDER
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.analysis.convergence import f_miss_stability
@@ -167,8 +167,7 @@ def write_summary_table(panels: dict, resolutions: list[int], out_path: str) -> 
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/run_matched_benchmark.py", sources="results/matched_benchmark.json")
     print(f"  Wrote {out_path}")
 
 
@@ -212,8 +211,7 @@ def write_convergence_table(panels: dict, resolutions: list[int], out_path: str,
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/run_matched_benchmark.py", sources="results/matched_benchmark.json")
     print(f"  Wrote {out_path}")
 
 
@@ -253,7 +251,12 @@ def main():
                 "v_s": V_S, "R": 1.0, "sigma": 8.0,
                 "bounds": [list(b) for b in BOUNDS],
                 "resolutions": resolutions, "n_starts": args.n_starts,
-                "wall_bounds": [F_LOW, F_HIGH], "grid": "wall_clustered(a=1.2)",
+                # Report the clustering strength actually used, which comes from
+                # _benchmark_grid.CLUSTER_A via benchmark_grid(). This string was
+                # hardcoded to a stale 1.2 and so claimed a second grid family
+                # that the run never used.
+                "wall_bounds": [F_LOW, F_HIGH],
+                "grid": f"wall_clustered(a={CLUSTER_A})",
                 "statistic": "volume-weighted wall-restricted conditional miss rate",
             },
             "panels": panels,

@@ -1,22 +1,20 @@
 """Wall-clustered radial grid generator.
 
-Cosh stretching: per-axis uniform parameter ``u \\in [0, 1]`` is mapped to a
-stretched coordinate by a ``sinh`` slice normalized to ``[0, 1]``,
-
-.. math::
-    x(u) \\;=\\; lo \\,+\\, (hi - lo) \\cdot
-        \\frac{\\sinh(a(u - u_{\\mathrm{wall}})) - \\sinh(-a\\,u_{\\mathrm{wall}})}
-             {\\sinh(a(1 - u_{\\mathrm{wall}})) - \\sinh(-a\\,u_{\\mathrm{wall}})},
-
-whose derivative ``\\propto \\cosh(a(u-u_{\\mathrm{wall}}))`` is *minimal* at the
-wall parameter and grows toward the tails, so the physical spacing is smallest
-(densest sampling) at the wall. ``a`` controls clustering strength (larger =
-tighter); ``u_wall \\in [0, 1]`` is the uniform-parameter location of the wall
-radius along that axis. (A prior revision used a ``tanh`` slice, whose slope is
-maximal at the wall, so it anti-clustered; ``sinh`` is the intended map.)
+Anchored two-sided ``sinh`` stretching: the per-axis uniform parameter
+``u \\in [0, 1]`` is mapped to a stretched coordinate that fixes the wall
+parameter exactly (see :func:`_cosh_stretch`), so the physical spacing is
+smallest *at the wall* and grows symmetrically toward both tails. ``a``
+controls clustering strength (larger = tighter); ``u_wall \\in [0, 1]`` is the
+uniform-parameter location of the wall radius along that axis.
 
 The returned :class:`GridSpec` carries ``coord_arrays`` + ``volume_weights``
 as hashable tuples (static eqx fields), so JIT cache keys stay stable.
+
+Scope. The map is applied to each Cartesian axis independently, so it refines
+the three coordinate *slabs* ``|x| \\approx R``, ``|y| \\approx R``,
+``|z| \\approx R`` rather than the sphere ``r = R``. Along any axis crossing
+(the wall normal that the resolution criterion measures) this is exact; for a
+genuinely spherical refinement use a radial/angular grid instead.
 """
 from __future__ import annotations
 
@@ -35,25 +33,37 @@ __all__ = ["wall_clustered"]
 def _cosh_stretch(
     u: Float[Array, "N"], u_wall: float, a: float
 ) -> Float[Array, "N"]:
-    """Map uniform ``u \\in [0, 1]`` to stretched ``[0, 1]`` clustered at ``u_wall``.
+    """Map uniform ``u \\in [0, 1]`` to stretched ``[0, 1]`` anchored at ``u_wall``.
 
-    Uses a ``sinh`` slice normalized into ``[0, 1]``: the coordinate map's
-    derivative is ``\\propto \\cosh(a(u - u_{wall}))``, which is *minimal* at
-    ``u = u_wall`` and grows away from it. Since nodes are uniform in ``u``,
-    the resulting physical spacing ``\\Delta x`` is *smallest* at the wall
-    (dense clustering) and larger in the tails (sparse). Larger ``a`` means
-    tighter clustering. Endpoints ``u=0`` and ``u=1`` map exactly to ``0`` and
-    ``1`` for any ``u_wall in (0, 1)`` and ``a > 0``.
+    Two-sided ``sinh`` map, each side normalized independently so that the wall
+    parameter is a *fixed point*:
 
-    (An earlier revision applied ``tanh`` here, whose slope is *maximal* at the
-    wall, so it anti-clustered, sampling the wall *worse* than a uniform grid and
-    getting worse as ``a`` grew. The ``sinh`` map is the intended "cosh
-    stretching": slope ``= \\cosh``, densest at the wall.)
+    .. math::
+        X(u) = \\begin{cases}
+          q - q\\,\\sinh\\!\\big(a(q-u)/q\\big)/\\sinh a, & u \\le q,\\\\
+          q + (1-q)\\,\\sinh\\!\\big(a(u-q)/(1-q)\\big)/\\sinh a, & u \\ge q,
+        \\end{cases}
+
+    with ``q = u_wall``. Then ``X(0)=0``, ``X(q)=q`` and ``X(1)=1`` exactly, and
+    ``X'`` is ``\\propto \\cosh`` of a quantity vanishing at ``u=q`` on both
+    sides, with the matching one-sided slope ``a/\\sinh a``. So the map is
+    :math:`C^1`, the physical spacing is *smallest exactly at the wall*, and the
+    two sides are refined symmetrically.
+
+    History. An early revision applied ``tanh``, whose slope is maximal at the
+    wall, so it anti-clustered. The replacement used a single ``sinh`` slice
+    ``(\\sinh(a(u-u_w)) - \\sinh(-a u_w)) / (\\sinh(a(1-u_w)) - \\sinh(-a u_w))``,
+    which clusters correctly but is *not anchored*: it does not fix ``u_wall``,
+    so the densest sampling drifts off the wall. For ``bounds=(-3,3)``,
+    ``wall_radius=1`` it landed at ``x = 1.266`` (a 27% offset) and for
+    ``(-300,300)``, ``R=100`` at ``x = 126.6``. The two-sided form above fixes
+    the wall by construction; see ``tests/test_grids_clustered.py``.
     """
-    s_u = jnp.sinh(a * (u - u_wall))
-    s_0 = jnp.sinh(a * (0.0 - u_wall))
-    s_1 = jnp.sinh(a * (1.0 - u_wall))
-    return (s_u - s_0) / (s_1 - s_0)
+    q = u_wall
+    sa = jnp.sinh(a)
+    lower = q - q * jnp.sinh(a * (q - u) / q) / sa
+    upper = q + (1.0 - q) * jnp.sinh(a * (u - q) / (1.0 - q)) / sa
+    return jnp.where(u <= q, lower, upper)
 
 
 def _infer_wall_radius(
@@ -142,11 +152,24 @@ def wall_clustered(
     coord_arrays = []
     for axis_bounds, n in zip(bounds, shape):
         lo, hi = axis_bounds
-        u_wall = (wall_radius - lo) / (hi - lo)
-        u_wall = float(jnp.clip(u_wall, 0.05, 0.95))
         u = jnp.linspace(0.0, 1.0, n)
-        stretched = _cosh_stretch(u, u_wall, a)
-        coords_jnp = lo + (hi - lo) * stretched
+        centre = 0.5 * (lo + hi)
+        half = 0.5 * (hi - lo)
+        if lo < 0.0 < hi and 0.0 < wall_radius < half:
+            # The wall is a sphere, so an axis crosses it twice, at +-R.
+            # Fold about the centre and anchor on |x| = R so BOTH crossings are
+            # refined identically; a one-sided anchor leaves the -x crossing
+            # coarse (it gave 3.27 cells against 4.45 at N=80, below the
+            # four-cell criterion the paper enforces).
+            signed = 2.0 * u - 1.0
+            v = jnp.abs(signed)
+            q = float(jnp.clip(wall_radius / half, 0.05, 0.95))
+            coords_jnp = centre + jnp.sign(signed) * half * _cosh_stretch(v, q, a)
+        else:
+            # Axis does not straddle the centre (or the wall is outside it):
+            # single-sided anchored map.
+            q = float(jnp.clip((wall_radius - lo) / (hi - lo), 0.05, 0.95))
+            coords_jnp = lo + (hi - lo) * _cosh_stretch(u, q, a)
         coord_arrays.append(tuple(float(x) for x in coords_jnp))
     coord_arrays_tuple = tuple(coord_arrays)
 

@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -36,6 +36,7 @@ import numpy as np
 
 from warpax.averaged.anec import anec_rigorous
 from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric
+from warpax.geodesics import eulerian_affine_scale
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 HERE = os.path.dirname(__file__)
@@ -76,11 +77,35 @@ def _instantiate(name: str):
     return cls(v_s=V_S, R=R_B, sigma=SIGMA, **extra)
 
 
+def _affine_scale(metric, x0) -> float:
+    """Factor pinning the free null scale to the common normalization -g(k,n)=1.
+
+    ``null_ic`` solves only ``k^0`` and passes the spatial direction through, so
+    the affine parameter of a null geodesic is left free; the ANEC line integral
+    scales linearly under ``k -> c k`` and its magnitude is therefore undefined
+    until this is fixed. We pin it against the Eulerian normal (unit timelike at
+    every warp speed) on the stated initial surface.
+
+    This is not a formality. Alcubierre, Van den Broeck and Rodal are written in
+    the lab frame (shift vanishing at infinity) and already satisfy
+    ``-g(k,n) = 1`` for a unit seed, so their reported values are unchanged. The
+    Natario shift follows Natario's own bubble-at-rest convention and tends to
+    ``-v_s x_hat`` at infinity, giving ``-g(k,n) = 1 - v_s = 2/3`` at
+    ``v_s = 1/2``; its ANEC magnitude was therefore on a different footing from
+    the others by exactly ``3/2`` and is corrected here.
+    """
+    return float(eulerian_affine_scale(metric, x0))
+
+
 def _rigorous_at(metric, b: float):
     x0 = jnp.array([0.0, X_START, b, 0.0], dtype=jnp.float64)
+    s = _affine_scale(metric, x0)
+    # Rescale the tangent AND shrink the affine window by the same factor, so the
+    # geodesic covers an identical coordinate path and only its parametrization
+    # (hence the reported magnitude) is pinned.
     return anec_rigorous(
-        metric, x0, jnp.array([1.0, 0.0, 0.0]),
-        affine_bounds=(0.0, AFFINE_SPAN),
+        metric, x0, jnp.array([s, 0.0, 0.0]),
+        affine_bounds=(0.0, AFFINE_SPAN / s),
         num_steps=NUM_STEPS, order=ORDER, null_tol=NULL_TOL,
     )
 
@@ -132,6 +157,9 @@ def main() -> None:
         worst_witness = float(np.max(witness_scan))
         frac_preserved = float(np.mean(preserved_scan))
         per_metric[name] = {
+            "affine_scale_to_unit_eulerian_frequency": _affine_scale(
+                metric, jnp.array([0.0, X_START, 0.0, 0.0], dtype=jnp.float64)
+            ),
             "on_axis": anec_scan[0],
             "min_line_integral": float(anec_arr[j]),
             "b_at_min": float(B_SCAN[j]),
@@ -185,8 +213,8 @@ def main() -> None:
     tlines += [r"  \bottomrule", r"\end{tabular}"]
     tab_path = os.path.join(TABLES_DIR, "anec_symplectic.tex")
     os.makedirs(TABLES_DIR, exist_ok=True)
-    with open(tab_path, "w") as f:
-        f.write("\n".join(tlines) + "\n")
+    write_tex_table(tab_path, tlines, script="scripts/run_anec_symplectic.py",
+                    sources="results/anec/retained_symplectic.json")
     print(f"Wrote {tab_path}")
 
 

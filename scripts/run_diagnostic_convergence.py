@@ -2,7 +2,7 @@
 
 For each matched-parameter drive (R=1, sigma=8, v_s=0.5) on the canonical
 wall-resolved graded grid (box +-3, clustering a*=2.0; see scripts/_benchmark_grid.py)
-at three resolutions N = [80, 100, 120] -> 4.5 / 5.6 / 6.7 cells across the 10-90%
+at three resolutions N = [80, 100, 120] -> 5.9 / 7.6 / 8.9 cells across the 10-90%
 wall on a radial crossing (every level clears the four-cell criterion), report a
 certificate for each wall diagnostic:
 
@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import os
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 from _benchmark_grid import benchmark_grid, wall_cells, N_LADDER, CLUSTER_A, BOX
 
 import jax
@@ -212,8 +212,7 @@ def write_table(results, wall_info, out_path):
     lines[-1] = r"  \bottomrule"
     lines.append(r"\end{tabular}")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/run_diagnostic_convergence.py", sources="results/diagnostic_convergence.json")
     print(f"  Wrote {out_path}")
 
 

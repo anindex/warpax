@@ -31,7 +31,6 @@ import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 from ..geometry.metric import ADMMetric
-from ..geometry.transitions import smoothstep
 
 
 def _gaussian_smooth(
@@ -268,25 +267,32 @@ def _fuchs_shift_transition(
     R_2: float,
     R_b: float,
 ) -> Float[Array, "..."]:
-    """Compact sigmoid S_warp(r) from Fuchs Eq. 31-32.
+    r"""Compact sigmoid ``S_warp(r)``, exactly as published (Fuchs Eqs. 31-32).
 
-    S_warp transitions from 1 inside the shell to 0 outside, with
-    buffer R_b ensuring derivatives stay interior to the bubble.
+    .. math::
+        f(r) = \Big[\exp\!\Big((R_2-R_1)\big(\tfrac{1}{r-R_2}
+                 + \tfrac{1}{r-R_1}\big)\Big) + 1\Big]^{-1},
 
-    Parameters
-    ----------
-    r : radial distance.
-    R_1 : inner shell radius.
-    R_2 : outer shell radius.
-    R_b : buffer region width.
+    with ``S_warp = 1`` for ``r < R_1 + R_b``, ``1 - f(r)`` on the shell, and
+    ``0`` for ``r > R_2 - R_b``. The poles sit at the shell radii, so ``f`` and
+    every derivative vanish there; the buffer ``R_b`` only truncates the (already
+    exponentially small) tails, and the clamp is continuous to ~1e-4 at the
+    default parameters.
+
+    A quintic ``smoothstep`` between ``R_1 + R_b`` and ``R_2 - R_b`` stood in
+    here previously. It is a different profile -- with ``R_1 = 10, R_2 = 20`` the
+    published sigmoid puts the 10-90% crossings at 12.790 and 17.210, giving a
+    wall of width 4.420 centred on 15 -- so results computed with the stand-in
+    could not be attributed to arXiv:2405.02709.
     """
-    R_inner = R_1 + R_b
-    R_outer = R_2 - R_b
-    # Floor inner radius at 10% of the shell width below R_outer so the
-    # denominator stays well-conditioned when 2*R_b approaches (R_2 - R_1).
-    R_inner = jnp.minimum(R_inner, R_outer - 0.1 * jnp.maximum(R_2 - R_1, 1e-12))
-    t = jnp.clip((r - R_inner) / jnp.maximum(R_outer - R_inner, 1e-12), 0.0, 1.0)
-    return 1.0 - smoothstep(t, order=2)
+    # Evaluate strictly inside the shell; the clamp below discards the rest, so
+    # the poles are never touched and no NaN can propagate through the gradient.
+    eps = 1e-12 * jnp.maximum(R_2 - R_1, 1.0)
+    r_in = jnp.clip(r, R_1 + eps, R_2 - eps)
+    arg = (R_2 - R_1) * (1.0 / (r_in - R_2) + 1.0 / (r_in - R_1))
+    # 1 - 1/(exp(arg)+1) = sigmoid(arg), written to avoid overflow either way.
+    S = jax.nn.sigmoid(arg)
+    return jnp.where(r <= R_1 + R_b, 1.0, jnp.where(r >= R_2 - R_b, 0.0, S))
 
 
 class FuchsConstructionResult(NamedTuple):
@@ -432,12 +438,38 @@ class FuchsMetric(ADMMetric):
         r_clamped = jnp.clip(r, self._r_grid[0], self._r_grid[-1])
         return interpax.interp1d(r_clamped, self._r_grid, grid_vals, method="cubic")
 
+    def _potentials(self, r: Float[Array, ""]) -> tuple[Float[Array, ""], Float[Array, ""]]:
+        """``(a(r), b(r))``, continued analytically as Schwarzschild outside.
+
+        The solved grid ends at ``r_pad_factor * R_2``. Clamping the
+        interpolation there froze both potentials at their boundary values, so
+        the exterior was not vacuum: the ADM surface integral then drifts
+        linearly in ``r`` instead of converging to the shell mass (the behaviour
+        pinned by ``TestSchwarzschildADMMassFuchs``). Outside the grid the field
+        equations give the exact Schwarzschild form for a static vacuum,
+
+            e^{2a} = 1 - 2M/r,      e^{2b} = (1 - 2M/r)^{-1},
+
+        which is what the construction's asymptotic flatness -- and the
+        manuscript's claim that the Fuchs shell evades the Santiago-Schuster-
+        Visser hypotheses through a Schwarzschild exterior -- actually requires.
+        """
+        r_edge = self._r_grid[-1]
+        a_in = self._interp(r, self._a_grid)
+        b_in = self._interp(r, self._b_grid)
+        # Guard the log for the (unphysical) r <= 2M case; the shells here are
+        # far from compact, so this never binds in practice.
+        comp = jnp.clip(2.0 * self.total_mass / jnp.maximum(r, 1e-30), 0.0, 1.0 - 1e-12)
+        half_log = 0.5 * jnp.log1p(-comp)
+        outside = r > r_edge
+        return jnp.where(outside, half_log, a_in), jnp.where(outside, -half_log, b_in)
+
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Lapse alpha = e^{a(r)}, smoothly interpolated from grid."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
         r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
-        a_val = self._interp(r, self._a_grid)
+        a_val, _ = self._potentials(r)
         return jnp.maximum(jnp.exp(a_val), 1e-12)
 
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
@@ -454,7 +486,7 @@ class FuchsMetric(ADMMetric):
         x_rel = x - self.v_s * t
         r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
 
-        b_val = self._interp(r, self._b_grid)
+        _, b_val = self._potentials(r)
         gamma_rr = jnp.exp(2.0 * b_val)
 
         x_vec = jnp.array([x_rel, y, z])
@@ -515,7 +547,7 @@ def fuchs_default(
     R_b: float = 1.0,
     r_s_param: float = 5.0,
     n_grid: int = 2048,
-    kernel_type: str = "gaussian",
+    kernel_type: str = "moving_average",
 ) -> FuchsMetric:
     """Factory for the Fuchs metric with paper-matched parameters.
 
@@ -525,8 +557,12 @@ def fuchs_default(
         R_2 = 20 (outer shell radius)
         r_s_param = 5.0 (Schwarzschild radius parameter)
 
-    Uses Gaussian-kernel smoothing (Section 3) with sigma_rho/sigma_P ~ 1.72,
-    applied 4 times, matching the paper's iterative construction procedure.
+    Smoothing defaults to the published boxcar (MATLAB ``smooth()``) with
+    ``sigma_rho/sigma_P ~ 1.72``, applied 4 times, matching the paper's
+    iterative construction procedure. Pass ``kernel_type="gaussian"`` for the
+    spectrally cleaner variance-matched substitute; the difference between the
+    two is the kernel sensitivity reported by
+    ``scripts/fuchs_kernel_comparison.py``.
     """
     construction = build_fuchs_construction(
         R_1=R_1, R_2=R_2, r_s_param=r_s_param, n_grid=n_grid,

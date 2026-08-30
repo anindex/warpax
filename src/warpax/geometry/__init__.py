@@ -22,6 +22,7 @@ from .grid import (
     GridCurvatureResult,
     build_coord_batch,
     evaluate_curvature_grid,
+    evaluate_curvature_points,
 )
 from .invariants import (
     chern_pontryagin,
@@ -60,6 +61,7 @@ __all__ = [
     "compute_invariants",
     "einstein_tensor",
     "evaluate_curvature_grid",
+    "evaluate_curvature_points",
     "kretschmann_scalar",
     "metric_c2_diagnostic",
     "regularity_report",

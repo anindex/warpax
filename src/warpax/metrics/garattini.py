@@ -6,15 +6,36 @@ energy density can be non-negative and which satisfies *averaged* energy
 conditions (ANEC/AWEC) when the bubble speed matches the de Sitter expansion
 rate, even though the pointwise NEC/WEC are violated at the wall.
 
-ADM form (flat de Sitter slicing):
+ADM form, exactly as published (their Sec. 2; shift-only class):
 
-    alpha   = 1                       (unit lapse)
-    beta^x  = -v_s * f(r_s)           (Alcubierre-type x-shift, irrotational)
-    gamma_ij = e^{2 H t} delta_ij     (isotropic de Sitter expansion)
+    alpha    = 1                                  (unit lapse)
+    gamma_ij = delta_ij                           (spatial slices are FLAT)
+    N^i      = -(1 - f(r_s)) x^i / L  -  f(r_s) v^i,      L = 1/H
 
-The de Sitter slicing adds isotropic spatial expansion (nonzero ``theta``) on
-top of the Alcubierre-type bubble wall (which carries the usual Alcubierre wall
-shear and vorticity). At ``H = 0`` the metric reduces exactly to Alcubierre.
+The de Sitter expansion is carried by the BACKGROUND SHIFT -x^i/L, not by a
+scale factor: this is de Sitter in Painleve-Gullstrand (flat-slicing) form. The
+bubble switches that background flow off inside the wall and replaces it with
+-v^i, which is what the interpolation by f does.
+
+An earlier implementation here used ``gamma_ij = e^{2Ht} delta_ij`` with an
+Alcubierre shift ``beta^x = -v_s f``. That is a different spacetime: it keeps the
+Hubble flow everywhere instead of switching it off inside the bubble, its slices
+are not flat, and its shift is NOT irrotational -- so it reported wall vorticity
+and Type-IV structure that the published construction does not have.
+
+Irrotationality is the point of the paper, and it holds only under the matching
+condition ``v = r_0 / L`` (the bubble moves with the Hubble flow at its own
+position). Then
+
+    N = -x/L + f (x - x_s)/L,
+
+a sum of two radial gradients -- about the origin and about the bubble centre --
+hence curl N = 0 identically. By the momentum constraint the Eulerian momentum
+density then vanishes and the stress-energy is Hawking-Ellis Type I everywhere.
+Away from matching the residual ``f (x_s/L - v)`` is a constant vector times a
+radial profile, whose curl is nonzero.
+
+At ``H = 0`` with the matching relaxed this reduces to Alcubierre.
 
 Unlike the irrotational Rodal angular profile, the shift and spatial factor here
 are elementary, so :meth:`symbolic` is a *faithful* closed form (usable for
@@ -69,9 +90,16 @@ class GarattiniMetric(ADMMetric):
     t0: float = 0.0
 
     @classmethod
-    def matched(cls, R: float = 1.0, sigma: float = 8.0, H: float = 0.1) -> "GarattiniMetric":
-        """Speed-matched construction ``v_s = H * R`` (averaged-condition regime)."""
-        return cls(v_s=H * R, R=R, sigma=sigma, H=H, t0=0.0)
+    def matched(cls, R: float = 1.0, sigma: float = 8.0, H: float = 0.1,
+                r0: float | None = None) -> "GarattiniMetric":
+        """The paper's matching condition ``v = r_0 / L = H r_0``.
+
+        ``r_0`` is the bubble's position at ``t = 0``; the shift is irrotational
+        only on the slice where the bubble sits at ``r_0 = v_s / H``. Defaulting
+        ``r_0 = R`` reproduces the previous ``v_s = H R`` convention.
+        """
+        r0 = R if r0 is None else r0
+        return cls(v_s=H * r0, R=R, sigma=sigma, H=H, t0=0.0)
 
     @jaxtyped(typechecker=beartype)
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
@@ -80,52 +108,70 @@ class GarattiniMetric(ADMMetric):
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         t, x, y, z = coords
-        dx = x - self.v_s * t
+        # The bubble co-moves with the Hubble flow: r(t) = r_0 e^{Ht}, so its
+        # velocity is v(t) = H r(t). A constant-velocity centre x_s = v_s t
+        # breaks the matching at every t != 0 and the shift is then NOT
+        # irrotational -- measured |curl beta| ~ 0.29 at a generic wall point.
+        H = jnp.asarray(self.H)
+        big = jnp.abs(H) > 1e-30
+        H_safe = jnp.where(big, H, 1.0)
+        # Matched bubble: r(t) = r_0 e^{Ht} with r_0 = v_s / H and v = H r(t).
+        # At H = 0 the de Sitter flow is absent and the construction degenerates
+        # to a constant-velocity Alcubierre bubble, which is the limit the tests
+        # pin; branch rather than divide by H.
+        x_s = jnp.where(big, (self.v_s / H_safe) * jnp.exp(H * t), self.v_s * t)
+        v_x = jnp.where(big, H * x_s, self.v_s)
+        dx = x - x_s
         r_safe = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-60)
         f_val = alcubierre_shape(r_safe, self.R, self.sigma)
-        beta_x = -self.v_s * f_val
-        return jnp.array([beta_x, 0.0, 0.0])
+        pos = jnp.array([x, y, z])
+        vel = jnp.array([v_x, 0.0, 0.0])
+        return -(1.0 - f_val) * pos * H - f_val * vel
 
     @jaxtyped(typechecker=beartype)
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
-        t = coords[0]
-        scale = jnp.exp(2.0 * self.H * t)
-        return scale * jnp.eye(3)
+        return jnp.eye(3)
 
     @jaxtyped(typechecker=beartype)
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         t, x, y, z = coords
-        dx = x - self.v_s * t
+        H = jnp.asarray(self.H)
+        big = jnp.abs(H) > 1e-30
+        H_safe = jnp.where(big, H, 1.0)
+        x_s = jnp.where(big, (self.v_s / H_safe) * jnp.exp(H * t), self.v_s * t)
+        dx = x - x_s
         r_safe = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-60)
         return alcubierre_shape(r_safe, self.R, self.sigma)
 
     # __call__ inherited from ADMMetric (adm_to_full_metric).
 
     def symbolic(self) -> SymbolicMetric:
-        """Faithful SymPy form (elementary shift + exponential spatial factor)."""
+        """Faithful SymPy form: flat slices, interpolated Hubble/bubble shift."""
         t, x, y, z = sp.symbols("t x y z")
         v_s = sp.Symbol("v_s", positive=True)
         R_val = sp.Symbol("R", positive=True)
         sigma_val = sp.Symbol("sigma", positive=True)
         H = sp.Symbol("H", positive=True)
 
-        dx = x - v_s * t
+        x_s = (v_s / H) * sp.exp(H * t)
+        dx = x - x_s
         r_s = sp.sqrt(dx**2 + y**2 + z**2)
         f_alc = (
             sp.tanh(sigma_val * (r_s + R_val))
             - sp.tanh(sigma_val * (r_s - R_val))
         ) / (2 * sp.tanh(sigma_val * R_val))
 
-        beta_up_x = -v_s * f_alc          # beta^x
-        scale = sp.exp(2 * H * t)         # gamma_ij = scale * delta_ij
-        beta_low_x = scale * beta_up_x    # beta_x = gamma_xx beta^x
-        beta_sq = beta_low_x * beta_up_x  # beta_i beta^i
+        # N^i = -(1 - f) H x^i - f v^i with v = H x_s; gamma = delta so
+        # beta_i = beta^i.
+        b = [-(1 - f_alc) * H * c - f_alc * (H * x_s if c is x else 0)
+             for c in (x, y, z)]
+        beta_sq = sum(c * c for c in b)
 
         g = sp.Matrix([
-            [-(1 - beta_sq), beta_low_x, 0, 0],
-            [beta_low_x, scale, 0, 0],
-            [0, 0, scale, 0],
-            [0, 0, 0, scale],
+            [-(1 - beta_sq), b[0], b[1], b[2]],
+            [b[0], 1, 0, 0],
+            [b[1], 0, 1, 0],
+            [b[2], 0, 0, 1],
         ])
         return SymbolicMetric([t, x, y, z], g)
 
@@ -144,10 +190,9 @@ GROUND_TRUTH = {
     # Garattini-Zatrimaylov claim is about AVERAGED conditions at v_s = H*R.
     "energy_conditions": {"WEC": False, "NEC": False, "DEC": False, "SEC": False},
     "averaged": {"ANEC_satisfied_at_matched_speed": True},
-    # Alcubierre-type wall -> mixed Type I / Type IV (like Alcubierre), with
-    # added de Sitter expansion; the distinguishing claim is the AVERAGED
-    # condition at v_s = H*R, not a pointwise type.
-    "hawking_ellis_type": None,
+    # Under the paper's matching condition the shift is irrotational, so the
+    # Eulerian momentum density vanishes and the wall is Hawking-Ellis Type I.
+    "hawking_ellis_type": 1,
     "note": (
         "de Sitter background; averaged conditions satisfied when v_s = H*R "
         "(Garattini-Zatrimaylov 2025). Not asymptotically flat; certify on the "

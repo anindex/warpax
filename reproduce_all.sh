@@ -11,7 +11,8 @@
 #
 # Stages: core (analysis, convergence, scalars, geodesics),
 #         ablation (ablation + supplementary studies),
-#         figures (figure generation).
+#         figures (figure generation),
+#         enclosures (certified interval branch-and-bound; hours, opt-in only).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,16 +37,18 @@ while [ $# -gt 0 ]; do
         --stage)
             shift
             if [ $# -eq 0 ]; then
-                echo "Error: --stage requires an argument (core, ablation, figures)" >&2
+                echo "Error: --stage requires an argument (core, ablation, figures, enclosures)" >&2
                 exit 1
             fi
             STAGE_ONLY="$1"
             ;;
-        core|ablation|figures) STAGE_ONLY="$1" ;;
+        core|ablation|figures|enclosures) STAGE_ONLY="$1" ;;
         -h|--help)
-            echo "Usage: $0 [--keep-cache] [--stage core|ablation|figures]"
+            echo "Usage: $0 [--keep-cache] [--stage core|ablation|figures|enclosures]"
             echo "  --keep-cache   Skip cache deletion (only recompute missing results)"
-            echo "  --stage NAME   Run only one stage (core, ablation, or figures)"
+            echo "  --stage NAME   Run only one stage (core, ablation, figures, enclosures)"
+            echo "                 'enclosures' is hours of interval branch-and-bound;"
+            echo "                 it is deliberately not part of 'all'."
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -55,7 +58,24 @@ done
 
 PYTHON="${PYTHON:-python}"
 
+# Check the interpreter BEFORE step 0 deletes results/. A bare `python` is not on
+# PATH under uv-managed environments, so the default sent one run straight through
+# the cache wipe and into "command not found", destroying every artifact it was
+# about to regenerate. Fail here instead, while the cache is still intact.
+if ! command -v "${PYTHON}" >/dev/null 2>&1; then
+    echo "[reproduce_all.sh] PYTHON='${PYTHON}' is not executable." >&2
+    echo "[reproduce_all.sh] Nothing was deleted. Re-run with, e.g.:" >&2
+    echo "[reproduce_all.sh]   PYTHON=./.venv/bin/python $0 $*" >&2
+    exit 1
+fi
 export PYTHONPATH="${SCRIPT_DIR:-$PWD}/src${PYTHONPATH:+:${PYTHONPATH}}"
+
+if ! "${PYTHON}" -c 'import warpax' >/dev/null 2>&1; then
+    echo "[reproduce_all.sh] PYTHON='${PYTHON}' cannot import warpax." >&2
+    echo "[reproduce_all.sh] Nothing was deleted. Use the project venv:" >&2
+    echo "[reproduce_all.sh]   PYTHON=./.venv/bin/python $0 $*" >&2
+    exit 1
+fi
 
 # Pin JAX backend to CPU by default for deterministic reproduction.
 # Blackwell sm_120 with jax[cuda12]==0.10.0 crashes in two paths
@@ -148,6 +168,35 @@ run_core() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_ssv_bound.py"
 
     echo ""
+    echo "[K13] run_delta_crosscheck.py Momentum discriminant vs eigensolver agreement"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_delta_crosscheck.py"
+
+    echo ""
+    echo "[K14] run_integrated_negative_energy.py Slice-integrated negative energy"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_integrated_negative_energy.py"
+
+    echo ""
+    echo "[K15] run_rodal_sigma_resolved.py Wall-resolved Rodal sigma sweep (item A5)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_rodal_sigma_resolved.py"
+
+    echo ""
+    echo "[K16] run_classifier_audit.py Jordan displacement limit + LMI label audit"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_classifier_audit.py"
+
+    echo ""
+    echo "[K16b] run_type_transition_audit.py LMI across the Type-II locus (analytic)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_type_transition_audit.py"
+
+    echo ""
+    echo "[K16c] run_lmi_audit.py Type-free LMI vs the type-based route, at every grid point"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_lmi_audit.py"
+    echo ""
+
+    echo "[K17] emit_paper_numbers.py + check_paper_numbers.py Prose/table consistency gate"
+    $PYTHON "${SCRIPT_DIR}/scripts/emit_paper_numbers.py"
+    $PYTHON "${SCRIPT_DIR}/scripts/check_paper_numbers.py"
+
+    echo ""
     echo "[1/8] run_analysis.py Full metric analysis sweep"
     $PYTHON "${SCRIPT_DIR}/scripts/run_analysis.py"
 
@@ -186,6 +235,14 @@ run_core() {
     echo " Core stage complete."
     echo ""
 }
+
+run_enclosures() {
+    echo ""
+    echo "[E1] run_enclosures.py Certified global enclosures of the wall null deficit"
+    echo "     (interval branch-and-bound; hours, not minutes)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_enclosures.py" --max-boxes 120000
+}
+
 
 run_ablation() {
     echo "============================================================"
@@ -277,6 +334,10 @@ run_figures() {
     $PYTHON "${SCRIPT_DIR}/scripts/emit_diagnostic_tables.py"
 
     echo ""
+    echo "[manifest] write_manifest.py Integrity record for the cached grids"
+    $PYTHON "${SCRIPT_DIR}/scripts/write_manifest.py"
+
+    echo ""
     echo "[sync] Copy generated figures into the paper folder"
     sync_figures_to_paper
 
@@ -293,6 +354,9 @@ case "${STAGE_ONLY}" in
         run_core
         run_ablation
         run_figures
+        ;;
+    enclosures)
+        run_enclosures
         ;;
 esac
 

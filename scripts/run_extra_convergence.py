@@ -5,7 +5,7 @@ run_diagnostic_convergence.py already certifies the per-point wall diagnostics
 
 - Exoticity index (per metric): a composite spatial-grid diagnostic (it folds in
   a thresholded Type-IV fraction), refined on the canonical wall-resolved graded
-  ladder (N = [80, 100, 120] -> 4.5 / 5.6 / 6.7 cells across the wall, every level
+  ladder (N = [80, 100, 120] -> 5.9 / 7.6 / 8.9 cells across the wall, every level
   clearing the four-cell criterion; see _benchmark_grid.py).
 - ANEC minimum (per metric): a geodesic line integral, so its resolution knob is
   the symplectic integrator step count (2048, 4096, 8192), not grid N.
@@ -32,6 +32,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from warpax.averaged.anec import anec_rigorous
+from warpax.geodesics import eulerian_affine_scale
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from warpax.geometry import evaluate_curvature_grid
@@ -100,8 +101,14 @@ def _anec_min(metric, R, num_steps):
     worst_wit = 0.0
     for b in b_scan:
         x0 = jnp.array([0.0, x_start, float(b), 0.0], dtype=jnp.float64)
-        r = anec_rigorous(metric, x0, jnp.array([1.0, 0.0, 0.0]),
-                          affine_bounds=(0.0, span), num_steps=num_steps,
+        # Pin the free affine scale to -g(k,n) = 1, exactly as
+        # run_anec_symplectic.py does. Without this the Natario ray is scaled
+        # differently from the other three (its shift tends to -v_s x_hat at
+        # infinity), and this table certified an ANEC minimum the paper does not
+        # report: -0.0510 against the published -0.0764.
+        sc = float(eulerian_affine_scale(metric, x0))
+        r = anec_rigorous(metric, x0, jnp.array([sc, 0.0, 0.0]),
+                          affine_bounds=(0.0, span / sc), num_steps=num_steps,
                           order=4, null_tol=1e-6)
         li = float(r.symplectic.line_integral)
         worst_wit = max(worst_wit, float(r.symplectic.max_abs_g_kk))

@@ -1,90 +1,304 @@
 {
+  "matched_point": {
+    "v_s": 0.02,
+    "R_c": 15.0,
+    "sigma": 0.497115373,
+    "wall_width": 4.419943,
+    "width_over_Rc": 0.2946628666666667
+  },
+  "matching_caveat": "Common shift kinematics only (v_s, R_c, W/R_c, box, wall band). Matter content, background curvature and compactness are construction-specific and are NOT matched; see MATCHED_* in construction_adapter.py.",
+  "ladder": [
+    [
+      32,
+      32
+    ]
+  ],
+  "wall_band": [
+    0.1,
+    0.9
+  ],
   "order": [
     "Alcubierre",
     "Rodal",
     "Fuchs",
     "Garattini"
   ],
-  "rows": [
-    {
-      "metric": "Alcubierre",
-      "speed_param": "v_s",
-      "speed": 0.5,
-      "N": 50,
-      "wall_cells": 6.0,
-      "resolved": true,
-      "is_comoving": true,
-      "claim": "baseline; NEC/WEC violated for all observers",
-      "wall_n": 2442,
-      "frac_type_i": 0.011132674530837198,
-      "frac_type_iv": 0.9888673254691627,
-      "invariant_nec_min": -0.15047978246888605,
-      "E_minus_inv": -0.0005885025205767808,
-      "peak_deficit_inv": 0.03576417054225154,
-      "eulerian_valid": true,
-      "miss_wec_pct": 0.0,
-      "miss_nec_pct": 0.0,
-      "miss_dec_pct": 0.0
-    },
-    {
-      "metric": "Rodal",
-      "speed_param": "v_s",
-      "speed": 0.5,
-      "N": 50,
-      "wall_cells": 6.0,
-      "resolved": true,
-      "is_comoving": true,
-      "claim": "global Hawking-Ellis Type I; reduced (not eliminated) violations",
-      "wall_n": 2442,
-      "frac_type_i": 1.0,
-      "frac_type_iv": 0.0,
-      "invariant_nec_min": -0.16711403974526515,
-      "E_minus_inv": -0.001740511158725371,
-      "peak_deficit_inv": 0.00455217529898279,
-      "eulerian_valid": true,
-      "miss_wec_pct": 71.55000206332957,
-      "miss_nec_pct": 12.328706237509445,
-      "miss_dec_pct": 72.87465235754931
-    },
-    {
-      "metric": "Fuchs",
-      "speed_param": "v_s",
-      "speed": 0.02,
-      "N": 60,
-      "wall_cells": 12.0,
-      "resolved": true,
-      "is_comoving": true,
-      "claim": "constant-velocity shell satisfying all energy conditions (arXiv:2405.02709)",
-      "wall_n": 19670,
-      "frac_type_i": 1.0,
-      "frac_type_iv": 0.0,
-      "invariant_nec_min": 2.010768184801316e-05,
-      "E_minus_inv": 0.0,
-      "peak_deficit_inv": -5.07559584895947e-05,
-      "eulerian_valid": true,
-      "miss_wec_pct": null,
-      "miss_nec_pct": null,
-      "miss_dec_pct": null
-    },
-    {
-      "metric": "Garattini",
-      "speed_param": "v_s",
-      "speed": 0.1,
-      "N": 50,
-      "wall_cells": 6.0,
-      "resolved": true,
-      "is_comoving": true,
-      "claim": "de Sitter background; averaged ANEC/AWEC satisfied at the matched speed v_s = H R, pointwise NEC/WEC violated at the wall (arXiv:2502.13153)",
-      "wall_n": 2442,
-      "frac_type_i": 0.0,
-      "frac_type_iv": 1.0,
-      "invariant_nec_min": null,
-      "E_minus_inv": 0.0,
-      "peak_deficit_inv": null,
-      "eulerian_valid": true,
-      "miss_wec_pct": 61.83716495235031,
-      "miss_nec_pct": 0.0,
-      "miss_dec_pct": 0.0
-    }
-  ]
+  "matched": {
+    "Alcubierre": [
+      {
+        "metric": "Alcubierre",
+        "n_r": 32,
+        "n_mu": 32,
+        "speed": 0.02,
+        "speed_param": "v_s",
+        "wall_radius": 15.0,
+        "r_max": 30.0,
+        "grid_center": 0.0,
+        "wall_cells": 7.284681791679745,
+        "wall_width": 4.4199446111448655,
+        "resolved": true,
+        "params": {
+          "v_s": 0.02,
+          "R": 15.0,
+          "sigma": 0.497115373
+        },
+        "claim": "baseline; NEC/WEC violated for all observers",
+        "n_wall_points": 256,
+        "frac_type_i": 0.0,
+        "frac_type_iv": 1.0,
+        "invariant_nec_min": null,
+        "nec_min_dimensionless": null,
+        "eulerian_valid": true,
+        "miss_wec_pct": 0.0,
+        "n_violated_wec": 256,
+        "miss_nec_pct": 0.0,
+        "n_violated_nec": 256,
+        "miss_dec_pct": 0.0,
+        "n_violated_dec": 256
+      }
+    ],
+    "Rodal": [
+      {
+        "metric": "Rodal",
+        "n_r": 32,
+        "n_mu": 32,
+        "speed": 0.02,
+        "speed_param": "v_s",
+        "wall_radius": 15.0,
+        "r_max": 30.0,
+        "grid_center": 0.0,
+        "wall_cells": 7.284681791679745,
+        "wall_width": 4.4199446111448655,
+        "resolved": true,
+        "params": {
+          "v_s": 0.02,
+          "R": 15.0,
+          "sigma": 0.497115373
+        },
+        "claim": "global Hawking-Ellis Type I; reduced (not eliminated) violations",
+        "n_wall_points": 256,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "invariant_nec_min": -1.1498658179559667e-06,
+        "nec_min_dimensionless": -0.0002587198090400925,
+        "eulerian_valid": true,
+        "miss_wec_pct": 72.45944457621484,
+        "n_violated_wec": 230,
+        "miss_nec_pct": 10.184764337247751,
+        "n_violated_nec": 230,
+        "miss_dec_pct": 73.79269056257698,
+        "n_violated_dec": 252
+      }
+    ],
+    "Fuchs": [
+      {
+        "metric": "Fuchs",
+        "n_r": 32,
+        "n_mu": 32,
+        "speed": 0.02,
+        "speed_param": "v_s",
+        "wall_radius": 15.0,
+        "r_max": 30.0,
+        "grid_center": 0.0,
+        "wall_cells": 7.284680750603795,
+        "wall_width": 4.419943979477187,
+        "resolved": true,
+        "params": {
+          "v_s": 0.02,
+          "R_1": 10.0,
+          "R_2": 20.0,
+          "R_b": 1.0,
+          "r_s_param": 5.0,
+          "kernel": "moving_average",
+          "sigmoid": "published (Fuchs Eq. 31-32)"
+        },
+        "claim": "constant-velocity shell satisfying all energy conditions (arXiv:2405.02709)",
+        "n_wall_points": 256,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "invariant_nec_min": 5.9592272925696984e-05,
+        "nec_min_dimensionless": 0.013408261408281821,
+        "eulerian_valid": true,
+        "miss_wec_pct": null,
+        "n_violated_wec": 0,
+        "miss_nec_pct": null,
+        "n_violated_nec": 0,
+        "miss_dec_pct": null,
+        "n_violated_dec": 0
+      }
+    ],
+    "Garattini": [
+      {
+        "metric": "Garattini",
+        "n_r": 32,
+        "n_mu": 32,
+        "speed": 0.02,
+        "speed_param": "v_s",
+        "wall_radius": 15.0,
+        "r_max": 30.0,
+        "grid_center": 15.0,
+        "wall_cells": 7.284681791679751,
+        "wall_width": 4.419944611144869,
+        "resolved": true,
+        "params": {
+          "v_s": 0.02,
+          "R": 15.0,
+          "sigma": 0.497115373,
+          "H": 0.0013333333333333333,
+          "Lambda_R2": 0.0012000000000000001
+        },
+        "claim": "de Sitter background; averaged ANEC/AWEC satisfied at the matched speed v_s = H R, pointwise NEC/WEC violated at the wall (arXiv:2502.13153)",
+        "n_wall_points": 256,
+        "frac_type_i": 0.9881457207387967,
+        "frac_type_iv": 0.0,
+        "invariant_nec_min": -1.5712329640797554e-06,
+        "nec_min_dimensionless": -0.00035352741691794496,
+        "eulerian_valid": true,
+        "miss_wec_pct": 100.0,
+        "n_violated_wec": 190,
+        "miss_nec_pct": 0.0,
+        "n_violated_nec": 190,
+        "miss_dec_pct": 100.0,
+        "n_violated_dec": 190
+      }
+    ]
+  },
+  "native": {
+    "Alcubierre": [
+      {
+        "metric": "Alcubierre",
+        "n_r": 32,
+        "n_mu": 32,
+        "speed": 0.5,
+        "speed_param": "v_s",
+        "wall_radius": 1.0,
+        "r_max": 3.0,
+        "grid_center": 0.0,
+        "wall_cells": 4.452236630147117,
+        "wall_width": 0.27465313408976677,
+        "resolved": true,
+        "params": {
+          "v_s": 0.5,
+          "R": 1.0,
+          "sigma": 8.0
+        },
+        "claim": "baseline; NEC/WEC violated for all observers",
+        "n_wall_points": 160,
+        "frac_type_i": 0.0,
+        "frac_type_iv": 1.0,
+        "invariant_nec_min": null,
+        "nec_min_dimensionless": null,
+        "eulerian_valid": true,
+        "miss_wec_pct": 0.0,
+        "n_violated_wec": 160,
+        "miss_nec_pct": 0.0,
+        "n_violated_nec": 160,
+        "miss_dec_pct": 0.0,
+        "n_violated_dec": 160
+      }
+    ],
+    "Rodal": [
+      {
+        "metric": "Rodal",
+        "n_r": 32,
+        "n_mu": 32,
+        "speed": 0.5,
+        "speed_param": "v_s",
+        "wall_radius": 1.0,
+        "r_max": 3.0,
+        "grid_center": 0.0,
+        "wall_cells": 4.452236630147117,
+        "wall_width": 0.27465313408976677,
+        "resolved": true,
+        "params": {
+          "v_s": 0.5,
+          "R": 1.0,
+          "sigma": 8.0
+        },
+        "claim": "global Hawking-Ellis Type I; reduced (not eliminated) violations",
+        "n_wall_points": 160,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "invariant_nec_min": -0.18769112608282085,
+        "nec_min_dimensionless": -0.18769112608282085,
+        "eulerian_valid": true,
+        "miss_wec_pct": 75.75884128647003,
+        "n_violated_wec": 150,
+        "miss_nec_pct": 6.165745097552969,
+        "n_violated_nec": 150,
+        "miss_dec_pct": 76.49442157775715,
+        "n_violated_dec": 160
+      }
+    ],
+    "Fuchs": [
+      {
+        "metric": "Fuchs",
+        "n_r": 32,
+        "n_mu": 32,
+        "speed": 0.02,
+        "speed_param": "v_s",
+        "wall_radius": 15.0,
+        "r_max": 25.0,
+        "grid_center": 0.0,
+        "wall_cells": 7.47094080855741,
+        "wall_width": 4.419942816994789,
+        "resolved": true,
+        "params": {
+          "v_s": 0.02,
+          "R_1": 10.0,
+          "R_2": 20.0,
+          "R_b": 1.0,
+          "r_s_param": 5.0,
+          "kernel": "moving_average"
+        },
+        "claim": "constant-velocity shell satisfying all energy conditions (arXiv:2405.02709)",
+        "n_wall_points": 320,
+        "frac_type_i": 1.0,
+        "frac_type_iv": 0.0,
+        "invariant_nec_min": 4.6693190662631376e-05,
+        "nec_min_dimensionless": 0.01050596789909206,
+        "eulerian_valid": true,
+        "miss_wec_pct": null,
+        "n_violated_wec": 0,
+        "miss_nec_pct": null,
+        "n_violated_nec": 0,
+        "miss_dec_pct": null,
+        "n_violated_dec": 0
+      }
+    ],
+    "Garattini": [
+      {
+        "metric": "Garattini",
+        "n_r": 32,
+        "n_mu": 32,
+        "speed": 0.1,
+        "speed_param": "v_s",
+        "wall_radius": 1.0,
+        "r_max": 3.0,
+        "grid_center": 1.0,
+        "wall_cells": 4.45223663014712,
+        "wall_width": 0.274653134089767,
+        "resolved": true,
+        "params": {
+          "v_s": 0.1,
+          "R": 1.0,
+          "sigma": 8.0,
+          "H": 0.1
+        },
+        "claim": "de Sitter background; averaged ANEC/AWEC satisfied at the matched speed v_s = H R, pointwise NEC/WEC violated at the wall (arXiv:2502.13153)",
+        "n_wall_points": 160,
+        "frac_type_i": 0.9320600906355235,
+        "frac_type_iv": 0.0,
+        "invariant_nec_min": -0.00999060703507046,
+        "nec_min_dimensionless": -0.00999060703507046,
+        "eulerian_valid": true,
+        "miss_wec_pct": 100.0,
+        "n_violated_wec": 120,
+        "miss_nec_pct": 0.0,
+        "n_violated_nec": 120,
+        "miss_dec_pct": 100.0,
+        "n_violated_dec": 120
+      }
+    ]
+  }
 }

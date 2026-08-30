@@ -17,15 +17,23 @@ Each Hawking-Ellis type is decided exactly, with no rapidity cap and no optimize
 - Type I (rest frame exists): the eigenvalue inequalities on ``(rho, p_i)`` are
   necessary and sufficient (see :mod:`.eigenvalue_checks`).
 - Type III and IV (no rest frame): NEC is violated unconditionally, hence so are
-  WEC/SEC/DEC. When the complex pair is momentum-sourced the Eulerian null vector
-  ``k = n +/- jhat`` witnesses it in closed form,
-  ``T_ab k^a k^b = rho + S_par - 2|j| < 0``, which holds when
-  ``Delta = (rho + S_par)^2 - 4|j|^2 < 0``. A conformal Type-IV pair can leave the
-  momentum witness >= 0; the point is still certified Type IV, so ``-|Im lambda|``
-  is used as the margin. See :func:`eulerian_null_witness` and
-  :func:`_exact_margins`.
-- Type II (null eigenvector): the same null contraction decides NEC and can be
-  positive, so its margin is reported directly.
+  WEC/SEC/DEC (Martin-Moruno & Visser 2017). When the complex pair is
+  momentum-sourced the Eulerian null vector ``k = n +/- jhat`` witnesses it in
+  closed form, ``T_ab k^a k^b = rho + S_par - 2|j| < 0``, which holds when
+  ``Delta = (rho + S_par)^2 - 4|j|^2 < 0``; that explicit null vector is kept as
+  the margin because it is checkable by hand. A conformal Type-IV pair can leave
+  the momentum witness >= 0, and there the margin comes from :mod:`.slemma` rather
+  than from a sentinel, so the unconditional-violation theorem stays a *test* of
+  the pipeline instead of an assumption inside it. See
+  :func:`eulerian_null_witness` and :func:`_exact_margins`.
+- Type II (null eigenvector): *no* single null contraction decides any condition
+  here, the NEC included. The Eulerian witness ``k = n +/- jhat`` probes the
+  momentum plane only, and a Type-II violation can sit entirely in the transverse
+  channel: for the canonical block ``(mu, f, p_2, p_3) = (0, 1, -2, 0)`` the
+  witness is exactly zero while ``k = (1, 0, 1, 0)`` gives ``T_ab k^a k^b = -1``
+  and the true null-cone minimum is ``-4/3``. All four conditions are therefore
+  decided by :mod:`.slemma`, whose 4x4 linear matrix inequality quantifies over
+  every observer at every algebraic type.
 
 The rapidity-capped optimizer in :mod:`.optimization` is a severity display off
 Type I, not the certification path.
@@ -39,6 +47,8 @@ from jaxtyping import Array, Float
 
 from .classification import classify_with_solver
 from .eigenvalue_checks import check_all
+from .slemma import certify_point as certify_point_lmi
+from .slemma import noise_floor
 from .types import FrameFreeGridResult
 from .verifier import _classify_grid_batch
 
@@ -81,30 +91,44 @@ def eulerian_null_witness(
     return rho + S_par - 2.0 * jmag
 
 
-def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, imag):
+def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi):
     """Select cap-free EC margins by Hawking-Ellis type (branchless for vmap).
 
     Type I -> eigenvalue-inequality margins (exact, necessary & sufficient).
-    Type II -> the Eulerian null witness (decides NEC; can be >= 0).
-    Type III/IV (no causal eigenvector, NEC violated) -> the momentum witness when
-    it is negative; when a conformal/transverse pair leaves witness >= 0 the point
-    is still certified violating, so the margin is forced negative: -|Im lambda|
-    for Type IV, a tiny negative sentinel for the degenerate Type III (imag = 0).
-    No NaN, no cap, no optimizer.
+
+    Type II/III/IV -> all four margins come from :func:`.slemma.certify_point`.
+
+    The momentum witness is retained only where it is *negative*, because there it
+    is strictly better evidence than a margin: an explicit null vector a reader can
+    substitute by hand. Where it is non-negative it certifies nothing, and the two
+    previous fallbacks were both unsound.
+
+    Returning the witness as the Type-II NEC margin was wrong. It probes the
+    momentum plane only, so a violation living in the transverse channel is
+    invisible to it: for ``(mu, f, p_2, p_3) = (0, 1, -2, 0)`` the witness is
+    exactly ``0`` -- read as satisfied -- while ``k = (1, 0, 1, 0)`` gives ``-1``
+    and the null-cone minimum is ``-4/3``. The LMI returns ``-2/3``, correctly
+    negative. (An earlier bug in the same slot returned the witness for WEC/SEC/DEC
+    too, certifying ``mu = -2, f = 1, p_2 = p_3 = 3`` clean at Eulerian energy
+    density ``-1``.)
+
+    Forcing ``-max(imag, 1e-30)`` at Type III/IV was a sentinel, not a decision:
+    Type III has ``imag = 0`` by construction, so every Type-III point was reported
+    violating at ``-1e-30`` whatever its stress-energy. That is true -- Type III and
+    IV violate every condition (Martin-Moruno & Visser 2017) -- but true by fiat, so
+    it could neither be checked nor falsified. The LMI decides them on their own
+    merits, and the theorem then becomes a *test* of the pipeline rather than an
+    assumption baked into it: see ``tests/test_slemma.py``.
     """
     is_I = he_type == 1
-    is_III = he_type == 3
-    is_IV = he_type == 4
-    # Off Type I the Type-I eigenvalue margins are undefined (no rest frame). The
-    # momentum witness carries the certification when it is negative; a
-    # conformal/transverse Type-III/IV pair (witness >= 0) is still violating, so
-    # -max(|Im lambda|, tiny) forces a certified-negative margin.
-    force = (is_III | is_IV) & (witness >= 0.0)
-    nonI = jnp.where(force, -jnp.maximum(imag, 1e-30), witness)
-    nec = jnp.where(is_I, nec_I, nonI)
-    wec = jnp.where(is_I, wec_I, nonI)
-    sec = jnp.where(is_I, sec_I, nonI)
-    dec = jnp.where(is_I, dec_I, nonI)
+    # Keep the closed-form null witness wherever it certifies (negative); otherwise
+    # defer to the LMI, which quantifies over the full observer set.
+    certifying = witness < 0.0
+    nonI_nec = jnp.where(certifying, witness, lmi["nec"])
+    nec = jnp.where(is_I, nec_I, nonI_nec)
+    wec = jnp.where(is_I, wec_I, lmi["wec"])
+    sec = jnp.where(is_I, sec_I, lmi["sec"])
+    dec = jnp.where(is_I, dec_I, lmi["dec"])
     return nec, wec, sec, dec
 
 
@@ -144,9 +168,9 @@ def certify_point_frame_free(
     cls = classify_with_solver(T_mixed, g_ab, T_ab, solver=solver, tol=tol)
     nec_I, wec_I, sec_I, dec_I = check_all(cls.rho, cls.pressures)
     witness = eulerian_null_witness(T_ab, g_ab, g_inv)
-    imag = jnp.max(jnp.abs(cls.eigenvalues_imag))
     nec, wec, sec, dec = _exact_margins(
-        cls.he_type, nec_I, wec_I, sec_I, dec_I, witness, imag
+        cls.he_type, nec_I, wec_I, sec_I, dec_I, witness,
+        certify_point_lmi(T_ab, g_ab),
     )
     return {
         "he_type": cls.he_type,
@@ -201,15 +225,35 @@ def certify_grid_frame_free(
         flat_ginv = jnp.reshape(g_inv_field, (-1, 4, 4))
     flat_Tmixed = jnp.einsum("nac,ncb->nab", flat_ginv, flat_T)
 
-    cls = _classify_grid_batch(flat_Tmixed, flat_g, flat_T, solver=solver)
+    cls = _classify_grid_batch(flat_Tmixed, flat_g, flat_T, solver=solver, tol=tol)
     nec_I, wec_I, sec_I, dec_I = jax.vmap(check_all)(cls.rho, cls.pressures)
     witness = jax.vmap(eulerian_null_witness)(flat_T, flat_g, flat_ginv)
-    imag = jnp.max(jnp.abs(cls.eigenvalues_imag), axis=-1)
-    nec, wec, sec, dec = jax.vmap(_exact_margins)(
-        cls.he_type, nec_I, wec_I, sec_I, dec_I, witness, imag
-    )
 
     he = np.asarray(cls.he_type)
+    # The LMI decides every non-Type-I point, and only those: _exact_margins takes
+    # the eigenvalue margins wherever he_type == 1. Evaluating it on the whole grid
+    # anyway is what made the N=100 velocity sweep unrunnable. The multiplier search
+    # is a 4x4 eigensolve per iteration, measured at ~0.95 ms/point against ~5 us for
+    # the classification it supports, so a 1e6-point grid costs ~16 min of LMI for a
+    # slot that a few per cent of the points read.
+    #
+    # The guard used to be `if np.any(he != 1)`, which reads as "skip on an all-Type-I
+    # grid" and was described that way. But every bubble-wall grid in the paper is
+    # Type-IV dominated, so `he != 1` holds somewhere on all of them and the guard
+    # never fired. Gather the points that actually read the slot, run the LMI on those,
+    # and scatter back; the rest keep a placeholder that is never selected.
+    nonI = np.flatnonzero(he != 1)
+    unused = jnp.zeros_like(witness)
+    if nonI.size:
+        idx = jnp.asarray(nonI)
+        sub = jax.vmap(certify_point_lmi)(flat_T[idx], flat_g[idx])
+        lmi = {k: unused.at[idx].set(v) for k, v in sub.items()}
+    else:
+        lmi = {"nec": unused, "wec": unused, "sec": unused, "dec": unused}
+    nec, wec, sec, dec = jax.vmap(_exact_margins)(
+        cls.he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi
+    )
+
     n_vacuum = int(np.sum(np.asarray(cls.is_vacuum) > 0.5))
     # nanmax: a NaN-sanitized eigenvalue must not poison the grid-wide
     # imaginary-part diagnostic (it is a summary, not a certified margin).
@@ -218,12 +262,20 @@ def certify_grid_frame_free(
     def _rs(x, trailing=()):  # reshape flat -> grid
         return jnp.reshape(x, (*grid_shape, *trailing))
 
+    # The LMI margin contract is one-sided: a value between -floor and +floor is
+    # inconclusive, not a verdict. Carrying the floor alongside the margin is what
+    # lets a consumer honour that -- an audit that thresholds at exactly zero counts
+    # saturated points as classification errors and reports rounding noise.
+    nec_floor = jax.vmap(lambda T, g: noise_floor(T, g, condition="nec"))(
+        flat_T, flat_g)
+
     return FrameFreeGridResult(
         he_types=_rs(cls.he_type),
         eigenvalues=_rs(cls.eigenvalues, (4,)),
         eigenvalues_imag=_rs(cls.eigenvalues_imag, (4,)),
         rho=_rs(cls.rho),
         pressures=_rs(cls.pressures, (3,)),
+        nec_noise_floor=_rs(nec_floor),
         nec_margins=_rs(nec),
         wec_margins=_rs(wec),
         sec_margins=_rs(sec),

@@ -12,7 +12,16 @@ For tanh-based metrics the 10-90% transition width is
 run_analysis.py additionally covers WarpShell, whose Hermite smoothstep
 transition spans exactly ``smooth_width`` (default 0.12 * (R_2 - R_1)).
 
-Output: results/wall_resolution.json
+Outputs
+-------
+- results/wall_resolution.json
+- ../warpax_arxiv/tables/wall_resolution.tex
+
+The table used to be maintained by hand. That is how it came to print a wall width
+of 0.27 and a spacing of 0.20 whose quotient is 1.35 -- correct, because the true
+values are 0.2747 and 10/49 = 0.2041 and 0.2747/0.2041 = 1.3458, but not correct
+as displayed, and a reader dividing what they were shown gets 1.4. A generated
+table cannot round its inputs and keep an unrounded quotient.
 
 Usage
 -----
@@ -23,7 +32,10 @@ from __future__ import annotations
 import math
 import os
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
+
+
+TABLES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "warpax_arxiv", "tables")
 
 
 def main():
@@ -139,6 +151,56 @@ def main():
     out_path = os.path.join(results_dir, "wall_resolution.json")
     dump_json(results, out_path)
     print(f"\nSaved: {out_path}")
+
+    write_latex_table(results, os.path.join(TABLES_DIR, "wall_resolution.tex"))
+
+
+DISPLAY = {
+    "alcubierre": "Alcubierre",
+    "natario": "Nat\\'ario",
+    "vdb": "Van~Den~Broeck",
+    "rodal": "Rodal",
+    "schwarzschild": "Schwarzschild",
+}
+CONVERGENCE = {"alcubierre": "Stability-only", "rodal": "Stability-only"}
+
+
+def write_latex_table(results, out_path):
+    """Emit tables/wall_resolution.tex straight from the computed rows.
+
+    Four decimals on the width and the spacing, two on their quotient. The quotient
+    is recomputed here from the unrounded values, so no reader can derive a different
+    number from the digits printed beside it.
+    """
+    order = ["alcubierre", "natario", "vdb", "rodal", "schwarzschild"]
+    by_name = {r["metric"]: r for r in results}
+    lines = [
+        r"\begin{tabular}{@{}lccccc@{}}",
+        r"    \toprule",
+        r"    Metric & Wall width & $\Delta x$ & Cells & Resolved & Convergence \\",
+        r"    \midrule",
+    ]
+    for i, key in enumerate(order):
+        r = by_name.get(key)
+        if r is None:
+            continue
+        if key == "schwarzschild":
+            lines.append(r"    \midrule")
+            lines.append(f"    {DISPLAY[key]} & -- & {r['dx']:.2f} & -- & -- & -- \\\\")
+            continue
+        w, dx = r["wall_width"], r["dx"]
+        cells = w / dx
+        resolved = "Yes" if cells >= 4.0 else "No"
+        conv = CONVERGENCE.get(key, "--")
+        lines.append(
+            f"    {DISPLAY[key]} & {w:.4f} & {dx:.4f} & {cells:.2f} & "
+            f"{resolved} & {conv} \\\\"
+        )
+    lines += [r"    \bottomrule", r"\end{tabular}"]
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    write_tex_table(out_path, lines, script="scripts/run_wall_resolution.py",
+                    sources="results/wall_resolution.json")
+    print(f"Wrote {out_path}")
 
 
 if __name__ == "__main__":

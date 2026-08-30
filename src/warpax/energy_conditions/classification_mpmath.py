@@ -164,9 +164,18 @@ def classify_hawking_ellis_mpmath(
 
         is_type_iv = (not all_real) and (not near_vacuum)
         is_type_i = (all_real and n_timelike >= 1 and n_null == 0) or near_vacuum
-        is_type_iii = (
-            all_real and not near_vacuum and n_null >= 1 and n_unique == 1
-        )
+        # Type II and Type III are separated by the SIZE of the Jordan block on
+        # the defective eigenvalue, not by how many distinct eigenvalues there
+        # are. Requiring n_unique == 1 asked the whole spectrum to be degenerate,
+        # which the generic Type III, Segre [3,1] = J_3(lam) (+) [p] with
+        # p != lam, never satisfies -- so it was returned as Type II at 50, 80 and
+        # 120 digits alike. The discriminator is the defect: algebraic minus
+        # geometric multiplicity of the repeated eigenvalue is 1 for [2,1,1] and
+        # 2 for [3,1].
+        defect = _jordan_defect(M, evals, tol * scale, precision) if (
+            all_real and not near_vacuum and n_null >= 1
+        ) else 0
+        is_type_iii = all_real and not near_vacuum and n_null >= 1 and defect >= 2
 
         if is_type_iv:
             he_type = 4
@@ -339,6 +348,41 @@ def _cond_V_mpmath(
     uncertain = cond_V > 10 ** (precision / 2)
     return cond_V, uncertain
 
+
+def _jordan_defect(M, evals, cluster_tol, precision):
+    """Largest (algebraic - geometric) multiplicity over the eigenvalue clusters.
+
+    Geometric multiplicity is ``4 - rank(M - lam I)``, and the rank is counted
+    from the singular values of ``M - lam I`` at working precision, with the same
+    relative cutoff the float64 path uses. A defect of one is a size-two Jordan
+    block (Type II); two is a size-three block (Type III).
+    """
+    with mpmath.workdps(precision):
+        reals = [mpmath.re(e) for e in evals]
+        used = [False] * 4
+        worst = 0
+        for i in range(4):
+            if used[i]:
+                continue
+            cluster = [j for j in range(4) if abs(reals[j] - reals[i]) <= cluster_tol]
+            for j in cluster:
+                used[j] = True
+            alg = len(cluster)
+            if alg == 1:
+                continue
+            lam = sum(reals[j] for j in cluster) / alg
+            A = M - lam * mpmath.eye(4)
+            try:
+                sv = mpmath.svd(A, compute_uv=False)
+            except Exception:                     # pragma: no cover - solver guard
+                continue
+            svals = [float(x) for x in sv]
+            smax = max(svals) if svals else 0.0
+            cutoff = max(smax, 1.0) * mpmath.mpf(10) ** (-precision // 2)
+            rank = sum(1 for x in svals if x > cutoff)
+            geo = 4 - rank
+            worst = max(worst, alg - max(geo, 1))
+        return worst
 
 def _causal_counts(
     evecs: mpmath.matrix, g_ab: np.ndarray, tol: float

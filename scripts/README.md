@@ -39,7 +39,11 @@ prefer `run_matched_benchmark.py` (cross-metric) and `run_velocity_sweep.py`.
 | `run_anec_retained.py` | `results/anec/retained.json` (ANEC line integrals along null rays) |
 | `run_anec_symplectic.py` | `results/anec/retained_symplectic.json`, `tables/anec_symplectic.tex` (rigorous geodesic-integrated ANEC, symplectic + on-cone witness) |
 | `run_quantum_inequality.py` | `results/quantum/ford_roman.json`, `tables/averaged_quantum.tex`, `figures/averaged_quantum.pdf` (Ford-Roman quantum-inequality diagnostic, reads `run_anec_retained.py`) |
-| `run_construction_verification.py` | `results/construction_verification.json`, `tables/construction_verification.tex` (cross-construction all-observer verification) |
+| `run_construction_verification.py` | `results/construction_verification.json`, `tables/construction_matched.tex`, `tables/construction_native.tex` (cross-construction all-observer verification; under-resolved walls carry cell counts only) |
+| `run_rodal_sigma_resolved.py` | `results/rodal_sigma_resolved.json`, `tables/rodal_sigma_resolved.tex` (wall-resolved Rodal sigma sweep on the exact axisymmetric reduction) |
+| `run_enclosures.py` | `results/enclosures.json`, `tables/enclosures.tex` (certified global interval enclosures of the wall null deficit; hours, opt-in stage) |
+| `run_classifier_audit.py` | `results/classifier_audit.json` (Jordan displacement exponents and the LMI audit of the classifier's labels) |
+| `run_box_sensitivity.py` | `results/box_sensitivity.json` (sensitivity of wall statistics to the exterior box) |
 | `run_exoticity_ranking.py` | `results/exoticity_ranking.json`, `tables/exoticity_ranking.tex`, `tables/scaling_laws.tex` (composite exoticity ranking + v_s scaling laws, reads `run_velocity_sweep.py` + `run_anec_symplectic.py`) |
 | `derive_vorticity_type.py` | `results/vorticity_type_analytic.json`, `figures/vorticity_type_mechanism.pdf` (vorticity -> Type-IV mechanism f = kappa*omega; cross-metric entries record theta, sigma, sigma/omega, and the excess Im/(kappa*omega)) |
 | `run_curvature_scaling.py` | `results/curvature_scaling.json`, `tables/curvature_scaling.tex`, `figures/curvature_scaling.pdf` (universal v_s scaling of wall curvature invariants) |
@@ -78,7 +82,7 @@ prefer `run_matched_benchmark.py` (cross-metric) and `run_velocity_sweep.py`.
 |--------|--------|
 | `reproduce_figures.py` | `figures/*.pdf` |
 | `generate_vdb_comparison_figures.py` | Van den Broeck comparison figures |
-| `emit_diagnostic_tables.py` | `tables/{missed_uniform,type_breakdown,nstarts,c1_vs_c2,convergence_richardson}.tex` from cached `results/*.json` |
+| `emit_diagnostic_tables.py` | `tables/{missed_uniform,nstarts,convergence_richardson}.tex` from cached `results/*.json` |
 
 ## Paper verification
 

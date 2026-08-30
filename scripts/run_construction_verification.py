@@ -1,199 +1,273 @@
-"""Cross-construction all-observer verification of positive-energy warp drives.
+"""Cross-construction all-observer verification, in two explicitly separate blocks.
 
-Extends the n=1 Rodal verification to a panel of published positive-energy
-constructions (Fuchs constant-velocity shell (arXiv:2405.02709) and the
-Garattini-Zatrimaylov averaged-condition drive) alongside the Alcubierre baseline
-and the Rodal global-Type-I drive. The source-first S-/T-shells remain available
-in the construction registry as a toolkit, but are introduced and developed in the
-companion note (arXiv:2605.25417), not certified here, to keep the contributions
-disjoint.
+Referee item A3. The superseded panel evaluated each construction at *its own*
+parameters and speed, on a single grid, with no per-construction convergence
+evidence, and reported a "wall cells" figure that was neither measured on the
+grid used nor counted per wall normal. None of it was comparable.
 
-Each construction flows through the SAME frame-independent eigenstructure certifier
-and all-observer verification, wall-restricted and volume-weighted, with a
-resolution gate that withholds numbers for any wall spanning fewer than
-``MIN_WALL_CELLS`` cells. The output adds a certified-vs-claimed agreement note:
-the all-observer reality (Type-IV wall fraction, NEC severity, single-frame
-miss) set against each construction's published claim. This is a diagnostic
-cross-check, not a refutation of any author's algebra.
+This script replaces it with two blocks that are each internally honest:
+
+**matched** -- common dimensionless shift kinematics. Fuchs' compliance is
+designed at ``v_s = 0.02`` and Garattini's averaged-condition regime pins
+``v_s = H R``, so the match is made *to them*: every construction runs at
+``v_s = 0.02`` with characteristic wall radius ``R_c = 15`` and 10-90% shift
+width ``W = 4.419943`` (``W/R_c = 0.2947``), the values read off the published
+Fuchs sigmoid. All four then present an identical wall at identical resolution.
+
+**native** -- each construction reproduced at its own published parameters, so
+the panel also states what each author actually claimed.
+
+Neither block is called "fully physically matched", because that is impossible:
+Fuchs carries a two-boundary matter shell with compactness ``2M/R_2 = 0.25``
+where Alcubierre and Rodal have no mass parameter at all, and Garattini
+necessarily carries ``Lambda R^2 = 3 (H R)^2``. Type fractions and single-frame
+miss rates are comparable under common sampling; raw stress severity and energy
+positivity are not like-for-like matter comparisons. Stress margins are reported
+dimensionlessly as ``R_c^2 min(rho + p_i)`` since curvature carries ``1/L^2``.
+
+Sampling uses the exact axisymmetric ``(r, mu)`` reduction, so each level of the
+ladder costs thousands of points rather than millions, and every construction
+gets an independent three-level convergence ladder.
 
 Outputs
 -------
 - results/construction_verification.json
-- ../warpax_arxiv/tables/construction_verification.tex
+- ../warpax_arxiv/tables/construction_matched.tex
+- ../warpax_arxiv/tables/construction_native.tex
 """
 from __future__ import annotations
 
 import argparse
 import os
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
-import jax.numpy as jnp
 import numpy as np
 
-from warpax.analysis.construction_adapter import construction_registry, is_resolved
-from warpax.analysis.invariant_verification import (
-    integrated_exotic_content,
-    peak_proper_energy_deficit,
-    single_frame_miss,
+from warpax.analysis.construction_adapter import (
+    MATCHED_R_C,
+    MATCHED_SIGMA,
+    MATCHED_V_S,
+    MATCHED_WIDTH,
+    MATCHING_CAVEAT,
+    MIN_WALL_CELLS,
+    construction_registry,
+    matched_registry,
 )
-from warpax.energy_conditions.filtering import shape_function_mask
-from warpax.energy_conditions.frame_free import certify_grid_frame_free, type_fractions
-from warpax.geometry import evaluate_curvature_grid
-from warpax.geometry.grid import build_coord_batch
-from warpax.grids import wall_clustered
-from _benchmark_grid import CLUSTER_A
+from warpax.analysis.invariant_verification import single_frame_miss
+from warpax.energy_conditions.frame_free import certify_grid_frame_free
+from warpax.geometry import evaluate_curvature_points
+from warpax.grids import axisymmetric_grid, wall_cells_on_axis
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
 TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
-F_LOW, F_HIGH = 0.1, 0.9
 ORDER = ["Alcubierre", "Rodal", "Fuchs", "Garattini"]
+LADDER = ((32, 32), (48, 48), (64, 64))
+F_LOW, F_HIGH = 0.1, 0.9
 
 
-def verify_one(spec, speed, n):
-    resolved, cells = is_resolved(spec, speed=speed, n=n)
+def verify_one(spec, n_r: int, n_mu: int) -> dict:
+    metric = spec.metric()
+    center = spec.center_of(metric)
+    grid = axisymmetric_grid(
+        spec.r_max, n_r, n_mu, wall_radius=spec.wall_radius, a=spec.cluster_a,
+        center=center,
+    )
+    # The resolution witness must be measured on the axis the grid actually samples,
+    # which for an off-origin bubble is the shifted one. Measuring on grid.r alone
+    # reported the Garattini wall at 1.5 cells because the radial nodes cluster on a
+    # sphere the wall only crosses; on the axis through the bubble centre the same
+    # ladder level spans 4.5.
+    axis = center + np.concatenate([-grid.r[::-1], grid.r])
+    res = wall_cells_on_axis(metric, axis)
     row = {
         "metric": spec.name,
+        "n_r": n_r,
+        "n_mu": n_mu,
+        "speed": spec.default_speed,
         "speed_param": spec.speed_param,
-        "speed": speed,
-        "N": n,
-        "wall_cells": cells,
-        "resolved": bool(resolved),
-        "is_comoving": spec.is_comoving,
+        "wall_radius": spec.wall_radius,
+        "r_max": spec.r_max,
+        "grid_center": center,
+        "wall_cells": res.cells,
+        "wall_width": res.width,
+        "resolved": bool(res.cells >= MIN_WALL_CELLS),
+        "params": spec.params,
         "claim": spec.claim,
     }
-    if not resolved:
-        row["note"] = (
-            f"wall spans {cells:.1f} cells (< 4); numbers withheld; increase N"
-        )
+    if not row["resolved"]:
+        row["note"] = f"wall spans {res.cells:.2f} cells (< {MIN_WALL_CELLS})"
         return row
 
-    metric = spec.metric(speed)
-    grid = wall_clustered(metric, list(spec.bounds), (n, n, n), a=CLUSTER_A)
-    curv = evaluate_curvature_grid(metric, grid, batch_size=256)
+    curv = evaluate_curvature_points(metric, grid.coords, batch_size=256)
     T, g, gi = curv.stress_energy, curv.metric, curv.metric_inv
 
-    coords = build_coord_batch(grid, t=0.0)
-    mask = shape_function_mask(metric, coords, (n, n, n), f_low=F_LOW, f_high=F_HIGH)
-    mask_flat = np.asarray(jnp.reshape(mask, (-1,))).astype(bool)
-    vol_w = grid.volume_weights_array
-    vol_flat = np.asarray(jnp.reshape(vol_w, (-1,)))
+    f = np.asarray(jax.vmap(metric.shape_function_value)(grid.coords))
+    wall = (f >= F_LOW) & (f <= F_HIGH)
+    w = grid.weights
 
     ff = certify_grid_frame_free(T, g, gi, solver="auto")
-    fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
-    nec_inv = np.asarray(ff.nec_margins).ravel()
-    typeI_wall = mask_flat & (np.asarray(ff.he_types).ravel() == 1.0) & np.isfinite(nec_inv)
-    nec_min = float(np.min(nec_inv[typeI_wall])) if typeI_wall.any() else float("nan")
+    he = np.asarray(ff.he_types).ravel()
+    sel = wall & np.isfinite(he)
+    w_wall = w[sel].sum()
 
-    exotic = integrated_exotic_content(T, g, gi, vol_w, mask=mask)
-    peaks = peak_proper_energy_deficit(T, g, gi, mask=mask_flat)
+    nec = np.asarray(ff.nec_margins).ravel()
+    typeI_wall = sel & (he == 1.0) & np.isfinite(nec)
+    nec_min = float(np.min(nec[typeI_wall])) if typeI_wall.any() else float("nan")
 
-    eulerian_valid = float(speed) < 1.0
-    miss = None
-    if eulerian_valid:
-        miss = single_frame_miss(T, g, gi, mask=mask_flat, volume_weights=vol_flat)
-
-    def _pct(x):
-        return x * 100.0 if x is not None else None
+    # The Eulerian comparison needs a timelike coordinate-stationary congruence.
+    eulerian_valid = float(spec.default_speed) < 1.0
+    miss = (
+        single_frame_miss(T, g, gi, mask=wall, volume_weights=w)
+        if eulerian_valid else None
+    )
 
     row.update({
-        "wall_n": fr["n_selected"],
-        "frac_type_i": fr["frac_type_i"],
-        "frac_type_iv": fr["frac_type_iv"],
+        "n_wall_points": int(sel.sum()),
+        "frac_type_i": float(w[sel & (he == 1.0)].sum() / w_wall) if w_wall else float("nan"),
+        "frac_type_iv": float(w[sel & (he == 4.0)].sum() / w_wall) if w_wall else float("nan"),
         "invariant_nec_min": nec_min,
-        "E_minus_inv": exotic["E_minus_inv"],
-        "peak_deficit_inv": peaks["peak_deficit_inv"],
+        # Curvature carries 1/L^2, so this is the comparable quantity.
+        "nec_min_dimensionless": nec_min * spec.wall_radius ** 2,
         "eulerian_valid": eulerian_valid,
-        "miss_wec_pct": _pct(miss["wec"]["miss_rate"]) if miss else None,
-        "miss_nec_pct": _pct(miss["nec"]["miss_rate"]) if miss else None,
-        "miss_dec_pct": _pct(miss["dec"]["miss_rate"]) if miss else None,
     })
+    # miss_rate is None when nothing violates at all (empty denominator), which
+    # is a meaningful outcome here, not an error: it is what a construction that
+    # clears the all-observer check on its wall looks like.
+    for cond in ("wec", "nec", "dec"):
+        rate = miss[cond]["miss_rate"] if miss else None
+        row[f"miss_{cond}_pct"] = 100.0 * rate if rate is not None else None
+        row[f"n_violated_{cond}"] = miss[cond]["n_violated"] if miss else None
     return row
 
 
-def write_table(rows, out_path):
-    def _f(x, nd=1):
-        return f"{x:.{nd}f}" if (x is not None and np.isfinite(x)) else "--"
+def _fmt(x, nd=1):
+    return f"{x:.{nd}f}" if (x is not None and np.isfinite(x)) else "--"
 
-    def _fnec(x):
-        # NEC margin: keep sign and magnitude for tiny values (avoid "-0.000").
-        if x is None or not np.isfinite(x):
-            return "--"
-        if abs(x) < 5e-4:
-            return f"{x:.1e}"
-        return f"{x:.3f}"
 
+def _fmt_margin(x):
+    if x is None or not np.isfinite(x):
+        return "--"
+    return f"{x:.1e}" if abs(x) < 5e-3 else f"{x:.3f}"
+
+
+def write_table(rows_by_metric: dict, out_path: str, *, show_speed: bool) -> None:
+    speed_col = " c" if show_speed else ""
     lines = [
-        r"\begin{tabular}{@{}l c cc c cc@{}}",
+        r"\begin{tabular}{@{}l" + speed_col + r" cc cc c cc@{}}",
         r"  \toprule",
-        r"  & Wall & Type~I & Type~IV & $\min(\rho+p_i)$ & WEC & NEC \\",
-        r"  Metric & cells & (\%) & (\%) & (Type~I) & \multicolumn{2}{c}{miss (\%)} \\",
+        (r"  & $v_s$ & \multicolumn{2}{c}{Wall cells}" if show_speed
+         else r"  & \multicolumn{2}{c}{Wall cells}")
+        + r" & Type~I & Type~IV & $R_c^2\min(\rho+p_i)$ & WEC & NEC \\",
+        (r"  Metric & & coarse & fine" if show_speed
+         else r"  Metric & coarse & fine")
+        + r" & (\%) & (\%) & (Type~I) & \multicolumn{2}{c}{miss (\%)} \\",
         r"  \midrule",
     ]
     for name in ORDER:
-        r = next((x for x in rows if x["metric"] == name), None)
-        if r is None:
+        rows = rows_by_metric.get(name)
+        if not rows:
             continue
-        if not r.get("resolved", False):
+        fine, coarse = rows[-1], rows[0]
+        lead = f"  {name}"
+        if show_speed:
+            lead += f" & {fine['speed']:g}"
+        if not fine.get("resolved", False):
             lines.append(
-                f"  {name} & {_f(r['wall_cells'])} & "
-                r"\multicolumn{5}{c}{\emph{wall unresolved}} \\"
+                lead + f" & {_fmt(coarse['wall_cells'])} & {_fmt(fine['wall_cells'])}"
+                r" & \multicolumn{5}{c}{\emph{wall unresolved}} \\"
             )
             continue
         lines.append(
-            f"  {name} & {_f(r['wall_cells'])} & {_f(r['frac_type_i']*100)} & "
-            f"{_f(r['frac_type_iv']*100)} & {_fnec(r['invariant_nec_min'])} & "
-            f"{_f(r.get('miss_wec_pct'))} & {_f(r.get('miss_nec_pct'))} \\\\"
+            lead
+            + f" & {_fmt(coarse['wall_cells'])} & {_fmt(fine['wall_cells'])}"
+            f" & {_fmt(fine['frac_type_i'] * 100)} & {_fmt(fine['frac_type_iv'] * 100)}"
+            f" & {_fmt_margin(fine['nec_min_dimensionless'])}"
+            f" & {_fmt(fine.get('miss_wec_pct'))} & {_fmt(fine.get('miss_nec_pct'))} \\\\"
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/run_construction_verification.py", sources="results/construction_verification.json")
     print(f"  Wrote {out_path}")
 
 
-def main():
+def run_mode(registry, ladder, label: str) -> dict:
+    print(f"\n--- {label} ---")
+    out: dict = {}
+    for name in ORDER:
+        spec = registry[name]
+        rows = []
+        for n_r, n_mu in ladder:
+            rows.append(verify_one(spec, n_r, n_mu))
+        out[name] = rows
+        fine = rows[-1]
+        if fine.get("resolved", False):
+            spread_i = (
+                abs(rows[-1]["frac_type_i"] - rows[-2]["frac_type_i"]) * 100
+                if len(rows) > 1 else float("nan")
+            )
+            print(
+                f"  {name:>11s}  cells {rows[0]['wall_cells']:5.2f}->{fine['wall_cells']:5.2f}"
+                f"  TypeI={fine['frac_type_i']*100:6.2f}%  TypeIV={fine['frac_type_iv']*100:6.2f}%"
+                f"  Rc^2 minNEC={fine['nec_min_dimensionless']:+.4g}"
+                f"  missW/N={_fmt(fine.get('miss_wec_pct'))}/{_fmt(fine.get('miss_nec_pct'))}"
+                f"  [finest-two TypeI spread {spread_i:.2f} pp]"
+            )
+        else:
+            print(f"  {name:>11s}  {fine.get('note')}")
+    return out
+
+
+def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--metrics", type=str, nargs="+", default=ORDER)
-    p.add_argument("--N", type=int, default=None,
-                   help="override grid N for all constructions (else per-spec)")
-    p.add_argument("--smoke", action="store_true")
+    p.add_argument("--mode", choices=["matched", "native", "both"], default="both")
+    p.add_argument("--smoke", action="store_true", help="coarsest level only")
     args = p.parse_args()
 
-    reg = construction_registry()
-    metrics = args.metrics
-    if args.smoke:
-        metrics = ["Alcubierre", "Rodal", "Fuchs"]
+    ladder = LADDER[:1] if args.smoke else LADDER
+
+    print("=" * 78)
+    print("CROSS-CONSTRUCTION ALL-OBSERVER VERIFICATION")
+    print("=" * 78)
+    print(f"  matched point: v_s={MATCHED_V_S}  R_c={MATCHED_R_C}  "
+          f"sigma={MATCHED_SIGMA:.9f}  W={MATCHED_WIDTH}")
+    print(f"  ladder: {list(ladder)}   wall band f in [{F_LOW}, {F_HIGH}]")
+    print(f"  NOT matched: {MATCHING_CAVEAT}")
+
+    payload = {
+        "matched_point": {
+            "v_s": MATCHED_V_S, "R_c": MATCHED_R_C, "sigma": MATCHED_SIGMA,
+            "wall_width": MATCHED_WIDTH, "width_over_Rc": MATCHED_WIDTH / MATCHED_R_C,
+        },
+        "matching_caveat": MATCHING_CAVEAT,
+        "ladder": [list(x) for x in ladder],
+        "wall_band": [F_LOW, F_HIGH],
+        "order": ORDER,
+    }
+
+    if args.mode in ("matched", "both"):
+        rows = run_mode(matched_registry(), ladder, "MATCHED shift kinematics")
+        payload["matched"] = rows
+        if not args.smoke:
+            write_table(rows, os.path.join(TABLES_DIR, "construction_matched.tex"),
+                        show_speed=False)
+    if args.mode in ("native", "both"):
+        rows = run_mode(construction_registry(), ladder, "NATIVE published parameters")
+        payload["native"] = rows
+        if not args.smoke:
+            write_table(rows, os.path.join(TABLES_DIR, "construction_native.tex"),
+                        show_speed=True)
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    print("=" * 70)
-    print("CROSS-CONSTRUCTION ALL-OBSERVER VERIFICATION")
-    print("=" * 70)
-    rows = []
-    for name in metrics:
-        spec = reg[name]
-        n = args.N if args.N is not None else (24 if args.smoke else spec.grid_n)
-        r = verify_one(spec, spec.default_speed, n)
-        rows.append(r)
-        if r.get("resolved", False):
-            print(f"  {name:>12s}  cells={r['wall_cells']:.0f}  "
-                  f"TypeI={r['frac_type_i']*100:5.1f}% TypeIV={r['frac_type_iv']*100:5.1f}%  "
-                  f"NECmin={r['invariant_nec_min']:.3g}  "
-                  f"missW/N={r.get('miss_wec_pct')}/{r.get('miss_nec_pct')}")
-        else:
-            print(f"  {name:>12s}  {r.get('note')}")
-
     out_path = os.path.join(RESULTS_DIR, "construction_verification.json")
-    dump_json({"order": metrics, "rows": rows}, out_path)
+    dump_json(payload, out_path)
     print(f"\nWrote {out_path}")
-
-    if not args.smoke:
-        write_table(rows, os.path.join(TABLES_DIR, "construction_verification.tex"))
 
 
 if __name__ == "__main__":

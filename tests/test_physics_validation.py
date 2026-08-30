@@ -1243,39 +1243,40 @@ class TestAlcubierreVsZeroIsMinkowski:
 class TestSchwarzschildADMMassFuchs:
     """ADM mass surface integral on the Fuchs canonical metric.
 
-    The documented behavior (CODEBASE.md) is that the surface integrand
-    has the wrong large-r asymptote for thick-shell constructions, so the
-    integral drifts away from the Komar / volume mass as r grows. This
-    test pins the trend quantitatively (linear-in-r drift plus a golden
-    snapshot) so a future fix doesn't regress silently.
+    Previously the metric interpolation clamped beyond the solved radial grid,
+    so the exterior was not vacuum and the surface integral grew *linearly* in
+    ``r`` (``M(2r)/M(r) = 2`` exactly) instead of converging. That pathology was
+    pinned here as documented behaviour. The potentials are now continued
+    analytically as Schwarzschild outside the grid, so the surface mass
+    converges to the volume mass -- which is what asymptotic flatness, and the
+    manuscript's Santiago-Schuster-Visser escape argument, require.
     """
 
     @pytest.mark.slow
-    def test_adm_mass_finite_across_radii(self):
+    def test_adm_mass_converges_to_volume_mass(self):
         from warpax.adm.mass import adm_mass
         from warpax.metrics.fuchs_construction import fuchs_default
 
         metric = fuchs_default()
-        radii = [20.0, 50.0, 100.0]
+        radii = [50.0, 100.0, 200.0, 400.0]
         masses = [
             float(adm_mass(metric, r_surface=r, n_theta=10, n_phi=18))
             for r in radii
         ]
-        assert all(np.isfinite(m) for m in masses), masses
-        # All ADM probes return positive mass on this Type-I shell
-        assert all(m > 0 for m in masses), masses
-        # Documented wrong asymptote: integral grows linearly in r outside R_2
-        assert masses[0] < masses[1] < masses[2], masses
-        npt.assert_allclose(
-            masses[2] / masses[1], 100.0 / 50.0, rtol=1e-6,
-            err_msg=f"large-r linear drift broken: {masses}",
-        )
-        # Golden snapshot (CPU float64); a fixed integrand must update these
-        npt.assert_allclose(
-            masses,
-            [2.9763560775557134, 5.0338710480931175, 10.067742096186235],
-            rtol=1e-6,
-        )
+        assert all(np.isfinite(m) and m > 0 for m in masses), masses
+
+        # Monotone approach from above to the volume mass, not a drift away.
+        assert masses[0] > masses[1] > masses[2] > masses[3] > metric.total_mass, masses
+
+        # The residual falls like 1/r: each doubling of the surface radius must
+        # roughly halve the excess over the volume mass.
+        excess = [m - metric.total_mass for m in masses]
+        for lo, hi in zip(excess[:-1], excess[1:]):
+            npt.assert_allclose(hi / lo, 0.5, rtol=0.15)
+
+        # At the largest radius the surface integral is within 1.5% of the mass
+        # the density profile actually carries.
+        npt.assert_allclose(masses[-1], metric.total_mass, rtol=0.015)
 
 
 class TestInterpolationOrderRegression:

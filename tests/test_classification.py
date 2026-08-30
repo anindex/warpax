@@ -189,11 +189,16 @@ class TestTypeIIIClassification:
     """
 
     def test_maximally_degenerate_null_with_relaxed_tol(self):
-        """Jordan block with all-equal eigenvalue + null eigenvector = Type III.
+        """A 2x2 Jordan block with all-equal eigenvalues is Type **II**, not III.
 
-        With ``tol=1e-6`` the classifier treats the O(1e-8) eigenvalue split
-        from the Jordan block as degenerate and the O(1e-8) causal character
-        as null, correctly identifying Type III.
+        This test used to assert Type III, and the classifier used to agree,
+        because its Type-III gate was ``n_unique == 1`` -- all four eigenvalues
+        equal -- which a ``J_2(lam) (+) [lam] (+) [lam]`` satisfies. Equal
+        eigenvalues are not the criterion. The Hawking-Ellis type is fixed by the
+        Jordan *chain length*: Segre ``[2,1,1]`` is Type II, and Type III needs a
+        genuine ``J_3``, Segre ``[3,1]``. The classifier now discriminates them by
+        the defect ``multiplicity - dim ker(A - lam I)``, which is 1 here and 2 for
+        a ``J_3``; see ``test_type_iii_3x3_block`` for the real thing.
         """
         lam = 1.0
         P = jnp.array([
@@ -219,7 +224,7 @@ class TestTypeIIIClassification:
         # from eig's handling of the defective matrix.
         result = classify_hawking_ellis(T_mixed, ETA, tol=1e-6)
 
-        assert int(result.he_type) == 3
+        assert int(result.he_type) == 2
         assert jnp.isnan(result.rho)
         assert jnp.all(jnp.isnan(result.pressures))
 
@@ -815,23 +820,28 @@ class TestTypeIIISyntheticBenchmark:
         ])
         return P @ J @ jnp.linalg.inv(P)
 
-    def test_type_iii_at_small_scale(self):
-        """At ``lam = 1e-4`` the 2x2 Jordan block still classifies as Type III
-        once the classifier tolerance absorbs the eig perturbation."""
+    def test_jordan_2x2_at_small_scale_is_type_ii(self):
+        """At ``lam = 1e-4`` the 2x2 Jordan block classifies as Type II.
+
+        A ``J_2`` block is Segre ``[2,1,1]``, i.e. Type II, at every scale. This
+        asserted Type III until the classifier learned to test the Jordan chain
+        length rather than eigenvalue multiplicity.
+        """
         T = self._jordan_2x2_tensor(1e-4)
         # At the default tol the eig split on this 1e-4-scale Jordan block
         # falls below tol*scale, so use a relaxed tol = 1e-2 * lam, matching
-        # what a practitioner would choose for small-scale Type III detection.
+        # what a practitioner would choose for small-scale defective detection.
         result = classify_hawking_ellis(T, ETA, tol=1e-2 * 1e-4)
-        assert int(result.he_type) == 3
+        assert int(result.he_type) == 2
 
-    def test_type_iii_at_large_scale(self):
+    def test_jordan_2x2_at_large_scale_is_type_ii(self):
         """At ``lam = 1e6`` eig splits the Jordan pair by O(1e-6) and its
         eigenvectors collapse onto the null direction with causal character
-        O(split); the collapsed-pair null test must absorb both."""
+        O(split); the collapsed-pair null test must absorb both, and the result
+        is still Type II because the chain has length two."""
         T = self._jordan_2x2_tensor(1e6)
         result = classify_hawking_ellis(T, ETA, tol=1e-6)
-        assert int(result.he_type) == 3
+        assert int(result.he_type) == 2
 
     def test_type_iii_3x3_block(self):
         """A 3x3 Jordan block has a deeper Jordan structure than the 2x2
@@ -859,6 +869,54 @@ class TestTypeIIISyntheticBenchmark:
 
     # NaN rho/pressures for Type III on this exact tensor is pinned by
     # TestTypeIIIClassification::test_maximally_degenerate_null_with_relaxed_tol.
+
+    @staticmethod
+    def _generic_type_iii(rho, f, p):
+        """Lorentz-self-adjoint ``J_3(-rho) (+) [p]`` with ``p != -rho``.
+
+        This is *generic* Type III: the repeated eigenvalue has multiplicity three,
+        not four, so it is exactly the family the old ``n_unique == 1`` gate
+        excluded by construction.
+        """
+        T_ab = jnp.array([
+            [rho, 0.0, -f, 0.0],
+            [0.0, -rho, f, 0.0],
+            [-f, f, -rho, 0.0],
+            [0.0, 0.0, 0.0, p],
+        ])
+        return ETA @ T_ab, T_ab
+
+    @pytest.mark.parametrize("rho,f,p", [(1.0, 1.0, 3.0), (1.0, 1.0, -1.0), (2.0, 0.5, 5.0)])
+    def test_generic_type_iii_is_resolved_once_the_split_is_absorbed(self, rho, f, p):
+        """Generic ``J_3(lam) (+) [p]`` is Type III when the tolerance clears the
+        defective split -- multiplicity three, not four."""
+        T_mixed, T_ab = self._generic_type_iii(rho, f, p)
+        result = classify_hawking_ellis(T_mixed, ETA, T_ab=T_ab, tol=1e-4)
+        assert int(result.he_type) == 3
+
+    @pytest.mark.parametrize("rho,f,p", [(1.0, 1.0, 3.0), (2.0, 0.5, 5.0)])
+    def test_generic_type_iii_is_unresolvable_at_default_tol(self, rho, f, p):
+        """float64 cannot label generic Type III, and no tolerance repairs it.
+
+        A defective ``J_m`` block is not a continuous function of its entries: a
+        perturbation ``delta`` moves the eigenvalues by ``delta^(1/m)``. Rounding
+        supplies ``delta ~ eps``, so a ``J_3`` splits by ``eps^(1/3) ~ 6e-6`` -- and
+        generically into a *complex* triple. The spectrum genuinely comes back
+        non-real at the 1e-6 level, so the point is reported Type IV however small
+        ``tol`` is made.
+
+        This is a measured limit of the classifier, not of the certification: the
+        LMI decides every energy condition at exactly these points without forming
+        an eigendecomposition at all (see ``test_slemma.py``). The label is a
+        diagnostic with an error rate; the decision is not.
+        """
+        T_mixed, T_ab = self._generic_type_iii(rho, f, p)
+        evals = np.linalg.eigvals(np.asarray(T_mixed))
+        split = float(np.max(np.abs(evals.imag)))
+        assert 1e-7 < split < 1e-4, f"expected an eps^(1/3)-scale split, got {split:.2e}"
+
+        result = classify_hawking_ellis(T_mixed, ETA, T_ab=T_ab)
+        assert int(result.he_type) == 4, "documents the limit; not a desired outcome"
 
 
 # g-orthogonal causal-basis fix
@@ -1099,3 +1157,32 @@ def test_grid_vacuum_count_matches_n_vacuum():
         f"n_vacuum={ec.n_vacuum} exceeds n_type_i={ec.n_type_i}; vacuum "
         "points should be a subset of Type-I."
     )
+
+
+def test_nilpotent_stress_energy_is_not_mistaken_for_vacuum():
+    """Negative null dust is finite, Type II, and violates every condition.
+
+    Its mixed tensor is nilpotent, so its spectrum is identically zero. Gating the
+    near-vacuum bypass on the spectrum alone therefore labelled it vacuum and hence
+    Type I, and a Type-I label routes the point away from the linear matrix
+    inequality that is supposed to decide every non-Type-I point. The LMI margins
+    are -2 for all four conditions; the classifier reported none.
+    """
+    import numpy as np
+
+    from warpax.energy_conditions import slemma
+
+    g = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+    k = np.array([1.0, 1.0, 0.0, 0.0])
+    T_ab = jnp.asarray(-np.outer(k, k))
+
+    res = classify_hawking_ellis(g @ T_ab, g)
+    assert int(res.is_vacuum) == 0, "a finite nilpotent tensor is not vacuum"
+    assert int(res.he_type) == 2, f"negative null dust is Type II, got {int(res.he_type)}"
+
+    margins = slemma.certify_point(T_ab, g)
+    assert float(margins["nec"]) < -1.0, "the LMI must see the violation"
+
+    # And the bypass must still fire on something that really is vacuum.
+    zero = classify_hawking_ellis(jnp.zeros((4, 4)), g)
+    assert int(zero.is_vacuum) == 1

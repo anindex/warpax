@@ -4,6 +4,13 @@ Two-tier strategy: Hawking-Ellis classification plus exact eigenvalue
 margins for Type I points, Optimistix BFGS over the observer manifold
 for all four conditions. Eulerian-frame margins are available
 separately for clean single-frame comparisons.
+
+Independently of both tiers, :func:`certify_point_lmi` decides all four
+conditions over every observer from a single 4x4 linear matrix inequality,
+with no eigendecomposition, no rapidity cap and no classification tolerance,
+at any Hawking-Ellis type. Its verdict is one-sided: a non-negative margin
+certifies the condition, and a margin below ``-noise_floor(...)`` certifies
+that some observer sees it fail.
 """
 
 from .classification import (
@@ -53,6 +60,12 @@ from .optimization import (
     optimize_point,
     optimize_sec,
     optimize_wec,
+)
+from .slemma import (
+    certify_point as certify_point_lmi,
+    noise_floor,
+    null_deficit,
+    witness_observer,
 )
 from .sweep import (
     cross_validate_sweep,
@@ -144,4 +157,9 @@ __all__ = [
     # Analytic worst observer
     "boosted_energy_density",
     "worst_observer_typeI",
+    # S-lemma LMI: all four conditions at any Hawking-Ellis type, no tolerance
+    "certify_point_lmi",
+    "noise_floor",
+    "null_deficit",
+    "witness_observer",
 ]

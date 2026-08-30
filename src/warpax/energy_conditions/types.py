@@ -134,6 +134,7 @@ class FrameFreeGridResult(NamedTuple):
     eigenvalues_imag: Float[Array, "... 4"]  # Im eigenvalues of T^a_b
     rho: Float[Array, "..."]  # invariant energy density (Type I) or NaN
     pressures: Float[Array, "... 3"]  # principal pressures (Type I) or NaN
+    nec_noise_floor: Float[Array, "..."]  # |margin| below this is inconclusive
     nec_margins: Float[Array, "..."]  # certified witness where non-Type-I
     wec_margins: Float[Array, "..."]
     sec_margins: Float[Array, "..."]

@@ -90,19 +90,12 @@ def main():
         )
         print(f"  Saved: {path}")
 
-    # Save cached results for reproducibility
-    results_dir = os.path.join(os.path.dirname(__file__), "..", "results")
-    os.makedirs(results_dir, exist_ok=True)
-    cache_path = os.path.join(results_dir, f"vdb_vs{V_S}.npz")
-    save_dict = {}
-    for cond in ("nec", "wec", "sec", "dec"):
-        save_dict[f"{cond}_eulerian"] = np.asarray(comparison.eulerian_margins[cond])
-        save_dict[f"{cond}_robust"] = np.asarray(comparison.robust_margins[cond])
-        save_dict[f"{cond}_missed"] = np.asarray(comparison.missed[cond])
-    save_dict["grid_bounds"] = np.array(GRID.bounds)
-    save_dict["grid_shape"] = np.array(GRID.shape)
-    np.savez(cache_path, **save_dict)
-    print(f"\n  Cached results: {cache_path}")
+    # No cache is written here. This script used to save results/vdb_vs{V_S}.npz,
+    # which is the same path run_analysis.py writes at the same parameters -- but
+    # with 14 arrays against run_analysis's 53. Since reproduce_all.sh runs the core
+    # stage before the figures stage, every full reproduction ended by overwriting
+    # the complete artifact with a partial one. The figures below are computed from
+    # scratch and nothing here is ever read back, so the cache had no reader.
 
     print("\nDone!")
 

@@ -828,3 +828,227 @@ class TestFutureDirectedICs:
         _, v0 = timelike_ic(m, jnp.array([0.0, 0.1, 0.0, 0.0]),
                             jnp.array([0.0, 0.0, 0.0]))
         assert bool(jnp.isnan(v0[0])), "expected NaN sentinel for no real root"
+
+
+class TestKillingEnergyNormalization:
+    """A4: the affine scale of a null geodesic must be fixed canonically.
+
+    Without a normalization the ANEC line integral int T_ab k^a k^b dlambda is
+    only defined up to k -> c k, so cross-metric magnitudes are meaningless.
+    The helical Killing vector K = d_t + v_s d_x is exact for every
+    constant-velocity drive here, so E_K = -g(k, K) is exactly conserved and
+    fixes the scale invariantly.
+    """
+
+    def test_normalization_hits_target_and_stays_null(self):
+        import jax.numpy as jnp
+        from warpax.benchmarks import AlcubierreMetric
+        from warpax.geodesics import killing_energy, null_ic_killing_normalized
+
+        v_s = 0.5
+        metric = AlcubierreMetric(v_s=v_s, R=1.0, sigma=8.0)
+        x0 = jnp.array([0.0, -8.0, 0.5, 0.0])
+        x, k = null_ic_killing_normalized(metric, x0, jnp.array([1.0, 0.0, 0.0]), v_s)
+
+        assert abs(float(killing_energy(metric, x, k, v_s)) - 1.0) < 1e-12
+        assert abs(float(jnp.einsum("ab,a,b->", metric(x), k, k))) < 1e-12
+
+    def test_is_invariant_to_input_direction_scale(self):
+        """The exact defect A4 names: rescaling the seed must not change the ray."""
+        import jax.numpy as jnp
+        from warpax.benchmarks import AlcubierreMetric
+        from warpax.geodesics import null_ic, null_ic_killing_normalized
+
+        v_s = 0.5
+        metric = AlcubierreMetric(v_s=v_s, R=1.0, sigma=8.0)
+        x0 = jnp.array([0.0, -8.0, 0.5, 0.0])
+        n = jnp.array([1.0, 0.0, 0.0])
+
+        _, k1 = null_ic_killing_normalized(metric, x0, n, v_s)
+        _, k2 = null_ic_killing_normalized(metric, x0, 3.7 * n, v_s)
+        assert float(jnp.max(jnp.abs(k1 - k2))) < 1e-14
+
+        # ... whereas the unnormalized constructor does scale, which is the bug.
+        _, u1 = null_ic(metric, x0, n)
+        _, u2 = null_ic(metric, x0, 3.7 * n)
+        assert float(jnp.max(jnp.abs(u1 - u2))) > 1.0
+
+    def test_killing_energy_conserved_along_geodesic(self):
+        """E_K drift is a second rigor witness alongside the on-cone g(k,k)."""
+        import jax
+        import jax.numpy as jnp
+        from warpax.benchmarks import AlcubierreMetric
+        from warpax.geodesics import killing_energy, null_ic_killing_normalized
+        from warpax.geodesics.symplectic import integrate_geodesic_symplectic
+
+        v_s = 0.5
+        metric = AlcubierreMetric(v_s=v_s, R=1.0, sigma=8.0)
+        x0 = jnp.array([0.0, -8.0, 0.5, 0.0])
+        x, k = null_ic_killing_normalized(metric, x0, jnp.array([1.0, 0.0, 0.0]), v_s)
+
+        res = integrate_geodesic_symplectic(
+            metric, x, metric(x) @ k, affine_bounds=(0.0, 32.0),
+            num_steps=8192, num_save=512, order=4,
+        )
+        tangents = jax.vmap(lambda c, p: jnp.linalg.inv(metric(c)) @ p)(
+            res.positions, res.momenta
+        )
+        e_k = jax.vmap(lambda c, kk: killing_energy(metric, c, kk, v_s))(
+            res.positions, tangents
+        )
+        assert float(jnp.max(jnp.abs(e_k - 1.0))) < 1e-5
+
+
+class TestInitialConditionsOnTheNullLocus:
+    """g_00 = 0 is a degenerate quadratic, not a singularity.
+
+    Where ``v_s f(r) = 1`` the coordinate vector d_t is null and g_00 vanishes.
+    The normalisation equation for the time component then becomes linear, with a
+    perfectly ordinary root; dividing by 2 g_00 unconditionally returned NaN on
+    exactly that locus, which is the one this paper's superluminal claims live on.
+    """
+
+    @staticmethod
+    def _null_dt_metric():
+        # Lorentzian, g_00 = 0, so d_t is null but the metric is non-degenerate.
+        return jnp.array([
+            [0.0, 1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ])
+
+    def test_metric_is_lorentzian_with_null_dt(self):
+        g = self._null_dt_metric()
+        assert float(jnp.linalg.det(g)) < 0.0
+        assert float(g[0, 0]) == 0.0
+
+    def test_timelike_ic_is_unit_timelike_on_the_locus(self):
+        g = self._null_dt_metric()
+        _, u = timelike_ic(lambda x: g, jnp.zeros(4), jnp.array([-1.0, 0.0, 0.0]))
+        assert jnp.all(jnp.isfinite(u)), f"NaN tangent on the g_00 = 0 locus: {u}"
+        assert float(u[0]) > 0.0, "must be future-directed"
+        assert float(u @ (g @ u)) == pytest.approx(-1.0, abs=1e-12)
+
+    def test_null_ic_is_null_on_the_locus(self):
+        g = self._null_dt_metric()
+        _, k = null_ic(lambda x: g, jnp.zeros(4), jnp.array([-1.0, 0.0, 0.0]))
+        assert jnp.all(jnp.isfinite(k)), f"NaN tangent on the g_00 = 0 locus: {k}"
+        assert float(k[0]) > 0.0, "must be future-directed"
+        assert float(k @ (g @ k)) == pytest.approx(0.0, abs=1e-12)
+
+    def test_minkowski_branch_is_unchanged(self):
+        eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+        _, u = timelike_ic(lambda x: eta, jnp.zeros(4), jnp.array([0.3, 0.0, 0.0]))
+        _, k = null_ic(lambda x: eta, jnp.zeros(4), jnp.array([1.0, 0.0, 0.0]))
+        assert float(u @ (eta @ u)) == pytest.approx(-1.0, abs=1e-12)
+        assert float(k @ (eta @ k)) == pytest.approx(0.0, abs=1e-12)
+
+    def test_no_real_root_still_returns_nan(self):
+        """The genuine no-real-root case must remain a NaN signal.
+
+        A large spatial component is not that case -- ``v_spatial`` is the
+        coordinate component of a 4-vector, so ``(2, 0, 0)`` just means
+        ``gamma = 2.236``, i.e. ``v = 0.894``. The quadratic only loses its real
+        root where the slice normal direction is itself spacelike, ``g_00 > 0``.
+        """
+        riemannian = jnp.eye(4)  # no timelike directions at all
+        _, u = timelike_ic(lambda x: riemannian, jnp.zeros(4),
+                           jnp.array([1.0, 0.0, 0.0]))
+        assert not jnp.all(jnp.isfinite(u))
+
+    def test_fast_but_subluminal_direction_is_fine(self):
+        eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+        _, u = timelike_ic(lambda x: eta, jnp.zeros(4), jnp.array([2.0, 0.0, 0.0]))
+        assert jnp.all(jnp.isfinite(u))
+        assert float(u @ (eta @ u)) == pytest.approx(-1.0, abs=1e-12)
+        assert float(u[1] / u[0]) < 1.0, "coordinate 3-velocity must be subluminal"
+
+
+class TestNatarioAffineNormalization:
+    """The A4 rescaling factor for the Natario bubble-at-rest convention.
+
+    Metrics in this package do not share a frame convention. Alcubierre, Van den
+    Broeck and Rodal are written in the lab frame and a unit spatial seed already
+    gives ``-g(k, n) = 1``; the Natario shift tends to ``-v_s x_hat`` at infinity
+    and does not. The correction factor is ``1 + v_s``.
+
+    This test exists because the factor was documented as ``1 - v_s`` (equivalently
+    a rescaling by ``1/(1 - v_s)``) while the number actually applied was ``3/2``.
+    At ``v_s = 1/2`` the two agree by coincidence -- ``1/(1 - 1/2) = 2`` does not,
+    but the quoted frequency ``2/3`` matches ``1/(1 + v_s)`` and not ``1 - v_s``.
+    Pinning it across several speeds is what makes the coincidence impossible to
+    hide behind.
+    """
+
+    SPEEDS = (0.1, 0.25, 0.5, 0.75, 0.9)
+
+    @staticmethod
+    def _frequency(metric):
+        from warpax.geodesics.initial_conditions import null_ic, eulerian_frequency
+
+        x0 = jnp.array([0.0, -8.0, 1.5, 0.0])
+        _, k = null_ic(metric, x0, jnp.array([1.0, 0.0, 0.0]))
+        return float(eulerian_frequency(metric, x0, k))
+
+    @pytest.mark.parametrize("v_s", SPEEDS)
+    def test_natario_frequency_is_one_over_one_plus_vs(self, v_s):
+        freq = self._frequency(NatarioMetric(v_s=v_s, R=1.0, sigma=8.0))
+        assert freq == pytest.approx(1.0 / (1.0 + v_s), rel=1e-9)
+        # and is NOT the previously documented 1 - v_s, except where they coincide
+        if abs((1.0 - v_s) - 1.0 / (1.0 + v_s)) > 1e-9:
+            assert freq != pytest.approx(1.0 - v_s, rel=1e-6)
+
+    @pytest.mark.parametrize("v_s", SPEEDS)
+    def test_affine_scale_is_one_plus_vs(self, v_s):
+        from warpax.geodesics.initial_conditions import eulerian_affine_scale
+
+        scale = float(
+            eulerian_affine_scale(
+                NatarioMetric(v_s=v_s, R=1.0, sigma=8.0),
+                jnp.array([0.0, -8.0, 1.5, 0.0]),
+                jnp.array([1.0, 0.0, 0.0]),
+            )
+        )
+        assert scale == pytest.approx(1.0 + v_s, rel=1e-9)
+
+    @pytest.mark.parametrize("v_s", SPEEDS)
+    def test_lab_frame_metrics_need_no_rescaling(self, v_s):
+        """Alcubierre and Rodal already satisfy -g(k, n) = 1 for a unit seed."""
+        assert self._frequency(
+            AlcubierreMetric(v_s=v_s, R=1.0, sigma=8.0)
+        ) == pytest.approx(1.0, rel=1e-9)
+        # Rodal is lab-frame too, up to the wall profile at the seed point
+        assert self._frequency(RodalMetric(v_s=v_s, R=1.0, sigma=8.0)) == pytest.approx(
+            1.0, abs=5e-3
+        )
+
+
+class TestRodalShiftIsIrrotational:
+    """The implemented Rodal shift must be curl-free, not just the analytic one.
+
+    ``rodal.py`` regularizes the radius twice, with a tight floor for the profile
+    values and a coarser one in the divisor that keeps ``d_i n_j`` finite at the
+    centre. Different floors in the two places would break exact irrotationality,
+    and the ``j = 0`` claim -- which carries the Type-I result and the single-term
+    ``-C v_s^2`` deficit law -- inherits from it.
+    """
+
+    POINTS = [(1.0, 0.0, 0.0), (0.7, 0.7, 0.0), (0.5, 0.5, 0.5), (0.3, 0.9, 0.2)]
+
+    @pytest.mark.parametrize("pt", POINTS)
+    def test_curl_of_shift_vanishes(self, pt):
+        import jax
+
+        rod = RodalMetric(v_s=0.1, R=1.0, sigma=8.0)
+
+        def beta(xyz):
+            return rod.shift(jnp.array([0.0, xyz[0], xyz[1], xyz[2]]))
+
+        p = jnp.array(pt)
+        J = jax.jacfwd(beta)(p)
+        curl = jnp.array(
+            [J[2, 1] - J[1, 2], J[0, 2] - J[2, 0], J[1, 0] - J[0, 1]]
+        )
+        scale = float(jnp.linalg.norm(beta(p)))
+        assert float(jnp.linalg.norm(curl)) < 1e-10 * max(scale, 1.0)

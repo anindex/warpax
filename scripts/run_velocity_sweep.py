@@ -29,7 +29,7 @@ import argparse
 import json
 import os
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 from _benchmark_grid import benchmark_grid
 
 import matplotlib
@@ -142,8 +142,7 @@ def write_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
         lines.append(f"  {name} & {cells} \\\\")
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/run_velocity_sweep.py")
     print(f"  Wrote {out_path}")
 
 
@@ -218,7 +217,11 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--velocities", type=float, nargs="+",
                    default=[0.1, 0.3, 0.5, 0.7, 0.9, 0.99, 1.0, 1.1, 1.3, 1.5, 2.0, 2.5])
-    p.add_argument("--N", type=int, default=60)
+    # This default IS the grid the manuscript reports. reproduce_all.sh invokes this
+    # script with no arguments, so a default that differs from the published grid
+    # makes the paper unreproducible from its own driver even when the released
+    # velocity_sweep.json is correct -- which is exactly the state this repaired.
+    p.add_argument("--N", type=int, default=100)
     p.add_argument("--metrics", type=str, nargs="+", default=METRIC_ORDER)
     p.add_argument("--smoke", action="store_true")
     p.add_argument("--from-cache", action="store_true",
@@ -248,13 +251,28 @@ def main():
         for v_s in args.velocities:
             r = run_point(name, v_s, args.N)
             rows.append(r)
-            print(f"  {name:>15s} v_s={v_s:.2f}  "
+            # flush: this loop is 48 points at N=100 and runs for hours. Python
+            # block-buffers stdout when it is redirected to a file, so without this
+            # a reproduce_all.sh log shows the banner and then nothing at all until
+            # the whole sweep finishes -- there is no way to tell a job that is
+            # nearly done from one that is wedged.
+            print(f"  {len(rows):2d}/{len(args.metrics) * len(args.velocities)} "
+                  f"{name:>15s} v_s={v_s:.2f}  "
                   f"TypeI={r['wall_frac_type_i']*100:5.1f}%  "
                   f"TypeIV={r['wall_frac_type_iv']*100:5.1f}%  "
-                  f"NECmin={r['typeI_nec_min']:.3g}  DECmin={r['typeI_dec_min']:.3g}")
+                  f"NECmin={r['typeI_nec_min']:.3g}  DECmin={r['typeI_dec_min']:.3g}",
+                  flush=True)
 
-    dump_json({"config": vars(args), "rows": rows}, os.path.join(RESULTS_DIR, "velocity_sweep.json"))
-    print(f"\nWrote {os.path.join(RESULTS_DIR, 'velocity_sweep.json')}")
+    # A smoke run must not land on the production artifact. It used to: the dump was
+    # unconditional while only the table write was guarded, so `--smoke` replaced
+    # velocity_sweep.json with an N=24 two-metric run and left the N=100 table beside
+    # it. Nothing downstream would notice -- the table is not regenerated, the JSON has
+    # no Natario or Van den Broeck rows for run_ssv_bound.py to fit, and the caption
+    # still says N=100. Separate filenames make that impossible instead of unlikely.
+    name = "velocity_sweep_smoke.json" if args.smoke else "velocity_sweep.json"
+    out = os.path.join(RESULTS_DIR, name)
+    dump_json({"config": vars(args), "rows": rows}, out)
+    print(f"\nWrote {out}")
 
     if not args.smoke:
         write_table(rows, os.path.join(TABLES_DIR, "velocity_type_structure.tex"))

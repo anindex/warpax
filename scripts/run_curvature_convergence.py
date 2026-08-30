@@ -7,7 +7,7 @@ Riemann tensor is pure gauge for an irrotational shift and survives for a
 vortical one, forcing ``q = 4`` for the irrotational (Rodal) wall and ``q = 2``
 for the vortical (Alcubierre, Natario) walls (verify/weyl_scaling.sage,
 verify/curvature_scaling.sage). This script refits q on the wall-resolved graded
-ladder (N = 80, 100, 120, giving 4.5 / 5.6 / 6.7 cells across the 10-90% wall) and
+ladder (N = 80, 100, 120, giving 5.9 / 7.6 / 8.9 cells across the 10-90% wall) and
 reports its spread across resolutions, confirming the closed-form value is
 resolution-stable and not a single-grid artifact.
 
@@ -24,7 +24,7 @@ from __future__ import annotations
 import argparse
 import os
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 
 import numpy as np
 
@@ -41,7 +41,9 @@ TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 # Subluminal branch used for the exponent fit (three or more points required).
 VELOCITIES = [0.1, 0.2, 0.3, 0.5, 0.7]
-# The invariants whose exponent has a closed-form value; theory column below.
+# Reference exponents retained in the JSON only. They are NOT printed as a
+# "closed form" column: only the q=4 irrotational side has an analytic
+# derivation (the pure-gauge reduction); the q=2 values are empirical fits.
 INVARIANTS = (("weyl_squared", r"Weyl $C^2$"), ("ricci_squared", r"Ricci $|R_{ab}R^{ab}|$"))
 # Closed-form q per metric (weyl_scaling.sage): irrotational -> 4, vortical -> 2.
 THEORY_Q = {"Rodal": 4.0, "Alcubierre": 2.0, "Natário": 2.0}
@@ -65,10 +67,10 @@ def write_table(fits, out_path):
     ns = N_LADDER
     hdr = " & ".join(f"$N{{=}}{n}$" for n in ns)
     lines = [
-        r"\begin{tabular}{@{}l l ccc c c@{}}",
+        r"\begin{tabular}{@{}l l ccc c@{}}",
         r"  \toprule",
-        r"  Metric & Invariant & \multicolumn{3}{c}{fitted $q$} & Spread & Closed form \\",
-        rf"   & & {hdr} & & \\",
+        r"  Metric & Invariant & \multicolumn{3}{c}{fitted $q$} & Spread \\",
+        rf"   & & {hdr} & \\",
         r"  \midrule",
     ]
     for name in METRIC_ORDER:
@@ -85,19 +87,17 @@ def write_table(fits, out_path):
             first = False
             if not clean or all(q is None for q in series):
                 lines.append(
-                    rf"  {mcol} & {label} & \multicolumn{{5}}{{c}}{{no clean "
+                    rf"  {mcol} & {label} & \multicolumn{{4}}{{c}}{{no clean "
                     rf"Type-I branch (Type-IV-dominated wall)}} \\")
                 continue
             cells = " & ".join(_f(q) for q in series)
             spread = f"{_f(stab['max_dev'])}" if stab["max_dev"] is not None else "--"
-            theory = _f(THEORY_Q.get(name), 0) if name in THEORY_Q else "--"
-            lines.append(f"  {mcol} & {label} & {cells} & {spread} & {theory} \\\\")
+            lines.append(f"  {mcol} & {label} & {cells} & {spread} \\\\")
         lines.append(r"  \midrule")
     lines[-1] = r"  \bottomrule"
     lines.append(r"\end{tabular}")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/run_curvature_convergence.py", sources="results/curvature_convergence.json")
     print(f"  Wrote {out_path}")
 
 

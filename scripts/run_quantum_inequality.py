@@ -33,7 +33,7 @@ import os
 import shutil
 from pathlib import Path
 
-from _json_io import dump_json
+from _json_io import dump_json, write_table as write_tex_table
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -178,11 +178,20 @@ def _write_table(anec: dict, qi: dict) -> None:
         )
     lines += [r"  \bottomrule", r"\end{tabular}", ""]
     Path(TABLES_DIR).mkdir(parents=True, exist_ok=True)
-    with open(os.path.join(TABLES_DIR, "averaged_quantum.tex"), "w") as f:
-        f.write("\n".join(lines))
+    write_tex_table(os.path.join(TABLES_DIR, "averaged_quantum.tex"), lines,
+                    script="scripts/run_quantum_inequality.py",
+                    sources="results/quantum/ford_roman.json")
 
 
 def _make_figure(anec: dict, qi: dict) -> None:
+    import matplotlib
+
+    # Headless by default: reproduce_all.sh runs on machines with no display,
+    # and matplotlib otherwise falls back to Tk and dies here -- *after* the
+    # results JSON has already been written, so the run looks like a physics
+    # failure when it is only a missing display.
+    matplotlib.use("Agg")
+
     import matplotlib.pyplot as plt
 
     from warpax.visualization._style import DOUBLE_COL, apply_style, metric_color
