@@ -60,11 +60,6 @@ _VALID_SOLVERS = frozenset({"standard", "generalized", "auto"})
 _AUTO_MAX_EIGENVALUE = 1e25
 _AUTO_IMAG_RTOL = 0.05
 
-# The relative imag tier only makes sense where eig noise is large
-# (WarpShell, |Re|~1e11). Below this floor it would eat genuine weak
-# Type-IV physics (e.g. the Alcubierre tail, |Im|~1e-8 at ||T||~1e-6).
-_IMAG_RTOL_SCALE_FLOOR = 1e6
-
 
 def _standard_solver_unreliable_scalar(
     he_type: float,
@@ -214,10 +209,19 @@ def classify_hawking_ellis(
         g_ab @ T_mixed`` (mathematically equivalent but introduces an
         additional matmul rounding step). Ignored when ``solver='standard'``.
     tol : float
-        Tolerance for classifying eigenvalues as real / degenerate.
+        Tolerance for classifying eigenvalues as real / degenerate. **This is the
+        real-spectrum threshold**: the spectrum counts as real when
+        ``|Im lambda| < tol * scale`` with ``scale = max(max|Re lambda|,
+        max|T^a_b|)``. Anything that sweeps a tolerance to test label stability
+        must sweep this one.
     imag_rtol : float
-        Relative tolerance for split degenerate eigenvalue pairs.
-        Eigenvalues with |Im| < imag_rtol * max|Re| are treated as real.
+        Dispatch threshold for ``solver='auto'`` only -- it decides when the
+        standard eigensolver is distrusted and the generalized pencil is tried
+        instead. It does **not** enter the real/complex decision. An earlier
+        version of this docstring said it did, describing a second relative tier
+        that was removed as unsound (see the comment at the ``all_real`` test);
+        a caller tuning it to move labels gets silence, and a sweep over it
+        reports stability it never tested.
 
     Returns
     -------

@@ -331,12 +331,17 @@ def witness_observer(
     ``e_0`` and returned ``w = 0`` with ``q(0) = +1`` -- presented as a violating
     observer, while ``w = (-0.999, 0, 0)`` gives ``q = -1.994``.
 
-    Minimize ``q`` directly instead. On a ball a quadratic has no spurious local
-    minimum -- every KKT point of the trust-region subproblem is global -- so
-    projected gradient descent converges from any start. Two starts cover the
-    degenerate corners: the lowest eigenvector of ``S`` (which is the answer when
-    ``b = 0``, where a gradient start at the origin would stall) and the momentum
-    direction.
+    Minimize ``q`` directly instead. This does not need the minimum to be global,
+    and it had better not: a quadratic on a ball can carry a local minimizer that
+    is not global, e.g. ``q = -x^2 + x + y^2 + z^2`` has a strict local minimum at
+    ``w = +e_0`` with ``q = 0`` against the global ``-2`` at ``w = -e_0``. The
+    search is one-sided. Any ``w`` with ``|w| <= 1`` and ``q(w) < 0`` exhibits an
+    observer and refutes the condition whatever its optimality status, while
+    satisfaction is certified by a multiplier and is never inferred from a failed
+    search; a descent that stalls at a local minimizer returns NaN, which is a
+    refusal and not a false verdict. Two starts cover the degenerate corners: the
+    lowest eigenvector of ``S`` (which is the answer when ``b = 0``, where a
+    gradient start at the origin would stall) and the momentum direction.
 
     Returns NaN when no violating observer is found, which is the certified
     outcome when the WEC holds.

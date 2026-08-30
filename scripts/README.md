@@ -94,7 +94,6 @@ Documented in [docs/how-to/reproduce_warpshell_paper.md](../docs/how-to/reproduc
 | `verify_proposals.py` | `results/proposals_verification_report.json` |
 | `run_sshell_sweep.py` | S-shell sweep under `results/` |
 | `run_anec_profiles.py` | ANEC profile data |
-| `run_anec_geodesic_check.py` | geodesic ANEC checks |
 | `run_integrated_negative_energy.py` | `tables/integrated_volume.tex` (slice-integrated negative-energy volume vs `v_s`) |
 | `run_delta_crosscheck.py` | `results/delta_crosscheck.json` (algebraic `Delta < 0` label vs the eigensolver Type-IV label) |
 | `run_extra_convergence.py` | `tables/extra_convergence.tex` (exoticity index + ANEC-minimum convergence) |

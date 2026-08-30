@@ -97,12 +97,14 @@ def test_interval_chain_matches_jax_at_a_point(name, builder, reference):
     rho_j, b_j, S_j = _jax_reference(reference())
 
     # The property that makes the appendix's bounds mean anything is CONTAINMENT:
-    # the JAX value must lie inside the interval enclosure. Comparing against the
-    # lower endpoint instead happens to pass for the two shortest expressions and
-    # fails for Natario purely because its shift has more operations, so a
-    # degenerate box still accumulates ~1e-11 of rounding. That width is the
-    # enclosure working correctly, not an error.
-    def contains(c, v, pad=1e-9):
+    # the JAX value must lie inside the interval enclosure. The pad absorbs the
+    # rounding a degenerate box still accumulates; measured, the worst excess is
+    # 2.7e-17 (Rodal), 1.5e-16 (Alcubierre), 1.0e-15 (Natario), so 1e-12 is three
+    # orders of headroom. It used to be 1e-9, which was loose enough to hide a
+    # genuine transcription mismatch: the interval Rodal regularised the direction
+    # divisor with 1e-60 where the JAX metric uses 1e-12, so the two were
+    # different spacetimes agreeing to within the pad.
+    def contains(c, v, pad=1e-12):
         return float(mpmath.mpf(c.a)) - pad <= v <= float(mpmath.mpf(c.b)) + pad
 
     def width(c):
@@ -419,7 +421,7 @@ def test_decoupled_bound_stays_below_the_truth_under_heavy_cancellation():
     """
     import numpy as np
 
-    from warpax.energy_conditions.enclosure import _lo_down
+    from warpax.energy_conditions.enclosure import _lo
 
     _set_prec()
     scale = 1e100
@@ -443,7 +445,7 @@ def test_decoupled_bound_stays_below_the_truth_under_heavy_cancellation():
         lam = cand if lam is None else iv.mpf(
             [min(mpmath.mpf(lam.a), mpmath.mpf(cand.a)),
              min(mpmath.mpf(lam.b), mpmath.mpf(cand.b))])
-    bound = _lo_down(iv.mpf([rho_f, rho_f]) + lam)
+    bound = _lo(iv.mpf([rho_f, rho_f]) + lam)
     assert bound <= truth, (
         f"decoupled bound {bound:.6e} exceeds the true deficit {truth:.6e}")
 

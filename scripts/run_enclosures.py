@@ -65,19 +65,72 @@ TAIL_S = (0.0, 30.0)
 # N is exactly the polished invariant margin min_i(rho + p_i) of
 # run_diagnostic_convergence.py. For Alcubierre the wall is Type-IV dominated, so
 # the Type-I-restricted margin is a different statistic; the comparable number is
-# the all-wall NEC minimum quoted in the paper's per-metric section.
-# value, and the statistic it is: the two are not the same quantity for every drive,
-# and saying which is the whole point of the column.
-REFERENCE = {
-    "Alcubierre": (-0.628, r"all-wall NEC min, Sec.~3.3"),
-    "Rodal": (-0.194, r"polished $\min(\rho+p_i)$"),
-    # Natario and Van den Broeck have no directly comparable published statistic:
-    # N is the all-type deficit, while the tabulated wall minima for these two are
-    # restricted to their residual Type-I points. Left blank rather than compared
-    # against a different quantity.
+# the all-wall NEC minimum quoted in the paper's per-metric section. The column
+# carries the value AND the statistic it is: the two are not the same quantity for
+# every drive, and saying which is the whole point of the column.
+#
+# These used to be the literals -0.628 and -0.194, typed here and copied into the
+# table. Nothing read them back, so the column could stay internally consistent
+# while the statistic it claimed to quote had moved. They are now loaded from the
+# artifact that produces them, and the key path is recorded with the value.
+#
+# Natario and Van den Broeck have no directly comparable published statistic: N is
+# the all-type deficit, while the tabulated wall minima for these two are restricted
+# to their residual Type-I points. Left blank rather than compared against a
+# different quantity.
+REFERENCE_SOURCES = {
+    "Alcubierre": (
+        "comparison_table.json",
+        ("metric", "alcubierre", "v_s", V_S, "nec_robust_min"),
+        # Name the section by what it is, not by a number: the per-metric
+        # section moved from 3.3 to 3.4 when the closing-speed section was
+        # inserted, and this string was baked into the artifact and the table.
+        r"all-wall NEC min, per-metric section",
+    ),
+    "Rodal": (
+        "diagnostic_convergence.json",
+        ("results", "Rodal", "nec_min", "polished"),
+        r"polished $\min(\rho+p_i)$",
+    ),
     "Natario": None,
     "VanDenBroeck": None,
 }
+
+
+def _load_references():
+    """Read the comparison column from the artifacts that produce it.
+
+    Missing or moved is a hard failure, not a silent ``--``: a blank cell reads as
+    "no comparable statistic exists" (which is the honest state for Natario and Van
+    den Broeck) and must not double as "the lookup broke".
+    """
+    out = {}
+    for name, spec in REFERENCE_SOURCES.items():
+        if spec is None:
+            out[name] = None
+            continue
+        fname, path, label = spec
+        with open(os.path.join(RESULTS_DIR, fname)) as fh:
+            doc = json.load(fh)
+        if fname == "comparison_table.json":
+            key_a, val_a, key_b, val_b, field = path
+            hits = [r for r in doc
+                    if r.get(key_a) == val_a and abs(r.get(key_b, 1e9) - val_b) < 1e-12]
+            if len(hits) != 1:
+                raise RuntimeError(
+                    f"{fname}: expected exactly one row with {key_a}={val_a!r}, "
+                    f"{key_b}={val_b}; found {len(hits)}"
+                )
+            value = hits[0][field]
+            where = f"{fname}:{key_a}={val_a},{key_b}={val_b}.{field}"
+        else:
+            node = doc
+            for k in path:
+                node = node[k]
+            value = node
+            where = f"{fname}:" + ".".join(str(k) for k in path)
+        out[name] = (float(value), label, where)
+    return out
 
 # Van den Broeck's conformal parameters. Its shift is the same tanh top-hat as
 # Alcubierre's, so the wall mask is unchanged; the slice carries B^2 delta_ij.
@@ -134,8 +187,12 @@ def write_table(rows, out_path):
             continue
         label = name.replace("VanDenBroeck", "Van den Broeck").replace(
             "Natario", "Nat\\'ario")
-        ref = REFERENCE.get(name)
-        ref_cell = f"${_f(ref[0], 3)}$ ({ref[1]})" if ref else "--"
+        # Taken from the row, not re-looked-up, so --table-only rewrites exactly
+        # what the search recorded.
+        ref_val, ref_stat = r.get("reference"), r.get("reference_statistic")
+        ref_cell = (
+            f"${_f(ref_val, 3)}$ ({ref_stat})" if ref_val is not None else "--"
+        )
         if not math.isfinite(r["lower"]):
             # Report non-closure explicitly rather than printing a bare -inf: a
             # bound that did not close is a coverage statement, not a number.
@@ -177,7 +234,7 @@ def certify_one(job):
     # deficit is large: f depends on position only through r, so one interval
     # evaluation covers every direction, x < -3 included.
     tail_f_lo, tail_f_hi, tail_excluded = tail_bound(metric, shape, TAIL_X, TAIL_S)
-    ref = REFERENCE.get(name)
+    ref = _load_references().get(name)
     return name, {
         "lower": enc.lower,
         "upper": enc.upper,
@@ -188,6 +245,7 @@ def certify_one(job):
         "tail_excluded": tail_excluded,
         "reference": ref[0] if ref else None,
         "reference_statistic": ref[1] if ref else None,
+        "reference_source": ref[2] if ref else None,
         "build_seconds": build_s,
         "search_seconds": search_s,
     }

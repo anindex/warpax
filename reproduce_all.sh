@@ -104,10 +104,15 @@ if [ "$KEEP_CACHE" = false ] && [ -z "$STAGE_ONLY" -o "$STAGE_ONLY" = "core" ]; 
     echo " Step 0: Clearing cached results and figures"
     echo "============================================================"
     find "${RESULTS_DIR}" -name '*.npz' -delete 2>/dev/null || true
-    find "${RESULTS_DIR}" -name '*.json' -delete 2>/dev/null || true
+    # enclosures.json belongs to the `enclosures` stage, which this case does NOT run:
+    # a branch-and-bound over four drives is hours of search, so it is deliberately
+    # kept out of the default path. Deleting it here destroyed an artifact nothing
+    # downstream rebuilds, and the gate then reported it missing after what looked like
+    # a clean full reproduction. Keep it, and let `--stage enclosures` own it.
+    find "${RESULTS_DIR}" -name '*.json' ! -name 'enclosures.json' -delete 2>/dev/null || true
     find "${RESULTS_DIR}" -name '*.tex' -delete 2>/dev/null || true
     find "${FIGURES_DIR}" -name '*.pdf' -delete 2>/dev/null || true
-    echo " Cleared results/ and figures/*.pdf"
+    echo " Cleared results/ and figures/*.pdf (enclosures.json kept: --stage enclosures owns it)"
     echo ""
 fi
 
@@ -191,6 +196,18 @@ run_core() {
     echo ""
     echo "[K16c] run_lmi_audit.py Type-free LMI vs the type-based route, at every grid point"
     $PYTHON "${SCRIPT_DIR}/scripts/run_lmi_audit.py"
+
+    echo ""
+    echo "[K16d] run_closing_speed.py Momentum-channel closing speed vs the sweep (reads K1)"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_closing_speed.py"
+
+    echo ""
+    echo "[K16e] run_interval_lmi_spotcheck.py Verdicts certified from the metric"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_interval_lmi_spotcheck.py"
+    echo ""
+
+    echo "[K16f] run_interval_lmi_census.py  Every sampled wall point, all four conditions"
+    $PYTHON "${SCRIPT_DIR}/scripts/run_interval_lmi_census.py"
     echo ""
 
     echo "[K17] emit_paper_numbers.py Emit the auto-sourced macros"

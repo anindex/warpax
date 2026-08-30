@@ -130,14 +130,24 @@ def write_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
             if r["metric"] == name and abs(r["v_s"] - v) < 1e-9:
                 return r[key] * 100.0
         return None
+    # Headings built from table_vels, not typed: a change to the speeds must not
+    # be able to mislabel the columns.
+    def _band(v):
+        return "sub" if v < 1.0 else ("luminal" if v == 1.0 else "super")
+
+    head = " & ".join(
+        rf"\multicolumn{{2}}{{c}}{{$v_s={v:.1f}$ ({_band(v)})}}" for v in table_vels
+    )
+    rules = "".join(
+        rf"\cmidrule(lr){{{2 * i + 2}-{2 * i + 3}}}" for i in range(len(table_vels))
+    )
+    cols = " & ".join([r"Type~I & Type~IV"] * len(table_vels))
     lines = [
-        r"\begin{tabular}{@{}l cc cc cc@{}}",
+        r"\begin{tabular}{@{}l" + " cc" * len(table_vels) + r"@{}}",
         r"  \toprule",
-        r"  & \multicolumn{2}{c}{$v_s=0.5$ (sub)} & "
-        r"\multicolumn{2}{c}{$v_s=1.0$ (luminal)} & "
-        r"\multicolumn{2}{c}{$v_s=2.0$ (super)} \\",
-        r"  \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}",
-        r"  Metric & Type~I & Type~IV & Type~I & Type~IV & Type~I & Type~IV \\",
+        rf"  & {head} \\",
+        f"  {rules}",
+        rf"  Metric & {cols} \\",
         r"  \midrule",
     ]
     for name in METRIC_ORDER:

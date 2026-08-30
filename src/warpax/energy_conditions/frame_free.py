@@ -74,6 +74,21 @@ def eulerian_null_witness(
     Type-II point the same contraction decides NEC (can be >= 0). Frame choice
     only fixes the null normalization; the sign of ``witness`` is invariant.
     """
+    rho, S_par, jmag = eulerian_momentum_frame(T_ab, g_ab, g_inv)
+    return rho + S_par - 2.0 * jmag
+
+
+def eulerian_momentum_frame(
+    T_ab: Float[Array, "4 4"],
+    g_ab: Float[Array, "4 4"],
+    g_inv: Float[Array, "4 4"],
+) -> tuple[Float[Array, ""], Float[Array, ""], Float[Array, ""]]:
+    """Return ``(rho_n, S_par, |j|)`` in the Eulerian frame.
+
+    ``S_par = S(jhat, jhat)`` along the momentum direction. These are the three
+    quantities the momentum discriminant is built from,
+    ``Delta = (rho_n + S_par)^2 - 4 |j|^2``.
+    """
     # Eulerian normal n^a: n_a = (-1, 0, 0, 0) up to lapse; n^a = g^{ab} n_b,
     # renormalized to n.n = -1 so the construction is lapse-agnostic.
     n_low = jnp.array([-1.0, 0.0, 0.0, 0.0])
@@ -88,7 +103,7 @@ def eulerian_null_witness(
     jmag = jnp.sqrt(jnp.clip(j2, min=0.0))
     jhat = j_up / jnp.where(jmag > 1e-30, jnp.sqrt(jnp.clip(j2, min=1e-300)), 1.0)
     S_par = jhat @ (g_ab @ ((proj @ (T_mixed @ proj)) @ jhat))
-    return rho + S_par - 2.0 * jmag
+    return rho, S_par, jmag
 
 
 # A boosted Type-I tensor keeps he_type = 1 while jnp.linalg.eig returns nearly

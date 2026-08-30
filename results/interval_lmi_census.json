@@ -1,0 +1,250 @@
+{
+  "partial": false,
+  "config": {
+    "prec": 80,
+    "n_r": 33,
+    "n_theta": 129,
+    "metrics": [
+      "Alcubierre",
+      "Nat\u00e1rio",
+      "Van den Broeck",
+      "Rodal"
+    ],
+    "jobs": 22,
+    "smoke": false,
+    "table_only": false
+  },
+  "params": {
+    "v_s": 0.5,
+    "R_b": 1.0,
+    "sigma": 8.0,
+    "R_tilde": 1.0,
+    "alpha_vdb": 0.5,
+    "sigma_B": 8.0
+  },
+  "sampling": {
+    "rule": "product grid in (r, theta) on the reduced half-plane; interior radial nodes of the f-band; theta over the closed [0, pi]",
+    "n_r": 33,
+    "n_theta": 129,
+    "n_points": 4257,
+    "f_band": [
+      0.1,
+      0.9
+    ],
+    "r_band": [
+      0.862673604585233,
+      1.137326551713398
+    ],
+    "dr": 0.008078027856710732,
+    "dtheta": 0.02454369260617026
+  },
+  "note": "Each entry counts sampled wall points, not wall measure. The verdict at each point is a rigorous statement about the spacetime at that point, obtained without any Hawking-Ellis type, eigendecomposition, classification tolerance or rapidity cap; the table is a statement about this finite set of points and not about the continuum. 'Refused' is the interval method declining to decide and is not evidence that the condition holds. The continuum statement for the null condition is the branch-and-bound bracket of results/enclosures.json.",
+  "order": [
+    "Alcubierre",
+    "Nat\u00e1rio",
+    "Van den Broeck",
+    "Rodal"
+  ],
+  "results": {
+    "Alcubierre": {
+      "n_sampled": 4257,
+      "n_certified_points": 4257,
+      "n_out_of_band": 0,
+      "n_chain_failed": 0,
+      "conditions": {
+        "nec": {
+          "violated": 4257,
+          "satisfied": 0,
+          "inconclusive": 0,
+          "deepest_upper": -0.6300109493184299,
+          "deepest_at": [
+            5.678061581146834e-17,
+            0.9272978274389189
+          ]
+        },
+        "wec": {
+          "violated": 4257,
+          "satisfied": 0,
+          "inconclusive": 0,
+          "deepest_upper": -0.630010949317758,
+          "deepest_at": [
+            5.678061581146834e-17,
+            0.9272978274389189
+          ]
+        },
+        "sec": {
+          "violated": 4257,
+          "satisfied": 0,
+          "inconclusive": 0,
+          "deepest_upper": -0.6300109493178148,
+          "deepest_at": [
+            5.678061581146834e-17,
+            0.9272978274389189
+          ]
+        },
+        "dec": {
+          "violated": 4257,
+          "satisfied": 0,
+          "inconclusive": 0,
+          "deepest_upper": -0.630010949317758,
+          "deepest_at": [
+            5.678061581146834e-17,
+            0.9272978274389189
+          ]
+        }
+      },
+      "errors": [],
+      "seconds": 6.7
+    },
+    "Nat\u00e1rio": {
+      "n_sampled": 4257,
+      "n_certified_points": 4257,
+      "n_out_of_band": 0,
+      "n_chain_failed": 0,
+      "conditions": {
+        "nec": {
+          "violated": 4257,
+          "satisfied": 0,
+          "inconclusive": 0,
+          "deepest_upper": -5.212473827858314,
+          "deepest_at": [
+            6.172698129054031e-17,
+            1.0080781060060262
+          ]
+        },
+        "wec": {
+          "violated": 4257,
+          "satisfied": 0,
+          "inconclusive": 0,
+          "deepest_upper": -5.212473827853044,
+          "deepest_at": [
+            6.172698129054031e-17,
+            1.0080781060060262
+          ]
+        },
+        "sec": {
+          "violated": 4257,
+          "satisfied": 0,
+          "inconclusive": 0,
+          "deepest_upper": -5.212473827853062,
+          "deepest_at": [
+            6.172698129054031e-17,
+            1.0080781060060262
+          ]
+        },
+        "dec": {
+          "violated": 4257,
+          "satisfied": 0,
+          "inconclusive": 0,
+          "deepest_upper": -6.948921784143697,
+          "deepest_at": [
+            0.19824222737394537,
+            0.9966309786840271
+          ]
+        }
+      },
+      "errors": [],
+      "seconds": 7.3
+    },
+    "Van den Broeck": {
+      "n_sampled": 4257,
+      "n_certified_points": 4257,
+      "n_out_of_band": 0,
+      "n_chain_failed": 0,
+      "conditions": {
+        "nec": {
+          "violated": 3359,
+          "satisfied": 898,
+          "inconclusive": 0,
+          "deepest_upper": -1.296204978215441,
+          "deepest_at": [
+            1.1130924681432657,
+            0.0
+          ]
+        },
+        "wec": {
+          "violated": 3359,
+          "satisfied": 898,
+          "inconclusive": 0,
+          "deepest_upper": -1.2962049782145804,
+          "deepest_at": [
+            1.1130924681432657,
+            0.0
+          ]
+        },
+        "sec": {
+          "violated": 4257,
+          "satisfied": 0,
+          "inconclusive": 0,
+          "deepest_upper": -1.2962049782133982,
+          "deepest_at": [
+            1.1130924681432657,
+            0.0
+          ]
+        },
+        "dec": {
+          "violated": 3359,
+          "satisfied": 898,
+          "inconclusive": 0,
+          "deepest_upper": -1.2962049782145804,
+          "deepest_at": [
+            1.1130924681432657,
+            0.0
+          ]
+        }
+      },
+      "errors": [],
+      "seconds": 7.1
+    },
+    "Rodal": {
+      "n_sampled": 4257,
+      "n_certified_points": 4257,
+      "n_out_of_band": 0,
+      "n_chain_failed": 0,
+      "conditions": {
+        "nec": {
+          "violated": 3811,
+          "satisfied": 446,
+          "inconclusive": 0,
+          "deepest_upper": -0.19418092923129873,
+          "deepest_at": [
+            0.9676879667224725,
+            0.0
+          ]
+        },
+        "wec": {
+          "violated": 3811,
+          "satisfied": 446,
+          "inconclusive": 0,
+          "deepest_upper": -0.194180929230855,
+          "deepest_at": [
+            0.9676879667224725,
+            0.0
+          ]
+        },
+        "sec": {
+          "violated": 3829,
+          "satisfied": 428,
+          "inconclusive": 0,
+          "deepest_upper": -0.22353911592494155,
+          "deepest_at": [
+            0.9757659945791832,
+            0.0
+          ]
+        },
+        "dec": {
+          "violated": 4205,
+          "satisfied": 52,
+          "inconclusive": 0,
+          "deepest_upper": -0.194180929230855,
+          "deepest_at": [
+            0.9676879667224725,
+            0.0
+          ]
+        }
+      },
+      "errors": [],
+      "seconds": 7.6
+    }
+  }
+}

@@ -17,9 +17,9 @@ the wall region (where the transition and any Type-IV live):
      sampled subset of wall points (Type-IV-prioritized).
   2. Refinement stability: the wall Type-IV volume fraction across
      N in {30,50,70} via ``f_miss_stability`` (discontinuous-quantity test).
-  3. Tolerance insensitivity: the wall Type-IV fraction across
-     imag_rtol in {3e-4, 3e-3, 3e-2}. A fraction that scales with the
-     tolerance is noise; one that plateaus is physical.
+  3. Tolerance insensitivity: the wall Type-IV fraction across the
+     real-spectrum threshold tol in {1e-12, 1e-10, 1e-8}. A fraction that
+     scales with the tolerance is noise; one that plateaus is physical.
 
 Plus diagnostics: cond(g) at the wall, and |Im lambda| / |Re lambda| scaling.
 
@@ -68,7 +68,10 @@ RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 
 BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
-IMAG_RTOLS = [3e-4, 3e-3, 3e-2]
+# Sweep the real-spectrum threshold, which is `tol`. This used to sweep
+# `imag_rtol`, which only selects the auto-solver and never enters the
+# real/complex decision -- so the zero spread it reported was vacuous.
+CLASSIFIER_TOLS = [1e-12, 1e-10, 1e-8]
 
 # Matched family parameters (R = 1, sigma = 8): the wall-resolved regime in
 # which a cross-metric comparison is meaningful (mirrors run_matched_benchmark).
@@ -119,9 +122,9 @@ def _vw_type_fraction(he_flat, sel_flat, w_flat, t: int) -> float:
     return float(np.sum(w * (he_flat == float(t)))) / wt
 
 
-def _classify_types_rtol(flat_Tmixed, flat_g, imag_rtol: float) -> np.ndarray:
+def _classify_types_tol(flat_Tmixed, flat_g, tol: float) -> np.ndarray:
     res = jax.vmap(
-        lambda Tm, g: classify_hawking_ellis(Tm, g, imag_rtol=imag_rtol)
+        lambda Tm, g: classify_hawking_ellis(Tm, g, tol=tol)
     )(flat_Tmixed, flat_g)
     return np.asarray(res.he_type)
 
@@ -164,9 +167,9 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
 
     # --- tolerance sensitivity (full grid, wall-restricted) -------------
     tol_fracs = {}
-    for rt in IMAG_RTOLS:
-        he_rt = _classify_types_rtol(flat_Tmixed, flat_g, rt)
-        tol_fracs[f"{rt:.0e}"] = _vw_type_fraction(he_rt, wall_flat, vol_w, 4)
+    for tv in CLASSIFIER_TOLS:
+        he_tv = _classify_types_tol(flat_Tmixed, flat_g, tv)
+        tol_fracs[f"{tv:.0e}"] = _vw_type_fraction(he_tv, wall_flat, vol_w, 4)
     out["tol_type_iv_frac"] = tol_fracs
     tol_vals = [v * 100.0 for v in tol_fracs.values()]  # to pp
     out["tol_spread_pp"] = float(max(tol_vals) - min(tol_vals))

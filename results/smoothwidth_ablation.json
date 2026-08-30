@@ -44,7 +44,7 @@
       "n_type_ii": 17,
       "n_type_iii": 15,
       "n_type_iv": 6,
-      "time_s": 10.8
+      "time_s": 10.0
     },
     {
       "smooth_width": 0.06,
@@ -63,7 +63,7 @@
       "n_type_ii": 32,
       "n_type_iii": 15,
       "n_type_iv": 4,
-      "time_s": 6.2
+      "time_s": 6.4
     },
     {
       "smooth_width": 0.12,
@@ -82,7 +82,7 @@
       "n_type_ii": 47,
       "n_type_iii": 15,
       "n_type_iv": 0,
-      "time_s": 6.2
+      "time_s": 6.6
     },
     {
       "smooth_width": 0.24,
@@ -101,7 +101,7 @@
       "n_type_ii": 51,
       "n_type_iii": 15,
       "n_type_iv": 8,
-      "time_s": 4.5
+      "time_s": 4.6
     }
   ]
 }

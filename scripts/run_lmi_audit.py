@@ -27,7 +27,7 @@ verdict, and thresholding at zero would report the float64 residual as classifie
 Outputs
 -------
 - results/lmi_audit.json
-- ../warpax_arxiv/tables/lmi_audit.tex
+- ../warpax_arxiv/tables/lmi_typefree.tex
 """
 from __future__ import annotations
 
@@ -119,16 +119,25 @@ def audit_one(name, v_s, N, batch_size=2048):
     #     condition, so an LMI margin that certifies satisfaction there cannot be
     #     reconciled with the label. Counting them is the classifier's measured error
     #     rate -- the quantity that would otherwise be unquantified.
+    #     Types III and IV violate *every* condition, so certifying *any one* of them is
+    #     already a contradiction: the predicate is a disjunction, not a conjunction. An
+    #     earlier version initialised True and ANDed, which counted a point only when all
+    #     four were certified satisfied -- strictly weaker than the claim it reports, and
+    #     an undercount by construction.
     bad_label = (he >= 3) & ~vac
-    lmi_says_ok = np.ones_like(bad_label)
+    lmi_says_ok = np.zeros_like(bad_label)
     for c in CONDITIONS:
-        lmi_says_ok &= _verdict(np.asarray(lmi[c]), floor) > 0
+        lmi_says_ok |= _verdict(np.asarray(lmi[c]), floor) > 0
+    nec_says_ok = _verdict(np.asarray(lmi["nec"]), floor) > 0
     out["n_type_iii_iv"] = int(bad_label.sum())
     out["n_certified_misclassified"] = int((bad_label & lmi_says_ok).sum())
     out["certified_misclassification_rate"] = (
         float((bad_label & lmi_says_ok).sum() / bad_label.sum())
         if bad_label.any() else None
     )
+    # The NEC-only count is quoted separately in the appendix text, so it is recorded
+    # rather than recomputed from the disjunction.
+    out["n_certified_misclassified_nec"] = int((bad_label & nec_says_ok).sum())
 
     # (c) Coverage. The eigenvalue route has nothing to say outside Type I; the LMI
     #     decides there too. This is the fraction of the wall it recovers.
@@ -203,7 +212,7 @@ def main():
     dump_json({"config": vars(args), "rows": rows}, os.path.join(RESULTS_DIR, name))
     print(f"\nWrote {os.path.join(RESULTS_DIR, name)}")
     if not args.smoke:
-        write_lmi_table(rows, os.path.join(TABLES_DIR, "lmi_audit.tex"))
+        write_lmi_table(rows, os.path.join(TABLES_DIR, "lmi_typefree.tex"))
 
 
 if __name__ == "__main__":

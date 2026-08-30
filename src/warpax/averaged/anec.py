@@ -326,11 +326,20 @@ class RigorousANEC(NamedTuple):
         passed.
     method_used : str
         ``'symplectic'`` or ``'symplectic+projection_fallback'``.
+    killing_drift : float or None
+        Second, independent integrator witness: the worst relative drift of the
+        conserved Killing energy ``E_K = -p_a K^a`` over the saved nodes, when a
+        ``killing`` vector with constant components is supplied. ``max_abs_g_kk``
+        says the tangent stayed on the cone; this says the *trajectory* did not
+        wander, and it is sensitive to errors the on-cone witness cannot see (a
+        symplectic step keeps ``g(k,k)`` almost by construction). ``None`` when
+        no Killing vector was given.
     """
 
     symplectic: ANECResult
     projection: ANECResult | None
     method_used: str
+    killing_drift: float | None = None
 
 
 def anec_rigorous(
@@ -340,9 +349,11 @@ def anec_rigorous(
     *,
     affine_bounds: tuple[float, float] = (-30.0, 30.0),
     num_steps: int = 8192,
+    num_save: int | None = None,
     order: int = 4,
     omega: float = 1.0,
     null_tol: float = 1e-8,
+    killing: Float[Array, "4"] | None = None,
 ) -> RigorousANEC:
     """Rigorous geodesic-integrated ANEC with an on-cone witness.
 
@@ -365,8 +376,30 @@ def anec_rigorous(
         Spatial direction of the null ray (need not be unit norm).
     affine_bounds, num_steps, order, omega
         Forwarded to :func:`warpax.geodesics.integrate_geodesic_symplectic`.
+    num_save : int or None
+        Saved points, which are also the quadrature nodes of the line integral
+        and the samples at which the on-cone witness is evaluated. ``None``
+        (the default) keeps the whole trajectory, ``num_steps + 1``.
+
+        This is not a display setting. ``integrate_geodesic_symplectic``
+        subsamples to ``num_save`` (512 by default), and :func:`anec` trapezoids
+        over exactly the saved nodes, so leaving it fixed while refining
+        ``num_steps`` refines the *trajectory* and not the *integral* -- a
+        convergence ladder built that way reports nothing about its own
+        quadrature. On a span of 43.6 with 512 nodes the spacing is 0.085
+        against a wall width of 0.27, i.e. three nodes across the feature that
+        carries the integrand. Saving every step costs nothing measurable (the
+        symplectic scan dominates), so the default no longer subsamples.
     null_tol : float
         On-cone witness threshold for certifying the symplectic value.
+    killing : Float[Array, "4"] or None
+        Contravariant components of a Killing vector with *constant* components
+        in these coordinates, e.g. ``(1, v_s, 0, 0)`` for a drive depending on
+        ``t, x`` only through ``x - v_s t``. When given, ``E_K = -p_a K^a`` is
+        evaluated at every saved node and its worst relative drift is returned
+        as ``killing_drift``: an integrator witness independent of the on-cone
+        one, which a symplectic step would otherwise satisfy almost by
+        construction.
 
     Returns
     -------
@@ -375,14 +408,31 @@ def anec_rigorous(
     x0c, p0 = null_ic_canonical(metric, x0, n_spatial)
     geo = integrate_geodesic_symplectic(
         metric, x0c, p0, affine_bounds,
-        num_steps=num_steps, order=order, omega=omega,
+        num_steps=num_steps,
+        num_save=num_steps + 1 if num_save is None else num_save,
+        order=order, omega=omega,
     )
+    drift = None
+    if killing is not None:
+        e_k = -jnp.einsum("na,a->n", geo.momenta, jnp.asarray(killing))
+        # Relative to the initial value, which is the conserved one; an
+        # all-zero E_K would mean the ray is orthogonal to K and carries no
+        # information, so it is reported as a drift of 0 rather than a NaN.
+        e0 = e_k[0]
+        drift = float(
+            jnp.where(
+                jnp.abs(e0) > 0.0,
+                jnp.max(jnp.abs(e_k - e0)) / jnp.abs(e0),
+                0.0,
+            )
+        )
     # 'fixed' tangent: do not mask the witness -- the symplectic integrator is
     # supposed to keep the raw tangent on the cone.
     sym = anec(metric, geo, tangent_norm="fixed", null_tol=null_tol)
     if sym.null_preserved and geo.complete:
         return RigorousANEC(symplectic=sym, projection=None,
-                            method_used="symplectic")
+                            method_used="symplectic", killing_drift=drift)
     proj = anec(metric, geo, tangent_norm="null_projected", null_tol=null_tol)
     return RigorousANEC(symplectic=sym, projection=proj,
-                        method_used="symplectic+projection_fallback")
+                        method_used="symplectic+projection_fallback",
+                        killing_drift=drift)

@@ -219,7 +219,7 @@ it:
 cd ../warpax_arxiv && bash verify/run_certs.sh   # non-zero exit on any failure
 ```
 
-Each `verify/*.sage` file proves one result. The two headline certificates are
+Each `verify/*.sage` file proves one result. The two principal certificates are
 `slemma_certificate` and `lmi_rational_certificate`: the linear matrix inequality
 `T_ab + sigma g_ab >= 0` decides the null, weak, strong and dominant conditions
 over every observer at Hawking-Ellis Types I, II, III and IV alike, with no
@@ -270,9 +270,15 @@ bash reproduce_all.sh --stage figures   # Figure generation
 
 Use `--keep-cache` to skip cache deletion and only recompute missing results.
 
-For the per-figure, per-claim mapping that backs the warp-shell admissibility
-paper (*On the boundary cost of source-consistent warp shells*), see the dedicated how-to guide:
-[**Reproducing the warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md).
+Per-paper reproduction guides map every figure, table and quoted number to the
+script that produces it:
+
+- [**Reproducing the observer-robust energy condition paper**](docs/how-to/reproduce_observer_robust_paper.md)
+  (*Observer-robust energy condition verification for warp drive spacetimes*) --
+  stage list, table- and figure-to-script maps, the two consistency gates, and the
+  certificate inventory.
+- [**Reproducing the warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md)
+  (*On the boundary cost of source-consistent warp shells*).
 
 The outer-edge ($r \ge R_2$) Type-IV verification (log-log slope $1.01 \pm 0.01$) and
 the ANEC impact-parameter scan are reproduced by

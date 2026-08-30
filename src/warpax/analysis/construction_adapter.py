@@ -137,7 +137,7 @@ def construction_registry() -> dict[str, ConstructionSpec]:
             claim="constant-velocity shell satisfying all energy conditions "
                   "(arXiv:2405.02709)",
             params={"v_s": 0.02, "R_1": 10.0, "R_2": 20.0, "R_b": 1.0,
-                    "r_s_param": 5.0, "kernel": "moving_average"},
+                    "r_s_param": 6.668692, "kernel": "moving_average"},
             wall_radius=15.0, r_max=25.0,
         ),
         ConstructionSpec(
@@ -203,7 +203,7 @@ MATCHED_R_MAX = 2.0 * MATCHED_R_C
 
 # What cannot be matched, and is therefore not claimed to be:
 #   - Fuchs carries a two-boundary matter shell (R_1/R_2 = 0.5, compactness
-#     2M/R_2 = 0.25); Alcubierre and Rodal have no mass parameter at all.
+#     2M/R_2 = 0.3334); Alcubierre and Rodal have no mass parameter at all.
 #   - Garattini necessarily carries Lambda R^2 = 3 (H R)^2; the others are
 #     asymptotically Minkowski.
 #   - Fuchs' material stress is velocity-independent, while the flat-slice
@@ -242,12 +242,12 @@ def matched_registry() -> dict[str, ConstructionSpec]:
         ),
         ConstructionSpec(
             "Fuchs", lambda vv: fuchs_default(v_s=vv, R_1=10.0, R_2=20.0,
-                                              R_b=1.0, r_s_param=5.0),
+                                              R_b=1.0, r_s_param=6.668692),
             v,
             claim="constant-velocity shell satisfying all energy conditions "
                   "(arXiv:2405.02709)",
             params={"v_s": v, "R_1": 10.0, "R_2": 20.0, "R_b": 1.0,
-                    "r_s_param": 5.0, "kernel": "moving_average",
+                    "r_s_param": 6.668692, "kernel": "moving_average",
                     "sigmoid": "published (Fuchs Eq. 31-32)"},
             **common,
         ),

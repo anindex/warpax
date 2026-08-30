@@ -52,21 +52,30 @@ X_START = -8.0
 # and integrated only the rear half (ratio 2.0000 for Alcubierre, VdB, Rodal).
 # Natario was unaffected: its exterior shift drags the ray clear inside the same
 # span. The window is read off the geodesic now (_measure_span below).
-SPAN0 = 16.0      # reference span for the step density
-NUM_STEPS = 8192  # at SPAN0; scaled with the span so the step density is fixed
+SPAN0 = 16.0       # reference span for the step density
+# 8192 left one ray of 50 (Natario, b = 0.307) at |g(k,k)| = 1.4e-05, which
+# downgraded the whole row to the projection fallback. 32768 clears every ray by
+# two orders; the line integrals move in the 5th digit.
+NUM_STEPS = 32768  # at SPAN0; scaled with the span so the step density is fixed
 ORDER = 4
 # g(k,k) < 1e-6 certifies the tangent as null to 6 digits; the ANEC integrand
-# T_ab k^a k^b is O(0.01-1), so this off-cone budget is negligible. Smooth-wall
-# drives clear it comfortably; the Natário oscillatory wall does not and takes
-# the projection-corrected fallback (reported and flagged). This is the
-# integrator null-preservation threshold and Minkowski sentinel gate; it is
-# distinct from the paper's reported on-cone acceptance tolerance of 1e-4 for the
-# warp-metric witnesses (cf. run_anec_geodesic_check.py, run_anec_impact_scan.py).
+# T_ab k^a k^b is O(0.01-1), so this off-cone budget is negligible. A ray that
+# misses it takes the projection-corrected fallback, reported and flagged.
 NULL_TOL = 1e-6
 # Impact parameters, dense near the wall (r_s ~ R_b = 1). The upper end was 2.5
 # and Rodal's minimum sat on it; "b_bracketed" below records interiority.
 B_SCAN = np.linspace(1.0e-3, 5.0, 50)
 SENTINEL_TOL = 1.0e-6
+# The coarse scan has db = 0.102, and a minimum narrower than that sitting between
+# two nodes is missed: on Natario it is, and the coarse grid understates the deepest
+# line integral by a factor of two. So the argmin bracket is refined until the
+# minimum stops moving, and both the coarse and the refined values are recorded.
+# The witness is carried through the refinement because the refined Natario minimum
+# is a narrow feature whose off-cone deviation is orders worse than its neighbours';
+# a deeper value on a worse-conditioned ray is not straightforwardly a better number.
+B_REFINE_POINTS = 21
+B_REFINE_LEVELS = 4
+B_REFINE_RTOL = 1.0e-4
 
 METRICS = {
     "Alcubierre": (AlcubierreMetric, {}),
@@ -98,9 +107,10 @@ def _affine_scale(metric, x0) -> float:
     the lab frame (shift vanishing at infinity) and already satisfy
     ``-g(k,n) = 1`` for a unit seed, so their reported values are unchanged. The
     Natario shift follows Natario's own bubble-at-rest convention and tends to
-    ``-v_s x_hat`` at infinity, giving ``-g(k,n) = 1 - v_s = 2/3`` at
+    ``-v_s x_hat`` at infinity, giving ``-g(k,n) = 1/(1 + v_s) = 2/3`` at
     ``v_s = 1/2``; its ANEC magnitude was therefore on a different footing from
-    the others by exactly ``3/2`` and is corrected here.
+    the others by exactly ``3/2`` and is corrected here. (The factor is
+    ``1/(1 + v_s)``, not ``1 - v_s``; they coincide only at ``v_s = 1/2``.)
     """
     return float(eulerian_affine_scale(metric, x0))
 
@@ -116,12 +126,55 @@ def _rigorous_at(metric, b: float, span: float):
         affine_bounds=(0.0, span / s),
         # Fixed step density.
         num_steps=int(round(NUM_STEPS * span / SPAN0)),
+        num_save=None,  # quadrature nodes = every step
         order=ORDER, null_tol=NULL_TOL,
+        # K = d_t + v_s d_x is Killing; E_K = -p_a K^a is the second witness.
+        killing=jnp.array([1.0, V_S, 0.0, 0.0], dtype=jnp.float64),
     )
 
 
-# tail_bound certifies the shape function below 1.3e-14 outside this radius, so
-# the integrand has no support there.
+def _refine_min(metric, span, b_lo: float, b_hi: float):
+    """Refine the b-scan minimum inside [b_lo, b_hi] until it stops moving.
+
+    Returns (b, value, witness, killing_drift, history, converged). Item A4 asks for
+    convergence of the impact-parameter search, not only of the integral along each
+    ray; this supplies it, and the history is what makes the claim checkable.
+    """
+    best = None
+    history: list[dict] = []
+    converged = False
+    for level in range(B_REFINE_LEVELS):
+        grid = np.linspace(b_lo, b_hi, B_REFINE_POINTS)
+        recs = []
+        for b in grid:
+            r = _rigorous_at(metric, float(b), span)
+            recs.append((
+                float(r.symplectic.line_integral),
+                float(r.symplectic.max_abs_g_kk),
+                float(r.killing_drift),
+            ))
+        vals = np.array([v for v, _, _ in recs])
+        k = int(np.argmin(vals))
+        history.append({
+            "level": level + 1,
+            "db": float(grid[1] - grid[0]),
+            "b": float(grid[k]),
+            "line_integral": float(vals[k]),
+            "witness_g_kk": recs[k][1],
+            "killing_drift": recs[k][2],
+            "interior": bool(0 < k < len(grid) - 1),
+        })
+        if best is not None and abs(vals[k] - best[1]) <= B_REFINE_RTOL * abs(best[1]):
+            best = (float(grid[k]), float(vals[k]), recs[k][1], recs[k][2])
+            converged = True
+            break
+        best = (float(grid[k]), float(vals[k]), recs[k][1], recs[k][2])
+        b_lo, b_hi = float(grid[max(k - 1, 0)]), float(grid[min(k + 1, len(grid) - 1)])
+    return (*best, history, converged)
+
+
+# tail_bound certifies the shape function below 1.3e-14 outside this radius. That
+# bounds f, not T_ab k^a k^b: a truncation margin, not a support theorem.
 WALL_SUPPORT_R = 3.0
 PROBE_SPAN = 128.0
 
@@ -176,28 +229,46 @@ def main() -> None:
         print(f"  {name:16s} affine window {span:.1f} "
               f"({'crossing covered' if span_converged else 'RAY DID NOT LEAVE'})", flush=True)
         anec_scan, witness_scan, preserved_scan, method_scan = [], [], [], []
-        proj_scan = []
+        proj_scan, killing_scan = [], []
         for b in B_SCAN:
             r = _rigorous_at(metric, float(b), span)
             anec_scan.append(float(r.symplectic.line_integral))
             witness_scan.append(float(r.symplectic.max_abs_g_kk))
             preserved_scan.append(bool(r.symplectic.null_preserved))
             method_scan.append(r.method_used)
+            killing_scan.append(r.killing_drift)
             proj_scan.append(
                 None if r.projection is None
                 else float(r.projection.line_integral)
             )
         anec_arr = np.array(anec_scan)
         j = int(np.argmin(anec_arr))
-        worst_witness = float(np.max(witness_scan))
+        b_ref, v_ref, w_ref, k_ref, ref_hist, ref_conv = _refine_min(
+            metric, span,
+            float(B_SCAN[max(j - 1, 0)]),
+            float(B_SCAN[min(j + 1, len(B_SCAN) - 1)]),
+        )
+        worst_witness = float(max(np.max(witness_scan), w_ref))
+        worst_killing = float(max(np.max(killing_scan), k_ref))
         frac_preserved = float(np.mean(preserved_scan))
         per_metric[name] = {
             "affine_scale_to_unit_eulerian_frequency": _affine_scale(
                 metric, jnp.array([0.0, X_START, 0.0, 0.0], dtype=jnp.float64)
             ),
             "on_axis": anec_scan[0],
-            "min_line_integral": float(anec_arr[j]),
-            "b_at_min": float(B_SCAN[j]),
+            # The reported minimum is the refined one: the coarse grid is too wide to
+            # resolve it on every drive.
+            "min_line_integral": v_ref,
+            "b_at_min": b_ref,
+            "min_line_integral_coarse": float(anec_arr[j]),
+            "b_at_min_coarse": float(B_SCAN[j]),
+            "refinement_deepening_rel": float(
+                (v_ref - anec_arr[j]) / abs(anec_arr[j])
+            ) if anec_arr[j] != 0 else None,
+            "refinement_witness_g_kk": w_ref,
+            "refinement_killing_drift": k_ref,
+            "refinement_converged": bool(ref_conv),
+            "refinement_history": ref_hist,
             # An argmin at an endpoint is not a minimum. Record it rather than let a
             # reader assume the scan bracketed the extremum.
             "b_bracketed": bool(0 < j < len(B_SCAN) - 1),
@@ -205,18 +276,25 @@ def main() -> None:
             "affine_span_covers_crossing": bool(span_converged),
             "max_line_integral": float(anec_arr.max()),
             "worst_witness_g_kk": worst_witness,
+            "worst_killing_energy_drift": worst_killing,
             "fraction_null_preserved": frac_preserved,
             "all_null_preserved": bool(all(preserved_scan)),
             "b_scan": B_SCAN.tolist(),
             "line_integral_scan": anec_scan,
             "witness_scan": witness_scan,
+            "killing_drift_scan": killing_scan,
             "method_scan": method_scan,
             "projection_scan": proj_scan,
         }
         flag = "" if all(preserved_scan) else " [some rays needed projection]"
+        deep = (v_ref - anec_arr[j]) / abs(anec_arr[j]) * 100.0 if anec_arr[j] else 0.0
         print(f"  {name:16s} on-axis={anec_scan[0]:+.4e}  "
-              f"min={anec_arr[j]:+.4e} @ b={B_SCAN[j]:.3f}  "
-              f"worst|g(k,k)|={worst_witness:.2e}{flag}")
+              f"coarse min={anec_arr[j]:+.4e} @ b={B_SCAN[j]:.3f}  "
+              f"refined={v_ref:+.4e} @ b={b_ref:.4f} ({deep:+.1f}%, "
+              f"{'converged' if ref_conv else 'NOT CONVERGED'}, "
+              f"|g(k,k)|={w_ref:.1e})  "
+              f"worst|g(k,k)|={worst_witness:.2e}  "
+              f"worst dE_K/E_K={worst_killing:.2e}{flag}")
 
     out = {
         "params": {
@@ -226,9 +304,13 @@ def main() -> None:
                 "the window is measured per metric from the geodesic's own "
                 "trajectory: out to where it leaves r_s = 3, the radius beyond "
                 "which tail_bound certifies the shape function below 1.3e-14, "
-                "with a factor-2 margin; see each metric's affine_span"
+                "with a factor-2 margin; see each metric's affine_span. This is "
+                "a quantified truncation margin, not a support theorem: no bound "
+                "on T_ab k^a k^b outside r_s = 3 is computed"
             ),
             "num_steps_at_span_start": NUM_STEPS, "order": ORDER, "null_tol": NULL_TOL,
+            "quadrature_nodes": "every symplectic step (num_save = num_steps + 1)",
+            "killing_vector": [1.0, V_S, 0.0, 0.0],
             "integrator": "symplectic (Tao 2016 extended phase space, Yoshida-4)",
         },
         "minkowski_sentinel_abs": sent_anec,
@@ -244,9 +326,10 @@ def main() -> None:
     def _w(b):
         return ("symplectic" if b else "fallback")
     tlines = [
-        r"\begin{tabular}{@{}l rr c l@{}}",
+        r"\begin{tabular}{@{}l rr cc l@{}}",
         r"  \toprule",
-        r"  Metric & on-axis & min ($b^\ast$) & $\max|g(k,k)|$ & method \\",
+        r"  Metric & on-axis & min ($b^\ast$) & $\max|g(k,k)|$"
+        r" & $\max|\Delta E_K/E_K|$ & method \\",
         r"  \midrule",
     ]
     for name in METRIC_ORDER:
@@ -254,7 +337,9 @@ def main() -> None:
         tlines.append(
             f"  {name} & ${m['on_axis']:+.4f}$ & "
             f"${m['min_line_integral']:+.4f}$ (${m['b_at_min']:.2f}$) & "
-            f"${m['worst_witness_g_kk']:.1e}$ & {_w(m['all_null_preserved'])} \\\\"
+            f"${m['worst_witness_g_kk']:.1e}$ & "
+            f"${m['worst_killing_energy_drift']:.1e}$ & "
+            f"{_w(m['all_null_preserved'])} \\\\"
         )
     tlines += [r"  \bottomrule", r"\end{tabular}"]
     tab_path = os.path.join(TABLES_DIR, "anec_symplectic.tex")

@@ -320,7 +320,7 @@ class FuchsConstructionResult(NamedTuple):
 def build_fuchs_construction(
     R_1: float = 10.0,
     R_2: float = 20.0,
-    r_s_param: float = 5.0,
+    r_s_param: float = 6.668692,
     n_grid: int = 2048,
     sigma_rho_factor: float = 0.06,
     sigma_ratio: float = 1.72,
@@ -547,7 +547,7 @@ def fuchs_default(
     R_1: float = 10.0,
     R_2: float = 20.0,
     R_b: float = 1.0,
-    r_s_param: float = 5.0,
+    r_s_param: float = 6.668692,
     n_grid: int = 2048,
     kernel_type: str = "moving_average",
 ) -> FuchsMetric:
@@ -557,7 +557,8 @@ def fuchs_default(
         v_s = 0.02 (beta_warp)
         R_1 = 10 (inner shell radius)
         R_2 = 20 (outer shell radius)
-        r_s_param = 5.0 (Schwarzschild radius parameter)
+        r_s_param = 6.668692, the Schwarzschild radius 2GM/c^2 of the published
+            M = 4.49e27 kg at R_1 = 10 m, R_2 = 20 m, so 2M/R_2 = 0.3334
 
     Smoothing defaults to the published boxcar (MATLAB ``smooth()``) with
     ``sigma_rho/sigma_P ~ 1.72``, applied 4 times, matching the paper's

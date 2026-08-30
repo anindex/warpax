@@ -43,7 +43,12 @@ def proper_volume_weights(
         ``coord_weights * sqrt(|det gamma|)``, same shape as ``coord_weights``.
     """
     if coord_weights is None:
-        return None  # uniform grid: equal weights, the documented None path
+        # Uniform grid: the constant coordinate cell volume cancels in a
+        # fraction, but sqrt(det gamma) does not. Returning None here left every
+        # uniform-grid Van den Broeck fraction unweighted while documented as
+        # proper volume.
+        gamma = g_field[..., 1:, 1:]
+        return jnp.sqrt(jnp.clip(jnp.linalg.det(gamma), min=0.0))
     if g_field.shape[:-2] != coord_weights.shape:
         raise ValueError(
             f"metric grid shape {g_field.shape[:-2]} != weight shape "

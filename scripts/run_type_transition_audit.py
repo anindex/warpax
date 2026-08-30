@@ -291,7 +291,7 @@ def main():
     path = RESULTS / "type_transition_audit.json"
     path.write_text(json.dumps(out, indent=1))
     print(f"\nWrote {path}")
-    write_table(out, TABLES / "type_transition_audit.tex")
+    write_table(out, TABLES / "type_transition.tex")
 
 
 if __name__ == "__main__":

@@ -147,10 +147,10 @@ class TestScaleAwareViolationGate:
         assert float(res.nec_summary.fraction_violated) == 0.0
 
 
-class TestImagRtolSentinel:
-    """Sentinel: the split-degenerate imaginary tolerance (imag_rtol=3e-3)
-    must not move paper-grid type fractions, and the 50-digit gate must
-    catch the adversarial small-Im/large-Re class it can absorb."""
+class TestClassifierToleranceSentinel:
+    """Sentinel: the real-spectrum threshold must not move paper-grid type
+    fractions, and the 50-digit gate must catch the adversarial
+    small-Im/large-Re class it can absorb."""
 
     @pytest.fixture(scope="class")
     def wall_slab(self):
@@ -161,20 +161,35 @@ class TestImagRtolSentinel:
         g_flat = chain.metric.reshape(-1, 4, 4)
         return t_mixed, g_flat
 
-    def test_type_fractions_stable_under_imag_rtol_sweep(self, wall_slab):
-        # With the scale floor on the relative tier, small-||T|| points are
-        # governed by the absolute tier alone, so the type census must be
-        # invariant under the imag_rtol sweep on this slab.
+    def test_type_fractions_stable_under_tol_sweep(self, wall_slab):
+        # `tol` is the real-spectrum threshold. This used to sweep `imag_rtol`,
+        # which only selects the auto-solver, so it passed whatever the data did.
         t_mixed, g_flat = wall_slab
         counts = []
-        for imag_rtol in (3e-4, 1e-3, 3e-3, 1e-2):
+        for tol in (1e-12, 1e-10, 1e-8):
+            cls = jax.vmap(
+                lambda T, g: classify_with_solver(
+                    T, g, None, solver="standard", tol=tol
+                )
+            )(t_mixed, g_flat)
+            types = np.asarray(cls.he_type)
+            counts.append(np.bincount(types.astype(int), minlength=5))
+        for c in counts[1:]:
+            np.testing.assert_array_equal(c, counts[0])
+
+    def test_imag_rtol_does_not_touch_the_real_spectrum_decision(self, wall_slab):
+        # Pins the docstring fix: imag_rtol is auto-dispatch only.
+        t_mixed, g_flat = wall_slab
+        counts = []
+        for imag_rtol in (3e-4, 3e-3, 3e-2):
             cls = jax.vmap(
                 lambda T, g: classify_with_solver(
                     T, g, None, solver="standard", imag_rtol=imag_rtol
                 )
             )(t_mixed, g_flat)
-            types = np.asarray(cls.he_type)
-            counts.append(np.bincount(types.astype(int), minlength=5))
+            counts.append(
+                np.bincount(np.asarray(cls.he_type).astype(int), minlength=5)
+            )
         for c in counts[1:]:
             np.testing.assert_array_equal(c, counts[0])
 

@@ -9,8 +9,10 @@ The integration path is a coordinate null ray
 coordinates rather than an integrated metric null geodesic.  For
 asymptotically flat regions the deviation from the true null geodesic is
 small; near the smoothed-tail interior or the Alcubierre bubble wall the
-deviation is a known systematic.  A supplementary geodesic-integrated
-cross-check is in ``run_anec_geodesic_check.py``.
+deviation is a known systematic.  The geodesic-integrated values the paper
+reports come from ``run_anec_symplectic.py``, which integrates the geodesic in
+extended phase space and carries the conserved Killing energy as an independent
+error witness.
 """
 from __future__ import annotations
 
@@ -139,8 +141,8 @@ def main():
                 "Coordinate null ray with affine straight-line "
                 "parameterization in coordinates (not a "
                 "metric-integrated geodesic).  See "
-                "run_anec_geodesic_check.py for the geodesic-integrated "
-                "supplementary cross-check."
+                "run_anec_symplectic.py for the geodesic-integrated "
+                "values the paper reports."
             ),
             "high_C_tshell": {
                 "compactness": high_C, "thickness_ratio": high_dR,

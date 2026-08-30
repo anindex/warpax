@@ -9,8 +9,10 @@ tangent so the integrand is an exact null observable at each sample.
 This is a *coordinate null-ray line-integral diagnostic*, not a geodesic ANEC:
 the path is the coordinate ray ``x^mu(lambda) = (lambda, x_0 + lambda, b, 0)``
 rather than an integrated null geodesic, which for these strong-shift bubbles
-drifts off the null cone within the adaptive-RK tolerance budget (see
-``run_anec_geodesic_check.py``). A negative line integral is therefore
+drifts off the null cone within an adaptive-RK tolerance budget; the integrated
+geodesic the paper reports is the symplectic one of ``run_anec_symplectic.py``,
+which holds the Killing energy to better than ``1e-5`` along every retained ray.
+A negative line integral here is therefore
 consistent with, but not a proof of, a violation of the averaged null energy
 condition along a complete geodesic. The Minkowski ray integrates to zero and
 is retained as a sentinel.
@@ -23,7 +25,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from _anec_window import converged_window
+from _anec_window import crossing_span
 from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
@@ -92,20 +94,36 @@ def _anec_along(metric, b: float, span: float) -> float:
         metric,
         _axial_ray(b),
         tangent_norm=TANGENT_NORM,
-        # Fixed step density, so the doubling tests truncation not quadrature.
+        # Fixed step density: the sample count scales with the span, so a
+        # longer window does not silently coarsen the quadrature.
         n_samples=int(round(N_SAMPLES * span / SPAN0)),
         affine_bounds=(0.0, span),
     )
     return float(res.line_integral)
 
 
+# Same truncation radius and doubling margin as run_anec_symplectic.py. This
+# table sits beside the geodesic one in the paper, so the two must share a window
+# rule; they did not. This script used converged_window -- "double until the
+# on-axis integral is stationary" -- which is exactly the rule the geodesic run
+# had to abandon, because past the crossing a longer window adds no physics and
+# does add drift, so stationarity is reached before the crossing is covered.
+WALL_SUPPORT_R = 3.0
+PROBE_SPAN = 128.0
+N_PROBE = 4096
+
+
 def _measure_span(metric) -> tuple[float, bool]:
-    """Affine span at which the on-axis line integral stops moving."""
+    """Affine span covering the crossing, from the ray's own trajectory.
+
+    The path here is analytic -- ``x^mu(lam) = (lam, X_START + lam, b, 0)`` with
+    the bubble centre at ``x_s = v_s lam`` -- so ``r_s(lam)`` is closed form and
+    needs no integration to measure.
+    """
     b0 = float(B_SCAN[0])
-    _, span, converged = converged_window(
-        lambda s: _anec_along(metric, b0, s), SPAN0
-    )
-    return span, converged
+    lam = np.linspace(0.0, PROBE_SPAN, N_PROBE)
+    r_s = np.sqrt(((1.0 - V_S) * lam + X_START) ** 2 + b0**2)
+    return crossing_span(lam, r_s, WALL_SUPPORT_R)
 
 
 def _minkowski_sentinel() -> float:
@@ -139,14 +157,14 @@ def main() -> None:
             "b_at_min": float(B_SCAN[j]),
             "b_bracketed": bool(0 < j < len(B_SCAN) - 1),
             "affine_span": float(span),
-            "affine_span_stationary": bool(span_converged),
+            "affine_span_covers_crossing": bool(span_converged),
             "max_line_integral": float(scan.max()),
             "b_scan": B_SCAN.tolist(),
             "line_integral_scan": scan.tolist(),
         }
         print(f"  {name:16s} on-axis={on_axis:+.4e}  "
               f"min={scan[j]:+.4e} @ b={B_SCAN[j]:.3f}  max={scan.max():+.3e}  "
-              f"span={span:.1f}{'' if span_converged else ' [NOT stationary]'}"
+              f"span={span:.1f}{'' if span_converged else ' [RAY DID NOT LEAVE]'}"
               f"{'' if 0 < j < len(B_SCAN) - 1 else ' [argmin on endpoint]'}",
               flush=True)
 
@@ -156,8 +174,12 @@ def main() -> None:
             "x_start": X_START, "affine_span_start": SPAN0,
             "n_samples_at_span_start": N_SAMPLES,
             "affine_span_note": (
-                "the window is measured per metric by doubling until the on-axis "
-                "line integral is stationary; see each metric's affine_span"
+                "the window is measured per metric from the ray's own trajectory: "
+                "out to where it leaves r_s = 3, with a factor-2 margin -- the same "
+                "rule as run_anec_symplectic.py, so the two ANEC tables in the "
+                "paper share a window. This is a quantified truncation margin, not "
+                "a support theorem: no bound on T_ab k^a k^b outside r_s = 3 is "
+                "computed. See each metric's affine_span"
             ),
             "tangent_norm": TANGENT_NORM,
         },

@@ -16,7 +16,7 @@
       ],
       "n_grid_total": 15625,
       "wall_n_total": 48,
-      "volume_weighted": false,
+      "volume_weighted": true,
       "wall_frac_type_i": 0.0,
       "wall_frac_type_iv": 1.0,
       "wall_nec_miss_rate": 0.0,
@@ -28,8 +28,8 @@
       "n_vacuum": 0,
       "nec_min_margin": -6650600315669.628,
       "dec_min_margin": -6.089560738314852e+28,
-      "t_curvature_s": 0.5407876968383789,
-      "t_verify_grid_s": 13.631085395812988
+      "t_curvature_s": 0.41756296157836914,
+      "t_verify_grid_s": 8.834401607513428
     },
     {
       "metric": "alcubierre",
@@ -53,8 +53,8 @@
       "n_vacuum": 0,
       "nec_min_margin": -6650600315669.628,
       "dec_min_margin": -6.089560738314852e+28,
-      "t_curvature_s": 0.2843966484069824,
-      "t_verify_grid_s": 9.515253782272339
+      "t_curvature_s": 0.22971081733703613,
+      "t_verify_grid_s": 6.683220386505127
     },
     {
       "metric": "alcubierre",
@@ -66,7 +66,7 @@
       ],
       "n_grid_total": 125000,
       "wall_n_total": 416,
-      "volume_weighted": false,
+      "volume_weighted": true,
       "wall_frac_type_i": 0.0,
       "wall_frac_type_iv": 1.0,
       "wall_nec_miss_rate": 0.0,
@@ -78,8 +78,8 @@
       "n_vacuum": 0,
       "nec_min_margin": -0.6283694438533752,
       "dec_min_margin": -3460.1671570502062,
-      "t_curvature_s": 1.0148115158081055,
-      "t_verify_grid_s": 31.37006163597107
+      "t_curvature_s": 1.0180652141571045,
+      "t_verify_grid_s": 23.393033981323242
     },
     {
       "metric": "alcubierre",
@@ -103,8 +103,8 @@
       "n_vacuum": 0,
       "nec_min_margin": -0.592680182579277,
       "dec_min_margin": -3263.6290664679045,
-      "t_curvature_s": 0.990755558013916,
-      "t_verify_grid_s": 54.04471564292908
+      "t_curvature_s": 0.925506591796875,
+      "t_verify_grid_s": 27.52686095237732
     },
     {
       "metric": "alcubierre",
@@ -116,7 +116,7 @@
       ],
       "n_grid_total": 1000000,
       "wall_n_total": 3400,
-      "volume_weighted": false,
+      "volume_weighted": true,
       "wall_frac_type_i": 0.021176470588235293,
       "wall_frac_type_iv": 0.9788235294117648,
       "wall_nec_miss_rate": 0.0,
@@ -128,8 +128,8 @@
       "n_vacuum": 0,
       "nec_min_margin": -0.6303462452935368,
       "dec_min_margin": -3471.05298832833,
-      "t_curvature_s": 6.75209379196167,
-      "t_verify_grid_s": 210.87366700172424
+      "t_curvature_s": 6.324999094009399,
+      "t_verify_grid_s": 182.45369362831116
     },
     {
       "metric": "alcubierre",
@@ -153,8 +153,8 @@
       "n_vacuum": 0,
       "nec_min_margin": -0.6209331381844629,
       "dec_min_margin": -3419.216323462053,
-      "t_curvature_s": 6.608963251113892,
-      "t_verify_grid_s": 321.444983959198
+      "t_curvature_s": 9.038060426712036,
+      "t_verify_grid_s": 274.63096833229065
     }
   ]
 }

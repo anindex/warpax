@@ -1,0 +1,383 @@
+{
+  "config": {
+    "prec": 80,
+    "metrics": [
+      "Alcubierre",
+      "Nat\u00e1rio",
+      "Van den Broeck",
+      "Rodal"
+    ]
+  },
+  "params": {
+    "v_s": 0.5,
+    "R_b": 1.0,
+    "sigma": 8.0
+  },
+  "points": [
+    [
+      "on axis",
+      1.0,
+      0.0
+    ],
+    [
+      "wall, $s=0.35$",
+      0.9,
+      0.35
+    ],
+    [
+      "wall, $s=0.5$",
+      0.95,
+      0.5
+    ]
+  ],
+  "rows": [
+    {
+      "point": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        -1.318861608356581e-22,
+        1.322128098081878e-22
+      ],
+      "nec_lower": -0.1989437505070063,
+      "nec_upper": -0.19894375050699856,
+      "nec": "violated",
+      "wec_lower": -0.19894375050700291,
+      "wec_upper": -0.19894375050668026,
+      "wec": "violated",
+      "sec_lower": -0.35588141588561173,
+      "sec_upper": -0.19894375050699856,
+      "sec": "violated",
+      "dec_flux_lower": -0.031662895543188935,
+      "dec_flux_upper": -0.03166289554313364,
+      "dec_lower": -0.19894375050700291,
+      "dec_upper": -0.19894375050668026,
+      "dec": "violated",
+      "metric": "Alcubierre",
+      "label": "on axis"
+    },
+    {
+      "point": [
+        0.0,
+        0.9,
+        0.35,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        -0.004503021829517626,
+        -0.004503021829517624
+      ],
+      "nec_lower": -0.3436912001784004,
+      "nec_upper": -0.3436912001784001,
+      "nec": "violated",
+      "wec_lower": -0.34369120017840027,
+      "wec_upper": -0.34369120017789345,
+      "wec": "violated",
+      "sec_lower": -0.4320984948676452,
+      "sec_upper": -0.34369120017824506,
+      "sec": "violated",
+      "dec_flux_lower": -0.06398165789451377,
+      "dec_flux_upper": -0.06398165789442986,
+      "dec_lower": -0.34369120017840027,
+      "dec_upper": -0.34369120017789345,
+      "dec": "violated",
+      "metric": "Alcubierre",
+      "label": "wall, $s=0.35$"
+    },
+    {
+      "point": [
+        0.0,
+        0.95,
+        0.5,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        -0.004479976369702236,
+        -0.004479976369702234
+      ],
+      "nec_lower": -0.1464598595569575,
+      "nec_upper": -0.1464598595569574,
+      "nec": "violated",
+      "wec_lower": -0.16160215227951635,
+      "wec_upper": -0.14645985955689073,
+      "wec": "violated",
+      "sec_lower": -0.14645985955695745,
+      "sec_upper": -0.14645985955674762,
+      "sec": "violated",
+      "dec_flux_lower": -0.03282044843092767,
+      "dec_flux_upper": -0.025842944098527137,
+      "dec_lower": -0.16160215227951635,
+      "dec_upper": -0.14645985955689073,
+      "dec": "violated",
+      "metric": "Alcubierre",
+      "label": "wall, $s=0.5$"
+    },
+    {
+      "point": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        -0.1193662610505095,
+        -0.11936626105050947
+      ],
+      "nec_lower": -0.5570424799269997,
+      "nec_upper": -0.5570424799269994,
+      "nec": "violated",
+      "wec_lower": -0.5570424799269997,
+      "wec_upper": -0.5570424799264424,
+      "wec": "violated",
+      "sec_lower": -0.6366200016224206,
+      "sec_upper": -0.5570424799266811,
+      "sec": "violated",
+      "dec_flux_lower": -0.025330307312796438,
+      "dec_flux_upper": -0.02533030731276139,
+      "dec_lower": -0.5570424799269997,
+      "dec_upper": -0.5570424799264424,
+      "dec": "violated",
+      "metric": "Nat\u00e1rio",
+      "label": "on axis"
+    },
+    {
+      "point": [
+        0.0,
+        0.9,
+        0.35,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        -0.13177796229535535,
+        -0.1317779622953553
+      ],
+      "nec_lower": -1.3899810227150482,
+      "nec_upper": -1.3899810227150478,
+      "nec": "violated",
+      "wec_lower": -1.3899810227150482,
+      "wec_upper": -1.3899810227136002,
+      "wec": "violated",
+      "sec_lower": -1.4096397971053287,
+      "sec_upper": -1.3899810227138636,
+      "sec": "violated",
+      "dec_flux_lower": -0.5415017742990907,
+      "dec_flux_upper": -0.3092942185303575,
+      "dec_lower": -1.3899810227150482,
+      "dec_upper": -1.3899810227136002,
+      "dec": "violated",
+      "metric": "Nat\u00e1rio",
+      "label": "wall, $s=0.35$"
+    },
+    {
+      "point": [
+        0.0,
+        0.95,
+        0.5,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        -0.10468554761756427,
+        -0.10468554761756424
+      ],
+      "nec_lower": -1.2678459985936712,
+      "nec_upper": -1.26784599859367,
+      "nec": "violated",
+      "wec_lower": -1.2678459985936708,
+      "wec_upper": -1.2678459985922594,
+      "wec": "violated",
+      "sec_lower": -1.2703811464392425,
+      "sec_upper": -1.2678459985924688,
+      "sec": "violated",
+      "dec_flux_lower": -0.5215268506738064,
+      "dec_flux_upper": -0.45734331566040987,
+      "dec_lower": -1.2678459985936708,
+      "dec_upper": -1.2678459985922594,
+      "dec": "violated",
+      "metric": "Nat\u00e1rio",
+      "label": "wall, $s=0.5$"
+    },
+    {
+      "point": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        0.1836011614477924,
+        0.18360116144779245
+      ],
+      "nec_lower": 0.00019455614633411353,
+      "nec_upper": 0.00019455614633857594,
+      "nec": "satisfied",
+      "wec_lower": 0.00019455614633572335,
+      "wec_upper": 0.00019455614656316403,
+      "wec": "satisfied",
+      "sec_lower": -0.08207156159027137,
+      "sec_upper": -0.04853327407107605,
+      "sec": "violated",
+      "dec_flux_lower": 4.3716181263128706e-05,
+      "dec_flux_upper": 4.3716181290625835e-05,
+      "dec_lower": 4.3716181263128706e-05,
+      "dec_upper": 4.3716181290625835e-05,
+      "dec": "satisfied",
+      "metric": "Van den Broeck",
+      "label": "on axis"
+    },
+    {
+      "point": [
+        0.0,
+        0.9,
+        0.35,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        0.42611276336945036,
+        0.4261127633694505
+      ],
+      "nec_lower": 0.03467503018906845,
+      "nec_upper": 0.03467503018906858,
+      "nec": "satisfied",
+      "wec_lower": 0.03467503018906837,
+      "wec_upper": 0.034675030189714705,
+      "wec": "satisfied",
+      "sec_lower": -0.2124238495950323,
+      "sec_upper": -0.11261163957764297,
+      "sec": "violated",
+      "dec_flux_lower": 0.02344244376421551,
+      "dec_flux_upper": 0.023442443764425763,
+      "dec_lower": 0.02344244376421551,
+      "dec_upper": 0.023442443764425763,
+      "dec": "satisfied",
+      "metric": "Van den Broeck",
+      "label": "wall, $s=0.35$"
+    },
+    {
+      "point": [
+        0.0,
+        0.95,
+        0.5,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        -0.514652435206908,
+        -0.5146524352069077
+      ],
+      "nec_lower": -1.0067953205295423,
+      "nec_upper": -1.006795320529542,
+      "nec": "violated",
+      "wec_lower": -1.1971433006028742,
+      "wec_upper": -1.006795320528971,
+      "wec": "violated",
+      "sec_lower": -1.0067953205295423,
+      "sec_upper": -1.0067953205278752,
+      "sec": "violated",
+      "dec_flux_lower": -0.0713980042709857,
+      "dec_flux_upper": -0.07139800427061578,
+      "dec_lower": -1.1971433006028742,
+      "dec_upper": -1.006795320528971,
+      "dec": "violated",
+      "metric": "Van den Broeck",
+      "label": "wall, $s=0.5$"
+    },
+    {
+      "point": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        0.03841585746461059,
+        0.038415857464610605
+      ],
+      "nec_lower": -0.15633605911567372,
+      "nec_upper": -0.15633605911566287,
+      "nec": "violated",
+      "wec_lower": -0.15633605911566956,
+      "wec_upper": -0.15633605911527337,
+      "wec": "violated",
+      "sec_lower": -0.38801499509486415,
+      "sec_upper": -0.19400749754742375,
+      "sec": "violated",
+      "dec_flux_lower": -0.03645253090694961,
+      "dec_flux_upper": -0.03645253090687267,
+      "dec_lower": -0.15633605911566956,
+      "dec_upper": -0.15633605911527337,
+      "dec": "violated",
+      "metric": "Rodal",
+      "label": "on axis"
+    },
+    {
+      "point": [
+        0.0,
+        0.9,
+        0.35,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        0.023247746467209927,
+        0.023247746467209934
+      ],
+      "nec_lower": -0.16910838541023165,
+      "nec_upper": -0.1691083854102315,
+      "nec": "violated",
+      "wec_lower": -0.16910838541023238,
+      "wec_upper": -0.1691083854098468,
+      "wec": "violated",
+      "sec_lower": -0.38358132023232316,
+      "sec_upper": -0.1917906601161533,
+      "sec": "violated",
+      "dec_flux_lower": -0.036460423755045476,
+      "dec_flux_upper": -0.03646042375496164,
+      "dec_lower": -0.16910838541023238,
+      "dec_upper": -0.1691083854098468,
+      "dec": "violated",
+      "metric": "Rodal",
+      "label": "wall, $s=0.35$"
+    },
+    {
+      "point": [
+        0.0,
+        0.95,
+        0.5,
+        0.0
+      ],
+      "prec_bits": 80,
+      "rho_n": [
+        0.030707204519113025,
+        0.030707204519113032
+      ],
+      "nec_lower": -0.000910843272138095,
+      "nec_upper": -0.0009108432721053509,
+      "nec": "violated",
+      "wec_lower": -0.0009108432721383216,
+      "wec_upper": -0.0009108432720421229,
+      "wec": "violated",
+      "sec_lower": -0.0009108432721393125,
+      "sec_upper": -0.0009108432719958215,
+      "sec": "violated",
+      "dec_flux_lower": -0.002186309179591778,
+      "dec_flux_upper": -0.0021863091795788444,
+      "dec_lower": -0.002186309179591778,
+      "dec_upper": -0.0021863091795788444,
+      "dec": "violated",
+      "metric": "Rodal",
+      "label": "wall, $s=0.5$"
+    }
+  ]
+}

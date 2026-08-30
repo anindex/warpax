@@ -45,9 +45,9 @@
     null
   ],
   "time_s": [
-    9.6,
-    9.6,
-    9.2
+    8.9,
+    10.4,
+    8.9
   ],
   "richardson_order_min_nec_eulerian": -2.965498701179092,
   "extrapolated_min_nec_eulerian": 6.6747433794221126e+47,

@@ -106,6 +106,35 @@ def test_a_forged_certificate_is_rejected():
     assert not verify(bad, T, ETA)
 
 
+def test_the_tensor_is_checked_too_not_only_the_certificate():
+    """An auditor supplies both arguments, so both are untrusted.
+
+    A nonsymmetric T has principal minors that are not the elementary symmetric
+    functions of any real spectrum, so is_psd_exact says nothing about it. This one has
+    minor sums 4, 16, 24, 11, every one positive, and so passed the PSD test at
+    sigma = 0 and carried a "satisfied" NEC certificate -- while the null vector
+    k = (1,-1,0,0) gives T(k,k) = -7.
+    """
+    T_forged = np.array([[1.0, 10.0, 0.0, 0.0],
+                         [-1.0, 1.0, 0.0, 0.0],
+                         [0.0, 0.0, 1.0, 0.0],
+                         [0.0, 0.0, 0.0, 1.0]])
+    k = np.array([1.0, -1.0, 0.0, 0.0])
+    assert k @ ETA @ k == 0.0 and k @ T_forged @ k < 0.0
+    stamp = {"condition": "nec", "kind": "satisfied", "sigma": {"nec": [0, 1]}}
+    assert not verify(stamp, T_forged, ETA)
+
+    # A symmetric tensor against a metric that is not Lorentzian is refused as well:
+    # the S-lemma's multiplier is free in sign because the null cone is a real cone,
+    # and a Euclidean g has none.
+    T_ok = np.diag([3.0, 1.0, 1.0, 1.0])
+    good = certify(T_ok, ETA, "nec")
+    assert verify(good, T_ok, ETA)
+    assert not verify(good, T_ok, np.eye(4))
+    assert not verify(good, T_ok, np.diag([-1.0, -1.0, 1.0, 1.0]))
+    assert not verify(good, T_ok, np.diag([0.0, 1.0, 1.0, 1.0]))
+
+
 def test_referee_item_b1_type_ii_locus_is_certified_exactly():
     """The Delta = 0 Type-II point of report item B1 gets a definite exact verdict.
 

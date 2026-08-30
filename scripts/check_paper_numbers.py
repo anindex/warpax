@@ -48,13 +48,27 @@ _TABLE_ARTIFACTS = (
     "enclosures.json",
     "type_transition_audit.json",
     "lmi_audit.json",
+    "interval_lmi_census.json",
     # Declared by a shipped table's provenance header, so a stale one is a stale
     # published number even though no check below reads it.
     "anec/retained_symplectic.json",
+    "anec/retained.json",
     "quantum/ford_roman.json",
+    "closing_speed.json",
+    "interval_lmi_spotcheck.json",
     "clustered_convergence_alcubierre.json",
     "vorticity_type_analytic.json",
     "wall_resolution.json",
+    # Read by a check below, or generating a shipped table, but omitted here until an
+    # audit pointed out that a missing one takes its check down with it silently --
+    # which is the failure this list exists to prevent.
+    "rodal_dec_diagnosis.json",
+    "comparison_table.json",
+    "nstarts_ablation.json",
+    "c1_vs_c2_comparison.json",
+    "convergence_data.json",
+    "integrated_negative_energy.json",
+    "rodal_native_resolution.json",
 )
 
 DEFAULT_PAPER = Path(__file__).resolve().parents[2] / "warpax_arxiv"
@@ -171,7 +185,7 @@ def main() -> int:
             "Section 3.1 superluminal Type-I fractions vs velocity_sweep.json",
             (typeI_pct("Alcubierre", 2.5), typeI_pct("Natário", 2.5),
              typeI_pct("Van den Broeck", 2.5)),
-            r"reaching \$([\d.]+)\\%\$\s*\n\(Alcubierre\), \$([\d.]+)\\%\$ "
+            r"reach(?:ing|es) \$([\d.]+)\\%\$\s*\n\(Alcubierre\), \$([\d.]+)\\%\$ "
             r"\(Nat\\'ario\), and \$([\d.]+)\\%\$ \(Van~den~Broeck\)",
         ))
         checks.append((
@@ -181,7 +195,10 @@ def main() -> int:
         ))
         # The grid the sweep actually ran on must be the grid the captions claim.
         n_run = sweep["config"]["N"]
-        for caption_n in re.findall(r"velocity sweep \(\$N=(\d+)\$\)", tex):
+        # The caption wording moved from "velocity sweep ($N=...$)" to
+        # "benchmark grid ($N=...$)" in an editorial pass, and the old pattern then
+        # matched nothing and checked nothing. Match the grid claim itself.
+        for caption_n in re.findall(r"benchmark grid\s*\(\$N=(\d+)\$", tex):
             if int(caption_n) != n_run:
                 failures_pre.append(
                     "a caption attributes the velocity sweep to $N=" + caption_n
@@ -203,6 +220,24 @@ def main() -> int:
              f"{m['Rodal']['min_line_integral']:.4f}"),
             r"the impact-parameter scan is \$(-[\d.]+)\$ \(Nat\\'ario\), \$(-[\d.]+)\$ \(Alcubierre\),\s*\n?"
             r"\$(-[\d.]+)\$ \(Van~den~Broeck\), and \$(-[\d.]+)\$ \(Rodal\)",
+        ))
+
+    # The coordinate-ray minima of Section 3.4 are a SECOND list, from a different
+    # artifact, and they were not pinned. Rodal's drifted from -0.0134 to -0.0136 when
+    # the quadrature was fixed, which turns -0.013 into -0.014 at the two significant
+    # figures its companions carry, and the prose kept the old digit.
+    ray = artifact("anec/retained.json")
+    if ray is not None:
+        r = ray["metrics"]
+        checks.append((
+            "Section 3.4 coordinate-ray ANEC minima vs anec/retained.json",
+            (f"{r['Alcubierre']['min_line_integral']:.2f}",
+             f"{r['Van den Broeck']['min_line_integral']:.3f}",
+             f"{r['Rodal']['min_line_integral']:.3f}",
+             f"{r['Natário']['min_line_integral']:.4f}"),
+            r"the minimum over \$b\$ is\s*\n?"
+            r"\$(-[\d.]+)\$ \(Alcubierre, \$b\\!\\approx\\!0\.86\$\), \$(-[\d.]+)\$ \(Van~den~Broeck,\s*\n?"
+            r"\$b\\!\\approx\\!0\.82\$\), \$(-[\d.]+)\$ \(Rodal, \$b\\!\\approx\\!1\.27\$\), and \$(-[\d.]+)\$",
         ))
         # Appendix F reads the enclosures as ratios rather than widths, so pin the
         # ratios the prose quotes. The Alcubierre one is the whole A2 claim: a
@@ -239,24 +274,37 @@ def main() -> int:
     if inv is not None:
         rod = next(r for r in inv["rows"] if r["metric"] == "Rodal")
         wec, dec = f"{rod['miss_wec_pct']:.0f}", f"{rod['miss_dec_pct']:.0f}"
+        vdb = next(r for r in inv["rows"] if r["metric"].startswith("Van"))
+        vdb_wec = f"{vdb['miss_wec_pct']:.0f}"
+        vdb_dec = f"{vdb['miss_dec_pct']:.0f}"
+        # These patterns run against the wrapped LaTeX source, so every literal
+        # space is relaxed to \s+ below. An editorial pass reflows paragraphs, and a
+        # pattern that breaks on a moved line break reports a defect that is not one
+        # while saying nothing about the number it is supposed to pin.
         for desc, pattern, expected in (
-            ("abstract", r"reading of Rodal misses about \$(\d+)\\%\$ of the wall weak-energy",
+            ("abstract", r"reading of Rodal misses about \$(\d+)\\%\$ of its wall weak-energy",
              (wec,)),
-            ("Section 1", r"register\s*\n?\$\{\\approx\}(\d+)\\%\$ of the dominant and "
+            ("Section 1", r"register \$\{\\approx\}(\d+)\\%\$ of the dominant and "
                           r"\$\{\\approx\}(\d+)\\%\$ of the weak energy-condition", (dec, wec)),
             ("Section 2", r"at \$\{\\approx\}(\d+)\\%\$ of the wall points where a boosted "
                           r"observer sees a\s*\n?weak-energy violation, and at "
                           r"\$\{\\approx\}(\d+)\\%\$ for the dominant energy", (wec, dec)),
+            ("Discussion, Van den Broeck wall miss",
+             r"Van~den~Broeck is intermediate \(WEC \$(\d+)\\%\$,\s*\n?"
+             r"DEC \$(\d+)\\%\$ wall miss", (vdb_wec, vdb_dec)),
             ("Appendix C cross-reference",
              r"matched-parameter benchmark \(\$\{\\approx\}(\d+)\\%\$ DEC, "
              r"\$\{\\approx\}(\d+)\\%\$ WEC;", (dec, wec)),
-            ("Discussion", r"\$\{\\approx\}(\d+)\\%\$ of the wall points where boosted observers "
-                           r"register a\s*\n?dominant-energy violation, and \$\{\\approx\}(\d+)\\%\$ "
-                           r"for the weak energy condition", (dec, wec)),
-            ("Conclusion", r"no violation at \$\{\\approx\}(\d+)\\%\$ of the wall points where "
-                           r"boosted\s*\n?\s*observers see a weak-energy violation, and at "
-                           r"\$\{\\approx\}(\d+)\\%\$ for the", (wec, dec)),
+            # The Conclusion used to quote both fractions again, six lines after the
+            # Discussion does, and the Discussion quoted them a third time. Both
+            # restatements were cut in the final editorial passes, the Discussion now
+            # saying "the majority" and pointing at Section 3.1 for the values. So
+            # there is nothing left to pin in either place; the pair is still pinned
+            # at Section 1, Section 2 and the Appendix C cross-reference above, which
+            # is where the numbers are actually printed.
         ):
+            # Literal spaces match any run of whitespace, newlines included.
+            pattern = re.sub(r"(?<!\\s)(?<!\\n) ", r"\\s+", pattern)
             checks.append((
                 f"Rodal single-frame miss rates ({desc}) vs invariant_verification.json",
                 expected, pattern,
@@ -317,7 +365,7 @@ def main() -> int:
              sci(worst("Rodal"), 0),
              f"{curv['fits']['Alcubierre']['ricci_squared']['max_rel_dev']:.2f}"),
             r"is\s*\n?\$(.+?)\$ \(Alcubierre, Weyl\), \$(.+?)\$ \(Nat\\'ario, all three\) and\s*\n?"
-            r"\$(.+?)\$ \(Rodal, all three\), but \$([\d.]+)\$ on the one branch",
+            r"\$(.+?)\$ \(Rodal, all three\), rising to \$([\d.]+)\$ on the one branch",
         ))
 
     # Appendix H quotes the type-transition audit in prose rather than only through a
@@ -357,8 +405,39 @@ def main() -> int:
             r"and at \$5\\times10\^\{-6\}\$ it\s*\n?returns \$(\d+)\$, \$(\d+)\$ and \$(\d+)\$",
         ))
 
+    # tab:rodal_ablation is the last table in the manuscript whose numbers are typed
+    # into an inline tabular rather than \input from a generated file. Its values do
+    # exist in the artifact, so the only thing missing was a check; a table that is
+    # right today and unpinned is the exact shape of the defect the report caught.
+    rodal_abl = artifact("rodal_dec_diagnosis.json")
+    if rodal_abl is not None:
+        # The sweep is stored as two parallel lists, not as a mapping keyed by N.
+        res = rodal_abl.get("sweeps", {}).get("resolution", {})
+        by_n = dict(zip(res.get("values", []), res.get("rodal_dec_miss_pct", [])))
+        want = [f"{by_n[n]:.2f}" for n in (25, 50, 100)
+                if isinstance(by_n.get(n), (int, float))]
+        if len(want) == 3:
+            checks.append((
+                "Table rodal_ablation resolution rows vs rodal_dec_diagnosis.json",
+                tuple(want),
+                r"& \$25\$\s*& ([\d.]+) & 0\.0 \\\\\s*\n\s*& \$50\$\s*& ([\d.]+) "
+                r"& 0\.0 \\\\\s*\n\s*& \$100\$\s*& ([\d.]+) & 0\.0",
+            ))
+        else:
+            failures_pre.append(
+                "rodal_dec_diagnosis.json no longer exposes the three resolution "
+                "rows that tab:rodal_ablation types by hand; re-point this check"
+            )
+
     failures: list[str] = list(failures_pre)
     for desc, expected, pattern in checks:
+        # Every literal space is relaxed to \s+ before matching. These patterns run
+        # against the wrapped LaTeX source, so an editorial pass that reflows a
+        # paragraph moves a line break into the middle of a pinned phrase and the
+        # check reports a defect that is not one, saying nothing about the number it
+        # exists to pin. The Rodal miss-rate patterns already did this locally; doing
+        # it here covers every check instead of one.
+        pattern = re.sub(r"(?<!\\s)(?<!\\n) ", r"\\s+", pattern)
         m = re.search(pattern, tex)
         if m is None:
             failures.append(f"{desc}\n    prose pattern not found: {pattern}")
@@ -376,16 +455,78 @@ def main() -> int:
             f"    {nat_exo_iv} (as a fraction) != {nat_iv_sweep}% for Natario"
         )
 
-    # The wall-cell ladder must be quoted with one range everywhere it appears.
-    ladder = re.findall(r"\$5\.9\$, \$7\.6\$, \$8\.9\$ cells", tex)
-    ranges = set(re.findall(r"wall by \$([\d.]+)\$ to\s*\n?\$?([\d.]+)\$? cells", tex))
-    if not ladder:
-        failures.append("wall-cell ladder 5.9/7.6/8.9 no longer stated in main.tex")
-    for lo, hi in ranges:
-        if (lo, hi) != ("5.9", "8.9"):
+    # The wall-cell ladder must be quoted with one range everywhere it appears, and the
+    # range has to come from the artifact rather than from three constants typed here.
+    # Pinning prose against a hard-coded triple lets a stale paper and a stale gate
+    # agree with each other while the data says something else.
+    diag = artifact("diagnostic_convergence.json")
+    if diag is not None:
+        cells = diag["wall_info"]["Alcubierre"]
+        rungs = [f"{cells[str(n)]['cells']:.1f}" for n in diag["ladder_N"]]
+        if not re.search(
+            r"\$" + r"\$, \$".join(re.escape(c) for c in rungs) + r"\$ cells", tex
+        ):
             failures.append(
-                f"wall-cell range ${lo}$ to ${hi}$ contradicts the 5.9/7.6/8.9 ladder"
+                f"wall-cell ladder {'/'.join(rungs)} (diagnostic_convergence.json) is "
+                f"not the ladder main.tex states"
             )
+        ranges = set(re.findall(r"wall by \$([\d.]+)\$ to\s*\n?\$?([\d.]+)\$? cells", tex))
+        for lo, hi in ranges:
+            if (lo, hi) != (rungs[0], rungs[-1]):
+                failures.append(
+                    f"wall-cell range ${lo}$ to ${hi}$ contradicts the "
+                    f"{'/'.join(rungs)} ladder"
+                )
+
+    # The census and the branch-and-bound both bound the same infimum from above, by
+    # disjoint routes. Appendix H.2 once claimed the census endpoint had to sit at or
+    # BELOW the search's achieved upper end; it sits above it, for all four drives, and
+    # must, since a 33x129 sample cannot beat a 120,000-box search. Pin the direction
+    # that is actually true, so the sentence cannot drift back.
+    cen, enc2 = artifact("interval_lmi_census.json"), artifact("enclosures.json")
+    if cen is not None and enc2 is not None:
+        alias = {"Alcubierre": "Alcubierre", "Natário": "Natario",
+                 "Van den Broeck": "VanDenBroeck", "Rodal": "Rodal"}
+        for drive, row in cen["results"].items():
+            nec = row["conditions"]["nec"] if "conditions" in row else row
+            attained, br = nec["deepest_upper"], enc2["results"][alias[drive]]
+            if not br["lower"] <= attained:
+                failures.append(
+                    f"census endpoint {attained:.6f} for {drive} is below the certified "
+                    f"lower end {br['lower']:.6f}; one of the two is wrong"
+                )
+            if attained < br["upper"]:
+                failures.append(
+                    f"census endpoint {attained:.6f} for {drive} is deeper than the "
+                    f"branch-and-bound achieved upper end {br['upper']:.6f}; the sample "
+                    f"cannot beat the search, so re-read Appendix H.2"
+                )
+
+    # The hand-maintained macros in paper_numbers.tex are headline numbers that no
+    # table carries, and nothing read this file at all: emit_paper_numbers.py rewrites
+    # the auto-sourced block and leaves these five alone, so they were the only figures
+    # in the submission with no check between them and the artifact they cite.
+    pn_path = args.paper / "paper_numbers.tex"
+    wall_restricted = artifact("wall_restricted_analysis.json")
+    if pn_path.exists() and wall_restricted is not None:
+        pn = pn_path.read_text(encoding="utf-8")
+        grids = wall_restricted["metrics"]
+        for macro, metric, key in (
+            ("alcubierreNECmissVSfive", "alcubierre", "nec_pct_missed"),
+            ("alcubierreWECmissVSfive", "alcubierre", "wec_pct_missed"),
+            ("rodalNECmissVSfive", "rodal", "nec_pct_missed"),
+            ("rodalWECmissVSfive", "rodal", "wec_pct_missed"),
+            ("rodalDECmissVSfive", "rodal", "dec_pct_missed"),
+        ):
+            m = re.search(r"\\newcommand\{\\" + macro + r"\}\{([\d.]+)\}", pn)
+            want = f"{grids[metric]['full_grid'][key]:.1f}"
+            if m is None:
+                failures.append(f"paper_numbers.tex no longer defines \\{macro}")
+            elif m.group(1) != want:
+                failures.append(
+                    f"\\{macro} is {m.group(1)}, wall_restricted_analysis.json says "
+                    f"{want}"
+                )
 
     # Rodal's DEC miss on the N=120 level must be the value the tables agree on.
     if rodal_dec_conv != rodal_dec_missed:
@@ -446,6 +587,24 @@ def main() -> int:
             except (ValueError, OSError, AttributeError):
                 pass
 
+        # The same rule for the cached grids. run_analysis.py skips any .npz that
+        # already exists -- existence only, no mtime and no hash -- so a re-run after a
+        # source edit rebuilds every JSON from grids computed before it, and each JSON
+        # then carries a fresh mtime and passes the loop above. The staleness was one
+        # layer below where anyone was looking. reproduce_all.sh deletes the grids
+        # unless --keep-cache is passed, so a clean full run satisfies this; a partial
+        # one no longer looks like one.
+        stale_npz = sorted(
+            q.name for q in RESULTS.glob("*.npz") if q.stat().st_mtime < newest_code
+        )
+        if stale_npz:
+            failures.append(
+                f"{len(stale_npz)} cached grid(s) in results/ predate the newest file "
+                f"in src/warpax/ or scripts/, starting with {stale_npz[0]}; every JSON "
+                f"rebuilt from them inherits pre-edit inputs. Re-run reproduce_all.sh "
+                f"WITHOUT --keep-cache"
+            )
+
     # Every table must say which script wrote it and which artifact it read. Nine of
     # the twenty-seven did; the rest were indistinguishable from hand-typed values,
     # and "the hardcoded values are entirely fabricated or disconnected from the data"
@@ -456,13 +615,56 @@ def main() -> int:
     # reproduces every previously published value.
     tables_dir = RESULTS.parent.parent / "warpax_arxiv" / "tables"
     if tables_dir.is_dir():
-        for tex in sorted(tables_dir.glob("*.tex")):
-            head = tex.read_text(errors="replace").lstrip().split("\n", 1)[0]
+        for tex_path in sorted(tables_dir.glob("*.tex")):
+            head = tex_path.read_text(errors="replace").lstrip().split("\n", 1)[0]
             if not head.startswith(("% Generated by", "% Hand-written")):
                 failures.append(
-                    f"tables/{tex.name} has no provenance header; emit it through "
+                    f"tables/{tex_path.name} has no provenance header; emit it through "
                     f"_json_io.write_table, or mark it '% Hand-written: <why>'"
                 )
+
+    # Both ANEC tables sit side by side in the paper, so they must share a window
+    # rule. Table 11's columns were generated on the superseded "double until the
+    # on-axis integral is stationary" rule long after the geodesic run abandoned it.
+    try:
+        for fn in ("anec/retained.json", "anec/retained_symplectic.json"):
+            note = artifact(fn)["params"]["affine_span_note"]
+            if "stationary" in note or "r_s = 3" not in note:
+                failures.append(
+                    f"{fn}: affine window is not the measured crossing-span rule "
+                    f"(note: {note[:60]}...)"
+                )
+    except Exception as exc:                      # pragma: no cover - defensive
+        failures.append(f"ANEC window-rule check could not run: {exc}")
+
+    # The manuscript quotes both integrator witnesses; neither may be asserted.
+    try:
+        sym = artifact("anec/retained_symplectic.json")["metrics"]
+        for name, m in sym.items():
+            if not m.get("all_null_preserved"):
+                failures.append(f"ANEC {name}: not every ray is symplectically certified")
+            drift = m.get("worst_killing_energy_drift")
+            if drift is None:
+                failures.append(f"ANEC {name}: Killing-energy witness not computed")
+            elif drift >= 1e-5:
+                failures.append(
+                    f"ANEC {name}: Killing drift {drift:.2e} exceeds the quoted 1e-5"
+                )
+    except Exception as exc:                      # pragma: no cover - defensive
+        failures.append(f"ANEC witness check could not run: {exc}")
+
+    # The momentum-channel fraction is claimed as a LOWER bound on the wall Type-IV
+    # fraction for flat-slice drives. A negative gap there falsifies it.
+    try:
+        for row in artifact("closing_speed.json")["rows"]:
+            if row["flat_slice_premise_holds"] and row["min_gap_pp"] < -1e-9:
+                failures.append(
+                    f"closing speed {row['metric']}: momentum-channel fraction "
+                    f"exceeds the measured Type-IV fraction by "
+                    f"{-row['min_gap_pp']:.2f} pp"
+                )
+    except Exception as exc:                      # pragma: no cover - defensive
+        failures.append(f"closing-speed bound check could not run: {exc}")
 
     # The cached grids are gitignored, so the manifest is their only integrity
     # record. Keep it in the same gate as the numbers it backs.
@@ -479,7 +681,18 @@ def main() -> int:
         for f in failures:
             print(f"  - {f}\n")
         return 1
-    print(f"all {len(checks) + 3} paper-number checks passed")
+    # The non-`checks` gates, counted by name rather than by a constant. The previous
+    # version claimed to be computed and was a literal 6, against a comment listing ten
+    # and a body containing more than that.
+    extra_gates = (
+        "caption-N pin", "ANEC ordering", "exoticity/velocity cross-table",
+        "wall-cell ladder", "Rodal DEC convergence cross-table",
+        "artifact existence/staleness/partial", "cached-grid staleness",
+        "table provenance headers", "ANEC window rule", "ANEC witnesses",
+        "closing-speed bound", "census vs enclosure ordering",
+        "paper_numbers.tex macros", "MANIFEST",
+    )
+    print(f"all {len(checks) + len(extra_gates)} paper-number checks passed")
     return 0
 
 

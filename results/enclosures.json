@@ -43,16 +43,17 @@
         9.1552734375e-05,
         0.93109130859375
       ],
-      "n_evaluations": 120001,
+      "n_evaluations": 119999,
       "tail_shape_enclosure": [
         0.0,
         1.2664351586738398e-14
       ],
       "tail_excluded": true,
-      "reference": -0.628,
-      "reference_statistic": "all-wall NEC min, Sec.~3.3",
-      "build_seconds": 9.5367431640625e-07,
-      "search_seconds": 10800.948308467865
+      "reference": -0.6283694438533752,
+      "reference_statistic": "all-wall NEC min, per-metric section",
+      "reference_source": "comparison_table.json:metric=alcubierre,v_s=0.5.nec_robust_min",
+      "build_seconds": 2.384185791015625e-06,
+      "search_seconds": 11721.849747657776
     },
     "VanDenBroeck": {
       "lower": -1.4461924132121295,
@@ -62,7 +63,7 @@
         -1.11181640625,
         0.0029296875
       ],
-      "n_evaluations": 120001,
+      "n_evaluations": 119999,
       "tail_shape_enclosure": [
         0.0,
         1.2664351586738398e-14
@@ -70,8 +71,9 @@
       "tail_excluded": true,
       "reference": null,
       "reference_statistic": null,
-      "build_seconds": 2.1457672119140625e-06,
-      "search_seconds": 13077.250447273254
+      "reference_source": null,
+      "build_seconds": 5.0067901611328125e-06,
+      "search_seconds": 13616.479970932007
     },
     "Natario": {
       "lower": -38.69478283015173,
@@ -81,7 +83,7 @@
         -0.0029296875,
         1.0107421875
       ],
-      "n_evaluations": 120001,
+      "n_evaluations": 119999,
       "tail_shape_enclosure": [
         0.0,
         1.2664351586738398e-14
@@ -89,27 +91,29 @@
       "tail_excluded": true,
       "reference": null,
       "reference_statistic": null,
-      "build_seconds": 9.5367431640625e-07,
-      "search_seconds": 14182.56189751625
+      "reference_source": null,
+      "build_seconds": 2.384185791015625e-06,
+      "search_seconds": 15127.460309267044
     },
     "Rodal": {
-      "lower": -0.37935555722021436,
-      "upper": -0.1944727965169106,
-      "width": 0.18488276070330376,
+      "lower": -0.3793555572197421,
+      "upper": -0.19447279651665195,
+      "width": 0.18488276070309018,
       "argmin": [
         0.97119140625,
         0.0029296875
       ],
-      "n_evaluations": 120001,
+      "n_evaluations": 119999,
       "tail_shape_enclosure": [
         0.0,
         1.2664351586738398e-14
       ],
       "tail_excluded": true,
-      "reference": -0.194,
+      "reference": -0.19449467168305595,
       "reference_statistic": "polished $\\min(\\rho+p_i)$",
-      "build_seconds": 1.430511474609375e-06,
-      "search_seconds": 14990.397998571396
+      "reference_source": "diagnostic_convergence.json:results.Rodal.nec_min.polished",
+      "build_seconds": 2.6226043701171875e-06,
+      "search_seconds": 15227.531292915344
     }
   }
 }

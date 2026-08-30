@@ -39,6 +39,7 @@
       "n_type_iii_iv": 90648,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": 0.0,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 1304,
       "n_wall_non_type_i_decided_by_lmi": 1304
     },
@@ -66,6 +67,7 @@
       "n_type_iii_iv": 72560,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": 0.0,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 1288,
       "n_wall_non_type_i_decided_by_lmi": 1288
     },
@@ -93,6 +95,7 @@
       "n_type_iii_iv": 41728,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": 0.0,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 1080,
       "n_wall_non_type_i_decided_by_lmi": 1080
     },
@@ -120,6 +123,7 @@
       "n_type_iii_iv": 110536,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": 0.0,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 1248,
       "n_wall_non_type_i_decided_by_lmi": 1248
     },
@@ -147,6 +151,7 @@
       "n_type_iii_iv": 110160,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": 0.0,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 1136,
       "n_wall_non_type_i_decided_by_lmi": 1136
     },
@@ -174,6 +179,7 @@
       "n_type_iii_iv": 109704,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": 0.0,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 904,
       "n_wall_non_type_i_decided_by_lmi": 904
     },
@@ -201,6 +207,7 @@
       "n_type_iii_iv": 22368,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": 0.0,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 1112,
       "n_wall_non_type_i_decided_by_lmi": 1112
     },
@@ -228,6 +235,7 @@
       "n_type_iii_iv": 86096,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": 0.0,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 1112,
       "n_wall_non_type_i_decided_by_lmi": 1112
     },
@@ -255,6 +263,7 @@
       "n_type_iii_iv": 39848,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": 0.0,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 984,
       "n_wall_non_type_i_decided_by_lmi": 984
     },
@@ -282,6 +291,7 @@
       "n_type_iii_iv": 0,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": null,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 0,
       "n_wall_non_type_i_decided_by_lmi": 0
     },
@@ -309,6 +319,7 @@
       "n_type_iii_iv": 0,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": null,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 0,
       "n_wall_non_type_i_decided_by_lmi": 0
     },
@@ -336,6 +347,7 @@
       "n_type_iii_iv": 0,
       "n_certified_misclassified": 0,
       "certified_misclassification_rate": null,
+      "n_certified_misclassified_nec": 0,
       "n_wall_non_type_i": 0,
       "n_wall_non_type_i_decided_by_lmi": 0
     }

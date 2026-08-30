@@ -65,9 +65,18 @@ _DENOMINATORS = (2, 4, 8, 16, 64, 256, 1024, 10**4, 10**6, 10**9, 10**12)
 
 
 def to_exact(M: Any) -> Mat:
-    """Exact rational copy of a float matrix. Binary64 values convert without error."""
-    A = np.asarray(M, dtype=float)
-    return [[Fraction(float(x)) for x in row] for row in A]
+    """Exact rational copy of a matrix, preserving inputs that are already exact.
+
+    A binary64 float *is* a rational number, so ``Fraction(x)`` is its exact value and
+    that conversion loses nothing. What did lose something was going through
+    ``np.asarray(M, dtype=float)`` first: an input already carried as ``Fraction`` or
+    ``int`` -- or at any precision above binary64 -- was rounded to binary64 before the
+    exact arithmetic began, so every determinant and PSD test downstream was exact only
+    relative to that snapshot, not to the tensor handed in. Exact inputs now pass
+    through untouched.
+    """
+    rows = M.tolist() if hasattr(M, "tolist") else M
+    return [[x if isinstance(x, Fraction) else Fraction(x) for x in row] for row in rows]
 
 
 def _det(M: Mat) -> Fraction:
@@ -94,6 +103,18 @@ def _det(M: Mat) -> Fraction:
     return out
 
 
+def _minor_sums(M: Mat) -> list[Fraction]:
+    """``[e_1, ..., e_n]``, the sums of the ``k x k`` principal minors of ``M``."""
+    n = len(M)
+    return [
+        sum(
+            (_det([[M[i][j] for j in idx] for i in idx]) for idx in combinations(range(n), k)),
+            Fraction(0),
+        )
+        for k in range(1, n + 1)
+    ]
+
+
 def is_psd_exact(M: Mat) -> bool:
     """Exactly decide ``M >= 0`` for a rational symmetric matrix, with no square roots.
 
@@ -104,15 +125,43 @@ def is_psd_exact(M: Mat) -> bool:
     is the sum of the ``k x k`` principal minors, so this is 15 determinants for a 4x4
     and needs no pivoting strategy, unlike an ``LDL^T`` that must cope with a singular
     positive semidefinite matrix.
+
+    Symmetry is a precondition, not a check: on a nonsymmetric argument the principal
+    minors are not the elementary symmetric functions of anything real, and the answer
+    is meaningless rather than wrong. :func:`verify` is where that precondition is
+    enforced, because that is the one entry point an untrusted matrix arrives through.
+    """
+    return all(e_k >= 0 for e_k in _minor_sums(M))
+
+
+def _is_symmetric(M: Mat) -> bool:
+    n = len(M)
+    return len(M) > 0 and all(len(row) == n for row in M) and all(
+        M[i][j] == M[j][i] for i in range(n) for j in range(i + 1, n)
+    )
+
+
+def _inertia(M: Mat) -> tuple[int, int, int]:
+    """``(n_pos, n_neg, n_zero)`` eigenvalue counts of a rational symmetric ``M``.
+
+    The characteristic polynomial ``det(tI - M) = t^n - e_1 t^(n-1) + ... + (-1)^n e_n``
+    has only real roots, and for a real-rooted polynomial Descartes' rule is an equality
+    rather than a bound, so the sign changes of the coefficient sequence count the
+    positive roots exactly and the sign changes of ``p(-t)`` count the negative ones.
+    No square roots, no eigensolver, no tolerance.
     """
     n = len(M)
-    for k in range(1, n + 1):
-        e_k = Fraction(0)
-        for idx in combinations(range(n), k):
-            e_k += _det([[M[i][j] for j in idx] for i in idx])
-        if e_k < 0:
-            return False
-    return True
+    coeffs = [Fraction(1)]
+    for k, e_k in enumerate(_minor_sums(M), start=1):
+        coeffs.append((-1) ** k * e_k)
+
+    def changes(seq: list[Fraction]) -> int:
+        nz = [c for c in seq if c != 0]
+        return sum(1 for a, b in zip(nz, nz[1:]) if (a > 0) != (b > 0))
+
+    n_pos = changes(coeffs)
+    n_neg = changes([c * (-1) ** i for i, c in enumerate(coeffs)])
+    return n_pos, n_neg, n - n_pos - n_neg
 
 
 def _add(A: Mat, B: Mat, s: Fraction) -> Mat:
@@ -393,8 +442,21 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
 
     This is what an auditor runs. It shares no code path with :func:`certify` beyond the
     rational primitives, and it never consults a float.
+
+    An auditor supplies the tensor as well as the certificate, so both are untrusted and
+    both are checked. Without the shape checks below a forged certificate verifies: for
+    the nonsymmetric ``T = [[1,10,0,0],[-1,1,0,0],[0,0,1,0],[0,0,0,1]]`` with
+    ``g = diag(-1,1,1,1)`` the principal-minor sums are ``4, 16, 24, 11``, all positive,
+    so ``sigma = 0`` passes :func:`is_psd_exact` and a "satisfied" NEC certificate
+    returns True -- while the null vector ``k = (1,-1,0,0)`` gives ``T(k,k) = -7``. The
+    S-lemma also needs ``g`` to be the metric it claims to be: a Euclidean or degenerate
+    ``g`` has no null cone for the multiplier to be free over.
     """
     T, g = to_exact(T_ab), to_exact(g_ab)
+    if not _is_symmetric(T) or not _is_symmetric(g) or len(T) != len(g):
+        return False
+    if _inertia(g) != (len(g) - 1, 1, 0):
+        return False
     cond = cert["condition"]
     if cond not in _CONDITIONS:
         return False

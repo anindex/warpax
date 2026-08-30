@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-08-22T13:50:42Z",
+    "date": "2026-08-28T17:48:27Z",
     "script": "scripts/run_wall_restricted_analysis.py",
     "grid_resolution": 50,
     "wall_bounds": [
@@ -45,7 +45,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 416,
-      "elapsed_s": 46.46810603141785
+      "elapsed_s": 58.262436866760254
     },
     "rodal": {
       "full_grid": {
@@ -81,7 +81,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 5208,
-      "elapsed_s": 2.051147222518921
+      "elapsed_s": 2.169865608215332
     },
     "vdb": {
       "full_grid": {
@@ -117,7 +117,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 416,
-      "elapsed_s": 18.482452630996704
+      "elapsed_s": 22.372882604599
     },
     "natario": {
       "full_grid": {
@@ -153,7 +153,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 416,
-      "elapsed_s": 252.47378301620483
+      "elapsed_s": 326.7013876438141
     }
   }
 }

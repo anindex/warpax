@@ -18,7 +18,7 @@ Fuchs sigmoid. All four then present an identical wall at identical resolution.
 the panel also states what each author actually claimed.
 
 Neither block is called "fully physically matched", because that is impossible:
-Fuchs carries a two-boundary matter shell with compactness ``2M/R_2 = 0.25``
+Fuchs carries a two-boundary matter shell with compactness ``2M/R_2 = 0.3334``
 where Alcubierre and Rodal have no mass parameter at all, and Garattini
 necessarily carries ``Lambda R^2 = 3 (H R)^2``. Type fractions and single-frame
 miss rates are comparable under common sampling; raw stress severity and energy

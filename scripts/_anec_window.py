@@ -78,10 +78,16 @@ def crossing_span(lam, r_s, support_r: float, margin: float = 2.0) -> tuple[floa
     Stationarity under doubling is the wrong test for a geodesic: past the
     crossing, doubling the window adds no physics and does add integrator drift,
     so the symplectic integral is stationary from span 32 to 64 and then degrades
-    (-0.0772 -> -0.0834 by span 256). This test is monotone instead. The
-    integrand has no support outside ``r_s = support_r`` -- ``tail_bound``
-    certifies the shape function below 1.3e-14 there -- so the window is long
-    enough once the ray is outside and staying outside.
+    (-0.0772 -> -0.0834 by span 256). This test is monotone instead: the window
+    is long enough once the ray is outside ``r_s = support_r`` and staying
+    outside, times ``margin``.
+
+    ``support_r`` is a truncation margin, not a support radius. ``tail_bound``
+    certifies the *shape function* below 1.3e-14 outside it; the integrand
+    ``T_ab k^a k^b`` is driven by that function and its derivatives and is
+    suppressed by the same order, but no bound on it out there is computed
+    anywhere, and a tanh wall has exponential tails. The doubling on top is what
+    makes it a margin.
 
     Returns ``(span, left)``: the span, and whether the ray was ever seen to
     leave. A ``False`` is reported, not raised.

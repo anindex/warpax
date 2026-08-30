@@ -175,13 +175,19 @@ def rodal_metric(v_s=0.5, R=1.0, sigma=8.0):
     """Irrotational Rodal drive, lab-frame standardization (paper Appendix F)."""
     def fn(t, x, y, z):
         dx = x - v_s * t
-        r = ad.sqrt(dx * dx + y * y + z * z + ad.constant(1e-60))
+        r2 = dx * dx + y * y + z * z
+        # Two floors, matching metrics/rodal.py exactly: the tight one for the
+        # profile values, the coarser one in the direction divisor. Using r_safe
+        # for both here certified a bracket for a different metric from the one
+        # every other table reports.
+        r = ad.sqrt(r2 + ad.constant(1e-60))
+        r_div = ad.sqrt(r2 + ad.constant(1e-12))
         F = _shape(r, R, sigma)
         num = r * ad.constant(2 * sigma * _c_sinh(R * sigma)) + ad.constant(_c_cosh(R * sigma)) * (
             ad.log(ad.cosh(sigma * (r - R))) - ad.log(ad.cosh(sigma * (r + R)))
         )
         G = 1 - num / (r * ad.constant(2 * sigma * _c_sinh(R * sigma)))
-        n = [dx / r, y / r, z / r]
+        n = [dx / r_div, y / r_div, z / r_div]
         beta = [-v_s * (G * (1 if i == 0 else 0) + (F - G) * n[0] * n[i]) for i in range(3)]
         return _assemble(beta)
 
@@ -363,18 +369,6 @@ def _mag(c) -> float:
     return max(abs(_lo(c)), abs(_hi(c)))
 
 
-def _lo_down(c) -> float:
-    """Lower endpoint of an interval, rounded DOWN into binary64.
-
-    ``float(mpmath.mpf(x))`` rounds to nearest, so it can round an outward-rounded
-    multiprecision endpoint back *inward* by up to half an ulp. Stepping one ulp
-    toward -inf restores the outward direction. Anywhere a float is used as a
-    certified lower bound this, not ``_lo``, is the correct conversion.
-    """
-    v = float(mpmath.mpf(c.a))
-    return v if v == -math.inf else math.nextafter(v, -math.inf)
-
-
 # Converting mpmath endpoints to double rounds to nearest, which could shave a
 # sub-ulp sliver off an enclosure. Widening every bound by this relative amount
 # restores outward rounding with a large margin: even at the 53-bit floor the
@@ -449,10 +443,13 @@ def _ldl_positive_definite(M, shift) -> bool:
     return True
 
 
-def _lmi_dual_lower(rho_iv, b_iv, S_iv) -> float:
+def _lmi_dual_lower(rho_iv, b_iv, S_iv, *, sigma_min: float = -math.inf) -> float:
     """Rigorous lower bound on ``min_{|v|=1} rho + 2 b.v + v^T S v`` over the box.
 
     Returns ``-inf`` when nothing can be certified, so the caller can fall back.
+    ``sigma_min`` floors the multiplier search: ``0.0`` restricts it to the
+    non-negative multipliers the weak energy condition requires, which is what
+    :mod:`.interval_lmi` uses to decide the ball rather than the sphere.
     """
     import numpy as np
 
@@ -460,6 +457,15 @@ def _lmi_dual_lower(rho_iv, b_iv, S_iv) -> float:
     mid = np.array([[_mid_iv(That[i][j]) for j in range(4)] for i in range(4)])
     mid = 0.5 * (mid + mid.T)
     eta = np.array(_ETA4)
+    # The clamp at 1.0 is the opposite of what slemma.noise_floor does, and that
+    # asymmetry is deliberate. There the bracket must collapse with the tensor or a
+    # relative floor convicts Minkowski; here the bracket only PROPOSES a multiplier
+    # and the interval LDL below is the acceptance test, so an over-wide bracket
+    # costs residual, never soundness. Below unit scale it makes the search absolute
+    # and the returned bound looser -- a near-vacuum point comes back inconclusive
+    # rather than certified, which is the honest answer at a saturated point anyway.
+    # ponytail: fix by dividing the interval matrix by an exact binary64 upper bound
+    # on max|That| (PSD is scale-invariant) if a census ever reports inconclusives.
     scale = max(1.0, float(np.max(np.abs(mid))))
 
     # Maximise the concave s -> lambda_min(mid + s eta). Float only: the
@@ -468,7 +474,9 @@ def _lmi_dual_lower(rho_iv, b_iv, S_iv) -> float:
     def lam(s):
         return float(np.linalg.eigvalsh(mid + s * eta)[0])
 
-    lo_s, hi_s = -2.0 * scale, 2.0 * scale
+    lo_s, hi_s = max(-2.0 * scale, sigma_min), 2.0 * scale
+    if not (hi_s > lo_s):
+        return -math.inf
     for _ in range(80):
         m1 = lo_s + (hi_s - lo_s) / 3.0
         m2 = hi_s - (hi_s - lo_s) / 3.0
@@ -769,7 +777,7 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
             if mpmath.mpf(b2.a) < 0:
                 b2 = iv.mpf([0, mpmath.mpf(b2.b)])
             bnd = rho_ - 2 * iv.sqrt(b2) + lam_iv
-            return _lo_down(bnd)
+            return _lo(bnd)
 
         # Two independently valid lower bounds; the max of them is valid too. The
         # decoupled one is retained because it survives boxes on which the LDL
@@ -920,7 +928,9 @@ def certify_nec_deficit(
     best_pt = tuple((a + b) / 2 for a, b in zip(lo0, hi0))
     n_eval = 1
 
-    while heap and n_eval < max_boxes:
+    # +2, not +0: each pass evaluates both halves, so testing before the split
+    # let the budget overshoot by one (120000 -> 120001 evaluations reported).
+    while heap and n_eval + 2 <= max_boxes:
         box = heapq.heappop(heap)
         if box.key > best_upper:
             continue  # cannot contain the global minimum
