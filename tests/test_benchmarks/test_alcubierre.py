@@ -1,6 +1,6 @@
 """Tests for Alcubierre warp drive benchmark."""
 
-import jax
+import equinox as eqx
 import jax.numpy as jnp
 
 from warpax.benchmarks.alcubierre import (
@@ -42,7 +42,7 @@ class TestAlcubierre:
         """jax.jit compilation works."""
         m = AlcubierreMetric()
         g_eager = m(sample_coords)
-        g_jit = jax.jit(m)(sample_coords)
+        g_jit = eqx.filter_jit(m)(sample_coords)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
 
     def test_alcubierre_float64(self, sample_coords):

@@ -48,6 +48,11 @@ def _zeros2():
     return [[iv.mpf([0, 0]) for _ in range(_N)] for _ in range(_N)]
 
 
+# Shared zero gradient and Hessian; see _jet._ZERO_D.
+_ZERO_G = tuple(iv.mpf([0, 0]) for _ in range(_N))
+_ZERO_H = tuple(tuple(iv.mpf([0, 0]) for _ in range(_N)) for _ in range(_N))
+
+
 class Dual2:
     """Value, gradient and Hessian, each an mpmath interval.
 
@@ -60,8 +65,8 @@ class Dual2:
 
     def __init__(self, v, g=None, h=None):
         self.v = v
-        self.g = _zeros() if g is None else g
-        self.h = _zeros2() if h is None else h
+        self.g = _ZERO_G if g is None else g
+        self.h = _ZERO_H if h is None else h
 
     # -- arithmetic ---------------------------------------------------------
 

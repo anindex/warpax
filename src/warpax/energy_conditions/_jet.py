@@ -51,6 +51,12 @@ def _zeros():
     return [iv.mpf([0, 0]) for _ in range(_N)]
 
 
+# Shared zero gradient. iv.mpf is immutable and no jet mutates d in place, so
+# allocating four fresh intervals per Jet was 20% of the branch-and-bound.
+# A tuple, so an attempted in-place write raises instead of corrupting.
+_ZERO_D = tuple(iv.mpf([0, 0]) for _ in range(_N))
+
+
 class Jet:
     """Interval value and interval gradient of a function of the box coordinates.
 
@@ -61,7 +67,7 @@ class Jet:
 
     def __init__(self, v, d=None):
         self.v = v
-        self.d = _zeros() if d is None else d
+        self.d = _ZERO_D if d is None else d
 
     # Endpoint access, so pivot selection and positivity tests in _intervalcurv
     # work on a Jet exactly as they do on a bare interval.
@@ -224,4 +230,4 @@ def value(x):
 
 def grad(x):
     """The interval gradient of a jet, or a zero gradient for a bare interval."""
-    return x.d if isinstance(x, Jet) else _zeros()
+    return x.d if isinstance(x, Jet) else _ZERO_D

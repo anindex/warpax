@@ -22,6 +22,7 @@ energy reduced by orders of magnitude.
 
 from __future__ import annotations
 
+import equinox as eqx
 import jax.numpy as jnp
 import sympy as sp
 from beartype import beartype
@@ -72,12 +73,15 @@ class VanDenBroeckMetric(ADMMetric):
         Wall thickness for conformal factor shape function.
     """
 
-    v_s: float = 0.1
-    R: float = 350.0
-    sigma: float = 8.0
-    R_tilde: float = 200.0
-    alpha_vdb: float = 0.5
-    sigma_B: float = 8.0
+    # Array leaves, not Python floats: eqx.filter_jit partitions on the
+    # VALUE, so a float field is static and every distinct value retraced
+    # the whole curvature chain.
+    v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.1)
+    R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=350.0)
+    sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=8.0)
+    R_tilde: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=200.0)
+    alpha_vdb: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.5)
+    sigma_B: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=8.0)
 
     @jaxtyped(typechecker=beartype)
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:

@@ -105,16 +105,24 @@ def ec_penalty(
     if key is None:
         key = jax.random.PRNGKey(42)
     T_batch, g_batch = _probe_T_g(metric, r_probes)
-    total_penalty = jnp.float64(0.0)
-    for i in range(r_probes.shape[0]):
-        point_key = jax.random.fold_in(key, i)
-        margins = _ec_margins_at_point(
-            T_batch[i], g_batch[i], conditions, n_starts, point_key
-        )
-        for cond in conditions:
-            total_penalty = total_penalty + jax.nn.softplus(-margins[cond]) ** 2
+    margins = _ec_margins_over_probes(T_batch, g_batch, conditions, n_starts, key)
+    return sum(
+        (jax.nn.softplus(-margins[cond]) ** 2).sum() for cond in conditions
+    )
 
-    return total_penalty
+
+def _ec_margins_over_probes(T_batch, g_batch, conditions, n_starts, key):
+    """Per-probe EC margins, one vmapped dispatch instead of N.
+
+    Keys stay per-probe via fold_in, so this is numerically the same as the
+    loop it replaces.
+    """
+    keys = jax.vmap(lambda i: jax.random.fold_in(key, i))(
+        jnp.arange(T_batch.shape[0])
+    )
+    return jax.vmap(
+        lambda T, g, k: _ec_margins_at_point(T, g, conditions, n_starts, k)
+    )(T_batch, g_batch, keys)
 
 
 def ec_feasibility_check(
@@ -136,15 +144,7 @@ def ec_feasibility_check(
     if key is None:
         key = jax.random.PRNGKey(42)
     T_batch, g_batch = _probe_T_g(metric, r_probes)
-    margins = {cond: [] for cond in conditions}
-    for i in range(r_probes.shape[0]):
-        point_key = jax.random.fold_in(key, i)
-        per_point = _ec_margins_at_point(
-            T_batch[i], g_batch[i], conditions, n_starts, point_key
-        )
-        for cond in conditions:
-            margins[cond].append(per_point[cond])
-    margins = {cond: jnp.stack(vals) for cond, vals in margins.items()}
+    margins = _ec_margins_over_probes(T_batch, g_batch, conditions, n_starts, key)
 
     worst_condition = conditions[0]
     worst_margin = float("inf")

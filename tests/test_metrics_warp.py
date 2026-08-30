@@ -11,6 +11,7 @@ from warpax.metrics import tshell_default
 from warpax.metrics._common import alcubierre_shape
 from warpax.metrics.natario import natario_eulerian_energy_density
 from warpax.metrics.rodal import _rodal_G, _rodal_g_paper
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import pytest
@@ -55,7 +56,7 @@ class TestLentz:
         m = LentzMetric()
         coords = jnp.array([0.0, 5.0, 2.0, 3.0])
         g_eager = m(coords)
-        g_jit = jax.jit(m)(coords)
+        g_jit = eqx.filter_jit(m)(coords)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
 
     def test_lentz_float64(self):
@@ -264,7 +265,7 @@ class TestNatario:
         m = NatarioMetric()
         coords = jnp.array([0.0, 1.0, 2.0, 3.0])
         g_eager = m(coords)
-        g_jit = jax.jit(m)(coords)
+        g_jit = eqx.filter_jit(m)(coords)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
 
     def test_natario_float64(self):
@@ -433,7 +434,7 @@ class TestRodal:
         m = RodalMetric()
         coords = jnp.array([0.0, 1.0, 2.0, 3.0])
         g_eager = m(coords)
-        g_jit = jax.jit(m)(coords)
+        g_jit = eqx.filter_jit(m)(coords)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
 
     def test_rodal_float64(self):
@@ -773,7 +774,7 @@ class TestVanDenBroeck:
         m = VanDenBroeckMetric()
         coords = jnp.array([0.0, 1.0, 2.0, 3.0])
         g_eager = m(coords)
-        g_jit = jax.jit(m)(coords)
+        g_jit = eqx.filter_jit(m)(coords)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
 
     def test_vdb_float64(self):
@@ -942,7 +943,7 @@ class TestWarpShell:
         m = WarpShellMetric()
         coords = jnp.array([0.0, 15.0, 2.0, 3.0])
         g_eager = m(coords)
-        g_jit = jax.jit(m)(coords)
+        g_jit = eqx.filter_jit(m)(coords)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
 
     def test_warpshell_float64(self):
@@ -1439,7 +1440,7 @@ class TestWarpShellPhysical:
     def test_physical_jit(self):
         m = WarpShellPhysical()
         coords = jnp.array([0.0, 15.0, 2.0, 3.0])
-        assert jnp.allclose(m(coords), jax.jit(m)(coords), atol=1e-15)
+        assert jnp.allclose(m(coords), eqx.filter_jit(m)(coords), atol=1e-15)
 
     def test_physical_float64(self):
         g = WarpShellPhysical()(jnp.array([0.0, 15.0, 2.0, 3.0]))

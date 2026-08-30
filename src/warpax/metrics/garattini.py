@@ -69,6 +69,7 @@ integration box.
 """
 from __future__ import annotations
 
+import equinox as eqx
 import jax.numpy as jnp
 import sympy as sp
 from beartype import beartype
@@ -102,10 +103,13 @@ class GarattiniMetric(ADMMetric):
         deciding what it should mean.
     """
 
-    v_s: float = 0.1
-    R: float = 1.0
-    sigma: float = 8.0
-    H: float = 0.1
+    # Array leaves, not Python floats: eqx.filter_jit partitions on the
+    # VALUE, so a float field is static and every distinct value retraced
+    # the whole curvature chain.
+    v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.1)
+    R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=1.0)
+    sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=8.0)
+    H: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.1)
     t0: float = 0.0
 
     @classmethod

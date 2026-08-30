@@ -23,6 +23,7 @@ This is always <= 0, confirming WEC/NEC violation.
 
 from __future__ import annotations
 
+import equinox as eqx
 import jax.numpy as jnp
 import sympy as sp
 from beartype import beartype
@@ -61,10 +62,13 @@ class AlcubierreMetric(ADMMetric):
         Bubble center x-coordinate at t=0 (added to v_s * t for co-moving motion).
     """
 
-    v_s: float = 0.5
-    R: float = 1.0
-    sigma: float = 8.0
-    x_s: float = 0.0
+    # Array leaves, not Python floats: eqx.filter_jit partitions on the VALUE,
+    # so a float field is static and every distinct v_s retraced the whole
+    # curvature chain (measured 1.07 s per value against 0.002 s).
+    v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.5)
+    R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=1.0)
+    sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=8.0)
+    x_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.0)
 
     def _bubble_center_x(self, t: Float[Array, ""]) -> Float[Array, ""]:
         """Co-moving bubble center: x_s + v_s t."""

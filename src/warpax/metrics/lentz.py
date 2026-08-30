@@ -85,9 +85,12 @@ class LentzMetric(ADMMetric):
         that those spikes are an implementation artifact of the L1 shape.
     """
 
-    v_s: float = 0.1
-    R: float = 100.0
-    sigma: float = 8.0
+    # Array leaves, not Python floats: eqx.filter_jit partitions on the
+    # VALUE, so a float field is static and every distinct value retraced
+    # the whole curvature chain.
+    v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.1)
+    R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=100.0)
+    sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=8.0)
     distance: str = eqx.field(static=True, default="L1")
 
     @jaxtyped(typechecker=beartype)

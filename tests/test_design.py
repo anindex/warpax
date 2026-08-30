@@ -28,6 +28,7 @@ from warpax.metrics import (
     VanDenBroeckMetric,
     WarpShellMetric,
 )
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -488,7 +489,7 @@ class TestShapeFunctionJIT:
     def test_jit_compat(self, metric):
         coords = jnp.array([0.0, 1.0, 2.0, 0.5])
         f_eager = metric.shape_function_value(coords)
-        f_jit = jax.jit(metric.shape_function_value)(coords)
+        f_jit = eqx.filter_jit(metric.shape_function_value)(coords)
         npt.assert_allclose(float(f_jit), float(f_eager), atol=1e-15)
 
 

@@ -150,6 +150,14 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
     ]
     gi = _inv4(g)
 
+    # The bracket dg_bdc + dg_cdb - dg_bcd is free of the contracted index a and
+    # of e, so it is built once instead of 16 times per entry.
+    S1 = [[[_ZERO] * _N for _ in range(_N)] for _ in range(_N)]
+    for b in range(_N):
+        for c in range(_N):
+            for d in range(_N):
+                S1[b][c][d] = _sub(_add(dg[b][d][c], dg[c][d][b]), dg[b][c][d])
+
     # Christoffel symbols and their first derivatives.
     Gam = [[[_ZERO] * _N for _ in range(_N)] for _ in range(_N)]
     for a in range(_N):
@@ -157,7 +165,7 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
             for c in range(_N):
                 s = _ZERO
                 for d in range(_N):
-                    s = _add(s, _mul(gi[a][d], _sub(_add(dg[b][d][c], dg[c][d][b]), dg[b][c][d])))
+                    s = _add(s, _mul(gi[a][d], S1[b][c][d]))
                 Gam[a][b][c] = _div(s, 2)
 
     # d(g^{ad})/dx_e = -g^{af} (dg_{fh}/dx_e) g^{hd}
@@ -171,6 +179,16 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
                         s = _add(s, _mul(_mul(gi[a][f], dg[f][h][e]), gi[h][d]))
                 dgi[a][d][e] = -s
 
+    # Same bracket one derivative up; free of a.
+    S2 = [[[[_ZERO] * _N for _ in range(_N)] for _ in range(_N)] for _ in range(_N)]
+    for b in range(_N):
+        for c in range(_N):
+            for d in range(_N):
+                for e in range(_N):
+                    S2[b][c][d][e] = _sub(
+                        _add(ddg[b][d][c][e], ddg[c][d][b][e]), ddg[b][c][d][e]
+                    )
+
     dGam = [[[[_ZERO] * _N for _ in range(_N)] for _ in range(_N)] for _ in range(_N)]
     for a in range(_N):
         for b in range(_N):
@@ -178,12 +196,8 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
                 for e in range(_N):
                     s = _ZERO
                     for d in range(_N):
-                        s = _add(s, _mul(dgi[a][d][e],
-                                         _sub(_add(dg[b][d][c], dg[c][d][b]),
-                                              dg[b][c][d])))
-                        s = _add(s, _mul(gi[a][d],
-                                         _sub(_add(ddg[b][d][c][e], ddg[c][d][b][e]),
-                                              ddg[b][c][d][e])))
+                        s = _add(s, _mul(dgi[a][d][e], S1[b][c][d]))
+                        s = _add(s, _mul(gi[a][d], S2[b][c][d][e]))
                     dGam[a][b][c][e] = _div(s, 2)
 
     # Ricci tensor R_bc = d_a Gam^a_bc - d_c Gam^a_ba + Gam^a_af Gam^f_bc

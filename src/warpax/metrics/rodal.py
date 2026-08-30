@@ -18,6 +18,7 @@ Peak NEC/WEC violation is ~38x smaller than Alcubierre.
 
 from __future__ import annotations
 
+import equinox as eqx
 import jax.numpy as jnp
 import sympy as sp
 from beartype import beartype
@@ -103,9 +104,12 @@ class RodalMetric(ADMMetric):
         Wall thickness parameter (inverse thickness).
     """
 
-    v_s: float = 0.1
-    R: float = 100.0
-    sigma: float = 0.03
+    # Array leaves, not Python floats: eqx.filter_jit partitions on the
+    # VALUE, so a float field is static and every distinct value retraced
+    # the whole curvature chain.
+    v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.1)
+    R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=100.0)
+    sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.03)
 
     @jaxtyped(typechecker=beartype)
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
