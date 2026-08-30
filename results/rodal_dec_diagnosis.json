@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-08-28T17:56:51Z",
+    "date": "2026-08-30T20:33:05Z",
     "script": "scripts/rodal_dec_ablation.py",
     "baseline": {
       "v_s": 0.5,

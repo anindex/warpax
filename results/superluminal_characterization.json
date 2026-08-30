@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-08-28T17:47:10Z",
+    "date": "2026-08-30T20:22:22Z",
     "script": "scripts/run_superluminal_investigation.py",
     "velocities": [
       1.0,
@@ -891,7 +891,7 @@
         "n_g00_positive": 0,
         "g00_zero_crossing_r": null,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 7.978912115097046,
+        "elapsed_s": 8.425496578216553,
         "wall_analysis_v1": [
           {
             "r": 98.0,
@@ -1834,7 +1834,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 100.27664399092964,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 2.575465679168701
+        "elapsed_s": 1.8464980125427246
       },
       "2.0": {
         "v_s": 2.0,
@@ -2705,7 +2705,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 101.06989795918363,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 1.9462623596191406
+        "elapsed_s": 1.894331932067871
       }
     },
     "lentz": {
@@ -3578,7 +3578,7 @@
         "n_g00_positive": 0,
         "g00_zero_crossing_r": null,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 2.0269665718078613,
+        "elapsed_s": 2.2574713230133057,
         "wall_analysis_v1": [
           {
             "r": 98.0,
@@ -4521,7 +4521,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 100.27664399092964,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 1.9733262062072754
+        "elapsed_s": 1.9539830684661865
       },
       "2.0": {
         "v_s": 2.0,
@@ -5392,7 +5392,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 101.06989795918363,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 1.9884710311889648
+        "elapsed_s": 2.014443874359131
       }
     }
   },

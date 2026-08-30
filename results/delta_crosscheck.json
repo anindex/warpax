@@ -21,7 +21,7 @@
         "agreement_rate_active": 0.985665362035225,
         "eig_iv_delta_nonneg": 1736,
         "delta_only": 608,
-        "exc_median_abs_imag": 4.56784331848029e-10
+        "exc_median_abs_imag": 4.5678433184802913e-10
       },
       "wall": {
         "n_points": 3160,
@@ -32,7 +32,7 @@
         "agreement_rate_active": 0.9743589743589743,
         "eig_iv_delta_nonneg": 80,
         "delta_only": 0,
-        "exc_median_abs_imag": 0.018961531327957772
+        "exc_median_abs_imag": 0.01896153132795777
       }
     },
     "Nat\u00e1rio": {
@@ -45,7 +45,7 @@
         "agreement_rate_active": 0.9981457444835898,
         "eig_iv_delta_nonneg": 400,
         "delta_only": 0,
-        "exc_median_abs_imag": 0.07151964912546421
+        "exc_median_abs_imag": 0.07151964912546427
       },
       "wall": {
         "n_points": 3160,
@@ -56,7 +56,7 @@
         "agreement_rate_active": 0.8611111111111112,
         "eig_iv_delta_nonneg": 400,
         "delta_only": 0,
-        "exc_median_abs_imag": 0.07151964912546421
+        "exc_median_abs_imag": 0.07151964912546427
       }
     },
     "Van den Broeck": {
@@ -69,7 +69,7 @@
         "agreement_rate_active": 0.19693548387096774,
         "eig_iv_delta_nonneg": 39832,
         "delta_only": 0,
-        "exc_median_abs_imag": 1.46540963479949e-11
+        "exc_median_abs_imag": 1.4654096347994536e-11
       },
       "wall": {
         "n_points": 3160,
@@ -80,7 +80,7 @@
         "agreement_rate_active": 0.7298850574712644,
         "eig_iv_delta_nonneg": 752,
         "delta_only": 0,
-        "exc_median_abs_imag": 0.05868661251033758
+        "exc_median_abs_imag": 0.05868661251033747
       }
     },
     "Rodal": {

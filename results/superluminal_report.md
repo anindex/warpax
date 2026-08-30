@@ -1,6 +1,6 @@
 # Superluminal Characterization Report
 
-**Date:** 2026-08-28T17:47:10Z
+**Date:** 2026-08-30T20:22:22Z
 **Script:** `scripts/run_superluminal_investigation.py`
 **Metrics tested:** Alcubierre (tanh), Lentz (L1/diamond)
 **Velocities:** 1.0, 1.5, 2.0

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-08-28T17:48:27Z",
+    "date": "2026-08-30T20:23:49Z",
     "script": "scripts/run_wall_restricted_analysis.py",
     "grid_resolution": 50,
     "wall_bounds": [
@@ -26,7 +26,7 @@
         "wec_pct_missed": 0.0,
         "sec_pct_missed": 7.192800000000001,
         "dec_pct_missed": 0.0,
-        "max_imag_eigenvalue": 0.26672542902138185
+        "max_imag_eigenvalue": 0.2667254290213819
       },
       "wall_restricted": {
         "n_total": 416,
@@ -45,7 +45,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 416,
-      "elapsed_s": 58.262436866760254
+      "elapsed_s": 63.694453954696655
     },
     "rodal": {
       "full_grid": {
@@ -81,7 +81,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 5208,
-      "elapsed_s": 2.169865608215332
+      "elapsed_s": 2.5627307891845703
     },
     "vdb": {
       "full_grid": {
@@ -117,7 +117,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 416,
-      "elapsed_s": 22.372882604599
+      "elapsed_s": 25.956875801086426
     },
     "natario": {
       "full_grid": {
@@ -153,7 +153,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 416,
-      "elapsed_s": 326.7013876438141
+      "elapsed_s": 355.9034683704376
     }
   }
 }

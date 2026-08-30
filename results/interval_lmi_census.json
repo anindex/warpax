@@ -94,7 +94,7 @@
         }
       },
       "errors": [],
-      "seconds": 6.7
+      "seconds": 8.1
     },
     "Nat\u00e1rio": {
       "n_sampled": 4257,
@@ -144,7 +144,7 @@
         }
       },
       "errors": [],
-      "seconds": 7.3
+      "seconds": 8.7
     },
     "Van den Broeck": {
       "n_sampled": 4257,
@@ -194,7 +194,7 @@
         }
       },
       "errors": [],
-      "seconds": 7.1
+      "seconds": 8.4
     },
     "Rodal": {
       "n_sampled": 4257,
@@ -244,7 +244,7 @@
         }
       },
       "errors": [],
-      "seconds": 7.6
+      "seconds": 7.8
     }
   }
 }

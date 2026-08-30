@@ -6,27 +6,27 @@
         "bfgs_wins": 131,
         "sampling_wins": 30,
         "ties": 39,
-        "mean_improvement": 31.511360453378508,
-        "median_improvement": 0.0002562040936985123,
-        "max_improvement": 717.8803922333682,
+        "mean_improvement": 31.51136060520651,
+        "median_improvement": 0.0002562040936984776,
+        "max_improvement": 717.8803922333684,
         "pct_bfgs_equal_or_better": 85.0
       },
       "5000": {
         "bfgs_wins": 129,
         "sampling_wins": 32,
         "ties": 39,
-        "mean_improvement": 12.086484339016442,
-        "median_improvement": 0.00014613505141410549,
-        "max_improvement": 270.49757754842494,
+        "mean_improvement": 12.086484490844448,
+        "median_improvement": 0.00014613505127647383,
+        "max_improvement": 270.4975775484254,
         "pct_bfgs_equal_or_better": 84.0
       },
       "10000": {
         "bfgs_wins": 129,
         "sampling_wins": 32,
         "ties": 39,
-        "mean_improvement": 10.55400317531903,
-        "median_improvement": 0.0001269866635521976,
-        "max_improvement": 270.49757754842494,
+        "mean_improvement": 10.554003327147038,
+        "median_improvement": 0.00012698666357868977,
+        "max_improvement": 270.4975775484254,
         "pct_bfgs_equal_or_better": 84.0
       }
     }
@@ -38,17 +38,17 @@
         "bfgs_wins": 175,
         "sampling_wins": 3,
         "ties": 22,
-        "mean_improvement": 2.5248134415034102,
-        "median_improvement": 1.2079781134185517,
-        "max_improvement": 24.89976129374702,
+        "mean_improvement": 2.5248208635538907,
+        "median_improvement": 1.207978113418549,
+        "max_improvement": 24.899761293747133,
         "pct_bfgs_equal_or_better": 98.5
       },
       "5000": {
         "bfgs_wins": 173,
         "sampling_wins": 3,
         "ties": 24,
-        "mean_improvement": 1.3105382937349948,
-        "median_improvement": 0.6295549561259959,
+        "mean_improvement": 1.3105457157854747,
+        "median_improvement": 0.6295549561259648,
         "max_improvement": 23.135728287089194,
         "pct_bfgs_equal_or_better": 98.5
       },
@@ -56,9 +56,9 @@
         "bfgs_wins": 173,
         "sampling_wins": 3,
         "ties": 24,
-        "mean_improvement": 0.9560982617078531,
-        "median_improvement": 0.4542811580139976,
-        "max_improvement": 22.461410278086248,
+        "mean_improvement": 0.9561056837583348,
+        "median_improvement": 0.45428115801397784,
+        "max_improvement": 22.461410278086476,
         "pct_bfgs_equal_or_better": 98.5
       }
     }

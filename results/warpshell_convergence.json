@@ -10,9 +10,9 @@
     -4.0055800521935827e+49
   ],
   "integrated_nec_violation_eulerian": [
-    -2.0092645265968567e+25,
-    -4.5792503384452474e+48,
-    -4.011609169535548e+49
+    -2.007794390125531e+25,
+    -4.5792503383869814e+48,
+    -4.0114703361116264e+49
   ],
   "min_wec_margin_eulerian": [
     -6.4652193817435795e+75,
@@ -25,8 +25,8 @@
     null
   ],
   "integrated_nec_violation_robust": [
-    -2.011727476424917e+25,
-    -5.7437710060519547e+48,
+    -2.010257297260978e+25,
+    -5.7437710059936873e+48,
     null
   ],
   "min_wec_margin_robust": [
@@ -45,12 +45,12 @@
     null
   ],
   "time_s": [
-    8.9,
-    10.4,
-    8.9
+    13.5,
+    12.3,
+    10.1
   ],
   "richardson_order_min_nec_eulerian": -2.965498701179092,
   "extrapolated_min_nec_eulerian": 6.6747433794221126e+47,
-  "richardson_order_integrated_nec_eulerian": -2.956132113579245,
-  "extrapolated_integrated_nec_eulerian": 6.773632240843028e+47
+  "richardson_order_integrated_nec_eulerian": -2.956075750063662,
+  "extrapolated_integrated_nec_eulerian": 6.773936026793033e+47
 }
