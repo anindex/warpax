@@ -19,22 +19,22 @@ from __future__ import annotations
 import math
 import os
 import time
-from datetime import datetime, timezone
-
-from _json_io import dump_json
+from datetime import UTC, datetime
 
 import matplotlib
+from _json_io import dump_json
+
 matplotlib.use("Agg")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.metrics import LentzMetric
 from warpax.geometry import compute_curvature_chain, kretschmann_scalar
-
+from warpax.metrics import LentzMetric
 
 # Constants
 
@@ -294,7 +294,7 @@ def save_report(analytical, radial_cut, start_time):
 
 def main():
     """Run Lentz wall resolution assessment."""
-    start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    start_time = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     print("=" * 70)
     print("Lentz Wall Resolution Assessment")

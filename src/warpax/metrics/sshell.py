@@ -122,6 +122,7 @@ class SShellMetric(ADMMetric):
     def symbolic(self):
         """Symbolic placeholder (potentials are numerical, not analytic)."""
         import sympy as sp
+
         from ..geometry.metric import SymbolicMetric
 
         t, x, y, z = sp.symbols("t x y z")

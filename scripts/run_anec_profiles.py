@@ -24,12 +24,12 @@ from _json_io import dump_json
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.averaged.anec import anec, _anec_integrand_at_point
-
+from warpax.averaged.anec import _anec_integrand_at_point, anec
 
 OUTPUT_DIR = Path(__file__).resolve().parents[1] / "results" / "anec"
 
@@ -85,9 +85,8 @@ def main():
     from warpax.benchmarks import AlcubierreMetric
     from warpax.metrics.fuchs_construction import fuchs_default
     from warpax.metrics.sshell import sshell_default
-    from warpax.metrics.tshell import tshell_default
+    from warpax.metrics.tshell import tshell_default, tshell_from_profiles
     from warpax.metrics.tshell_profiles import constant_velocity_profiles
-    from warpax.metrics.tshell import tshell_from_profiles
     from warpax.optimization.sweep import _rho_from_compactness
 
     # high-compactness T-shell at the binding-failure corner of the

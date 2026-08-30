@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from itertools import pairwise
 
 import jax.numpy as jnp
 import numpy as np
@@ -58,7 +59,7 @@ class TestEstimator:
         # f = kappa*omega: zero at zero vorticity, monotone in omega
         vals = [imaginary_part_estimate(w, kappa=0.06) for w in (0.0, 0.1, 0.2, 0.4)]
         assert vals[0] == 0.0
-        assert all(b > a for a, b in zip(vals, vals[1:]))
+        assert all(b > a for a, b in pairwise(vals))
 
     def test_fit_recovers_kappa(self):
         omega = np.array([0.05, 0.1, 0.2, 0.4])

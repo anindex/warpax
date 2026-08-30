@@ -76,8 +76,8 @@ from . import _intervalad as ad
 from ._intervalcurv import eulerian_fields_interval
 
 __all__ = [
-    "Enclosure",
     "METRICS",
+    "Enclosure",
     "alcubierre_metric",
     "certify_nec_deficit",
     "rodal_metric",
@@ -924,7 +924,7 @@ def certify_nec_deficit(
         return _lo(f_iv) >= wall_mask[0] and _hi(f_iv) <= wall_mask[1]
 
     best_upper = u0 if _inside_band(f0) else math.inf
-    best_pt = tuple((a + b) / 2 for a, b in zip(lo0, hi0))
+    best_pt = tuple((a + b) / 2 for a, b in zip(lo0, hi0, strict=True))
     n_eval = 1
 
     # +2, not +0: each pass evaluates both halves, so testing before the split
@@ -954,7 +954,7 @@ def certify_nec_deficit(
                 continue
             if math.isfinite(u) and u < best_upper and _inside_band(f_iv):
                 best_upper = u
-                best_pt = tuple((a + b) / 2 for a, b in zip(lo, hi))
+                best_pt = tuple((a + b) / 2 for a, b in zip(lo, hi, strict=True))
             if l <= best_upper:
                 heapq.heappush(heap, _Box(l, tuple(lo), tuple(hi)))
 

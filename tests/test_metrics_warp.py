@@ -1,21 +1,25 @@
 """Warp-metric construction and contracts: Lentz, Natario, Rodal, VdB, WarpShell."""
 
-from warpax.benchmarks.alcubierre import AlcubierreMetric
-from warpax.geometry import compute_curvature_chain, SymbolicMetric, adm_to_full_metric
-from warpax.metrics import LentzMetric
-from warpax.metrics import NatarioMetric
-from warpax.metrics import RodalMetric
-from warpax.metrics import VanDenBroeckMetric
-from warpax.metrics import WarpShellMetric, WarpShellPhysical, WarpShellStressTest
-from warpax.metrics import tshell_default
-from warpax.metrics._common import alcubierre_shape
-from warpax.metrics.natario import natario_eulerian_energy_density
-from warpax.metrics.rodal import _rodal_G, _rodal_g_paper
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import pytest
 
+from warpax.benchmarks.alcubierre import AlcubierreMetric
+from warpax.geometry import SymbolicMetric, adm_to_full_metric, compute_curvature_chain
+from warpax.metrics import (
+    LentzMetric,
+    NatarioMetric,
+    RodalMetric,
+    VanDenBroeckMetric,
+    WarpShellMetric,
+    WarpShellPhysical,
+    WarpShellStressTest,
+    tshell_default,
+)
+from warpax.metrics._common import alcubierre_shape
+from warpax.metrics.natario import natario_eulerian_energy_density
+from warpax.metrics.rodal import _rodal_G, _rodal_g_paper
 
 
 class TestLentz:
@@ -1492,6 +1496,7 @@ class TestShellTotalMassArrayLeaf:
 
     def test_sshell_total_mass_in_array_partition(self):
         import equinox as eqx
+
         from warpax.metrics.sshell import sshell_from_profiles
         from warpax.metrics.sshell_profiles import constant_density_profiles
 
@@ -1506,6 +1511,7 @@ class TestShellTotalMassArrayLeaf:
 
     def test_tshell_total_mass_in_array_partition(self):
         import equinox as eqx
+
         from warpax.metrics.tshell import tshell_from_profiles
         from warpax.metrics.tshell_profiles import constant_velocity_profiles
 

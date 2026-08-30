@@ -104,8 +104,8 @@ def _feature_extent(
         feat_span = x_unique[-1] - x_unique[0]
         if feat_span > 0 and max_gap > 0.4 * feat_span:
             gap_x = (x_unique[max_gap_idx] + x_unique[max_gap_idx + 1]) / 2.0
-            right_mask = mask & (X > gap_x)
-            left_mask = mask & (X <= gap_x)
+            right_mask = mask & (gap_x < X)
+            left_mask = mask & (gap_x >= X)
             chosen = right_mask if right_mask.sum() >= left_mask.sum() else left_mask
             x_feat = X[chosen]
             y_feat = Y[chosen]

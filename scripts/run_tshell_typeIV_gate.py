@@ -12,17 +12,19 @@ Run (after `uv sync --extra design --extra solver`):
     uv run python scripts/run_tshell_typeIV_gate.py
 """
 from __future__ import annotations
+
 import json
 import os
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
-import numpy as np
 import mpmath as mp
+import numpy as np
 
-from warpax.geometry import compute_curvature_chain
 from warpax.energy_conditions.frame_free import certify_point_frame_free
+from warpax.geometry import compute_curvature_chain
 from warpax.metrics import tshell_default
 
 R1, R2 = 10.0, 20.0

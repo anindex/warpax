@@ -13,7 +13,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
-from .basis import unpack_theta, coeffs_to_profiles_sshell, coeffs_to_profiles_tshell
+from .basis import coeffs_to_profiles_sshell, coeffs_to_profiles_tshell, unpack_theta
 
 
 class LossWeights(NamedTuple):

@@ -425,13 +425,13 @@ class TestDECFutureDirectedness:
         Verify that the DEC optimizer objective includes both causality
         and future-directedness by checking on a known tensor.
         """
+        from warpax.energy_conditions.observer import (
+            compute_orthonormal_tetrad,
+        )
         from warpax.energy_conditions.optimization import (
             _dec_flux_subobjective,
             _dec_future_subobjective,
             _dec_objective,
-        )
-        from warpax.energy_conditions.observer import (
-            compute_orthonormal_tetrad,
         )
 
         # Construct T_ab in Minkowski where Eulerian flux is past-directed:
@@ -474,8 +474,8 @@ class TestDECFutureDirectedness:
 
     def test_dec_future_vs_causality(self):
         """Verify the DEC objective returns min(wec, causality, future-directedness)."""
-        from warpax.energy_conditions.optimization import _dec_objective
         from warpax.energy_conditions.observer import compute_orthonormal_tetrad
+        from warpax.energy_conditions.optimization import _dec_objective
 
         # Perfect fluid dust: rho=1, p=0. Flux is future-directed and causal.
         T_ab = jnp.diag(jnp.array([1.0, 0.0, 0.0, 0.0]))

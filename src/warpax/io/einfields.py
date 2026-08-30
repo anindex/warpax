@@ -11,8 +11,9 @@ an install hint. Tests use :func:`pytest.importorskip` when the optional
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
@@ -36,7 +37,7 @@ def _sample_on_grid(
             f"got {len(sample_bounds)} + {len(sample_shape)}"
         )
     axes = [
-        np.linspace(lo, hi, n) for (lo, hi), n in zip(sample_bounds, sample_shape)
+        np.linspace(lo, hi, n) for (lo, hi), n in zip(sample_bounds, sample_shape, strict=True)
     ]
     mesh = np.meshgrid(*axes, indexing="ij")
     coords = np.stack(mesh, axis=-1).reshape(-1, 4)  # (N, 4)

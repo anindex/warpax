@@ -14,16 +14,16 @@ from __future__ import annotations
 
 import os
 
+import jax
 from _json_io import dump_json
 
-import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.metrics import LentzMetric
-from warpax.geometry import compute_curvature_chain
 from warpax.energy_conditions.frame_free import certify_point_frame_free
+from warpax.geometry import compute_curvature_chain
+from warpax.metrics import LentzMetric
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")

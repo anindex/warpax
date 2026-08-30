@@ -29,10 +29,11 @@ import argparse
 import json
 import os
 
-from _paper_metrics import METRIC_ORDER, instantiate
-from _json_io import dump_json, write_table as write_tex_table
-
 import matplotlib
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
+from _paper_metrics import METRIC_ORDER, instantiate
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -48,17 +49,18 @@ apply_style()
 _PCT = r"\%" if USE_TEX else "%"
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
+from _benchmark_grid import CLUSTER_A
 
+from warpax.analysis.extrema import refine_extremum, seed_from_grid_index
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import wall_clustered
-from warpax.analysis.extrema import refine_extremum, seed_from_grid_index
-from _benchmark_grid import CLUSTER_A
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")

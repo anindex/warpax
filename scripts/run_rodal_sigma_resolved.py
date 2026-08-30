@@ -30,9 +30,9 @@ from __future__ import annotations
 import argparse
 import os
 
-from _json_io import dump_json, write_table as write_tex_table
-
 import jax
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
 
 jax.config.update("jax_enable_x64", True)
 
@@ -41,7 +41,7 @@ import numpy as np
 from warpax.analysis.invariant_verification import single_frame_miss
 from warpax.energy_conditions.frame_free import certify_grid_frame_free
 from warpax.geometry import evaluate_curvature_points
-from warpax.grids import axisymmetric_grid, wall_cells_on_axis, proper_volume_weights
+from warpax.grids import axisymmetric_grid, proper_volume_weights, wall_cells_on_axis
 from warpax.metrics import RodalMetric
 
 HERE = os.path.dirname(__file__)

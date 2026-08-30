@@ -25,11 +25,10 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
-
-from _json_io import dump_json
+from datetime import UTC, datetime
 
 import matplotlib
+from _json_io import dump_json
 
 matplotlib.use("Agg")
 
@@ -41,9 +40,9 @@ import jax.numpy as jnp
 import numpy as np
 
 from warpax.benchmarks import AlcubierreMetric
-from warpax.metrics import LentzMetric
-from warpax.geometry import compute_curvature_chain
 from warpax.energy_conditions import classify_hawking_ellis, verify_point
+from warpax.geometry import compute_curvature_chain
+from warpax.metrics import LentzMetric
 
 # Constants
 
@@ -606,7 +605,7 @@ def save_report(results, summary, start_time):
 def main():
     """Run the complete superluminal characterization investigation."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    start_time = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     print("=" * 70)
     print("Superluminal Characterization Investigation")

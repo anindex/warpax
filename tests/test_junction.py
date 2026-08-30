@@ -1,16 +1,16 @@
 """Darmois-Israel junction conditions and extended shell tests."""
 
 from __future__ import annotations
-from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric, SchwarzschildMetric
-from warpax.junction import DarmoisResult, darmois
-from warpax.junction import surface_stress_energy
-from warpax.junction.darmois import _induced_and_extrinsic, _unit_normal
-from warpax.metrics import WarpShellMetric
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric, SchwarzschildMetric
+from warpax.junction import DarmoisResult, darmois, surface_stress_energy
+from warpax.junction.darmois import _induced_and_extrinsic, _unit_normal
+from warpax.metrics import WarpShellMetric
 
 
 class TestDarmois:

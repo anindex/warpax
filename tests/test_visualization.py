@@ -1,12 +1,13 @@
 """Visualization smoke tests: Manim scenes and frame-data helpers."""
 
 from __future__ import annotations
+
 import importlib
+
 import jax.numpy as jnp
 import matplotlib
 import numpy as np
 import pytest
-
 
 matplotlib.use("Agg")
 

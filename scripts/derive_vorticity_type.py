@@ -35,9 +35,10 @@ from __future__ import annotations
 
 import os
 
-from _json_io import dump_json, write_table as write_tex_table
-
 import jax
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
+
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
@@ -235,7 +236,7 @@ def _make_figure(controlled, cross, out_path):
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"  (figure skipped: {e})")
         return
     om = np.array(controlled["omega"])

@@ -31,15 +31,14 @@ from __future__ import annotations
 
 import os
 
-from _json_io import dump_json, write_table as write_tex_table
-
 import jax
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
 
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
 from warpax.benchmarks.alcubierre import alcubierre_shape
-
 
 TABLES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "warpax_arxiv", "tables")
 
@@ -165,7 +164,7 @@ def main():
         wall_str = f"{r['wall_width']:.4f}" if r["wall_width"] is not None else "N/A"
         cells_str = f"{r['cells_resolving_wall']:.2f}" if r["cells_resolving_wall"] is not None else "N/A"
         resolved_str = str(r["resolved"]) if r["resolved"] is not None else "N/A"
-        print(f"{r['metric']:>14s}  {str(r['shape_function'] or 'N/A'):>8s}  "
+        print(f"{r['metric']:>14s}  {r['shape_function'] or 'N/A'!s:>8s}  "
               f"{sigma_str:>7s}  {wall_str:>8s}  {r['dx']:>8.4f}  "
               f"{cells_str:>6s}  {resolved_str:>8s}")
 

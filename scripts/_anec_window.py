@@ -94,7 +94,7 @@ def crossing_span(lam, r_s, support_r: float, margin: float = 2.0) -> tuple[floa
     """
     lam = [float(v) for v in lam]
     r_s = [float(v) for v in r_s]
-    finite = [i for i, (a, b) in enumerate(zip(lam, r_s))
+    finite = [i for i, (a, b) in enumerate(zip(lam, r_s, strict=True))
               if a == a and b == b]  # drop NaN (some rays need projection)
     if not finite:
         return float(lam[-1]), False

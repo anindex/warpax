@@ -25,8 +25,9 @@ import os
 from pathlib import Path
 
 from _anec_window import crossing_span
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
 from _paper_metrics import METRIC_ORDER, instantiate
-from _json_io import dump_json, write_table as write_tex_table
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -37,9 +38,8 @@ import jax.numpy as jnp
 import numpy as np
 
 from warpax.averaged.anec import anec_rigorous, null_ic_canonical
-from warpax.geodesics import integrate_geodesic_symplectic
 from warpax.benchmarks import MinkowskiMetric
-from warpax.geodesics import eulerian_affine_scale
+from warpax.geodesics import eulerian_affine_scale, integrate_geodesic_symplectic
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results", "anec")

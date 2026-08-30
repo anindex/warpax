@@ -20,7 +20,6 @@ from jaxtyping import Array, Float
 
 from .geometry import CurvatureResult
 
-
 # All 24 permutations of (0,1,2,3) with their signs.
 # Even permutations (+1):
 _EVEN_PERMS = (

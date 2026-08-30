@@ -16,9 +16,9 @@ import os
 
 import numpy as np
 
+from warpax.analysis import compare_eulerian_vs_robust
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
-from warpax.analysis import compare_eulerian_vs_robust
 from warpax.visualization import plot_comparison_panel
 
 # Setup

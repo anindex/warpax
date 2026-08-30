@@ -511,6 +511,7 @@ class FuchsMetric(ADMMetric):
         outer product symbolically.
         """
         import sympy as sp
+
         from ..geometry.metric import SymbolicMetric
 
         t, x, y, z = sp.symbols("t x y z")

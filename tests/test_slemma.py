@@ -7,6 +7,8 @@ over the observer ball and sphere, on all four canonical algebraic types.
 """
 from __future__ import annotations
 
+from itertools import pairwise
+
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -494,11 +496,11 @@ def test_lmi_is_continuous_through_the_type_ii_locus():
 
     # Exactly zero on the locus, and strictly monotone through it.
     assert margins[js.index(1.0)] == pytest.approx(0.0, abs=1e-13)
-    assert all(a > b for a, b in zip(margins, margins[1:])), margins
+    assert all(a > b for a, b in pairwise(margins)), margins
     # Delta > 0 is satisfied, Delta < 0 is violated, with no jump at Delta = 0.
     assert margins[0] > 0 and margins[-1] < 0
     # The margin is (rho + S_par)/2 - |j| here, i.e. linear in j on both sides.
-    for j, m in zip(js, margins):
+    for j, m in zip(js, margins, strict=True):
         assert m == pytest.approx(0.5 * (rho + s_par) - j, abs=1e-12)
 
 

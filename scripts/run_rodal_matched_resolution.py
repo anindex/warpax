@@ -20,23 +20,23 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
-
-from _json_io import dump_json
+from datetime import UTC, datetime
 
 import matplotlib
+from _json_io import dump_json
+
 matplotlib.use("Agg")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 
-from warpax.metrics import RodalMetric
-from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.analysis.convergence import f_miss_stability
-
+from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.metrics import RodalMetric
 
 # Constants
 
@@ -311,7 +311,7 @@ def save_report(results, stability, start_time):
 
 def main():
     """Run Rodal matched-parameter feasibility study."""
-    start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    start_time = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     results = run_resolution_study()
     stability = check_f_miss_stability(results)

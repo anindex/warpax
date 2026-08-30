@@ -28,21 +28,20 @@ from __future__ import annotations
 
 import os
 
-from _json_io import dump_json
-
 import jax
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
 from warpax.benchmarks import AlcubierreMetric
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
+from warpax.energy_conditions import certify_grid_frame_free
+from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import wall_clustered
-from warpax.energy_conditions import certify_grid_frame_free
-from warpax.energy_conditions.filtering import shape_function_mask
+from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")

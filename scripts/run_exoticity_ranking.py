@@ -31,9 +31,9 @@ import json
 import math
 import os
 
-from _json_io import dump_json, write_table as write_tex_table
-
 import numpy as np
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")

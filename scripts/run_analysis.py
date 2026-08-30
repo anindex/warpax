@@ -28,19 +28,20 @@ import time
 
 # Non-interactive backend (before any other matplotlib import)
 import matplotlib
+
 matplotlib.use("Agg")
 
 import numpy as np
 
-from warpax.benchmarks import AlcubierreMetric, SchwarzschildMetric
-from warpax.geometry import GridSpec, evaluate_curvature_grid
-from warpax.geometry.grid import build_coord_batch
 from warpax.analysis import build_comparison_table, compare_eulerian_vs_robust
-from warpax.energy_conditions.verifier import verify_grid
+from warpax.benchmarks import AlcubierreMetric, SchwarzschildMetric
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,
     shape_function_mask,
 )
+from warpax.energy_conditions.verifier import verify_grid
+from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.geometry.grid import build_coord_batch
 from warpax.metrics import (
     LentzMetric,
     NatarioMetric,
@@ -334,7 +335,7 @@ def main():
     elif args.mode == "quick":
         run_metrics = ["alcubierre"]
     else:
-        run_metrics = WARP_METRICS + ["schwarzschild"]
+        run_metrics = [*WARP_METRICS, "schwarzschild"]
 
     if args.velocities is not None:
         run_velocities = args.velocities

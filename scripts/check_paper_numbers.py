@@ -83,7 +83,7 @@ def load(path: Path) -> str:
 def table_cell(body: str, row: str, col: int) -> str:
     """Cell ``col`` (0-based, after the row label) of the row labelled ``row``."""
     for line in body.splitlines():
-        line = line.strip().rstrip(r"\\").strip()
+        line = line.strip().rstrip("\\").strip()
         if not line.startswith(row):
             continue
         cells = [c.strip() for c in line.split("&")]
@@ -102,7 +102,7 @@ def main() -> int:
     args = ap.parse_args()
 
     tex = load(args.paper / "main.tex")
-    t = lambda name: load(args.paper / "tables" / f"{name}.tex")  # noqa: E731
+    t = lambda name: load(args.paper / "tables" / f"{name}.tex")
 
     bench = t("invariant_benchmark")
     conv = t("convergence_per_metric")
@@ -413,7 +413,7 @@ def main() -> int:
     if rodal_abl is not None:
         # The sweep is stored as two parallel lists, not as a mapping keyed by N.
         res = rodal_abl.get("sweeps", {}).get("resolution", {})
-        by_n = dict(zip(res.get("values", []), res.get("rodal_dec_miss_pct", [])))
+        by_n = dict(zip(res.get("values", []), res.get("rodal_dec_miss_pct", []), strict=True))
         want = [f"{by_n[n]:.2f}" for n in (25, 50, 100)
                 if isinstance(by_n.get(n), (int, float))]
         if len(want) == 3:

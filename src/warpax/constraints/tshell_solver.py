@@ -173,7 +173,7 @@ def solve_tshell_potentials(
     beta_x_grid = _solve_shift_bvp(A_coeff, B_coeff, source_beta, dr, n_grid)
 
     # Interpolated callables
-    import interpax  # noqa: PLC0415  (optional dep; only needed here)
+    import interpax
 
     def Phi_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(

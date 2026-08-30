@@ -9,7 +9,6 @@ silently mapped to success.
 """
 from __future__ import annotations
 
-
 # Sentinel for a result object we could not convert; maps to reason
 # 'unknown' and must be treated as non-success by callers.
 RESULT_UNKNOWN = -1

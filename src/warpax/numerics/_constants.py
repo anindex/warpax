@@ -24,4 +24,4 @@ def strict_mode_enabled() -> bool:
     return os.environ.get("WARPAX_STRICT", "") == "1"
 
 
-__all__ = ["R_EPS", "LAPSE_EPS", "DENOM_EPS", "strict_mode_enabled"]
+__all__ = ["DENOM_EPS", "LAPSE_EPS", "R_EPS", "strict_mode_enabled"]

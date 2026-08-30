@@ -20,23 +20,22 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
-
-from _json_io import dump_json
+from datetime import UTC, datetime
 
 # Non-interactive backend (before any other matplotlib import)
 import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
+from _json_io import dump_json
 
+matplotlib.use("Agg")
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import WarpShellMetric
-from warpax.visualization._style import apply_style, DOUBLE_COL, COLORS
+from warpax.visualization._style import COLORS, DOUBLE_COL, apply_style
 
 # Configuration (matches paper exactly)
 
@@ -342,7 +341,7 @@ def main():
             "grid_shape": list(GRID_SPEC.shape),
             "n_starts": N_STARTS,
             "batch_size": BATCH_SIZE,
-            "date": datetime.now(timezone.utc).isoformat(),
+            "date": datetime.now(UTC).isoformat(),
             "velocities": VELOCITIES,
             "metric_params": METRIC_PARAMS,
         },

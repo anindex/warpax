@@ -177,9 +177,9 @@ def test_multiplier_is_rational_and_small_where_it_can_be():
     s = find_multiplier(to_exact(T), to_exact(ETA), "wec", 0.0)
     assert s is not None and s.denominator <= 10**6
     assert is_psd_exact(
-        [[a + s * b for a, b in zip(r1, r2)]
+        [[a + s * b for a, b in zip(r1, r2, strict=True)]
          for r1, r2 in zip(condition_matrix(to_exact(T), to_exact(ETA), "wec"),
-                           to_exact(ETA))]
+                           to_exact(ETA), strict=True)]
     )
 
 

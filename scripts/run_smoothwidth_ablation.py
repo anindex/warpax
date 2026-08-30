@@ -18,18 +18,18 @@ import argparse
 import os
 import time
 
+import matplotlib
 from _json_io import dump_json
 
-import matplotlib
 matplotlib.use("Agg")
 
+import jax
 import numpy as np
 
-import jax
 jax.config.update("jax_enable_x64", True)
 
-from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
+from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import WarpShellMetric
 
 # Configuration

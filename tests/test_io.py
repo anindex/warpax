@@ -1,6 +1,7 @@
 """I/O readers: Cactus, EinFields, WarpFactory."""
 
 from __future__ import annotations
+
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -9,7 +10,6 @@ import numpy as np
 import pytest
 
 from warpax.io import InterpolatedADMMetric, load_einfield, load_warpfactory
-
 
 _h5py_available = find_spec("h5py") is not None
 requires_h5py = pytest.mark.skipif(not _h5py_available, reason="h5py not installed (warpax[interop])")

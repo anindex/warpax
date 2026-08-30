@@ -6,10 +6,8 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
-import numpy as np
 import matplotlib as _mpl
-from matplotlib.colors import LinearSegmentedColormap
-
+import numpy as np
 from manim import (
     DOWN,
     LEFT,
@@ -26,17 +24,17 @@ from manim import (
     Scene,
     Text,
     ValueTracker,
-    VMobject,
     VGroup,
+    VMobject,
     always_redraw,
     linear,
 )
+from matplotlib.colors import LinearSegmentedColormap
 
 from warpax.visualization.manim._image_utils import (
     compute_symlog_clim,
 )
 from warpax.visualization.manim._scene_utils import COLORS_3B1B
-
 
 _DARK_DIVERGE_SS = LinearSegmentedColormap.from_list(
     "dark_diverge_ss",
@@ -198,7 +196,7 @@ class EulerianVsWorstCaseNEC(Scene):
     v_start: float = 0.1
     v_end: float = 0.99
     grid_shape: tuple[int, int, int] = (45, 45, 45)
-    bounds: list[tuple[float, float]] = [(-3, 3), (-3, 3), (-3, 3)]
+    bounds: tuple[tuple[float, float], ...] = ((-3, 3), (-3, 3), (-3, 3))
     panel_height: float = 3.8
     panel_width: float = 4.0
     run_time: float = 12.0
@@ -243,8 +241,8 @@ class EulerianVsWorstCaseNEC(Scene):
             clim: tuple,
         ) -> np.ndarray:
             """Render heatmap + contours into a single RGBA array."""
-            import matplotlib.pyplot as plt
             import matplotlib.colors as mcolors
+            import matplotlib.pyplot as plt
             from scipy.ndimage import zoom as _ndzoom
 
             mid_z = frame.grid_shape[2] // 2

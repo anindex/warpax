@@ -11,10 +11,9 @@ from __future__ import annotations
 import sys
 import time
 
-from _json_io import dump_json
-
 import jax
 import jax.numpy as jnp
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 
@@ -26,12 +25,12 @@ from warpax.energy_conditions import (
     verify_point,
 )
 from warpax.geometry import compute_curvature_chain
-from warpax.metrics._fuchs_legacy import _fuchs_analytical_default
 from warpax.metrics import (
-    fuchs_input_stress_energy,
     LentzMetric,
     RodalMetric,
+    fuchs_input_stress_energy,
 )
+from warpax.metrics._fuchs_legacy import _fuchs_analytical_default
 from warpax.tov import tov_residual_from_metric
 from warpax.transport import geodesic_deviation_diagnostic
 

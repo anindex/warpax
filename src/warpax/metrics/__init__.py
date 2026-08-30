@@ -1,14 +1,14 @@
 """Warp drive spacetime metrics."""
 
-from .fuchs_construction import (
-    FuchsMetric,
-    build_fuchs_construction,
-    fuchs_default,
-)
 from ._fuchs_legacy import (
     FuchsShellProfiles,
     fuchs_input_stress_energy,
     fuchs_shell_profiles,
+)
+from .fuchs_construction import (
+    FuchsMetric,
+    build_fuchs_construction,
+    fuchs_default,
 )
 from .garattini import GarattiniMetric, garattini_default
 from .lentz import LentzMetric

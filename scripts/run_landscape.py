@@ -15,7 +15,6 @@ from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics.natario import NatarioMetric
 from warpax.metrics.van_den_broeck import VanDenBroeckMetric
 
-
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "landscape.json"
 
 

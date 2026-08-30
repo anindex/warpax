@@ -14,9 +14,8 @@ Notes:
 """
 from __future__ import annotations
 
-import numpy as np
-
 import equinox as eqx
+import numpy as np
 
 
 class FrameData(eqx.Module):

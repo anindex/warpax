@@ -153,9 +153,8 @@ def _build_metric(coeffs, ansatz, R_1, R_2, n_grid):
         from ..metrics.sshell import sshell_from_profiles
         profiles = coeffs_to_profiles_sshell(coeffs, R_1, R_2)
         return sshell_from_profiles(profiles, v_s=0.0, n_grid=n_grid)
-    elif ansatz == "tshell":
+    if ansatz == "tshell":
         from ..metrics.tshell import tshell_from_profiles
         profiles = coeffs_to_profiles_tshell(coeffs, R_1, R_2)
         return tshell_from_profiles(profiles, n_grid=n_grid)
-    else:
-        raise ValueError(f"Unknown ansatz: {ansatz!r}")
+    raise ValueError(f"Unknown ansatz: {ansatz!r}")

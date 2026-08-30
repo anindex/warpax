@@ -1,8 +1,17 @@
 """EC observer parameterizations, solver fallbacks, filtering, multistart and PRNG contracts."""
 
 from __future__ import annotations
+
+import warnings
 from collections import Counter
 from pathlib import Path
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+import numpy.testing as npt
+import pytest
+
 from warpax.analysis.kinematic_scalars import compute_kinematic_scalars
 from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
@@ -31,14 +40,6 @@ from warpax.energy_conditions.optimization import (
     _observer_to_boost_vector,
 )
 from warpax.energy_conditions.verifier import _eulerian_ec_point
-import jax
-import jax.numpy as jnp
-import numpy as np
-import numpy.testing as npt
-import pytest
-import warnings
-
-
 
 # Ensure float64 is active
 assert jnp.array(1.0).dtype == jnp.float64, "Float64 not enabled"
@@ -301,9 +302,9 @@ class TestBoundedParam:
 
 jax.config.update("jax_enable_x64", True)
 
-from warpax.metrics import LentzMetric, RodalMetric, WarpShellMetric
-from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
+from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.metrics import LentzMetric, RodalMetric, WarpShellMetric
 
 
 @pytest.mark.slow
@@ -378,7 +379,6 @@ from warpax.energy_conditions.filtering import (
     shape_function_mask,
 )
 from warpax.energy_conditions.types import ECGridResult, ECSummary
-
 
 # Helpers
 
@@ -1085,7 +1085,6 @@ from warpax.energy_conditions.classification import (
     classify_with_solver,
 )
 from warpax.metrics import WarpShellMetric
-
 
 # 10 fixed seeds for the perturbation ensemble.
 N_SEEDS = 10

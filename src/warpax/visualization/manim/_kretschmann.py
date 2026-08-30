@@ -12,19 +12,17 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
-import numpy as np
 import matplotlib as _mpl
-from matplotlib.colors import LinearSegmentedColormap
+import numpy as np
 from manim import (
     DOWN,
     LEFT,
     RIGHT,
-    UP,
     UL,
+    UP,
     UR,
     WHITE,
     YELLOW,
-    config,
     BackgroundRectangle,
     FadeIn,
     Group,
@@ -36,8 +34,10 @@ from manim import (
     VGroup,
     VMobject,
     always_redraw,
+    config,
     linear,
 )
+from matplotlib.colors import LinearSegmentedColormap
 
 from warpax.visualization.manim._image_utils import (
     compute_symlog_clim,
@@ -127,7 +127,7 @@ class KretschmannInvariant2D(Scene):
             progress=True,
         )
         # Attach the real shape function so the f = 0.5 wall overlay is genuine.
-        for frame, v_s in zip(frames, v_values):
+        for frame, v_s in zip(frames, v_values, strict=True):
             metric_v = AlcubierreMetric(v_s=float(v_s))
             f_grid = _shape_function_grid(metric_v, grid_spec, 0.0)
             if f_grid is not None:

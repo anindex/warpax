@@ -17,20 +17,21 @@ import os
 import time
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.metrics import RodalMetric
+from warpax.energy_conditions.classification import classify_hawking_ellis
+from warpax.energy_conditions.verifier import verify_grid
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.grids import wall_clustered
-from warpax.energy_conditions.verifier import verify_grid
-from warpax.energy_conditions.classification import classify_hawking_ellis
-
+from warpax.metrics import RodalMetric
 
 # Matched lab-frame parameters and a wall-clustered grid, consistent with
 # run_velocity_sweep.py and run_invariant_verification.py. A uniform grid at

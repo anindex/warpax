@@ -57,32 +57,30 @@ def _build_colorscale(
             ("#DD513A", vmin + span * 0.75),
             ("#FCA50A", vmax),
         ]
-    else:
-        # Default: RdBu_r diverging (5 stops)
-        if vmax <= 0:
-            return [
-                ("#2166AC", vmin),
-                ("#67A9CF", vmin * 0.5),
-                ("#D1E5F0", vmin * 0.15),
-                ("#E8EFF5", (vmin + vmax) / 2),
-                ("#F7F7F7", vmax),
-            ]
-        elif vmin >= 0:
-            return [
-                ("#F7F7F7", vmin),
-                ("#FDDBC7", vmax * 0.15),
-                ("#EF8A62", vmax * 0.5),
-                ("#D6604D", vmax * 0.75),
-                ("#B2182B", vmax),
-            ]
-        else:
-            return [
-                ("#2166AC", vmin),
-                ("#67A9CF", vmin * 0.4),
-                ("#F7F7F7", 0.0),
-                ("#EF8A62", vmax * 0.4),
-                ("#B2182B", vmax),
-            ]
+    # Default: RdBu_r diverging (5 stops)
+    if vmax <= 0:
+        return [
+            ("#2166AC", vmin),
+            ("#67A9CF", vmin * 0.5),
+            ("#D1E5F0", vmin * 0.15),
+            ("#E8EFF5", (vmin + vmax) / 2),
+            ("#F7F7F7", vmax),
+        ]
+    if vmin >= 0:
+        return [
+            ("#F7F7F7", vmin),
+            ("#FDDBC7", vmax * 0.15),
+            ("#EF8A62", vmax * 0.5),
+            ("#D6604D", vmax * 0.75),
+            ("#B2182B", vmax),
+        ]
+    return [
+        ("#2166AC", vmin),
+        ("#67A9CF", vmin * 0.4),
+        ("#F7F7F7", 0.0),
+        ("#EF8A62", vmax * 0.4),
+        ("#B2182B", vmax),
+    ]
 
 
 def framedata_to_heatmap(

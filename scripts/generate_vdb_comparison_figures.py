@@ -14,16 +14,18 @@ import os
 import time
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
 import numpy as np
 
-from warpax.metrics import VanDenBroeckMetric
-from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
+from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.metrics import VanDenBroeckMetric
 from warpax.visualization.comparison_plots import plot_comparison_panel
 
 # VdB parameters matching run_analysis.py and paper Table 1

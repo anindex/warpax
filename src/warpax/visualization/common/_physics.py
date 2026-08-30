@@ -6,7 +6,7 @@ outside the JAX trace boundary. The frame sequence builder uses
 """
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 
@@ -245,7 +245,7 @@ def build_frame_sequence(
                 "v_s_values and t_values length mismatch: "
                 f"{len(v_s_values)} != {len(t_values)}."
             )
-        schedule = list(zip(v_s_values, t_values))
+        schedule = list(zip(v_s_values, t_values, strict=True))
     else:
         schedule = [(v_s_fn(float(t)), float(t)) for t in t_values]
 
@@ -371,7 +371,7 @@ def build_ec_frame_sequence(
                 "v_s_values and t_values length mismatch: "
                 f"{len(v_s_values)} != {len(t_values)}."
             )
-        schedule = list(zip(v_s_values, t_values))
+        schedule = list(zip(v_s_values, t_values, strict=True))
     else:
         schedule = [(v_s_fn(float(t)), float(t)) for t in t_values]
 

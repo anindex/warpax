@@ -11,7 +11,7 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ._style import apply_style, DOUBLE_COL
+from ._style import DOUBLE_COL, apply_style
 
 
 def plot_alignment_histogram(

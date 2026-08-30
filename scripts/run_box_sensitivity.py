@@ -13,16 +13,16 @@ from __future__ import annotations
 
 import os
 
+import jax
 from _json_io import dump_json
 
-import jax
 jax.config.update("jax_enable_x64", True)
 
 from warpax.benchmarks import AlcubierreMetric
-from warpax.geometry import evaluate_curvature_grid
-from warpax.geometry.grid import GridSpec, build_coord_batch
 from warpax.energy_conditions import certify_grid_frame_free, type_fractions
 from warpax.energy_conditions.filtering import shape_function_mask
+from warpax.geometry import evaluate_curvature_grid
+from warpax.geometry.grid import GridSpec, build_coord_batch
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")

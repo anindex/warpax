@@ -42,7 +42,7 @@ from __future__ import annotations
 import mpmath
 from mpmath import iv
 
-__all__ = ["Jet", "constant", "seed", "sqrt", "exp", "log", "is_jet", "value", "grad"]
+__all__ = ["Jet", "constant", "exp", "grad", "is_jet", "log", "seed", "sqrt", "value"]
 
 _N = 4  # spacetime dimension
 
@@ -63,7 +63,7 @@ class Jet:
     ``v`` encloses ``f`` over the box; ``d[m]`` encloses ``df/dx_m`` over the box.
     """
 
-    __slots__ = ("v", "d")
+    __slots__ = ("d", "v")
 
     def __init__(self, v, d=None):
         self.v = v

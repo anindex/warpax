@@ -43,9 +43,9 @@ import argparse
 import os
 import time
 
+import jax
 from _json_io import dump_json
 
-import jax
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
@@ -61,7 +61,7 @@ from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.energy_conditions.verifier import _classify_grid_batch
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.grids import wall_clustered, proper_volume_weights
+from warpax.grids import proper_volume_weights, wall_clustered
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
@@ -220,7 +220,7 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
     if do_refine:
         fracs = []
         for N in refine_Ns:
-            if N == N_main:
+            if N_main == N:
                 fracs.append(out["wall_frac_type_IV"] * 100.0)
                 continue
             fT, fg, fgi, fTm, wmask, vw = _flat_curv(metric, N)

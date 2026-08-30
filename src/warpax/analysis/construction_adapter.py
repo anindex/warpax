@@ -17,9 +17,8 @@ numbers are withheld.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
-
 
 from ..benchmarks import AlcubierreMetric
 from ..geometry.metric import MetricSpecification

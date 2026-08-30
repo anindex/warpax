@@ -1,6 +1,12 @@
 """Classification: Hawking-Ellis (algebraic + observer), Bobrick-Martire, vacuum-class."""
 
 from __future__ import annotations
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+import pytest
+
 from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric, SchwarzschildMetric
 from warpax.classify import ClassifiedMetric, bobrick_martire
 from warpax.energy_conditions.classification import (
@@ -16,12 +22,6 @@ from warpax.energy_conditions.eigenvalue_checks import (
 )
 from warpax.energy_conditions.types import ClassificationResult
 from warpax.metrics import NatarioMetric, RodalMetric, WarpShellMetric
-import jax
-import jax.numpy as jnp
-import numpy as np
-import pytest
-
-
 
 # Minkowski metric
 ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
@@ -357,7 +357,7 @@ class TestGeneralizedSolver:
 
     def test_invalid_solver_raises(self):
         T = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
-        with pytest.raises(ValueError, match="standard.*generalized|generalized.*standard"):
+        with pytest.raises(ValueError, match=r"standard.*generalized|generalized.*standard"):
             classify_hawking_ellis(T, ETA, solver='foo')
 
     def test_jit_compatible(self):
@@ -1133,8 +1133,8 @@ def test_grid_vacuum_count_matches_n_vacuum():
     """ECGridResult.n_vacuum reports the grid-aggregate count consistent
     with per-point is_vacuum tags."""
     from warpax.benchmarks import AlcubierreMetric
-    from warpax.geometry import GridSpec, evaluate_curvature_grid
     from warpax.energy_conditions.verifier import verify_grid
+    from warpax.geometry import GridSpec, evaluate_curvature_grid
 
     metric = AlcubierreMetric(R=1.0, sigma=8.0, v_s=0.5)
     # Small grid for test speed

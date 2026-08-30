@@ -18,11 +18,10 @@ import argparse
 import os
 import time
 
-from _json_io import dump_json
-
 import jax
 import jax.numpy as jnp
 import numpy as np
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 
@@ -221,12 +220,12 @@ def fibonacci_dec_comparison():
     from warpax.visualization._style import apply_style
     apply_style()
 
-    from warpax.metrics.rodal import RodalMetric
-    from warpax.geometry import GridSpec, evaluate_curvature_grid
-    from warpax.energy_conditions.verifier import verify_grid
-    from warpax.energy_conditions.observer import compute_orthonormal_tetrad
-    from warpax.energy_conditions.eigenvalue_checks import check_dec
     from warpax.energy_conditions.classification import classify_hawking_ellis
+    from warpax.energy_conditions.eigenvalue_checks import check_dec
+    from warpax.energy_conditions.observer import compute_orthonormal_tetrad
+    from warpax.energy_conditions.verifier import verify_grid
+    from warpax.geometry import GridSpec, evaluate_curvature_grid
+    from warpax.metrics.rodal import RodalMetric
 
     n_dir_values = [10, 50, 200, 1000]
     n_zeta = 10

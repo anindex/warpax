@@ -29,7 +29,6 @@ from jaxtyping import Array, Float, jaxtyped
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
 
-
 # Ford-Roman constant for the massless scalar field, 4D
 # (Ford & Roman 1995; Pfenning & Ford 1997 eq. 9).
 FORD_ROMAN_CONSTANT_C: float = 3.0 / (32.0 * jnp.pi ** 2)

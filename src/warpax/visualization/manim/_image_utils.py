@@ -341,7 +341,7 @@ def extract_contours(
     # ``allsegs`` groups segments per level (aligned with ``cs.levels``), so
     # distinct contours are already separated - no MOVETO bridge splitting.
     out: list[tuple[float, list[np.ndarray]]] = []
-    for lvl, segs in zip(np.asarray(cs.levels, dtype=float), cs.allsegs):
+    for lvl, segs in zip(np.asarray(cs.levels, dtype=float), cs.allsegs, strict=True):
         paths = _process_contour_segments(
             list(segs),
             x_range,

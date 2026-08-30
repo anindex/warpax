@@ -38,11 +38,11 @@ import argparse
 import json
 import os
 
-from _benchmark_grid import benchmark_grid
-from _paper_metrics import METRIC_ORDER, instantiate
-from _json_io import dump_json, write_table as write_tex_table
-
 import jax
+from _benchmark_grid import benchmark_grid
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
+from _paper_metrics import METRIC_ORDER, instantiate
 
 jax.config.update("jax_enable_x64", True)
 

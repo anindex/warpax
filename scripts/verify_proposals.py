@@ -19,10 +19,9 @@ from __future__ import annotations
 import sys
 import time
 
-from _json_io import dump_json
-
 import jax
 import jax.numpy as jnp
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 
@@ -39,7 +38,6 @@ from warpax.metrics import (
     fuchs_default,
 )
 from warpax.transport import geodesic_deviation_diagnostic
-
 
 # Per-point evaluation
 

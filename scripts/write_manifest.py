@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 RESULTS = Path(__file__).resolve().parents[1] / "results"
@@ -49,7 +49,7 @@ def manifest_body(results_dir: Path = RESULTS) -> list[str]:
 
 
 def write(results_dir: Path = RESULTS) -> Path:
-    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    stamp = datetime.now(UTC).isoformat(timespec="seconds")
     body = manifest_body(results_dir)
     (results_dir / "MANIFEST.txt").write_text(
         _HEADER.format(stamp=stamp) + "\n" + "\n".join(body) + "\n"

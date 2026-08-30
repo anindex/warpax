@@ -41,7 +41,7 @@ from .energy_conditions.frame_free import (
 )
 from .geometry import GridSpec, evaluate_curvature_grid
 from .geometry.grid import build_coord_batch
-from .grids import wall_clustered, proper_volume_weights
+from .grids import proper_volume_weights, wall_clustered
 
 
 class CertifyResult(NamedTuple):

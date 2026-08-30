@@ -16,7 +16,7 @@ timelike-unit hyperboloid at every saved step (``g(u,u) = -1``).
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import NamedTuple, Union
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -31,7 +31,6 @@ from ..geodesics._result_codes import (
 from ..geodesics.integrator import GeodesicResult
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
-
 
 _VALID_TANGENT_NORM = frozenset({"renormalized", "fixed"})
 
@@ -102,10 +101,7 @@ def _awec_integrand_at_point(
 
 def _extract_trajectory(
     metric: MetricSpecification,
-    geodesic: Union[
-        GeodesicResult,
-        Callable[[Float[Array, ""]], Float[Array, "4"]],
-    ],
+    geodesic: GeodesicResult | Callable[[Float[Array, ""]], Float[Array, "4"]],
     n_samples: int,
     affine_bounds: tuple[float, float],
 ) -> tuple[
@@ -135,10 +131,7 @@ def _extract_trajectory(
 @jaxtyped(typechecker=beartype)
 def awec(
     metric: MetricSpecification,
-    geodesic: Union[
-        GeodesicResult,
-        Callable[[Float[Array, ""]], Float[Array, "4"]],
-    ],
+    geodesic: GeodesicResult | Callable[[Float[Array, ""]], Float[Array, "4"]],
     tangent_norm: str = "renormalized",
     n_samples: int = 256,
     affine_bounds: tuple[float, float] = (-5.0, 5.0),

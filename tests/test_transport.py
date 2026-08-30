@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
+
 from warpax.transport import (
     blueshift_hazard,
     geodesic_deviation_diagnostic,

@@ -7,10 +7,10 @@ independent autodiff implementation for both a single-component shift
 (Alcubierre) and a three-component one (Rodal).
 """
 
-import jax
-import jax.numpy as jnp
 import math
 
+import jax
+import jax.numpy as jnp
 import mpmath
 import pytest
 from mpmath import iv
@@ -18,9 +18,9 @@ from mpmath import iv
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions._intervalcurv import eulerian_fields_interval
 from warpax.energy_conditions.enclosure import (
+    METRICS,
     alcubierre_metric,
     certify_nec_deficit,
-    METRICS,
     natario_metric,
     rodal_metric,
     shape_interval,
@@ -154,7 +154,7 @@ def test_conformal_slice_null_deficit_uses_the_physical_sphere():
     box = [iv.mpf([0, 0]), iv.mpf([1, 1]), iv.mpf([0, 0]), iv.mpf([0, 0])]
     rho_iv, b_iv, S_iv = eulerian_fields_interval(van_den_broeck_metric(**kw), box)
 
-    mid = lambda c: 0.5 * (float(mpmath.mpf(c.a)) + float(mpmath.mpf(c.b)))  # noqa: E731
+    mid = lambda c: 0.5 * (float(mpmath.mpf(c.a)) + float(mpmath.mpf(c.b)))
     rho = mid(rho_iv)
     b = np.array([mid(c) for c in b_iv])
     S = np.array([[mid(S_iv[i][j]) for j in range(3)] for i in range(3)])
@@ -192,7 +192,7 @@ def _centered_fields(metric, cx, cy, h):
     jf = eulerian_fields_interval(metric, box, jet=True)
     cf = eulerian_fields_interval(metric, ctr)
     dx, dy = box[1] - ctr[1], box[2] - ctr[2]
-    cen = lambda j, c: c + j.d[1] * dx + j.d[2] * dy  # noqa: E731
+    cen = lambda j, c: c + j.d[1] * dx + j.d[2] * dy
     return (cen(jf[0], cf[0]),
             [cen(jf[1][i], cf[1][i]) for i in range(3)],
             [[cen(jf[2][i][j], cf[2][i][j]) for j in range(3)] for i in range(3)])
@@ -295,7 +295,7 @@ def test_jet_gradient_matches_autodiff():
            iv.mpf([0, 0])]
     rho_j, _, _ = eulerian_fields_interval(
         alcubierre_metric(0.5, 1.0, 8.0), box, jet=True)
-    mid = lambda c: 0.5 * (float(mpmath.mpf(c.a)) + float(mpmath.mpf(c.b)))  # noqa: E731
+    mid = lambda c: 0.5 * (float(mpmath.mpf(c.a)) + float(mpmath.mpf(c.b)))
     assert np.isclose(mid(rho_j.d[1]), float(gx), rtol=1e-7, atol=1e-9)
     assert np.isclose(mid(rho_j.d[2]), float(gy), rtol=1e-7, atol=1e-9)
 
@@ -321,9 +321,9 @@ def test_certified_lower_never_exceeds_a_brute_force_minimum():
     shape = shape_interval(1.0, 8.0)
     v = rng.normal(size=(4000, 3))
     v /= np.linalg.norm(v, axis=1, keepdims=True)
-    mid = lambda c: 0.5 * (float(mpmath.mpf(c.a)) + float(mpmath.mpf(c.b)))  # noqa: E731
+    mid = lambda c: 0.5 * (float(mpmath.mpf(c.a)) + float(mpmath.mpf(c.b)))
     checked = 0
-    for x, s in zip(rng.uniform(-3.0, 3.0, 1200), rng.uniform(0.0, 3.0, 1200)):
+    for x, s in zip(rng.uniform(-3.0, 3.0, 1200), rng.uniform(0.0, 3.0, 1200), strict=True):
         f = shape(iv.mpf([x, x]), iv.mpf([s, s]))
         if not (0.1 <= mid(f) <= 0.9):
             continue

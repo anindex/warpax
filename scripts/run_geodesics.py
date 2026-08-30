@@ -34,12 +34,10 @@ import argparse
 import os
 import time
 
-from _json_io import dump_json
-
-import numpy as np
-
 import diffrax
 import jax.numpy as jnp
+import numpy as np
+from _json_io import dump_json
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geodesics import (

@@ -1,8 +1,8 @@
 """Tests for the cross-construction adapter."""
 from __future__ import annotations
 
-import pytest
 import jax.numpy as jnp
+import pytest
 
 from warpax.analysis.construction_adapter import (
     MIN_WALL_CELLS,

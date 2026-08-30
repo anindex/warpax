@@ -14,18 +14,18 @@ Demonstrates:
 
 import jax.numpy as jnp
 
+from warpax.energy_conditions import (
+    classify_hawking_ellis,
+    compute_eulerian_ec,
+    verify_point,
+)
+from warpax.geometry import compute_curvature_chain, kretschmann_scalar
 from warpax.metrics import (
     LentzMetric,
     NatarioMetric,
     RodalMetric,
     VanDenBroeckMetric,
     WarpShellMetric,
-)
-from warpax.geometry import compute_curvature_chain, kretschmann_scalar
-from warpax.energy_conditions import (
-    classify_hawking_ellis,
-    verify_point,
-    compute_eulerian_ec,
 )
 
 # Build metrics at v_s = 0.5
@@ -40,6 +40,7 @@ metrics = {
 
 # Include Alcubierre from benchmarks for a complete picture
 from warpax.benchmarks import AlcubierreMetric
+
 metrics["Alcubierre"] = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
 
 # Probe each metric at a bubble-wall point

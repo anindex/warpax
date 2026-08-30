@@ -25,6 +25,7 @@ from _json_io import dump_json
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
@@ -37,7 +38,6 @@ from warpax.metrics.tshell_profiles import (
     parabolic_velocity_profiles,
 )
 from warpax.optimization.sweep import _rho_from_compactness
-
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "error_budget.json"
 
@@ -160,7 +160,7 @@ def main():
     import math
     n = len(margins)
     abs_m = [abs(v) for v in margins]
-    finite = [(e, a) for e, a in zip(epsH, abs_m) if e == e and a == a]
+    finite = [(e, a) for e, a in zip(epsH, abs_m, strict=True) if e == e and a == a]
     if len(finite) >= 2:
         ex = [f[0] for f in finite]
         ax = [f[1] for f in finite]

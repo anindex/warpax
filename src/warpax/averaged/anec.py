@@ -27,7 +27,7 @@ The ``geodesic_complete`` flag and ``termination_reason`` field on
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import NamedTuple, Union
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -48,7 +48,6 @@ from ..geodesics.symplectic import (
 )
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
-
 
 _VALID_TANGENT_NORM = frozenset({"renormalized", "fixed", "null_projected"})
 
@@ -163,10 +162,7 @@ def _anec_integrand_at_point(
 
 def _extract_trajectory(
     metric: MetricSpecification,
-    geodesic: Union[
-        GeodesicResult,
-        Callable[[Float[Array, ""]], Float[Array, "4"]],
-    ],
+    geodesic: GeodesicResult | Callable[[Float[Array, ""]], Float[Array, "4"]],
     n_samples: int,
     affine_bounds: tuple[float, float],
 ) -> tuple[
@@ -208,11 +204,7 @@ def _extract_trajectory(
 @jaxtyped(typechecker=beartype)
 def anec(
     metric: MetricSpecification,
-    geodesic: Union[
-        GeodesicResult,
-        SymplecticGeodesicResult,
-        Callable[[Float[Array, ""]], Float[Array, "4"]],
-    ],
+    geodesic: GeodesicResult | SymplecticGeodesicResult | Callable[[Float[Array, ""]], Float[Array, "4"]],
     tangent_norm: str = "null_projected",
     n_samples: int = 256,
     affine_bounds: tuple[float, float] = (-5.0, 5.0),

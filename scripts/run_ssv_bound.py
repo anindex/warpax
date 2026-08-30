@@ -33,9 +33,8 @@ from __future__ import annotations
 import json
 import os
 
-from _json_io import dump_json
-
 import numpy as np
+from _json_io import dump_json
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
@@ -84,7 +83,7 @@ def fit_bound(vs, deficits, n_type_i=None):
         return {"C": None, "r_squared_fixed": None, "q_free": None,
                 "r_squared_free": None, "max_rel_dev": None,
                 "max_rel_dev_dense": None, "n_type_i_min": None,
-                "n": int(len(vs))}
+                "n": len(vs)}
     v2 = vs ** 2
     C = float(np.sum(deficits * v2) / np.sum(v2 ** 2))
     pred = C * v2
@@ -119,7 +118,7 @@ def fit_bound(vs, deficits, n_type_i=None):
             "n_type_i_min": int(np.min(n_type_i)) if n_type_i is not None else None,
             "n_type_i_max": int(np.max(n_type_i)) if n_type_i is not None else None,
             "C_two": float(C2), "D_two": float(D), "r_squared_two": float(r2_two),
-            "n": int(len(vs))}
+            "n": len(vs)}
 
 
 def _f(x, nd=3):

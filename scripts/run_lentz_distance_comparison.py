@@ -20,9 +20,7 @@ from _json_io import dump_json
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _radial_sweep import radial_sweep
 
-
 from warpax.metrics import LentzMetric
-
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "lentz_distance_comparison.json"
 

@@ -175,7 +175,7 @@ def wall_clustered(
         wall_radius = _infer_wall_radius(metric, bounds)
 
     coord_arrays = []
-    for axis_bounds, n in zip(bounds, shape):
+    for axis_bounds, n in zip(bounds, shape, strict=True):
         lo, hi = axis_bounds
         u = jnp.linspace(0.0, 1.0, n)
         centre = 0.5 * (lo + hi)

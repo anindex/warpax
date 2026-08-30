@@ -1,9 +1,16 @@
 """Geometry: curvature chain, ADM/metric specs, transitions, type contracts."""
 
+import jax
+import jax.numpy as jnp
+import numpy as np
+import numpy.testing as npt
+import pytest
+import sympy as sp
+
 from warpax.benchmarks.alcubierre import (
     AlcubierreMetric,
-    eulerian_energy_density,
     _shape_function,
+    eulerian_energy_density,
 )
 from warpax.benchmarks.minkowski import MinkowskiMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
@@ -13,18 +20,9 @@ from warpax.geometry.geometry import (
     compute_curvature_chain,
     riemann_tensor,
 )
-from warpax.geometry.metric import SymbolicMetric
-from warpax.geometry.metric import adm_to_full_metric
+from warpax.geometry.metric import SymbolicMetric, adm_to_full_metric
 from warpax.geometry.transitions import smoothstep, smoothstep_c1, smoothstep_c2
 from warpax.geometry.types import GridSpec, TensorField
-import jax
-import jax.numpy as jnp
-import numpy as np
-import numpy.testing as npt
-import pytest
-import sympy as sp
-
-
 
 # Inline SymPy symbolic geometry (replaces legacy imports)
 
@@ -98,7 +96,7 @@ def _eval_sympy_at_point(sympy_array, symbolic_metric, param_subs, coord_vals):
     expr = sympy_array
     if param_subs:
         expr = expr.subs(param_subs)
-    coord_subs = dict(zip(symbolic_metric.coords, coord_vals))
+    coord_subs = dict(zip(symbolic_metric.coords, coord_vals, strict=True))
     expr = expr.subs(coord_subs)
     return np.array(expr.tolist(), dtype=np.float64)
 
@@ -737,7 +735,7 @@ class TestGridSpec:
         )
         axes = grid.axes
         assert len(axes) == 3
-        for i, (ax, n) in enumerate(zip(axes, grid.shape)):
+        for i, (ax, n) in enumerate(zip(axes, grid.shape, strict=True)):
             assert isinstance(ax, jax.Array)
             assert ax.dtype == jnp.float64
             assert ax.shape == (n,)
@@ -767,7 +765,7 @@ class TestGridSpec:
         assert jnp.allclose(fields[0], 0.0)
         # x, y, z should match meshgrid
         mg = grid.meshgrid
-        for f, m in zip(fields[1:], mg):
+        for f, m in zip(fields[1:], mg, strict=True):
             assert jnp.allclose(f, m)
         # dtype check
         for f in fields:

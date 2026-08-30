@@ -155,7 +155,7 @@ def classify_hawking_ellis_mpmath(
         # paper's own general Type III, was labelled vacuum at any amplitude.
         max_mod_abs = max(
             float(mpmath.sqrt(r * r + i * i))
-            for r, i in zip(evals_real, evals_imag)
+            for r, i in zip(evals_real, evals_imag, strict=True)
         )
         near_vacuum = (max_mod_abs < tol) and (max_T_abs == 0.0)
 
@@ -352,7 +352,7 @@ def _cond_V_mpmath(
             cond_V = float("inf")
         else:
             cond_V = float(sigma_max / sigma_min)
-    except (ZeroDivisionError, Exception):  # noqa: BLE001 - fail-safe
+    except (ZeroDivisionError, Exception):
         cond_V = float("inf")
 
     uncertain = cond_V > 10 ** (precision / 2)

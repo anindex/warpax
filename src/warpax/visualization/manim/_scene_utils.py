@@ -11,12 +11,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from manim import (
-    DOWN,
-    RIGHT,
-    UP,
     DL,
+    DOWN,
     DR,
+    RIGHT,
     UL,
+    UP,
     UR,
     WHITE,
     YELLOW,

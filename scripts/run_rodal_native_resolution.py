@@ -19,11 +19,10 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
-
-from _json_io import dump_json
+from datetime import UTC, datetime
 
 import jax
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 
@@ -104,7 +103,7 @@ def main():
     rows = [analyze(N) for N in RESOLUTIONS]
     out = {
         "metadata": {
-            "date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "date": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "script": "scripts/run_rodal_native_resolution.py",
             "parameters": PARAMS,
             "bounds": BOUNDS,

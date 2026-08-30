@@ -44,9 +44,9 @@ import os
 import time
 
 import mpmath
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
 from mpmath import iv
-
-from _json_io import dump_json, write_table as write_tex_table
 
 from warpax.energy_conditions.enclosure import (
     _hi,

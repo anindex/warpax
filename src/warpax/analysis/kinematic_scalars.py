@@ -16,7 +16,7 @@ not computed here (Wald, *General Relativity*, eq. 9.2.11).
 """
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp

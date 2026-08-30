@@ -1,13 +1,17 @@
 """Geometry extras: invariants, regularity, and grid edge cases."""
 
 from __future__ import annotations
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+import pytest
 from numpy.testing import assert_allclose
+
 from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.benchmarks.minkowski import MinkowskiMetric
-from warpax.benchmarks.schwarzschild import SchwarzschildMetric
-from warpax.benchmarks.schwarzschild import kretschmann_isotropic
-from warpax.geometry.geometry import CurvatureResult
-from warpax.geometry.geometry import compute_curvature_chain
+from warpax.benchmarks.schwarzschild import SchwarzschildMetric, kretschmann_isotropic
+from warpax.geometry.geometry import CurvatureResult, compute_curvature_chain
 from warpax.geometry.grid import (
     GridCurvatureResult,
     build_coord_batch,
@@ -21,12 +25,6 @@ from warpax.geometry.invariants import (
     weyl_squared,
 )
 from warpax.geometry.types import GridSpec
-import jax
-import jax.numpy as jnp
-import numpy as np
-import pytest
-
-
 
 # Minkowski: all invariants exactly zero
 

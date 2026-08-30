@@ -11,7 +11,6 @@ Eulerian-frame margins are exposed separately by
 """
 from __future__ import annotations
 
-
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -19,15 +18,15 @@ from jax import lax
 from jaxtyping import Array, Float
 
 from .classification import (
+    _standard_solver_unreliable_mask,
     classify_hawking_ellis,
     classify_with_solver,
-    _standard_solver_unreliable_mask,
 )
 from .eigenvalue_checks import check_all
+from .observer import compute_orthonormal_tetrad
 from .optimization import (
     optimize_point,
 )
-from .observer import compute_orthonormal_tetrad
 from .types import ECGridResult, ECPointResult, ECSummary
 
 

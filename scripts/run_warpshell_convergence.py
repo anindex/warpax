@@ -14,21 +14,20 @@ import math
 import os
 import time
 
+import matplotlib
 from _json_io import dump_json
 
-import matplotlib
 matplotlib.use("Agg")
 
+import jax
 import numpy as np
 
-import jax
 jax.config.update("jax_enable_x64", True)
 
-from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.energy_conditions.verifier import _eulerian_ec_point
+from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import WarpShellMetric
-
 
 RESOLUTIONS = [25, 50, 100]
 METRIC_PARAMS = {"R_1": 0.5, "R_2": 1.0, "v_s": 0.5}

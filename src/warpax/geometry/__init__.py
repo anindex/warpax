@@ -1,5 +1,6 @@
 """Differential geometry and tensor calculus on Lorentzian manifolds."""
 
+from .adm_split import ADMSplit, adm_split
 from .geometry import (
     CurvatureResult,
     christoffel_symbols,
@@ -9,14 +10,6 @@ from .geometry import (
     ricci_tensor,
     riemann_tensor,
     stress_energy_tensor,
-)
-from .metric import (
-    ADMMetric,
-    MetricSpecification,
-    SymbolicMetric,
-    adm_to_full_metric,
-    sympy_metric_inverse_to_jax,
-    sympy_metric_to_jax,
 )
 from .grid import (
     GridCurvatureResult,
@@ -31,7 +24,14 @@ from .invariants import (
     ricci_squared,
     weyl_squared,
 )
-from .adm_split import ADMSplit, adm_split
+from .metric import (
+    ADMMetric,
+    MetricSpecification,
+    SymbolicMetric,
+    adm_to_full_metric,
+    sympy_metric_inverse_to_jax,
+    sympy_metric_to_jax,
+)
 from .regularity import (
     RegularityDiagnostic,
     RegularityReport,

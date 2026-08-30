@@ -1,6 +1,15 @@
 """Physics validation: curvature chain, warp metrics, geodesics+EC, regression, on-axis gradients, WarpShell DEC."""
 
 from __future__ import annotations
+
+from itertools import pairwise
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+import numpy.testing as npt
+import pytest
+
 from warpax.analysis import compute_kinematic_scalars, compute_kinematic_scalars_grid
 from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric, SchwarzschildMetric
 from warpax.benchmarks.alcubierre import eulerian_energy_density
@@ -33,13 +42,6 @@ from warpax.metrics import (
     WarpShellPhysical,
 )
 from warpax.metrics.natario import natario_eulerian_energy_density
-import jax
-import jax.numpy as jnp
-import numpy as np
-import numpy.testing as npt
-import pytest
-
-
 
 # Schwarzschild multi-radius validation
 
@@ -567,7 +569,7 @@ class TestRodalTypeI:
         # All points should be Type I (he_type == 1)
         assert np.all(he_types == 1.0), (
             f"Found non-Type-I points: unique types = {np.unique(he_types)}, "
-            f"counts = {dict(zip(*np.unique(he_types, return_counts=True)))}"
+            f"counts = {dict(zip(*np.unique(he_types, return_counts=True), strict=True))}"
         )
 
 
@@ -1271,7 +1273,7 @@ class TestSchwarzschildADMMassFuchs:
         # The residual falls like 1/r: each doubling of the surface radius must
         # roughly halve the excess over the volume mass.
         excess = [m - metric.total_mass for m in masses]
-        for lo, hi in zip(excess[:-1], excess[1:]):
+        for lo, hi in pairwise(excess):
             npt.assert_allclose(hi / lo, 0.5, rtol=0.15)
 
         # At the largest radius the surface integral is within 1.5% of the mass

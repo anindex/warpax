@@ -15,8 +15,8 @@ Three objective flavors for the optimizer:
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 
 import equinox as eqx
 import jax
@@ -31,7 +31,6 @@ from ..energy_conditions.optimization import (
 )
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
-
 
 _OPTIMIZER_MAP: dict[str, Callable] = {
     "nec": optimize_nec,
@@ -151,12 +150,11 @@ def averaged_objective(
 
     if kind == "anec":
         return anec(metric, geodesic, **kwargs).line_integral
-    elif kind == "awec":
+    if kind == "awec":
         return awec(metric, geodesic, **kwargs).line_integral
-    else:
-        raise ValueError(
-            f"averaged_objective: kind must be 'anec' or 'awec', got {kind!r}"
-        )
+    raise ValueError(
+        f"averaged_objective: kind must be 'anec' or 'awec', got {kind!r}"
+    )
 
 
 def quantum_objective(

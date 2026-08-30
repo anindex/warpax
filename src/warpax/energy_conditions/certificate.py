@@ -47,9 +47,10 @@ separate questions a "tolerance-dependent" verdict conflates.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from fractions import Fraction
-from itertools import combinations
-from typing import Any, Sequence
+from itertools import combinations, pairwise
+from typing import Any
 
 import numpy as np
 
@@ -157,7 +158,7 @@ def _inertia(M: Mat) -> tuple[int, int, int]:
 
     def changes(seq: list[Fraction]) -> int:
         nz = [c for c in seq if c != 0]
-        return sum(1 for a, b in zip(nz, nz[1:]) if (a > 0) != (b > 0))
+        return sum(1 for a, b in pairwise(nz) if (a > 0) != (b > 0))
 
     n_pos = changes(coeffs)
     n_neg = changes([c * (-1) ** i for i, c in enumerate(coeffs)])
@@ -189,7 +190,7 @@ def _inverse(M: Mat) -> Mat:
         for i in range(n):
             if i != k and A[i][k] != 0:
                 f = A[i][k]
-                A[i] = [a - f * b for a, b in zip(A[i], A[k])]
+                A[i] = [a - f * b for a, b in zip(A[i], A[k], strict=True)]
     return [row[n:] for row in A]
 
 

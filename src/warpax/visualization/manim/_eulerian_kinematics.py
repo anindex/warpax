@@ -10,20 +10,17 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
-import numpy as np
 import matplotlib as _mpl
-from matplotlib.colors import LinearSegmentedColormap
-
+import numpy as np
 from manim import (
     DOWN,
     LEFT,
     RIGHT,
-    UP,
     UL,
+    UP,
     UR,
     WHITE,
     YELLOW,
-    config,
     BackgroundRectangle,
     DashedVMobject,
     FadeIn,
@@ -36,15 +33,16 @@ from manim import (
     VGroup,
     VMobject,
     always_redraw,
+    config,
     linear,
 )
+from matplotlib.colors import LinearSegmentedColormap
 
 from warpax.visualization.manim._image_utils import (
     extract_contours,
     frame_to_rgba,
 )
 from warpax.visualization.manim._scene_utils import COLORS_3B1B
-
 
 _DARK_DIVERGE_THETA = LinearSegmentedColormap.from_list(
     "dark_diverge_theta",
@@ -261,7 +259,7 @@ class EulerianKinematics2D(Scene):
             idx = int(frame_idx.get_value())
             idx = max(0, min(idx, n_frames - 1))
             group = VGroup()
-            for (_lvl, paths), style in zip(shear_contour_sets[idx], shear_styles):
+            for (_lvl, paths), style in zip(shear_contour_sets[idx], shear_styles, strict=True):
                 for verts in paths:
                     if len(verts) < 2:
                         continue

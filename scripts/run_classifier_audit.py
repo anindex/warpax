@@ -84,9 +84,9 @@ def jordan_split_scale():
         slope = float(np.polyfit(np.log10(deltas), np.log10(med), 1)[0])
         return slope, float(med[-1])
 
-    j2 = lambda mu, f, p: np.array(  # noqa: E731 - Segre [2,1,1]
+    j2 = lambda mu, f, p: np.array(
         [[mu + f, f, 0, 0], [f, -mu + f, 0, 0], [0, 0, p, 0], [0, 0, 0, p]])
-    j3 = lambda rho, f, p: np.array(  # noqa: E731 - Segre [3,1]
+    j3 = lambda rho, f, p: np.array(
         [[rho, 0, -f, 0], [0, -rho, f, 0], [-f, f, -rho, 0], [0, 0, 0, p + 2.0]])
 
     # unperturbed repeated eigenvalues: J_2 block has (lam + mu)^2, J_3 has (lam + rho)^3

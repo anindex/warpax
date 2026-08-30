@@ -17,12 +17,12 @@ from .deviation import (
 )
 from .initial_conditions import (
     circular_orbit_ic,
-    null_ic,
-    null_ic_eulerian_normalized,
-    null_ic_killing_normalized,
     eulerian_affine_scale,
     eulerian_frequency,
     killing_energy,
+    null_ic,
+    null_ic_eulerian_normalized,
+    null_ic_killing_normalized,
     radial_infall_ic,
     timelike_ic,
 )
@@ -51,39 +51,39 @@ from .symplectic import (
 )
 
 __all__ = [
+    # Jacobi deviation
+    "DeviationResult",
     # Core integrator
     "GeodesicResult",
+    # Symplectic (structure-preserving) integrator
+    "SymplecticGeodesicResult",
+    # Observables
+    "blueshift_along_trajectory",
     "bounding_box_event",
     "circular_orbit_ic",
+    "compute_blueshift",
+    "eulerian_affine_scale",
+    "eulerian_frequency",
+    "geodesic_deviation_vector_field",
     "geodesic_vector_field",
     "horizon_event",
     "integrate_geodesic",
     "integrate_geodesic_family",
-    "make_event",
-    "null_ic",
-    "null_ic_eulerian_normalized",
-    "null_ic_killing_normalized",
-    "eulerian_affine_scale",
-    "eulerian_frequency",
-    "killing_energy",
-    "radial_infall_ic",
-    "timelike_ic",
-    # Jacobi deviation
-    "DeviationResult",
-    "geodesic_deviation_vector_field",
-    "integrate_geodesic_with_deviation",
-    "tidal_eigenvalues",
-    "tidal_tensor",
-    # Observables
-    "blueshift_along_trajectory",
-    "compute_blueshift",
-    "monitor_conservation",
-    "proper_time_elapsed",
-    "velocity_norm",
-    # Symplectic (structure-preserving) integrator
-    "SymplecticGeodesicResult",
     "integrate_geodesic_symplectic",
     "integrate_geodesic_symplectic_family",
+    "integrate_geodesic_with_deviation",
+    "killing_energy",
+    "make_event",
+    "monitor_conservation",
+    "null_ic",
     "null_ic_canonical",
+    "null_ic_eulerian_normalized",
+    "null_ic_killing_normalized",
+    "proper_time_elapsed",
+    "radial_infall_ic",
+    "tidal_eigenvalues",
+    "tidal_tensor",
+    "timelike_ic",
     "timelike_ic_canonical",
+    "velocity_norm",
 ]

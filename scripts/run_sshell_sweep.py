@@ -13,9 +13,11 @@ from pathlib import Path
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
 from warpax.optimization import sweep_transport

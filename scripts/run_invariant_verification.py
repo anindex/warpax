@@ -29,23 +29,24 @@ from __future__ import annotations
 import argparse
 import os
 
-from _paper_metrics import instantiate
-from _json_io import dump_json, write_table as write_tex_table
-from _benchmark_grid import benchmark_grid, wall_cells, N_DEFAULT
-
 import jax
+from _benchmark_grid import N_DEFAULT, benchmark_grid, wall_cells
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
+from _paper_metrics import instantiate
+
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
 
+from warpax.analysis.extrema import refine_extremum
 from warpax.analysis.invariant_verification import (
     integrated_exotic_content,
     peak_proper_energy_deficit,
     reduction_factors,
     single_frame_miss,
 )
-from warpax.analysis.extrema import refine_extremum
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.energy_conditions.frame_free import certify_grid_frame_free, type_fractions
 from warpax.geometry import evaluate_curvature_grid

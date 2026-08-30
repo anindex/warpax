@@ -300,7 +300,7 @@ def plot_phase_summary(
     ax.set_title(r"Tidal force (interior)", fontsize=10)
     ax.minorticks_on()
 
-    for label, ax in zip(panel_labels, axes.ravel()):
+    for label, ax in zip(panel_labels, axes.ravel(), strict=True):
         ax.text(
             0.03, 0.95, label,
             transform=ax.transAxes,

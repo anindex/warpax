@@ -35,7 +35,6 @@ import numpy as np
 # matplotlib is imported lazily inside the renderer (see _render_2d_frame) so
 # that `--help` and import-only use do not pull matplotlib, which needs a
 # writable cache at import time.
-
 from warpax.geometry import GridSpec
 from warpax.visualization.common import (
     add_text_overlay,

@@ -28,16 +28,18 @@ import warnings
 
 # Non-interactive backend (before any other matplotlib import)
 import matplotlib
+
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from warpax.visualization._style import apply_style, DOUBLE_COL
+from warpax.visualization._style import DOUBLE_COL, apply_style
 
 apply_style()
 
 from warpax.geometry.types import GridSpec
+from warpax.visualization.alignment_plots import plot_alignment_histogram
 from warpax.visualization.comparison_plots import (
     plot_comparison_panel,
     plot_comparison_table,
@@ -47,13 +49,12 @@ from warpax.visualization.convergence_plots import (
     plot_convergence,
     plot_convergence_table,
 )
-from warpax.visualization.kinematic_plots import plot_kinematic_scalars
 from warpax.visualization.direction_fields import plot_worst_observer_field
 from warpax.visualization.geodesic_plots import (
     plot_blueshift_profile,
     plot_tidal_evolution,
 )
-from warpax.visualization.alignment_plots import plot_alignment_histogram
+from warpax.visualization.kinematic_plots import plot_kinematic_scalars
 
 # Configuration
 
@@ -78,7 +79,7 @@ def _ensure_dir(path: str) -> None:
 def _load_npz(path: str) -> np.lib.npyio.NpzFile | None:
     """Load .npz file, returning None with warning if missing."""
     if not os.path.exists(path):
-        warnings.warn(f"Skipping: {path} not found")
+        warnings.warn(f"Skipping: {path} not found", stacklevel=2)
         return None
     return np.load(path)
 
@@ -113,7 +114,7 @@ def generate_comparison_figures(figures_dir: str, results_dir: str) -> int:
             miss_key = f"{cond}_missed"
 
             if eul_key not in data or rob_key not in data or miss_key not in data:
-                warnings.warn(f"Skipping {name} {cond}: missing keys in .npz")
+                warnings.warn(f"Skipping {name} {cond}: missing keys in .npz", stacklevel=2)
                 continue
 
             save_path = os.path.join(figures_dir, f"{name}_{cond}_comparison.pdf")
@@ -140,7 +141,7 @@ def generate_comparison_figures(figures_dir: str, results_dir: str) -> int:
         print(f"  Generated: {save_path}")
         count += 1
     else:
-        warnings.warn(f"Skipping comparison table: {table_path} not found")
+        warnings.warn(f"Skipping comparison table: {table_path} not found", stacklevel=2)
 
     return count
 
@@ -182,11 +183,11 @@ def generate_worst_observer_figures(figures_dir: str, results_dir: str) -> int:
             continue
 
         if "worst_params" not in data:
-            warnings.warn(f"Skipping {name} observer: worst_params not in .npz")
+            warnings.warn(f"Skipping {name} observer: worst_params not in .npz", stacklevel=2)
             continue
 
         if "grid_bounds" not in data or "grid_shape" not in data:
-            warnings.warn(f"Skipping {name} observer: missing grid metadata")
+            warnings.warn(f"Skipping {name} observer: missing grid metadata", stacklevel=2)
             continue
 
         worst_params = data["worst_params"]
@@ -240,7 +241,7 @@ def generate_convergence_figures(figures_dir: str, results_dir: str) -> int:
 
     json_path = os.path.join(results_dir, "convergence_data.json")
     if not os.path.exists(json_path):
-        warnings.warn(f"Skipping convergence figures: {json_path} not found")
+        warnings.warn(f"Skipping convergence figures: {json_path} not found", stacklevel=2)
         return 0
 
     # Log-log convergence plot (NEC)
@@ -315,7 +316,7 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
             available_data[v_s] = data
 
     if not available_data:
-        warnings.warn(f"Skipping missed-violations figure: no {metric_name} results found")
+        warnings.warn(f"Skipping missed-violations figure: no {metric_name} results found", stacklevel=2)
         return 0
 
     n_panels = len(available_data)
@@ -465,7 +466,7 @@ def generate_alignment_figures(figures_dir: str, results_dir: str) -> int:
             angle_arrays[float(v_s)] = np.asarray(data[key])
 
     if not angle_arrays:
-        warnings.warn("alignment_rodal.npz has no angle arrays")
+        warnings.warn("alignment_rodal.npz has no angle arrays", stacklevel=2)
         return 0
 
     fig = plot_alignment_histogram(angle_arrays)
@@ -577,7 +578,7 @@ def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> 
     )
 
     if not has_velocity and not has_convergence:
-        warnings.warn("Skipping merged velocity+convergence: no data found")
+        warnings.warn("Skipping merged velocity+convergence: no data found", stacklevel=2)
         return 0
 
     fig, (ax1, ax2) = plt.subplots(

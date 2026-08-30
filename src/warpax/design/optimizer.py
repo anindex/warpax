@@ -144,7 +144,7 @@ def design_metric(
             margin0 = OBJECTIVE_REGISTRY[objective](
                 sfm0, grid_shape=(6, 6, 6), bounds=((-1.5, 1.5),) * 3,
             )
-        except Exception:  # noqa: BLE001 - objective may raise JAX tracer / runtime errors
+        except Exception:
             margin0 = jnp.asarray(jnp.nan)
         return sfm0, OptimizationReport(
             converged=True,
@@ -231,7 +231,7 @@ def design_metric(
             sol_value = sol.value
             converged = bool(sol.result == optx.RESULTS.successful)
             n_steps_i = int(sol.stats["num_steps"])
-        except Exception:  # noqa: BLE001 - Optimistix/JAX raise diverse errors on noisy objectives
+        except Exception:
             sol_value = theta_start
             converged = False
             n_steps_i = 0

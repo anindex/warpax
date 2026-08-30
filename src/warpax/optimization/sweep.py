@@ -16,15 +16,13 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import NamedTuple
 
-
 import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array, Float
 
-from .basis import default_theta, unpack_theta
-from .basis import coeffs_to_profiles_sshell, coeffs_to_profiles_tshell
-from .ec_constraints import ec_feasibility_frame_free
 from ..transport.diagnostics import null_round_trip_asymmetry
+from .basis import coeffs_to_profiles_sshell, coeffs_to_profiles_tshell, default_theta, unpack_theta
+from .ec_constraints import ec_feasibility_frame_free
 
 
 class SweepPoint(NamedTuple):

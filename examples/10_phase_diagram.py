@@ -16,6 +16,7 @@ from pathlib import Path
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import jax

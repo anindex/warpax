@@ -17,20 +17,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from _json_io import dump_json
-
 import jax
 import jax.numpy as jnp
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 
-from warpax.metrics.tshell import tshell_default
-from warpax.geometry import adm_split, compute_curvature_chain
 from warpax.constraints.residuals import (
     _spatial_ricci_scalar,
     normalized_residuals,
 )
 from warpax.energy_conditions import verify_point
+from warpax.geometry import adm_split, compute_curvature_chain
+from warpax.metrics.tshell import tshell_default
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "tshell_kterm_angular.json"
 

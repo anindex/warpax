@@ -16,10 +16,10 @@ from _json_io import dump_json
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
 from warpax.optimization.sweep import _evaluate_point, _rho_from_compactness
-
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "convergence_tshell.json"
 

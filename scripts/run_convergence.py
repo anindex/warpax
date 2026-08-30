@@ -26,24 +26,23 @@ import argparse
 import os
 import time
 
+import matplotlib
 from _json_io import dump_json
 
-import matplotlib
 matplotlib.use("Agg")
 
+import jax
 import numpy as np
 
-import jax
-
-from warpax.benchmarks import AlcubierreMetric
-from warpax.metrics import RodalMetric, WarpShellMetric
-from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.analysis import (
     compare_eulerian_vs_robust,
-    richardson_extrapolation,
     compute_convergence_quantity,
+    richardson_extrapolation,
 )
+from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.verifier import _eulerian_ec_point
+from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.metrics import RodalMetric, WarpShellMetric
 
 # Metric and parameter configuration
 
@@ -69,7 +68,7 @@ METRIC_CONFIGS = {
 def _cell_volume(grid_spec: GridSpec) -> float:
     """Compute volume of a single grid cell."""
     vol = 1.0
-    for b, n in zip(grid_spec.bounds, grid_spec.shape):
+    for b, n in zip(grid_spec.bounds, grid_spec.shape, strict=True):
         vol *= (b[1] - b[0]) / max(n - 1, 1)
     return vol
 
@@ -187,7 +186,7 @@ def main():
         # regularization guard (epsilon ~ 1e-12 inside r_s) dominates the
         # autodiff derivatives and produces a spurious O(1/epsilon) margin.
         # Only odd N samples the center; the mask is empty otherwise.
-        axes = [np.linspace(lo, hi, n) for (lo, hi), n in zip(bounds, grid_spec.shape)]
+        axes = [np.linspace(lo, hi, n) for (lo, hi), n in zip(bounds, grid_spec.shape, strict=True)]
         X, Y, Z = np.meshgrid(*axes, indexing="ij")
         core = (X * X + Y * Y + Z * Z) < 1e-12
         if core.any():
@@ -242,7 +241,7 @@ def main():
         }
 
         print(f"\n  {qname}:")
-        for i, (N, v) in enumerate(zip(grid_sizes, values)):
+        for i, (N, v) in enumerate(zip(grid_sizes, values, strict=True)):
             print(f"    N={N:>4d}: {v:.6e}")
         print(f"    Extrapolated: {result['extrapolated_value']:.6e}")
         p_obs = result["observed_order"]

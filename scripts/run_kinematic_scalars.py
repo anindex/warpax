@@ -20,13 +20,14 @@ import os
 import time
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import numpy as np
 
+from warpax.analysis import compute_kinematic_scalars_grid
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geometry import GridSpec
-from warpax.analysis import compute_kinematic_scalars_grid
 from warpax.metrics import (
     LentzMetric,
     NatarioMetric,

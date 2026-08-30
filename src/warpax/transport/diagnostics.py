@@ -19,9 +19,9 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float, Int
 
+from ..geodesics.deviation import tidal_eigenvalues
 from ..geodesics.initial_conditions import null_ic
 from ..geodesics.integrator import integrate_geodesic
-from ..geodesics.deviation import tidal_eigenvalues
 
 
 def _first_local_min_idx(d: Float[Array, "N"]) -> Int[Array, ""]:

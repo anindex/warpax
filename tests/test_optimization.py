@@ -4,10 +4,10 @@ Covers Bernstein basis, multi-objective loss, EC constraints, and optimizer.
 """
 from __future__ import annotations
 
-import numpy as np
-import pytest
 import jax
 import jax.numpy as jnp
+import numpy as np
+import pytest
 
 jax.config.update("jax_enable_x64", True)
 
@@ -75,7 +75,7 @@ class TestEndpointClamping:
 
     def test_compact_support_property(self):
         """Bernstein polynomial vanishes at t=0 and t=1 with clamped endpoints."""
-        from warpax.optimization import clamp_endpoints, bernstein_eval
+        from warpax.optimization import bernstein_eval, clamp_endpoints
 
         coeffs = clamp_endpoints(jnp.array([0.5, 1.0, 0.5]))
         assert abs(float(bernstein_eval(coeffs, jnp.asarray(0.0)))) < 1e-14
@@ -131,7 +131,7 @@ class TestCoeffsToProfiles:
 
     def test_sshell_valid_profiles(self):
         """S-shell profiles have positive mass and correct radii."""
-        from warpax.optimization import default_theta, unpack_theta, coeffs_to_profiles_sshell
+        from warpax.optimization import coeffs_to_profiles_sshell, default_theta, unpack_theta
 
         coeffs = unpack_theta(default_theta(), n_density=4, n_velocity=4)
         profiles = coeffs_to_profiles_sshell(coeffs)
@@ -141,7 +141,7 @@ class TestCoeffsToProfiles:
 
     def test_tshell_valid_profiles(self):
         """T-shell profiles have positive mass and correct radii."""
-        from warpax.optimization import default_theta, unpack_theta, coeffs_to_profiles_tshell
+        from warpax.optimization import coeffs_to_profiles_tshell, default_theta, unpack_theta
 
         coeffs = unpack_theta(default_theta(), n_density=4, n_velocity=4)
         profiles = coeffs_to_profiles_tshell(coeffs)
@@ -168,7 +168,7 @@ class TestLoss:
 
     def test_weight_sensitivity(self):
         """Increasing w_ec increases total loss when EC penalty > 0."""
-        from warpax.optimization import default_theta, evaluate_loss, LossWeights
+        from warpax.optimization import LossWeights, default_theta, evaluate_loss
 
         theta = default_theta()
         l1, c1 = evaluate_loss(
@@ -188,8 +188,8 @@ class TestECConstraints:
 
     def test_penalty_finite_and_nonnegative(self):
         """EC penalty is finite and >= 0 (softplus^2 is non-negative)."""
-        from warpax.optimization import ec_penalty
         from warpax.metrics import sshell_default
+        from warpax.optimization import ec_penalty
 
         penalty = ec_penalty(sshell_default(), jnp.linspace(9.0, 21.0, 5), n_starts=2)
         assert jnp.isfinite(penalty)
@@ -197,8 +197,8 @@ class TestECConstraints:
 
     def test_feasibility_structure(self):
         """ECFeasibilityResult has correct shape and condition keys."""
-        from warpax.optimization import ec_feasibility_check
         from warpax.metrics import sshell_default
+        from warpax.optimization import ec_feasibility_check
 
         result = ec_feasibility_check(sshell_default(), jnp.linspace(9.0, 21.0, 5), n_starts=4)
         assert isinstance(result.feasible, bool)

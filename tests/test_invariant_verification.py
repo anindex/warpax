@@ -5,6 +5,7 @@ import jax
 
 jax.config.update("jax_enable_x64", True)
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
@@ -14,8 +15,6 @@ from warpax.analysis.invariant_verification import (
     reduction_factors,
     single_frame_miss,
 )
-import jax.numpy as jnp
-
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.geometry import evaluate_curvature_grid

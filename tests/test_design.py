@@ -1,25 +1,31 @@
 """Design: objectives, constraints, shape functions, optimization."""
 
 from __future__ import annotations
+
+import pathlib
+
+import equinox as eqx
+import jax
+import jax.numpy as jnp
+import numpy as np
+import numpy.testing as npt
+import pytest
+
 from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric, SchwarzschildMetric
 from warpax.design import (
     CONSTRAINT_REGISTRY,
-    ConstraintResult,
-    ShapeFunction,
-    boundedness_constraint,
-    bubble_size_constraint,
-    velocity_constraint,
-)
-from warpax.design import (
     OBJECTIVE_REGISTRY,
-    averaged_objective,
-    ec_margin_objective,
-    quantum_objective,
-)
-from warpax.design import (
+    ConstraintResult,
     OptimizationReport,
     PhysicalityVerdict,
+    ShapeFunction,
+    averaged_objective,
+    boundedness_constraint,
+    bubble_size_constraint,
     design_metric,
+    ec_margin_objective,
+    quantum_objective,
+    velocity_constraint,
 )
 from warpax.metrics import (
     LentzMetric,
@@ -28,14 +34,6 @@ from warpax.metrics import (
     VanDenBroeckMetric,
     WarpShellMetric,
 )
-import equinox as eqx
-import jax
-import jax.numpy as jnp
-import numpy as np
-import numpy.testing as npt
-import pathlib
-import pytest
-
 
 
 class TestDesignObjectives:
@@ -392,7 +390,7 @@ WARP_METRICS = [
     AlcubierreMetric(),
 ]
 
-ALL_METRICS = WARP_METRICS + [MinkowskiMetric(), SchwarzschildMetric()]
+ALL_METRICS = [*WARP_METRICS, MinkowskiMetric(), SchwarzschildMetric()]
 
 WARP_METRIC_IDS = [m.name() for m in WARP_METRICS]
 ALL_METRIC_IDS = [m.name() for m in ALL_METRICS]

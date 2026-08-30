@@ -260,14 +260,13 @@ def compute_convergence_quantity(
         # points, and its "order" -1.4 was just -log_2(r^{3/2}).
         return float(np.sqrt(np.sum(violated**2) * cell_volume))
 
-    elif quantity == "integrated_violation":
+    if quantity == "integrated_violation":
         violated = flat[flat < cut]
         if violated.size == 0:
             return 0.0
         return float(np.sum(np.abs(violated)) * cell_volume)
 
-    else:
-        raise ValueError(
-            f"Unknown convergence quantity '{quantity}'. "
-            "Expected one of: 'min_margin', 'l2_violation', 'integrated_violation'"
-        )
+    raise ValueError(
+        f"Unknown convergence quantity '{quantity}'. "
+        "Expected one of: 'min_margin', 'l2_violation', 'integrated_violation'"
+    )

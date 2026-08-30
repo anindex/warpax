@@ -1,10 +1,10 @@
 """Tests for parameter space sweep and transport visualization."""
 from __future__ import annotations
 
-import pytest
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 jax.config.update("jax_enable_x64", True)
 

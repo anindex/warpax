@@ -18,20 +18,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import jax
 from _json_io import dump_json
 
-import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
 from warpax.constraints.residuals import normalized_residuals
 from warpax.constraints.source_consistency import stress_energy_residual
+from warpax.metrics.fuchs_construction import build_fuchs_construction, fuchs_default
 from warpax.metrics.sshell import sshell_default
 from warpax.metrics.sshell_profiles import constant_density_profiles
 from warpax.metrics.tshell import tshell_default
 from warpax.metrics.tshell_profiles import constant_velocity_profiles
-from warpax.metrics.fuchs_construction import build_fuchs_construction, fuchs_default
 
 R_1, R_2 = 10.0, 20.0
 N_PROBES = 25
@@ -59,7 +59,7 @@ def _deep_stats(vals, frac):
     """
     dR = R_2 - R_1
     lo, hi = R_1 + frac * dR, R_2 - frac * dR
-    mask = (R_PROBES >= lo) & (R_PROBES <= hi)
+    mask = (lo <= R_PROBES) & (hi >= R_PROBES)
     sub = _peak_mean(np.asarray(vals, dtype=float)[mask])
     sub["window"] = [float(lo), float(hi)]
     sub["n_probes"] = int(mask.sum())

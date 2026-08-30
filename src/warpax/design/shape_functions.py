@@ -215,15 +215,14 @@ class ShapeFunction(eqx.Module):
         r = jnp.asarray(r)
         if self.basis == "spline":
             return _eval_spline(r, self.params)
-        elif self.basis == "bernstein":
+        if self.basis == "bernstein":
             return _eval_bernstein(r, self.params)
-        elif self.basis == "gmm":
+        if self.basis == "gmm":
             return _eval_gmm(r, self.params)
-        else:
-            raise ValueError(
-                f"ShapeFunction: unknown basis {self.basis!r}; "
-                f"expected one of {'spline', 'bernstein', 'gmm'}."
-            )
+        raise ValueError(
+            f"ShapeFunction: unknown basis {self.basis!r}; "
+            f"expected one of {'spline', 'bernstein', 'gmm'}."
+        )
 
 
 def _eval_spline(r, params):

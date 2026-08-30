@@ -31,17 +31,18 @@ import time
 
 # Non-interactive backend (before any other matplotlib import)
 import matplotlib
+
 matplotlib.use("Agg")
 
+import jax
 import numpy as np
 
-import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
+from warpax.analysis import compare_eulerian_vs_robust
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
-from warpax.analysis import compare_eulerian_vs_robust
 
 # Configuration
 

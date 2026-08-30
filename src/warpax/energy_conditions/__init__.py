@@ -66,6 +66,8 @@ from .optimization import (
 )
 from .slemma import (
     certify_point as certify_point_lmi,
+)
+from .slemma import (
     noise_floor,
     null_deficit,
     witness_observer,
@@ -86,15 +88,15 @@ from .types import (
     FrameFreeGridResult,
     WallRestrictedStats,
 )
-from .worst_observer_analytic import (
-    boosted_energy_density,
-    worst_observer_typeI,
-)
 from .verifier import (
     anec_integrand,
     compute_eulerian_ec,
     verify_grid,
     verify_point,
+)
+from .worst_observer_analytic import (
+    boosted_energy_density,
+    worst_observer_typeI,
 )
 
 __all__ = [
@@ -106,13 +108,18 @@ __all__ = [
     "FrameFreeGridResult",
     "OptimizationResult",
     "WallRestrictedStats",
-    # Classification
-    "classify_hawking_ellis",
-    "classify_hawking_ellis_mpmath",
-    "classify_mixed_tensor",
-    "classify_with_solver",
-    "eigenvalues_mpmath",
-    "verify_classification_at_points",
+    # Verifier
+    "anec_integrand",
+    # Observer
+    "boost_vector_to_params",
+    # Analytic worst observer
+    "boosted_energy_density",
+    "bounded_param",
+    # Frame-free (all-velocity) certification
+    "certify_grid_frame_free",
+    "certify_point_frame_free",
+    # S-lemma LMI: all four conditions at any Hawking-Ellis type, no tolerance
+    "certify_point_lmi",
     # Eigenvalue checks
     "check_all",
     "check_dec",
@@ -120,49 +127,44 @@ __all__ = [
     "check_nec",
     "check_sec",
     "check_wec",
-    # Observer
-    "boost_vector_to_params",
-    "bounded_param",
+    # Classification
+    "classify_hawking_ellis",
+    "classify_hawking_ellis_mpmath",
+    "classify_mixed_tensor",
+    "classify_with_solver",
+    "compute_eulerian_ec",
     "compute_orthonormal_tetrad",
+    # Filtering
+    "compute_wall_restricted_stats",
+    "cross_validate_sweep",
+    "determinant_guard_mask",
+    "eigenvalues_mpmath",
+    "frobenius_norm_mask",
+    "make_angular_observers",
+    # Observer sweep
+    "make_rapidity_observers",
+    "noise_floor",
+    "null_deficit",
     "null_from_angles",
     "null_from_stereo",
-    "stereo_to_params",
-    "timelike_from_boost_vector",
-    "timelike_from_rapidity",
     # Optimization
     "optimize_dec",
     "optimize_nec",
     "optimize_point",
     "optimize_sec",
     "optimize_wec",
-    # Observer sweep
-    "make_rapidity_observers",
-    "make_angular_observers",
-    "sweep_wec_margins",
-    "sweep_nec_margins",
+    "shape_function_mask",
+    "stereo_to_params",
     "sweep_all_margins",
-    "cross_validate_sweep",
-    # Verifier
-    "anec_integrand",
-    "compute_eulerian_ec",
+    "sweep_nec_margins",
+    "sweep_wec_margins",
+    "timelike_from_boost_vector",
+    "timelike_from_rapidity",
+    "typeI_min_margins",
+    "type_fractions",
+    "verify_classification_at_points",
     "verify_grid",
     "verify_point",
-    # Filtering
-    "compute_wall_restricted_stats",
-    "determinant_guard_mask",
-    "frobenius_norm_mask",
-    "shape_function_mask",
-    # Frame-free (all-velocity) certification
-    "certify_grid_frame_free",
-    "certify_point_frame_free",
-    "type_fractions",
-    "typeI_min_margins",
-    # Analytic worst observer
-    "boosted_energy_density",
-    "worst_observer_typeI",
-    # S-lemma LMI: all four conditions at any Hawking-Ellis type, no tolerance
-    "certify_point_lmi",
-    "noise_floor",
-    "null_deficit",
     "witness_observer",
+    "worst_observer_typeI",
 ]

@@ -116,12 +116,11 @@ class ShapeFunctionMetric(ADMMetric):
                 raise UnphysicalMetricError(
                     f"ShapeFunctionMetric failed verify_physical: {verdict}"
                 )
-            else:
-                warnings.warn(
-                    f"Unphysical ShapeFunctionMetric (strict=False): {verdict}",
-                    UnphysicalMetricWarning,
-                    stacklevel=2,
-                )
+            warnings.warn(
+                f"Unphysical ShapeFunctionMetric (strict=False): {verdict}",
+                UnphysicalMetricWarning,
+                stacklevel=2,
+            )
 
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Unit lapse (Alcubierre convention)."""

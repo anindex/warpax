@@ -31,27 +31,27 @@ import argparse
 import os
 import time
 
-from _json_io import dump_json, write_table as write_tex_table
-
 import jax
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
+
 jax.config.update("jax_enable_x64", True)
+
+from types import SimpleNamespace
 
 import jax.numpy as jnp
 import numpy as np
 
-from types import SimpleNamespace
-
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.benchmarks import AlcubierreMetric
-from warpax.metrics import RodalMetric
-from warpax.geometry import GridSpec, evaluate_curvature_grid
-from warpax.geometry.grid import build_coord_batch
-from warpax.grids import wall_clustered, proper_volume_weights
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,
     shape_function_mask,
 )
-
+from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.geometry.grid import build_coord_batch
+from warpax.grids import proper_volume_weights, wall_clustered
+from warpax.metrics import RodalMetric
 
 F_LOW = 0.1
 F_HIGH = 0.9

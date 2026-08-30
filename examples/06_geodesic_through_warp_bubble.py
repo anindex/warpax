@@ -26,9 +26,9 @@ jax.config.update("jax_enable_x64", True)
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geodesics import (
     integrate_geodesic,
-    timelike_ic,
     monitor_conservation,
     tidal_eigenvalues,
+    timelike_ic,
 )
 from warpax.visualization import plot_tidal_evolution
 

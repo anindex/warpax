@@ -22,33 +22,32 @@ from __future__ import annotations
 
 import os
 
-from _anec_window import crossing_span
-from _json_io import dump_json
-from _benchmark_grid import benchmark_grid, N_LADDER
-
 import jax
+from _anec_window import crossing_span
+from _benchmark_grid import N_LADDER, benchmark_grid
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
+from run_anec_symplectic import B_SCAN as SYMPLECTIC_B_SCAN
+
+# Reuse the exoticity index and the impact fan (no re-implementation).
+from run_exoticity_ranking import exoticity_index
 
 from warpax.averaged.anec import anec_rigorous, null_ic_canonical
-from warpax.geodesics import eulerian_affine_scale, integrate_geodesic_symplectic
 from warpax.benchmarks import AlcubierreMetric
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
-from warpax.geometry import evaluate_curvature_grid
-from warpax.geometry.grid import build_coord_batch
 from warpax.energy_conditions import (
     certify_grid_frame_free,
     type_fractions,
     typeI_min_margins,
 )
 from warpax.energy_conditions.filtering import shape_function_mask
+from warpax.geodesics import eulerian_affine_scale, integrate_geodesic_symplectic
+from warpax.geometry import evaluate_curvature_grid
+from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
-
-# Reuse the exoticity index and the impact fan (no re-implementation).
-from run_exoticity_ranking import exoticity_index
-from run_anec_symplectic import B_SCAN as SYMPLECTIC_B_SCAN
+from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 
 def _stability(values):

@@ -5,15 +5,16 @@ JAX arrays should confirm dtype == float64 in its assertions.
 """
 
 import os
+
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import jax.numpy as jnp
 import pytest
 
-from warpax.geometry.types import GridSpec
+from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.benchmarks.minkowski import MinkowskiMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
-from warpax.benchmarks.alcubierre import AlcubierreMetric
+from warpax.geometry.types import GridSpec
 
 # Float64 enforcement check fails LOUD if x64 is not enabled
 _probe = jnp.array(1.0)

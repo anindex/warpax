@@ -102,15 +102,36 @@ markers = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py312"
 
 [tool.ruff.lint]
+# Default is E4/E7/E9/F only, which leaves line-length unenforced and misses
+# the bug-shaped rules (bare zip, late-binding closures).
+select = ["E", "F", "B", "UP", "RUF", "PERF", "PIE", "NPY", "I"]
 # F722: jaxtyping string annotations (e.g., Float[Array, "4 4"])
 # F821: jaxtyping beartype-decorated type annotations resolved at runtime
 # E402: JAX config must run before importing jax submodules
 # E731: lambda assignments used in metric/shape-function definitions
 # E741: short variable names (l, T, g) standard in physics
-ignore = ["F722", "F821", "E402", "E731", "E741"]
+# RUF001-003: Greek letters and the multiplication sign in physics prose
+# UP037: jaxtyping needs its annotations quoted
+# SIM, C4 and RET are not selected: they rewrite explicit intermediate steps
+# that carry the physics, and none of them catches a defect.
+ignore = [
+    "F722", "F821", "E402", "E731", "E741",
+    # Greek letters and the multiplication sign are the notation, not a typo.
+    "RUF001", "RUF002", "RUF003",
+    # jaxtyping needs its annotations quoted.
+    "UP037",
+    # Named-but-unused intermediates document a tensor decomposition.
+    "RUF059", "B007",
+    # Every flagged closure is consumed in the same iteration.
+    "B023",
+    # Explicit loops that build a physically ordered list read better here.
+    "PERF401",
+    # int() on an array is deliberate: it forces a host value.
+    "RUF046",
+]
 
 [tool.ruff.lint.per-file-ignores]
 # Re-exports in __init__.py

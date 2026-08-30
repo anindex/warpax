@@ -20,7 +20,6 @@ import jax.numpy as jnp
 import optimistix as optx
 from jaxtyping import Array, Float
 
-
 _VALID_WARM_STARTS: frozenset[str] = frozenset({"cold", "spatial_neighbor"})
 _VALID_STARTS: frozenset[str] = frozenset({"axis+gaussian", "fibonacci+bfgs_top_k"})
 
@@ -573,16 +572,15 @@ def _dispatch_multistart_3d(strategy, objective_fn, args, n_starts, zeta_max,
             objective_fn, args, n_starts, zeta_max, rtol, atol, max_steps, key,
             **common,
         )
-    elif strategy == "hard_bound":
+    if strategy == "hard_bound":
         return _solve_multistart_3d_projected(
             objective_fn, args, n_starts, zeta_max, rtol, atol, max_steps, key,
             **common,
         )
-    else:
-        raise ValueError(
-            f"Unknown strategy: {strategy!r}. "
-            f"Must be one of {{'tanh', 'hard_bound'}}."
-        )
+    raise ValueError(
+        f"Unknown strategy: {strategy!r}. "
+        f"Must be one of {{'tanh', 'hard_bound'}}."
+    )
 
 
 def _dec_per_subcondition_min(T_ab, T_mixed, g_ab, tetrad, n_starts, zeta_max,

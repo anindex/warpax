@@ -18,6 +18,11 @@ Each test names the confirmed finding it pins:
 
 from __future__ import annotations
 
+import jax
+import jax.numpy as jnp
+import numpy as np
+import pytest
+
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.classification import (
     classify_hawking_ellis,
@@ -35,10 +40,6 @@ from warpax.energy_conditions.verifier import (
     verify_point,
 )
 from warpax.geometry import GridSpec, evaluate_curvature_grid
-import jax
-import jax.numpy as jnp
-import numpy as np
-import pytest
 
 ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 

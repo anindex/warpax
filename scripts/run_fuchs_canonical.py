@@ -14,10 +14,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _radial_sweep import radial_sweep, save_json  # noqa: E402
+from _radial_sweep import radial_sweep, save_json
 
-from warpax.metrics import fuchs_default  # noqa: E402
-
+from warpax.metrics import fuchs_default
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "fuchs_canonical.json"
 

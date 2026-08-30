@@ -23,23 +23,25 @@ import argparse
 import json
 import os
 
-from _paper_metrics import instantiate
-from _json_io import dump_json, write_table as write_tex_table
-
 import matplotlib
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
+from _paper_metrics import instantiate
+
 matplotlib.use("Agg")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
+from _benchmark_grid import benchmark_grid
 
 from warpax.analysis.shift_kinematics import compute_shift_kinematics_grid
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.geometry.grid import build_coord_batch
-from _benchmark_grid import benchmark_grid
-from warpax.visualization.shift_vorticity_plots import plot_shift_vorticity
 from warpax.grids import proper_volume_weights
+from warpax.visualization.shift_vorticity_plots import plot_shift_vorticity
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")

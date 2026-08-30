@@ -44,8 +44,8 @@ from .shape_functions import ShapeFunction
 
 __all__ = [
     "CONSTRAINT_REGISTRY",
-    "ConstraintResult",
     "OBJECTIVE_REGISTRY",
+    "ConstraintResult",
     "OptimizationReport",
     "PhysicalityVerdict",
     "ShapeFunction",

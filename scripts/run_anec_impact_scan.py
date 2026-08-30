@@ -14,14 +14,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import jax
 from _json_io import dump_json
 
-import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
-from warpax.geodesics.symplectic import null_ic_canonical, integrate_geodesic_symplectic
 from warpax.averaged.anec import _extract_trajectory, anec  # noqa: F401
+from warpax.geodesics.symplectic import integrate_geodesic_symplectic, null_ic_canonical
 from warpax.metrics import fuchs_default, sshell_default, tshell_default
 
 X0, SPAN = -30.0, 60.0

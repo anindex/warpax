@@ -37,19 +37,17 @@ from __future__ import annotations
 
 import os
 
-from _json_io import dump_json
-
 import jax
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
 from warpax.benchmarks import AlcubierreMetric
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from warpax.geometry import evaluate_curvature_grid
 from warpax.grids import proper_volume_weights, wall_clustered
-
+from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
@@ -91,7 +89,7 @@ def _proper_dV(g_field, grid):
     """Proper volume element sqrt(det gamma_ij) * cell-volume, per grid point."""
     return np.asarray(
         proper_volume_weights(
-            grid.volume_weights_array, g_field.reshape(grid.shape + (4, 4))
+            grid.volume_weights_array, g_field.reshape((*grid.shape, 4, 4))
         )
     ).ravel()
 
@@ -114,7 +112,7 @@ def _loglog_fit(vs, ys):
     ok = np.isfinite(ys) & (ys > 0.0)
     vs, ys = vs[ok], ys[ok]
     if len(vs) < 3:
-        return {"p": None, "A": None, "r_squared": None, "n": int(len(vs))}
+        return {"p": None, "A": None, "r_squared": None, "n": len(vs)}
     lv, ly = np.log(vs), np.log(ys)
     p, logA = np.polyfit(lv, ly, 1)
     pred = p * lv + logA
@@ -122,7 +120,7 @@ def _loglog_fit(vs, ys):
     ss_tot = float(np.sum((ly - np.mean(ly)) ** 2))
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
     return {"p": float(p), "A": float(np.exp(logA)), "r_squared": float(r2),
-            "n": int(len(vs))}
+            "n": len(vs)}
 
 
 def _f(x, nd=3):

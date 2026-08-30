@@ -207,13 +207,7 @@ def adm_mass_richardson(
         # Conservative extrapolation: only return a finite value when the
         # observed convergence order matches the model assumption
         # (within 0.25 of n=1) or ``inf`` (already converged).
-        if conv_order != conv_order:  # NaN: only two points, can't check
-            M_extrap = M_extrap_linear
-            valid = True
-        elif conv_order == float("inf"):
-            M_extrap = M_extrap_linear
-            valid = True
-        elif abs(conv_order - expected_order) < 0.25:
+        if conv_order != conv_order or conv_order == float("inf") or abs(conv_order - expected_order) < 0.25:  # NaN: only two points, can't check
             M_extrap = M_extrap_linear
             valid = True
         else:
@@ -327,7 +321,7 @@ def asymptotic_flatness_report(
     diagonal_indices = [(0, 0), (1, 1), (2, 2), (3, 3)]
     diagonal_results = {}
 
-    for name, (i, j) in zip(diagonal_names, diagonal_indices):
+    for name, (i, j) in zip(diagonal_names, diagonal_indices, strict=True):
         deviations = [float(jnp.abs(g[i, j] - eta[i, j])) for g in g_at_r]
 
         # Fit power-law: deviation ~ C / r^n
@@ -356,7 +350,7 @@ def asymptotic_flatness_report(
     shift_indices = [(0, 1), (0, 2), (0, 3)]
     shift_results = {}
 
-    for name, (i, j) in zip(shift_names, shift_indices):
+    for name, (i, j) in zip(shift_names, shift_indices, strict=True):
         deviations = [float(jnp.abs(g[i, j])) for g in g_at_r]
         # Shift should be zero (compact support) at all test radii
         all_zero = all(d < 1e-10 for d in deviations)

@@ -13,7 +13,6 @@ import time
 from pathlib import Path
 
 from _json_io import dump_json
-
 from verify_proposals import evaluate_rodal  # sibling script on sys.path[0]
 
 

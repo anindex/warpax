@@ -11,7 +11,7 @@ import pytest
 
 jax.config.update("jax_enable_x64", True)
 
-from warpax.analysis import (  # noqa: E402
+from warpax.analysis import (
     compute_shift_kinematics,
     compute_shift_kinematics_grid,
     rotationality,

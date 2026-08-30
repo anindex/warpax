@@ -16,6 +16,7 @@ from _json_io import dump_json
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
@@ -23,7 +24,6 @@ from warpax.constraints.residuals import normalized_residuals
 from warpax.energy_conditions import verify_point
 from warpax.geometry import compute_curvature_chain
 from warpax.metrics.tshell import tshell_default
-
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "v0_ablation.json"
 

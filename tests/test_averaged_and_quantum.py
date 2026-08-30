@@ -1,16 +1,17 @@
 """Averaged and quantum inequality tests: ANEC, AWEC, Ford-Roman."""
 
 from __future__ import annotations
-from warpax.averaged import ANECResult, RigorousANEC, anec, anec_rigorous
-from warpax.averaged import AWECResult, awec
+
+import math
+
+import jax.numpy as jnp
+import pytest
+
+from warpax.averaged import ANECResult, AWECResult, RigorousANEC, anec, anec_rigorous, awec
 from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric
 from warpax.geodesics.integrator import GeodesicResult
 from warpax.quantum import QIResult, ford_roman
 from warpax.quantum.ford_roman import FORD_ROMAN_CONSTANT_C
-import jax.numpy as jnp
-import math
-import pytest
-
 
 
 class TestANEC:

@@ -9,11 +9,10 @@ import jax
 import jax.numpy as jnp
 import sympy as sp
 
-from warpax.geometry.metric import sympy_metric_to_jax
+from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.benchmarks.minkowski import MinkowskiMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
-from warpax.benchmarks.alcubierre import AlcubierreMetric
-
+from warpax.geometry.metric import sympy_metric_to_jax
 
 # Test coordinate points
 

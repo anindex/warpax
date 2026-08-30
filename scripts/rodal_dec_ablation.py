@@ -20,34 +20,37 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
-
-from _json_io import dump_json
+from datetime import UTC, datetime
 
 import matplotlib
+from _json_io import dump_json
+
 matplotlib.use("Agg")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from warpax.benchmarks import AlcubierreMetric
-from warpax.metrics import RodalMetric
-from warpax.geometry import GridSpec, evaluate_curvature_grid
-from warpax.geometry.grid import build_coord_batch
 from warpax.analysis import compare_eulerian_vs_robust
+from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,
     shape_function_mask,
 )
 from warpax.energy_conditions.verifier import verify_grid
+from warpax.geometry import GridSpec, evaluate_curvature_grid
+from warpax.geometry.grid import build_coord_batch
+from warpax.metrics import RodalMetric
 from warpax.visualization._style import (
-    apply_style, DOUBLE_COL, LINE_STYLES, metric_color,
+    DOUBLE_COL,
+    LINE_STYLES,
+    apply_style,
+    metric_color,
 )
-
 
 # Baseline parameters
 
@@ -264,7 +267,7 @@ def run_sigma_sweep():
     wall_alcubierre: list[dict] = []
 
     for i, (sig_r, sig_a) in enumerate(
-        zip(rodal_sigma_values, alcubierre_sigma_values)
+        zip(rodal_sigma_values, alcubierre_sigma_values, strict=True)
     ):
         print(f"\n--- Rodal sigma={sig_r}, Alcubierre sigma={sig_a} ---")
 
@@ -428,7 +431,7 @@ def classify_diagnosis(sweeps):
 
     # Alcubierre control validation
     alc_max = 0.0
-    for sweep_name, sweep_data in sweeps.items():
+    for sweep_data in sweeps.values():
         alc_values = sweep_data.get("alcubierre_dec_miss_pct", [])
         clean = [v for v in alc_values if v is not None]
         if clean:
@@ -634,7 +637,7 @@ def plot_ablation(sweeps):
 # Main
 
 def main():
-    start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    start_time = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     print("=" * 70)
     print("Rodal DEC Ablation Study")
     print(f"Started: {start_time}")

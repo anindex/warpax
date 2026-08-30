@@ -7,14 +7,16 @@ volume-weight build), so it is fast: shape-function evals only, no curvature.
 Picks a* and an N-ladder giving ~8/12/16 wall cells at sigma=8, R_b=1, box +-3.
 """
 from __future__ import annotations
+
 import jax
+
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
 from warpax.benchmarks import AlcubierreMetric
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from warpax.grids._clustered import _cosh_stretch, _infer_wall_radius
+from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 BOUNDS = [(-3.0, 3.0)] * 3
 V_S = 0.5

@@ -28,7 +28,7 @@ from mpmath import iv
 
 from . import _jet
 
-__all__ = ["Dual2", "constant", "variable", "sqrt", "exp", "log", "tanh", "cosh", "sinh"]
+__all__ = ["Dual2", "constant", "cosh", "exp", "log", "sinh", "sqrt", "tanh", "variable"]
 
 # The transcendentals below are the only places that name a concrete scalar type.
 # Dispatching them lets Dual2 be instantiated over ``_jet.Jet`` as well as over a
@@ -61,7 +61,7 @@ class Dual2:
     which the inputs were seeded.
     """
 
-    __slots__ = ("v", "g", "h")
+    __slots__ = ("g", "h", "v")
 
     def __init__(self, v, g=None, h=None):
         self.v = v

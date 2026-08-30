@@ -26,8 +26,8 @@ import os
 from pathlib import Path
 
 from _anec_window import crossing_span
-from _paper_metrics import instantiate
 from _json_io import dump_json
+from _paper_metrics import instantiate
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 

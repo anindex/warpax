@@ -10,10 +10,9 @@ import sys
 import time
 from pathlib import Path
 
-from _json_io import dump_json
-
 import jax
 import jax.numpy as jnp
+from _json_io import dump_json
 
 
 def evaluate_point(metric, coords, *, n_starts: int = 16) -> dict:

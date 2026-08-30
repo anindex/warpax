@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from warpax.grids import wall_clustered, wall_cells_on_axis
+from warpax.grids import wall_cells_on_axis, wall_clustered
 
 BOX = 3.0
 BOUNDS = [(-BOX, BOX)] * 3

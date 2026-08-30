@@ -30,19 +30,17 @@ import sys
 import time
 from pathlib import Path
 
-from _json_io import dump_json
-
 import jax
 import jax.numpy as jnp
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _radial_sweep import evaluate_point  # noqa: E402
+from _radial_sweep import evaluate_point
 
-from warpax.constraints.source_consistency import stress_energy_residual  # noqa: E402
-from warpax.metrics import build_fuchs_construction, fuchs_default  # noqa: E402
-
+from warpax.constraints.source_consistency import stress_energy_residual
+from warpax.metrics import build_fuchs_construction, fuchs_default
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "fuchs_kernel_comparison.json"
 

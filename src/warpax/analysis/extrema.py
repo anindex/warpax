@@ -23,7 +23,7 @@ The field extractor is caller-supplied (e.g. wrapping
 """
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 
@@ -129,7 +129,7 @@ def refine_extremum(
         import jax.numpy as jnp
         f_here = float(metric.shape_function_value(
             jnp.array([t, best_xyz[0], best_xyz[1], best_xyz[2]])))
-    except (NotImplementedError, Exception):  # noqa: BLE001
+    except (NotImplementedError, Exception):
         f_here = None
     return {
         "value": best_val,

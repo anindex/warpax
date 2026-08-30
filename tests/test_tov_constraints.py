@@ -1,10 +1,9 @@
 """TOV equilibrium residuals and ADM-aux constraint diagnostics."""
 
-from warpax.tov import tov_residual
 import jax
 import jax.numpy as jnp
 
-
+from warpax.tov import tov_residual
 
 jax.config.update("jax_enable_x64", True)
 

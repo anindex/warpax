@@ -20,11 +20,10 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
-
-from _json_io import dump_json
+from datetime import UTC, datetime
 
 import matplotlib
+from _json_io import dump_json
 
 matplotlib.use("Agg")
 
@@ -53,7 +52,6 @@ from warpax.metrics import (
     WarpShellMetric,
 )
 from warpax.visualization._style import COLORS, DOUBLE_COL, apply_style
-
 
 # Constants (identical to run_analysis.py so rows line up with Table 8)
 
@@ -480,7 +478,7 @@ def _instantiate(name: str):
 def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     os.makedirs(FIGURES_DIR, exist_ok=True)
-    start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    start_time = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     print("=" * 70)
     print("Wall-Restricted Type-IV Analysis (all 4 warp metrics)")

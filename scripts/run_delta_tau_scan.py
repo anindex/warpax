@@ -15,13 +15,13 @@ from _json_io import dump_json
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
 from warpax.metrics.tshell import tshell_from_profiles
 from warpax.metrics.tshell_profiles import constant_velocity_profiles
 from warpax.transport.diagnostics import null_round_trip_asymmetry
-
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "delta_tau.json"
 

@@ -15,7 +15,6 @@ from _radial_sweep import radial_sweep, save_json
 
 from warpax.metrics import LentzMetric
 
-
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "lentz_verification.json"
 
 

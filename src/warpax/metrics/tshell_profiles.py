@@ -26,9 +26,9 @@ from ..geometry.transitions import smoothstep_c2
 from .sshell_profiles import (
     SShellSourceProfiles,
     _compute_cumulative_mass,
+    bernstein_density_profiles,
     constant_density_profiles,
     parabolic_density_profiles,
-    bernstein_density_profiles,
 )
 
 

@@ -54,8 +54,7 @@ import mpmath
 from mpmath import iv
 
 from ._intervalcurv import eulerian_fields_interval
-from .enclosure import _hi, _lmi_dual_lower, _lo, _objective_interval, _trs_argmin
-from .enclosure import _mid_iv
+from .enclosure import _hi, _lmi_dual_lower, _lo, _mid_iv, _objective_interval, _trs_argmin
 
 __all__ = ["certify_point_from_metric"]
 

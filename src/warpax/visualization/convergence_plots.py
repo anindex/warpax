@@ -83,7 +83,7 @@ def plot_convergence(
     # error is exactly zero and cannot be drawn on a log axis. Plot the levels
     # that carry information rather than clamping it to 1e-30 off the bottom.
     finite = errors > 0.0
-    h, errors, values = h[finite], errors[finite], [v for v, k in zip(values, finite) if k]
+    h, errors, values = h[finite], errors[finite], [v for v, k in zip(values, finite, strict=True) if k]
 
     fig, ax = (ax.figure, ax) if ax is not None else plt.subplots(figsize=(SINGLE_COL, SINGLE_COL * 0.8))
 

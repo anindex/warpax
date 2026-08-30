@@ -31,30 +31,31 @@ from __future__ import annotations
 
 import os
 
-from _json_io import dump_json, write_table as write_tex_table
-from _benchmark_grid import benchmark_grid, wall_cells, N_LADDER, CLUSTER_A, BOX
-
 import jax
+from _benchmark_grid import BOX, CLUSTER_A, N_LADDER, benchmark_grid, wall_cells
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
+
 jax.config.update("jax_enable_x64", True)
+from types import SimpleNamespace
+
 import jax.numpy as jnp
 import numpy as np
 
-from types import SimpleNamespace
-
+from warpax.analysis.convergence import f_miss_stability
+from warpax.analysis.extrema import refine_extremum, seed_from_grid_index
+from warpax.analysis.shift_kinematics import compute_shift_kinematics_grid
 from warpax.benchmarks import AlcubierreMetric
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
-from warpax.geometry import evaluate_curvature_grid
-from warpax.geometry.grid import build_coord_batch
 from warpax.energy_conditions import certify_grid_frame_free, type_fractions
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,
     shape_function_mask,
 )
 from warpax.energy_conditions.verifier import _eulerian_ec_point
-from warpax.analysis.convergence import f_miss_stability
-from warpax.analysis.extrema import refine_extremum, seed_from_grid_index
-from warpax.analysis.shift_kinematics import compute_shift_kinematics_grid
+from warpax.geometry import evaluate_curvature_grid
+from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
+from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")

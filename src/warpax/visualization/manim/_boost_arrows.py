@@ -28,8 +28,8 @@ from manim import (
     DOWN,
     LEFT,
     RIGHT,
-    UP,
     UL,
+    UP,
     UR,
     WHITE,
     YELLOW,
@@ -46,7 +46,6 @@ from manim import (
     VGroup,
     VMobject,
 )
-
 from matplotlib.colors import LinearSegmentedColormap
 
 from warpax.visualization.manim._image_utils import (
@@ -317,7 +316,7 @@ class _ArrowFieldScene(Scene):
     metric_name: str = "Alcubierre"
     v_s: float = 0.5
     grid_shape: tuple[int, int, int] = (30, 30, 30)
-    bounds: list[tuple[float, float]] = [(-3, 3), (-3, 3), (-3, 3)]
+    bounds: tuple[tuple[float, float], ...] = ((-3, 3), (-3, 3), (-3, 3))
     subsample: int = 4
     image_height: float = 5.5
     image_width: float = 5.5

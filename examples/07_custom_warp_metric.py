@@ -42,24 +42,23 @@ from jaxtyping import Array, Float, jaxtyped
 # the script also works when run standalone with a stale import order.)
 jax.config.update("jax_enable_x64", True)
 
-from warpax.analysis import compare_eulerian_vs_robust  # noqa: E402
-from warpax.energy_conditions import (  # noqa: E402
+from warpax.analysis import compare_eulerian_vs_robust
+from warpax.energy_conditions import (
     compute_eulerian_ec,
     compute_wall_restricted_stats,
     shape_function_mask,
     verify_grid,
     verify_point,
 )
-from warpax.geometry import (  # noqa: E402
+from warpax.geometry import (
     GridSpec,
     build_coord_batch,
     compute_curvature_chain,
     evaluate_curvature_grid,
     kretschmann_scalar,
 )
-from warpax.geometry.metric import ADMMetric, SymbolicMetric  # noqa: E402
-from warpax.visualization import plot_comparison_panel  # noqa: E402
-
+from warpax.geometry.metric import ADMMetric, SymbolicMetric
+from warpax.visualization import plot_comparison_panel
 
 # Step 1: Define a custom warp drive metric
 
@@ -87,25 +86,25 @@ class GaussianWarpMetric(ADMMetric):
     w: float = 1.0
 
     @jaxtyped(typechecker=beartype)
-    def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:  # noqa: F722
+    def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         return jnp.array(1.0)
 
     @jaxtyped(typechecker=beartype)
-    def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:  # noqa: F722
+    def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         f = self.shape_function_value(coords)
         # Shift acts only along x (warp propagation axis), like Alcubierre.
         return jnp.array([-self.v_s * f, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)
     def spatial_metric(
-        self, coords: Float[Array, "4"]  # noqa: F722
-    ) -> Float[Array, "3 3"]:  # noqa: F722
+        self, coords: Float[Array, "4"]
+    ) -> Float[Array, "3 3"]:
         return jnp.eye(3)
 
     @jaxtyped(typechecker=beartype)
     def shape_function_value(
-        self, coords: Float[Array, "4"]  # noqa: F722
-    ) -> Float[Array, ""]:  # noqa: F722
+        self, coords: Float[Array, "4"]
+    ) -> Float[Array, ""]:
         """ abstract method: return f(coords) in [0, 1].
 
         For this Gaussian bubble: ``f = exp(-r_s^2 / (2 w^2))``.

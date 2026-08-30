@@ -33,8 +33,9 @@ import os
 import shutil
 from pathlib import Path
 
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
 from _paper_metrics import instantiate
-from _json_io import dump_json, write_table as write_tex_table
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -46,7 +47,7 @@ import numpy as np
 
 from warpax.benchmarks import MinkowskiMetric
 from warpax.benchmarks.alcubierre import alcubierre_shape
-from warpax.quantum.ford_roman import ford_roman, _rho_at_tau
+from warpax.quantum.ford_roman import _rho_at_tau, ford_roman
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results", "quantum")

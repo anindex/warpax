@@ -24,11 +24,10 @@ from __future__ import annotations
 import argparse
 import os
 
-from _json_io import dump_json, write_table as write_tex_table
-
 import numpy as np
-
-from _benchmark_grid import N_LADDER, CLUSTER_A, BOX
+from _benchmark_grid import BOX, CLUSTER_A, N_LADDER
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
 from run_curvature_scaling import (
     METRIC_ORDER,
     fit_power_law,

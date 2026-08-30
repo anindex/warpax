@@ -103,7 +103,7 @@ class GridSpec(eqx.Module):
         """Grid spacing in each dimension."""
         return [
             (b[1] - b[0]) / (n - 1) if n > 1 else 0.0
-            for b, n in zip(self.bounds, self.shape)
+            for b, n in zip(self.bounds, self.shape, strict=True)
         ]
 
     @property
@@ -117,7 +117,7 @@ class GridSpec(eqx.Module):
             return [jnp.asarray(arr) for arr in self.coord_arrays]
         return [
             jnp.linspace(b[0], b[1], n)
-            for b, n in zip(self.bounds, self.shape)
+            for b, n in zip(self.bounds, self.shape, strict=True)
         ]
 
     @property

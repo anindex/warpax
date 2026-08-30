@@ -32,13 +32,17 @@ from _json_io import dump_json
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import jax
+
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
 from warpax.adm.mass import adm_mass
 from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.metrics import (
-    LentzMetric, NatarioMetric, RodalMetric, VanDenBroeckMetric,
+    LentzMetric,
+    NatarioMetric,
+    RodalMetric,
+    VanDenBroeckMetric,
 )
 from warpax.metrics.fuchs_construction import fuchs_default
 from warpax.metrics.sshell import sshell_default
@@ -48,7 +52,6 @@ from warpax.transport.diagnostics import (
     geodesic_deviation_diagnostic,
     null_round_trip_asymmetry,
 )
-
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "criterion_e_verification.json"
 
@@ -60,7 +63,7 @@ def _safe(fn, *, default=None, reason=""):
         if v != v:  # NaN
             return None, f"N/A (NaN: {reason})"
         return v, ""
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return None, f"N/A ({type(exc).__name__}: {exc})"
 
 
@@ -181,7 +184,7 @@ def main():
         return "N/A" if v is None else f"{v:.4g}"
     for r in rows:
         print(f"{r['metric']:<16}{f(r['M_ADM']):>10}{f(r['tidal']):>14}"
-              f"{f(r['delta_tau']):>14}{f(r['blueshift']):>14}{str(r['E_pass']):>9}")
+              f"{f(r['delta_tau']):>14}{f(r['blueshift']):>14}{r['E_pass']!s:>9}")
     print(f"\n  -> {OUTPUT}  ({out['elapsed_s']:.1f}s)")
 
 

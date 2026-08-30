@@ -21,11 +21,10 @@ import argparse
 import os
 import time
 
-from _json_io import dump_json
-
 import jax
 import jax.numpy as jnp
 import numpy as np
+from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 
@@ -174,7 +173,7 @@ def main():
 
             # Reconstruct grid coordinates
             axes = [np.linspace(lo, hi, int(n))
-                    for (lo, hi), n in zip(grid_bounds, grid_shape)]
+                    for (lo, hi), n in zip(grid_bounds, grid_shape, strict=True)]
             X, Y, Z = np.meshgrid(*axes, indexing="ij")
             T_grid = np.zeros_like(X)
             coords = np.stack([T_grid, X, Y, Z], axis=-1).reshape(-1, 4)

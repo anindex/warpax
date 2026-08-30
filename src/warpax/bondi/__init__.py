@@ -10,9 +10,9 @@ from .peeling import PeelingResult, peeling_slopes, weyl_scalars
 
 __all__ = [
     "BondiFluxResult",
-    "radiated_momentum_flux",
-    "psi4_at",
     "PeelingResult",
     "peeling_slopes",
+    "psi4_at",
+    "radiated_momentum_flux",
     "weyl_scalars",
 ]

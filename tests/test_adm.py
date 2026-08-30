@@ -1,12 +1,12 @@
 """ADM 3+1 split: kinematics, constraints, superluminal handling."""
 
 from __future__ import annotations
-from warpax.adm import adm_mass, falloff_check
+
 import jax
 import jax.numpy as jnp
 import pytest
 
-
+from warpax.adm import adm_mass, falloff_check
 
 jax.config.update("jax_enable_x64", True)
 
@@ -59,8 +59,8 @@ class TestADMSplit:
 
     def test_minkowski_decomposition(self):
         """Minkowski: alpha=1, beta=0, gamma=I, K=0."""
-        from warpax.geometry import adm_split
         from warpax.benchmarks import MinkowskiMetric
+        from warpax.geometry import adm_split
 
         metric = MinkowskiMetric()
         coords = jnp.array([0.0, 5.0, 0.0, 0.0])
@@ -73,8 +73,8 @@ class TestADMSplit:
 
     def test_schwarzschild_decomposition(self):
         """Schwarzschild isotropic: alpha = (1-M/2r)/(1+M/2r), beta=0, K=0."""
-        from warpax.geometry import adm_split
         from warpax.benchmarks import SchwarzschildMetric
+        from warpax.geometry import adm_split
 
         metric = SchwarzschildMetric(M=1.0)
         r_iso = 10.0
@@ -141,8 +141,8 @@ class TestConstraints:
 
     def test_normalized_residuals_minkowski(self):
         """Minkowski: eps_H ~0, eps_M ~0."""
-        from warpax.constraints import normalized_residuals
         from warpax.benchmarks import MinkowskiMetric
+        from warpax.constraints import normalized_residuals
 
         metric = MinkowskiMetric()
         coords = jnp.array([0.0, 5.0, 0.0, 0.0])
@@ -152,8 +152,8 @@ class TestConstraints:
 
     def test_normalized_residuals_schwarzschild(self):
         """Schwarzschild vacuum: eps_H ~0."""
-        from warpax.constraints import normalized_residuals
         from warpax.benchmarks import SchwarzschildMetric
+        from warpax.constraints import normalized_residuals
 
         metric = SchwarzschildMetric(M=1.0)
         coords = jnp.array([0.0, 10.0, 0.0, 0.0])
@@ -180,7 +180,6 @@ jax.config.update("jax_enable_x64", True)
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import LentzMetric, NatarioMetric, RodalMetric, VanDenBroeckMetric
-
 
 WARP_METRICS_UNIT_LAPSE = [
     ("alcubierre", AlcubierreMetric(R=1.0, sigma=8.0)),

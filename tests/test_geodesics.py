@@ -1,6 +1,11 @@
 """Geodesic integrator, deviation/tidal eigenvalues, blueshift / observables."""
 
 from __future__ import annotations
+
+import jax.numpy as jnp
+import numpy as np
+import pytest
+
 from warpax.benchmarks import (
     AlcubierreMetric,
     MinkowskiMetric,
@@ -8,21 +13,19 @@ from warpax.benchmarks import (
 )
 from warpax.geodesics import (
     circular_orbit_ic,
+    compute_blueshift,
     horizon_event,
     integrate_geodesic,
     integrate_geodesic_family,
+    integrate_geodesic_with_deviation,
     make_event,
     monitor_conservation,
     null_ic,
     radial_infall_ic,
+    tidal_eigenvalues,
+    tidal_tensor,
     timelike_ic,
 )
-from warpax.geodesics import (
-    compute_blueshift,
-    integrate_geodesic_with_deviation,
-    tidal_eigenvalues,
-)
-from warpax.geodesics import tidal_tensor
 from warpax.metrics import (
     LentzMetric,
     NatarioMetric,
@@ -30,11 +33,6 @@ from warpax.metrics import (
     VanDenBroeckMetric,
     WarpShellMetric,
 )
-import jax.numpy as jnp
-import numpy as np
-import pytest
-
-
 
 # Helper: isotropic <-> Schwarzschild coordinate conversions
 
@@ -681,7 +679,7 @@ class TestConservationMonitoringTimelike:
         metric = SchwarzschildMetric(M=M)
 
         # Use radial infall from r=15M
-        from warpax.geodesics import make_event, horizon_event
+        from warpax.geodesics import horizon_event, make_event
         x0, v0 = radial_infall_ic(metric, r_start_schw=15.0, M=M)
         event = make_event(horizon_event)
 
@@ -794,12 +792,12 @@ class TestFutureDirectedICs:
     """
 
     # (metric, starting point) cases including a time-dependent metric
-    CASES = [
+    CASES = (
         ("Minkowski", MinkowskiMetric(), jnp.array([0.0, 0.0, 0.0, 0.0])),
         ("Schwarzschild", SchwarzschildMetric(M=1.0), jnp.array([0.0, 10.0, 0.0, 0.0])),
         ("Alcubierre", AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0),
          jnp.array([0.0, 5.0, 0.1, 0.0])),
-    ]
+    )
 
     @pytest.mark.parametrize("name,metric,x0", CASES, ids=[c[0] for c in CASES])
     def test_timelike_ic_future_directed(self, name, metric, x0):
@@ -842,6 +840,7 @@ class TestKillingEnergyNormalization:
 
     def test_normalization_hits_target_and_stays_null(self):
         import jax.numpy as jnp
+
         from warpax.benchmarks import AlcubierreMetric
         from warpax.geodesics import killing_energy, null_ic_killing_normalized
 
@@ -856,6 +855,7 @@ class TestKillingEnergyNormalization:
     def test_is_invariant_to_input_direction_scale(self):
         """The exact defect A4 names: rescaling the seed must not change the ray."""
         import jax.numpy as jnp
+
         from warpax.benchmarks import AlcubierreMetric
         from warpax.geodesics import null_ic, null_ic_killing_normalized
 
@@ -877,6 +877,7 @@ class TestKillingEnergyNormalization:
         """E_K drift is a second rigor witness alongside the on-cone g(k,k)."""
         import jax
         import jax.numpy as jnp
+
         from warpax.benchmarks import AlcubierreMetric
         from warpax.geodesics import killing_energy, null_ic_killing_normalized
         from warpax.geodesics.symplectic import integrate_geodesic_symplectic
@@ -985,7 +986,7 @@ class TestNatarioAffineNormalization:
 
     @staticmethod
     def _frequency(metric):
-        from warpax.geodesics.initial_conditions import null_ic, eulerian_frequency
+        from warpax.geodesics.initial_conditions import eulerian_frequency, null_ic
 
         x0 = jnp.array([0.0, -8.0, 1.5, 0.0])
         _, k = null_ic(metric, x0, jnp.array([1.0, 0.0, 0.0]))
@@ -1034,7 +1035,7 @@ class TestRodalShiftIsIrrotational:
     ``-C v_s^2`` deficit law, inherits from it.
     """
 
-    POINTS = [(1.0, 0.0, 0.0), (0.7, 0.7, 0.0), (0.5, 0.5, 0.5), (0.3, 0.9, 0.2)]
+    POINTS = ((1.0, 0.0, 0.0), (0.7, 0.7, 0.0), (0.5, 0.5, 0.5), (0.3, 0.9, 0.2))
 
     @pytest.mark.parametrize("pt", POINTS)
     def test_curl_of_shift_vanishes(self, pt):

@@ -38,15 +38,15 @@ import os
 import time
 from types import SimpleNamespace
 
-from _json_io import dump_json, write_table as write_tex_table
-
 import jax
+from _json_io import dump_json
+from _json_io import write_table as write_tex_table
+
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
-
-from _benchmark_grid import CLUSTER_A, benchmark_grid, N_LADDER
+from _benchmark_grid import CLUSTER_A, N_LADDER, benchmark_grid
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.analysis.convergence import f_miss_stability
@@ -57,9 +57,8 @@ from warpax.energy_conditions.filtering import (
 )
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from warpax.grids import proper_volume_weights
-
+from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 TABLES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "warpax_arxiv", "tables")

@@ -52,10 +52,10 @@ from __future__ import annotations
 import json
 import pathlib
 
+import jax.numpy as jnp
 import numpy as np
 
 import warpax  # noqa: F401  (installs the x64 config on import)
-import jax.numpy as jnp
 from warpax.energy_conditions.classification import classify_hawking_ellis
 from warpax.energy_conditions.slemma import certify_point, noise_floor, null_deficit
 

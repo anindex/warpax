@@ -9,8 +9,9 @@ between representations.
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections.abc import Callable
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import equinox as eqx
 import jax.numpy as jnp
