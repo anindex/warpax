@@ -16,6 +16,7 @@ on the CLI scripts, does not eagerly import matplotlib. matplotlib needs a
 writable cache (``MPLCONFIGDIR``) at import time, which is unavailable in some
 headless/sandboxed contexts; deferring the import keeps the package usable there.
 """
+
 from __future__ import annotations
 
 import importlib

@@ -3,6 +3,7 @@
 Figures for the design-space sweep: transport heatmap, EC boundary with
 hatching, contour isolines, and annotated optimum.
 """
+
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
@@ -42,7 +43,9 @@ def _add_ec_boundary(
     feas_float = ec_feasible.astype(float)
     try:
         ax.contour(
-            x, y, feas_float.T,
+            x,
+            y,
+            feas_float.T,
             levels=[0.5],
             colors=["#222222"],
             linewidths=[1.8],
@@ -55,7 +58,9 @@ def _add_ec_boundary(
         inadmissible = (~ec_feasible).astype(float)
         try:
             ax.contourf(
-                x, y, inadmissible.T,
+                x,
+                y,
+                inadmissible.T,
                 levels=[0.5, 1.5],
                 colors=["none"],
                 hatches=["///"],
@@ -82,9 +87,13 @@ def _annotate_optimum(
     t_opt = float(masked[idx])
 
     ax.plot(
-        x_opt, y_opt,
-        marker="*", markersize=14, color="#E69F00",
-        markeredgecolor="black", markeredgewidth=0.8,
+        x_opt,
+        y_opt,
+        marker="*",
+        markersize=14,
+        color="#E69F00",
+        markeredgecolor="black",
+        markeredgewidth=0.8,
         zorder=10,
     )
     ax.annotate(
@@ -143,7 +152,9 @@ def plot_phase_diagram(
         vmax = vmin + 1.0
 
     im = ax.pcolormesh(
-        x, y, transport_masked.T,
+        x,
+        y,
+        transport_masked.T,
         cmap=_TRANSPORT_CMAP,
         norm=Normalize(vmin=vmin, vmax=vmax),
         shading="nearest",
@@ -161,7 +172,9 @@ def plot_phase_diagram(
         levels = np.linspace(vmin, vmax, n_contours + 2)[1:-1]
         try:
             cs = ax.contour(
-                x, y, transport.T,
+                x,
+                y,
+                transport.T,
                 levels=levels,
                 colors=["#333333"],
                 linewidths=[0.6],
@@ -182,13 +195,21 @@ def plot_phase_diagram(
         ax.set_title(title, fontsize=11)
 
     legend_handles = [
-        Patch(facecolor="white", edgecolor="black", hatch="///",
-              label="EC-violated"),
-        plt.Line2D([0], [0], marker="*", color="w", markerfacecolor="#E69F00",
-                   markeredgecolor="black", markersize=12, label="Optimum"),
+        Patch(facecolor="white", edgecolor="black", hatch="///", label="EC-violated"),
+        plt.Line2D(
+            [0],
+            [0],
+            marker="*",
+            color="w",
+            markerfacecolor="#E69F00",
+            markeredgecolor="black",
+            markersize=12,
+            label="Optimum",
+        ),
     ]
-    ax.legend(handles=legend_handles, loc="upper left", fontsize=8,
-              framealpha=0.9, edgecolor="gray")
+    ax.legend(
+        handles=legend_handles, loc="upper left", fontsize=8, framealpha=0.9, edgecolor="gray"
+    )
 
     return _save_or_return(fig, save_path)
 
@@ -216,7 +237,12 @@ def plot_phase_summary(
         figsize = (DOUBLE_COL, DOUBLE_COL * 0.85)
 
     fig, axes = plt.subplots(
-        2, 2, figsize=figsize, sharex=True, sharey=True, layout="constrained",
+        2,
+        2,
+        figsize=figsize,
+        sharex=True,
+        sharey=True,
+        layout="constrained",
     )
     panel_labels = ["(a)", "(b)", "(c)", "(d)"]
 
@@ -228,9 +254,13 @@ def plot_phase_summary(
     if vmax_t - vmin_t < 1e-15:
         vmax_t = vmin_t + 1.0
     im_a = ax.pcolormesh(
-        x, y, t_data.T, cmap=_TRANSPORT_CMAP,
+        x,
+        y,
+        t_data.T,
+        cmap=_TRANSPORT_CMAP,
         norm=Normalize(vmin=vmin_t, vmax=vmax_t),
-        shading="nearest", rasterized=True,
+        shading="nearest",
+        rasterized=True,
     )
     _add_ec_boundary(ax, x, y, ec)
     _annotate_optimum(ax, x, y, grids["transport"], ec)
@@ -246,9 +276,13 @@ def plot_phase_summary(
     m_data = np.ma.masked_invalid(grids["worst_ec_margin"])
     vabs = max(abs(float(np.nanmin(m_data))), abs(float(np.nanmax(m_data))), 1e-6)
     im_b = ax.pcolormesh(
-        x, y, m_data.T, cmap=_MARGIN_CMAP,
+        x,
+        y,
+        m_data.T,
+        cmap=_MARGIN_CMAP,
         norm=Normalize(vmin=-vabs, vmax=vabs),
-        shading="nearest", rasterized=True,
+        shading="nearest",
+        rasterized=True,
     )
     _add_ec_boundary(ax, x, y, ec, hatch_inadmissible=False)
     cbar_b = fig.colorbar(im_b, ax=ax, pad=0.03)
@@ -266,9 +300,13 @@ def plot_phase_summary(
     if vmax_c - vmin_c < 1e-15:
         vmax_c = vmin_c + 1.0
     im_c = ax.pcolormesh(
-        x, y, c_data_log.T, cmap=_CONSTRAINT_CMAP,
+        x,
+        y,
+        c_data_log.T,
+        cmap=_CONSTRAINT_CMAP,
         norm=Normalize(vmin=vmin_c, vmax=vmax_c),
-        shading="nearest", rasterized=True,
+        shading="nearest",
+        rasterized=True,
     )
     _add_ec_boundary(ax, x, y, ec)
     cbar_c = fig.colorbar(im_c, ax=ax, pad=0.03)
@@ -288,9 +326,13 @@ def plot_phase_summary(
     if vmax_tid - vmin_tid < 1e-15:
         vmax_tid = vmin_tid + 1.0
     im_d = ax.pcolormesh(
-        x, y, tid_log.T, cmap=_TIDAL_CMAP,
+        x,
+        y,
+        tid_log.T,
+        cmap=_TIDAL_CMAP,
         norm=Normalize(vmin=vmin_tid, vmax=vmax_tid),
-        shading="nearest", rasterized=True,
+        shading="nearest",
+        rasterized=True,
     )
     _add_ec_boundary(ax, x, y, ec)
     cbar_d = fig.colorbar(im_d, ax=ax, pad=0.03)
@@ -302,10 +344,14 @@ def plot_phase_summary(
 
     for label, ax in zip(panel_labels, axes.ravel(), strict=True):
         ax.text(
-            0.03, 0.95, label,
+            0.03,
+            0.95,
+            label,
             transform=ax.transAxes,
-            fontsize=11, fontweight="bold",
-            va="top", ha="left",
+            fontsize=11,
+            fontweight="bold",
+            va="top",
+            ha="left",
         )
 
     return _save_or_return(fig, save_path)

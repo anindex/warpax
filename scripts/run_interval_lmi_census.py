@@ -35,6 +35,7 @@ Outputs
 - results/interval_lmi_census.json
 - ../warpax_arxiv/tables/interval_lmi_census.tex
 """
+
 from __future__ import annotations
 
 import argparse
@@ -86,9 +87,11 @@ def band_radii(R: float = R_B, sigma: float = SIGMA) -> tuple[float, float]:
     and ``f = F_LOW``. Bisected rather than inverted: the closed form is ugly and
     this runs once.
     """
+
     def f(r):
-        return ((math.tanh(sigma * (r + R)) - math.tanh(sigma * (r - R)))
-                / (2.0 * math.tanh(sigma * R)))
+        return (math.tanh(sigma * (r + R)) - math.tanh(sigma * (r - R))) / (
+            2.0 * math.tanh(sigma * R)
+        )
 
     def solve(target):
         lo, hi = 0.0, 10.0 * R
@@ -116,8 +119,7 @@ def sample_points(n_r: int, n_theta: int) -> list[tuple[float, float]]:
     r_lo, r_hi = band_radii()
     radii = np.linspace(r_lo, r_hi, n_r + 2)[1:-1]
     thetas = np.linspace(0.0, math.pi, n_theta)
-    return [(float(r * math.cos(t)), float(abs(r * math.sin(t))))
-            for r in radii for t in thetas]
+    return [(float(r * math.cos(t)), float(abs(r * math.sin(t)))) for r in radii for t in thetas]
 
 
 def in_band(shape_fn, x: float, s: float) -> tuple[float, float] | None:
@@ -159,13 +161,11 @@ def _certify_one_point(xs: tuple[float, float]) -> dict:
     if band is None:
         return {"x": x, "s": s, "status": "out_of_band"}
     try:
-        r = certify_point_from_metric(_WORKER["metric"], (0.0, x, s, 0.0),
-                                      prec=_WORKER["prec"])
+        r = certify_point_from_metric(_WORKER["metric"], (0.0, x, s, 0.0), prec=_WORKER["prec"])
     except (ZeroDivisionError, ValueError) as exc:
         # A chain that could not be EVALUATED and a chain that evaluated and could
         # not DECIDE are different failures. Never fold the first into "refused".
-        return {"x": x, "s": s, "status": "chain_failed",
-                "error": f"{type(exc).__name__}: {exc}"}
+        return {"x": x, "s": s, "status": "chain_failed", "error": f"{type(exc).__name__}: {exc}"}
     r["x"], r["s"], r["f"] = x, s, list(band)
     r["status"] = "ok"
     return r
@@ -193,7 +193,8 @@ def _tally(rows: list[dict]) -> dict:
         }
     out["errors"] = [
         {"x": r["x"], "s": r["s"], "error": r["error"]}
-        for r in rows if r["status"] == "chain_failed"
+        for r in rows
+        if r["status"] == "chain_failed"
     ][:32]
     return out
 
@@ -202,6 +203,7 @@ def census_one(name: str, points, prec: int, jobs: int) -> dict:
     t0 = time.time()
     if jobs > 1:
         import multiprocessing as _mp
+
         ctx = _mp.get_context("spawn")
         with ctx.Pool(jobs, initializer=_init_worker, initargs=(name, prec)) as pool:
             rows = list(pool.imap_unordered(_certify_one_point, points, chunksize=32))
@@ -228,8 +230,7 @@ def write_table(results: dict, sampling: dict, out_path: str) -> None:
             continue
         for i, cond in enumerate(CONDITIONS):
             c = r["conditions"][cond]
-            deep = ("--" if c["deepest_upper"] is None
-                    else f"${c['deepest_upper']:+.4f}$")
+            deep = "--" if c["deepest_upper"] is None else f"${c['deepest_upper']:+.4f}$"
             lines.append(
                 f"  {name if i == 0 else ''} & {COND_LABEL[cond]} & "
                 f"{c['violated']} & {c['satisfied']} & {c['inconclusive']} & "
@@ -239,8 +240,12 @@ def write_table(results: dict, sampling: dict, out_path: str) -> None:
             lines.append(r"  \cmidrule(l){1-6}")
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_interval_lmi_census.py",
-                    sources="results/interval_lmi_census.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_interval_lmi_census.py",
+        sources="results/interval_lmi_census.json",
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -261,12 +266,17 @@ def main():
     ap.add_argument("--n-r", type=int, default=33)
     ap.add_argument("--n-theta", type=int, default=129)
     ap.add_argument("--metrics", nargs="+", default=ORDER)
-    ap.add_argument("--jobs", type=int, default=0,
-                    help="worker processes; 0 = cpu_count - 2, 1 = serial")
-    ap.add_argument("--smoke", action="store_true",
-                    help="5 x 9 nodes per construction, for a wiring check")
-    ap.add_argument("--table-only", action="store_true",
-                    help="rewrite the table from the existing JSON; no compute")
+    ap.add_argument(
+        "--jobs", type=int, default=0, help="worker processes; 0 = cpu_count - 2, 1 = serial"
+    )
+    ap.add_argument(
+        "--smoke", action="store_true", help="5 x 9 nodes per construction, for a wiring check"
+    )
+    ap.add_argument(
+        "--table-only",
+        action="store_true",
+        help="rewrite the table from the existing JSON; no compute",
+    )
     args = ap.parse_args()
 
     out_json = os.path.join(RESULTS_DIR, "interval_lmi_census.json")
@@ -275,8 +285,11 @@ def main():
             payload = json.load(fh)
         if payload.get("partial", False):
             raise SystemExit(f"{out_json} is a partial checkpoint; not writing a table")
-        write_table(payload["results"], payload["sampling"],
-                    os.path.join(TABLES_DIR, "interval_lmi_census.tex"))
+        write_table(
+            payload["results"],
+            payload["sampling"],
+            os.path.join(TABLES_DIR, "interval_lmi_census.tex"),
+        )
         return payload["results"]
 
     if args.smoke:
@@ -288,39 +301,63 @@ def main():
     points = sample_points(args.n_r, args.n_theta)
     sampling = {
         "rule": "product grid in (r, theta) on the reduced half-plane; interior "
-                "radial nodes of the f-band; theta over the closed [0, pi]",
-        "n_r": args.n_r, "n_theta": args.n_theta, "n_points": len(points),
-        "f_band": [F_LOW, F_HIGH], "r_band": [r_lo, r_hi],
+        "radial nodes of the f-band; theta over the closed [0, pi]",
+        "n_r": args.n_r,
+        "n_theta": args.n_theta,
+        "n_points": len(points),
+        "f_band": [F_LOW, F_HIGH],
+        "r_band": [r_lo, r_hi],
         "dr": (r_hi - r_lo) / (args.n_r + 1),
         "dtheta": math.pi / max(1, args.n_theta - 1),
     }
 
     print("=" * 72)
-    print(f"INTERVAL LMI CENSUS  (v_s={V_S}, R_b={R_B}, sigma={SIGMA}, "
-          f"prec={args.prec} bits)")
-    print(f"  band r in [{r_lo:.4f}, {r_hi:.4f}], {len(points)} points per "
-          f"construction, {args.jobs} workers")
+    print(f"INTERVAL LMI CENSUS  (v_s={V_S}, R_b={R_B}, sigma={SIGMA}, prec={args.prec} bits)")
+    print(
+        f"  band r in [{r_lo:.4f}, {r_hi:.4f}], {len(points)} points per "
+        f"construction, {args.jobs} workers"
+    )
     print("=" * 72)
 
     results: dict = {}
     for name in args.metrics:
         results[name] = census_one(name, points, args.prec, args.jobs)
         c = results[name]["conditions"]
-        print(f"  {name:>15s}  " + "  ".join(
-            f"{COND_LABEL[k]} {c[k]['violated']}/{c[k]['satisfied']}/"
-            f"{c[k]['inconclusive']}" for k in CONDITIONS)
-            + f"   ({results[name]['seconds']}s)", flush=True)
-        dump_json({"partial": True, "config": vars(args),
-                   "params": {"v_s": V_S, "R_b": R_B, "sigma": SIGMA, **VDB_KW},
-                   "sampling": sampling, "note": NOTE, "order": ORDER,
-                   "results": results}, out_json)
+        print(
+            f"  {name:>15s}  "
+            + "  ".join(
+                f"{COND_LABEL[k]} {c[k]['violated']}/{c[k]['satisfied']}/{c[k]['inconclusive']}"
+                for k in CONDITIONS
+            )
+            + f"   ({results[name]['seconds']}s)",
+            flush=True,
+        )
+        dump_json(
+            {
+                "partial": True,
+                "config": vars(args),
+                "params": {"v_s": V_S, "R_b": R_B, "sigma": SIGMA, **VDB_KW},
+                "sampling": sampling,
+                "note": NOTE,
+                "order": ORDER,
+                "results": results,
+            },
+            out_json,
+        )
 
-    dump_json({"partial": False, "config": vars(args),
-               "params": {"v_s": V_S, "R_b": R_B, "sigma": SIGMA, **VDB_KW},
-               "sampling": sampling, "note": NOTE, "order": ORDER,
-               "results": results}, out_json)
-    write_table(results, sampling,
-                os.path.join(TABLES_DIR, "interval_lmi_census.tex"))
+    dump_json(
+        {
+            "partial": False,
+            "config": vars(args),
+            "params": {"v_s": V_S, "R_b": R_B, "sigma": SIGMA, **VDB_KW},
+            "sampling": sampling,
+            "note": NOTE,
+            "order": ORDER,
+            "results": results,
+        },
+        out_json,
+    )
+    write_table(results, sampling, os.path.join(TABLES_DIR, "interval_lmi_census.tex"))
     return results
 
 

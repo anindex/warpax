@@ -29,9 +29,7 @@ class TestSchwarzschild:
         for i in range(4):
             for j in range(4):
                 if i != j:
-                    assert jnp.isclose(g[i, j], 0.0, atol=1e-15), (
-                        f"g[{i},{j}] = {g[i, j]} != 0"
-                    )
+                    assert jnp.isclose(g[i, j], 0.0, atol=1e-15), f"g[{i},{j}] = {g[i, j]} != 0"
 
     def test_schwarzschild_jit(self, sample_coords):
         """jax.jit compilation works."""

@@ -23,6 +23,7 @@ Outputs
 - ../warpax_arxiv/figures/velocity_type_structure.pdf
 - ../warpax_arxiv/figures/rodal_invariant_margins.pdf
 """
+
 from __future__ import annotations
 
 import argparse
@@ -79,9 +80,6 @@ BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
 
 
-
-
-
 def run_point(name, v_s, N):
     shape = (N, N, N)
     metric = instantiate(name, v_s)
@@ -92,7 +90,10 @@ def run_point(name, v_s, N):
     # Wall-restricted statistics only, so the LMI runs on the wall band (~1% of
     # the grid) rather than on every non-Type-I point (~80%).
     ff = certify_grid_frame_free(
-        curv.stress_energy, curv.metric, curv.metric_inv, solver="standard",
+        curv.stress_energy,
+        curv.metric,
+        curv.metric_inv,
+        solver="standard",
         lmi_where=mask,
     )
     # Proper volume, not coordinate volume: the manuscript calls every one of
@@ -102,7 +103,9 @@ def run_point(name, v_s, N):
     fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
     mm = typeI_min_margins(ff, mask=np.asarray(jnp.reshape(mask, (-1,))).astype(bool))
     return {
-        "metric": name, "v_s": v_s, "N": N,
+        "metric": name,
+        "v_s": v_s,
+        "N": N,
         "wall_frac_type_i": fr["frac_type_i"],
         "wall_frac_type_iv": fr["frac_type_iv"],
         "wall_n": fr["n_selected"],
@@ -115,22 +118,20 @@ def run_point(name, v_s, N):
 
 def write_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
     """Wall Type-I / Type-IV fractions at sub/luminal/super velocities."""
+
     def cell(name, v, key):
         for r in rows:
             if r["metric"] == name and abs(r["v_s"] - v) < 1e-9:
                 return r[key] * 100.0
         return None
+
     # Headings built from table_vels, not typed: a change to the speeds must not
     # be able to mislabel the columns.
     def _band(v):
         return "sub" if v < 1.0 else ("luminal" if v == 1.0 else "super")
 
-    head = " & ".join(
-        rf"\multicolumn{{2}}{{c}}{{$v_s={v:.1f}$ ({_band(v)})}}" for v in table_vels
-    )
-    rules = "".join(
-        rf"\cmidrule(lr){{{2 * i + 2}-{2 * i + 3}}}" for i in range(len(table_vels))
-    )
+    head = " & ".join(rf"\multicolumn{{2}}{{c}}{{$v_s={v:.1f}$ ({_band(v)})}}" for v in table_vels)
+    rules = "".join(rf"\cmidrule(lr){{{2 * i + 2}-{2 * i + 3}}}" for i in range(len(table_vels)))
     cols = " & ".join([r"Type~I & Type~IV"] * len(table_vels))
     lines = [
         r"\begin{tabular}{@{}l" + " cc" * len(table_vels) + r"@{}}",
@@ -154,8 +155,7 @@ def write_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
 
 
 # Per-metric marker, paired with the shared metric color.
-_MARKERS = {"Alcubierre": "o", "Natário": "s",
-            "Van den Broeck": "^", "Rodal": "D"}
+_MARKERS = {"Alcubierre": "o", "Natário": "s", "Van den Broeck": "^", "Rodal": "D"}
 
 
 def _panel_typeiv(ax, rows):
@@ -164,26 +164,38 @@ def _panel_typeiv(ax, rows):
         rs = sorted([r for r in rows if r["metric"] == name], key=lambda r: r["v_s"])
         xs = [r["v_s"] for r in rs]
         ys = [r["wall_frac_type_iv"] * 100.0 for r in rs]
-        ax.plot(xs, ys, marker=_MARKERS.get(name, "o"), ms=4,
-                color=metric_color(name), label=name)
+        ax.plot(xs, ys, marker=_MARKERS.get(name, "o"), ms=4, color=metric_color(name), label=name)
     ax.axvline(1.0, color="0.6", ls="--", lw=0.8)
     ax.text(1.02, 4.0, "luminal", color="0.4", fontsize=8)
     ax.set_xlabel(r"warp speed $v_s$")
     ax.set_ylabel(f"wall Type-IV fraction ({_PCT})")
     ax.set_ylim(-5, 108)
     # Legend in the empty mid band (Rodal sits at 0, the rest above ~60).
-    ax.legend(loc="center right", bbox_to_anchor=(0.99, 0.30),
-              fontsize=7.5, frameon=False)
+    ax.legend(loc="center right", bbox_to_anchor=(0.99, 0.30), fontsize=7.5, frameon=False)
 
 
 def _panel_rodal_margins(ax, rows):
     """Panel: Rodal invariant Type-I NEC/DEC margins vs warp speed."""
     rs = sorted([r for r in rows if r["metric"] == "Rodal"], key=lambda r: r["v_s"])
     xs = [r["v_s"] for r in rs]
-    ax.plot(xs, [r["typeI_nec_min"] for r in rs], marker="o", ms=4,
-            color=COLORS[0], ls="-", label=r"$\min(\rho+p_i)$ (NEC)")
-    ax.plot(xs, [r["typeI_dec_min"] for r in rs], marker="s", ms=4,
-            color=COLORS[1], ls="--", label=r"$\min(\rho-|p_i|)$ (DEC)")
+    ax.plot(
+        xs,
+        [r["typeI_nec_min"] for r in rs],
+        marker="o",
+        ms=4,
+        color=COLORS[0],
+        ls="-",
+        label=r"$\min(\rho+p_i)$ (NEC)",
+    )
+    ax.plot(
+        xs,
+        [r["typeI_dec_min"] for r in rs],
+        marker="s",
+        ms=4,
+        color=COLORS[1],
+        ls="--",
+        label=r"$\min(\rho-|p_i|)$ (DEC)",
+    )
     ax.axhline(0.0, color="0.6", lw=0.8)
     ax.axvline(1.0, color="0.6", ls="--", lw=0.8)
     ax.set_xlabel(r"warp speed $v_s$")
@@ -209,8 +221,10 @@ def make_figures(rows):
     print(f"  Wrote {pm}")
 
     # Individual panels (kept for backward compatibility / standalone use).
-    for fname, panel in (("velocity_type_structure.pdf", _panel_typeiv),
-                         ("rodal_invariant_margins.pdf", _panel_rodal_margins)):
+    for fname, panel in (
+        ("velocity_type_structure.pdf", _panel_typeiv),
+        ("rodal_invariant_margins.pdf", _panel_rodal_margins),
+    ):
         fig, ax = plt.subplots(figsize=(DOUBLE_COL * 0.6, DOUBLE_COL * 0.5))
         panel(ax, rows)
         fig.tight_layout()
@@ -222,8 +236,12 @@ def make_figures(rows):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--velocities", type=float, nargs="+",
-                   default=[0.1, 0.3, 0.5, 0.7, 0.9, 0.99, 1.0, 1.1, 1.3, 1.5, 2.0, 2.5])
+    p.add_argument(
+        "--velocities",
+        type=float,
+        nargs="+",
+        default=[0.1, 0.3, 0.5, 0.7, 0.9, 0.99, 1.0, 1.1, 1.3, 1.5, 2.0, 2.5],
+    )
     # This default IS the grid the manuscript reports. reproduce_all.sh invokes this
     # script with no arguments, so a default that differs from the published grid
     # makes the paper unreproducible from its own driver even when the released
@@ -231,9 +249,12 @@ def main():
     p.add_argument("--N", type=int, default=100)
     p.add_argument("--metrics", type=str, nargs="+", default=METRIC_ORDER)
     p.add_argument("--smoke", action="store_true")
-    p.add_argument("--from-cache", action="store_true",
-                   help="rebuild the table and figures from results/velocity_sweep.json "
-                        "without recomputing the (expensive) eigenstructure")
+    p.add_argument(
+        "--from-cache",
+        action="store_true",
+        help="rebuild the table and figures from results/velocity_sweep.json "
+        "without recomputing the (expensive) eigenstructure",
+    )
     args = p.parse_args()
 
     if args.from_cache:
@@ -263,12 +284,14 @@ def main():
             # a reproduce_all.sh log shows the banner and then nothing at all until
             # the whole sweep finishes, there is no way to tell a job that is
             # nearly done from one that is wedged.
-            print(f"  {len(rows):2d}/{len(args.metrics) * len(args.velocities)} "
-                  f"{name:>15s} v_s={v_s:.2f}  "
-                  f"TypeI={r['wall_frac_type_i']*100:5.1f}%  "
-                  f"TypeIV={r['wall_frac_type_iv']*100:5.1f}%  "
-                  f"NECmin={r['typeI_nec_min']:.3g}  DECmin={r['typeI_dec_min']:.3g}",
-                  flush=True)
+            print(
+                f"  {len(rows):2d}/{len(args.metrics) * len(args.velocities)} "
+                f"{name:>15s} v_s={v_s:.2f}  "
+                f"TypeI={r['wall_frac_type_i'] * 100:5.1f}%  "
+                f"TypeIV={r['wall_frac_type_iv'] * 100:5.1f}%  "
+                f"NECmin={r['typeI_nec_min']:.3g}  DECmin={r['typeI_dec_min']:.3g}",
+                flush=True,
+            )
 
     # A smoke run must not land on the production artifact. It used to: the dump was
     # unconditional while only the table write was guarded, so `--smoke` replaced

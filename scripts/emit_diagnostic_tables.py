@@ -16,6 +16,7 @@ Usage
 -----
     python scripts/emit_diagnostic_tables.py
 """
+
 from __future__ import annotations
 
 import json
@@ -112,8 +113,7 @@ def emit_type_breakdown() -> None:
     lines = [
         "\\begin{tabular}{@{}l r r r@{}}",
         "    \\toprule",
-        "    Metric & Wall \\% Type~I & Wall \\% Type~IV"
-        " & max $|\\mathrm{Im}\\,\\lambda|$ \\\\",
+        "    Metric & Wall \\% Type~I & Wall \\% Type~IV & max $|\\mathrm{Im}\\,\\lambda|$ \\\\",
         "    \\midrule",
     ]
     for m in BREAKDOWN_ORDER:
@@ -150,8 +150,7 @@ def emit_nstarts() -> None:
         lines.append(f"    {names[m]} & {cells} \\\\")
     lines.append("    \\midrule")
     lines.append(
-        f"    \\multicolumn{{{len(ns) + 1}}}{{@{{}}l}}"
-        "{\\textit{Missed WEC (\\%)}} \\\\[2pt]"
+        f"    \\multicolumn{{{len(ns) + 1}}}{{@{{}}l}}{{\\textit{{Missed WEC (\\%)}}}} \\\\[2pt]"
     )
     for m in order:
         vals = data[m]["pct_missed_wec"]

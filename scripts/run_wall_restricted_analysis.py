@@ -16,6 +16,7 @@ Usage
 -----
     python scripts/run_wall_restricted_analysis.py
 """
+
 from __future__ import annotations
 
 import os
@@ -160,24 +161,30 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
     # 4. Wall mask from shape_function_value
     coords_batch = build_coord_batch(grid_spec, t=0.0)
     wall_mask = shape_function_mask(
-        metric, coords_batch, grid_spec.shape, f_low=F_LOW, f_high=F_HIGH,
+        metric,
+        coords_batch,
+        grid_spec.shape,
+        f_low=F_LOW,
+        f_high=F_HIGH,
     )
     wall_mask_sum = int(jnp.sum(wall_mask))
 
     # 5. Eulerian margins dict for miss-rate computation
-    eulerian_margins = {
-        c: comparison.eulerian_margins[c] for c in ("nec", "wec", "sec", "dec")
-    }
+    eulerian_margins = {c: comparison.eulerian_margins[c] for c in ("nec", "wec", "sec", "dec")}
 
     # 6. Wall-restricted stats
     stats = compute_wall_restricted_stats(
-        ec_grid, wall_mask, eulerian_margins=eulerian_margins,
+        ec_grid,
+        wall_mask,
+        eulerian_margins=eulerian_margins,
     )
 
     # 7. Full-grid stats (mask of all-True) for side-by-side comparison
     full_mask = jnp.ones(grid_spec.shape, dtype=bool)
     full_stats = compute_wall_restricted_stats(
-        ec_grid, full_mask, eulerian_margins=eulerian_margins,
+        ec_grid,
+        full_mask,
+        eulerian_margins=eulerian_margins,
     )
 
     # 8. Lentz caveat (unresolved-lower-bound, reported explicitly)
@@ -207,8 +214,7 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
         "sec_pct_missed": float(comparison.pct_missed["sec"]),
         "dec_pct_missed": float(comparison.pct_missed["dec"]),
         "max_imag_eigenvalue": (
-            float(ec_grid.max_imag_eigenvalue)
-            if ec_grid.max_imag_eigenvalue is not None else None
+            float(ec_grid.max_imag_eigenvalue) if ec_grid.max_imag_eigenvalue is not None else None
         ),
     }
 
@@ -222,18 +228,10 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
         "frac_type_ii": float(stats.frac_type_ii),
         "frac_type_iii": float(stats.frac_type_iii),
         "frac_type_iv": float(stats.frac_type_iv),
-        "nec_miss_rate": (
-            float(stats.nec_miss_rate) if stats.nec_miss_rate is not None else None
-        ),
-        "wec_miss_rate": (
-            float(stats.wec_miss_rate) if stats.wec_miss_rate is not None else None
-        ),
-        "sec_miss_rate": (
-            float(stats.sec_miss_rate) if stats.sec_miss_rate is not None else None
-        ),
-        "dec_miss_rate": (
-            float(stats.dec_miss_rate) if stats.dec_miss_rate is not None else None
-        ),
+        "nec_miss_rate": (float(stats.nec_miss_rate) if stats.nec_miss_rate is not None else None),
+        "wec_miss_rate": (float(stats.wec_miss_rate) if stats.wec_miss_rate is not None else None),
+        "sec_miss_rate": (float(stats.sec_miss_rate) if stats.sec_miss_rate is not None else None),
+        "dec_miss_rate": (float(stats.dec_miss_rate) if stats.dec_miss_rate is not None else None),
     }
 
     return {
@@ -319,8 +317,7 @@ def save_report(results: dict, start_time: str) -> None:
         lines.append(f"- Wall points (f in [{F_LOW}, {F_HIGH}]): {wall['n_total']}")
         lines.append(f"- Total grid points: {full['n_total']}")
         lines.append(
-            f"- Type-IV fraction: full={full['frac_type_iv']:.2%}, "
-            f"wall={wall['frac_type_iv']:.2%}"
+            f"- Type-IV fraction: full={full['frac_type_iv']:.2%}, wall={wall['frac_type_iv']:.2%}"
         )
         lines.append(
             f"- Type I/II/III/IV wall breakdown: "
@@ -404,12 +401,16 @@ def plot_type_breakdown(results: dict) -> None:
         wall = r["wall_restricted"]
 
         full_fracs = [
-            full["frac_type_i"], full["frac_type_ii"],
-            full["frac_type_iii"], full["frac_type_iv"],
+            full["frac_type_i"],
+            full["frac_type_ii"],
+            full["frac_type_iii"],
+            full["frac_type_iv"],
         ]
         wall_fracs = [
-            wall["frac_type_i"], wall["frac_type_ii"],
-            wall["frac_type_iii"], wall["frac_type_iv"],
+            wall["frac_type_i"],
+            wall["frac_type_ii"],
+            wall["frac_type_iii"],
+            wall["frac_type_iv"],
         ]
 
         x_full = x_centers[i] - bar_width / 2.0
@@ -422,17 +423,27 @@ def plot_type_breakdown(results: dict) -> None:
         for j in range(4):
             # full-grid (thin edge, no hatch unless lentz)
             ax.bar(
-                x_full, full_fracs[j], width=bar_width,
-                bottom=bottom_full, color=type_colors[j],
-                edgecolor="black", linewidth=0.5, hatch=hatch,
+                x_full,
+                full_fracs[j],
+                width=bar_width,
+                bottom=bottom_full,
+                color=type_colors[j],
+                edgecolor="black",
+                linewidth=0.5,
+                hatch=hatch,
                 label=type_labels[j] if i == 0 else None,
             )
             bottom_full += full_fracs[j]
             # wall-restricted (same color, distinct edge)
             ax.bar(
-                x_wall, wall_fracs[j], width=bar_width,
-                bottom=bottom_wall, color=type_colors[j],
-                edgecolor="black", linewidth=1.2, hatch=hatch,
+                x_wall,
+                wall_fracs[j],
+                width=bar_width,
+                bottom=bottom_wall,
+                color=type_colors[j],
+                edgecolor="black",
+                linewidth=1.2,
+                hatch=hatch,
             )
             bottom_wall += wall_fracs[j]
 
@@ -441,19 +452,16 @@ def plot_type_breakdown(results: dict) -> None:
     ax.set_xticklabels(metric_names, rotation=0)
     ax.set_ylabel("Type fraction")
     ax.set_ylim(0.0, 1.05)
-    ax.set_title(
-        f"Full grid (thin edge) vs wall f in [{F_LOW}, {F_HIGH}] (thick edge)"
-    )
+    ax.set_title(f"Full grid (thin edge) vs wall f in [{F_LOW}, {F_HIGH}] (thick edge)")
 
     # Legend: one entry per type, one entry explaining pairing
     from matplotlib.patches import Patch
+
     legend_handles = [
-        Patch(facecolor=type_colors[j], edgecolor="black", label=type_labels[j])
-        for j in range(4)
+        Patch(facecolor=type_colors[j], edgecolor="black", label=type_labels[j]) for j in range(4)
     ]
     legend_handles.append(
-        Patch(facecolor="white", edgecolor="black", hatch="//",
-              label="Lentz (unresolved)")
+        Patch(facecolor="white", edgecolor="black", hatch="//", label="Lentz (unresolved)")
     )
     ax.legend(handles=legend_handles, loc="upper right", ncol=2, fontsize=8)
 

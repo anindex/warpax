@@ -6,6 +6,7 @@ a publication-quality phase diagram and 2x2 summary figure.
     .venv/bin/python examples/10_phase_diagram.py          # 8x6 demo (~5 min)
     .venv/bin/python examples/10_phase_diagram.py --full    # 20x15 (~1 hour)
 """
+
 from __future__ import annotations
 
 import os
@@ -68,10 +69,12 @@ def main():
     admissible = [pt for pt in result.points if pt.ec_feasible]
     if admissible:
         best = max(admissible, key=lambda pt: pt.transport)
-        print(f"  Optimum: C={best.compactness:.3f}, "
-              f"dR/R={best.thickness_ratio:.3f}, "
-              f"|beta^x|={best.transport:.5f}, "
-              f"M={best.mass:.2f}")
+        print(
+            f"  Optimum: C={best.compactness:.3f}, "
+            f"dR/R={best.thickness_ratio:.3f}, "
+            f"|beta^x|={best.transport:.5f}, "
+            f"M={best.mass:.2f}"
+        )
     else:
         print("  No EC-admissible points found.")
 

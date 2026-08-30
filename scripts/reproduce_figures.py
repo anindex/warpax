@@ -1,4 +1,3 @@
-
 """Reproduce all paper figures from cached results.
 
 Single-command figure generator. Most figure sets load cached .npz/.json
@@ -19,6 +18,7 @@ Available figure sets: comparison, velocity_convergence, velocity, observer,
     convergence, kinematic, missed, geodesic, alignment, c1_vs_c2,
     rodal_dec_ablation, fibonacci_dec, shift_vorticity, velocity_summary
 """
+
 from __future__ import annotations
 
 import argparse
@@ -157,7 +157,10 @@ def generate_velocity_sweep_figures(figures_dir: str, results_dir: str) -> int:
     for cond in ("nec", "wec"):
         save_path = os.path.join(figures_dir, f"alcubierre_velocity_sweep_{cond}.pdf")
         plot_velocity_sweep(
-            results_dir, "alcubierre", condition=cond, save_path=save_path,
+            results_dir,
+            "alcubierre",
+            condition=cond,
+            save_path=save_path,
         )
         print(f"  Generated: {save_path}")
         count += 1
@@ -211,7 +214,9 @@ def generate_worst_observer_figures(figures_dir: str, results_dir: str) -> int:
                         significance_mask = significance_mask | cond_mask
 
         fig, ax = plt.subplots(
-            1, 1, figsize=(0.7 * DOUBLE_COL, 0.7 * DOUBLE_COL * 0.8),
+            1,
+            1,
+            figsize=(0.7 * DOUBLE_COL, 0.7 * DOUBLE_COL * 0.8),
         )
         plot_worst_observer_field(
             worst_params,
@@ -281,7 +286,9 @@ def generate_kinematic_figures(figures_dir: str, results_dir: str) -> int:
 
         save_path = os.path.join(figures_dir, f"{name}_kinematic.pdf")
         plot_kinematic_scalars(
-            theta, sigma_sq, omega_sq,
+            theta,
+            sigma_sq,
+            omega_sq,
             grid_bounds=grid_bounds,
             grid_shape=grid_shape,
             title=rf"{name.capitalize()} Kinematic Scalars ($v_s = 0.5$, ${grid_shape[0]}^3$ grid)",
@@ -316,7 +323,9 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
             available_data[v_s] = data
 
     if not available_data:
-        warnings.warn(f"Skipping missed-violations figure: no {metric_name} results found", stacklevel=2)
+        warnings.warn(
+            f"Skipping missed-violations figure: no {metric_name} results found", stacklevel=2
+        )
         return 0
 
     n_panels = len(available_data)
@@ -327,10 +336,15 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
 
     # GridSpec: 2×2 panels + 1 shared colorbar column
     fig = plt.figure(figsize=(DOUBLE_COL, DOUBLE_COL * 0.48 * nrows))
-    gs = fig.add_gridspec(nrows, ncols + 1,
-                          width_ratios=[1] * ncols + [0.03],
-                          wspace=0.08, hspace=0.3,
-                          top=0.88, bottom=0.08)
+    gs = fig.add_gridspec(
+        nrows,
+        ncols + 1,
+        width_ratios=[1] * ncols + [0.03],
+        wspace=0.08,
+        hspace=0.3,
+        top=0.88,
+        bottom=0.08,
+    )
     axes_flat = []
     for r in range(nrows):
         for c in range(ncols):
@@ -354,8 +368,13 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
         y_ax = np.linspace(grid_bounds[1][0], grid_bounds[1][1], grid_shape[1])
 
         last_im = ax.pcolormesh(
-            x_ax, y_ax, missed_2d.T,
-            cmap="Reds", vmin=0, vmax=1, shading="auto",
+            x_ax,
+            y_ax,
+            missed_2d.T,
+            cmap="Reds",
+            vmin=0,
+            vmax=1,
+            shading="auto",
         )
         pct_missed = float(np.mean(missed_3d.astype(float))) * 100.0
         pct_slice = float(np.mean(missed_2d)) * 100.0
@@ -529,7 +548,9 @@ def generate_fibonacci_dec_figure(figures_dir, results_dir):
     """Generate Fibonacci vs BFGS DEC sampling figure."""
     expected = os.path.join(figures_dir, "fibonacci_vs_bfgs_dec.pdf")
     _run_standalone_script(
-        "run_sampling_comparison.py", figures_dir, "--fibonacci-dec",
+        "run_sampling_comparison.py",
+        figures_dir,
+        "--fibonacci-dec",
     )
     if os.path.isfile(expected):
         print(f"  Generated: {expected}")
@@ -582,7 +603,9 @@ def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> 
         return 0
 
     fig, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(DOUBLE_COL, DOUBLE_COL * 0.4),
+        1,
+        2,
+        figsize=(DOUBLE_COL, DOUBLE_COL * 0.4),
     )
 
     # Panel (a): Velocity sweep

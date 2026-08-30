@@ -15,6 +15,7 @@ Usage
 -----
     python scripts/run_rodal_native_resolution.py
 """
+
 from __future__ import annotations
 
 import os

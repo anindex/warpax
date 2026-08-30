@@ -14,6 +14,7 @@ inner over observer samples (K). The tetrad is computed once per grid point.
 Cross-validation against BFGS optimization verifies that the coarse sweep
 catches violations wherever the optimizer does.
 """
+
 from __future__ import annotations
 
 import jax
@@ -52,11 +53,13 @@ def make_rapidity_observers(
     zetas = jnp.linspace(0.0, zeta_max, n_rapidity)
 
     # Fixed directions: along x (theta=pi/2, phi=0), y (theta=pi/2, phi=pi/2), z (theta=0, phi=0)
-    directions = jnp.array([
-        [jnp.pi / 2, 0.0],          # +x
-        [jnp.pi / 2, jnp.pi / 2],   # +y
-        [0.0, 0.0],                  # +z
-    ])[:n_directions]
+    directions = jnp.array(
+        [
+            [jnp.pi / 2, 0.0],  # +x
+            [jnp.pi / 2, jnp.pi / 2],  # +y
+            [0.0, 0.0],  # +z
+        ]
+    )[:n_directions]
 
     n_dirs = min(n_directions, directions.shape[0])
     zetas_col = jnp.broadcast_to(zetas[:, None, None], (n_rapidity, n_dirs, 1))
@@ -131,9 +134,7 @@ def sweep_wec_margins(
         WEC margin at each point for each observer.
         Negative values indicate WEC violation.
     """
-    return jax.vmap(_point_sweep_wec, in_axes=(0, 0, None))(
-        T_field, g_field, observer_params
-    )
+    return jax.vmap(_point_sweep_wec, in_axes=(0, 0, None))(T_field, g_field, observer_params)
 
 
 def _point_sweep_nec(
@@ -172,9 +173,7 @@ def sweep_nec_margins(
     Float[Array, "N K"]
         NEC margin at each point for each null direction.
     """
-    return jax.vmap(_point_sweep_nec, in_axes=(0, 0, None))(
-        T_field, g_field, observer_params
-    )
+    return jax.vmap(_point_sweep_nec, in_axes=(0, 0, None))(T_field, g_field, observer_params)
 
 
 def _point_sweep_sec(
@@ -228,9 +227,7 @@ def sweep_all_margins(
     # SEC: (T_{ab} - 0.5 T g_{ab}) u^a u^b for timelike observers
     T_trace = jnp.einsum("nab,nab->n", g_inv_field, T_field)  # (N,)
     sec_tensor = T_field - 0.5 * T_trace[:, None, None] * g_field  # (N, 4, 4)
-    sec = jax.vmap(_point_sweep_sec, in_axes=(0, 0, None))(
-        sec_tensor, g_field, observer_params
-    )
+    sec = jax.vmap(_point_sweep_sec, in_axes=(0, 0, None))(sec_tensor, g_field, observer_params)
 
     return {"wec": wec, "nec": nec, "sec": sec}
 
@@ -307,7 +304,8 @@ def cross_validate_sweep(
 
         key, subkey = jax.random.split(key)
         bfgs_result = optimize_wec(
-            T_point, g_point,
+            T_point,
+            g_point,
             n_starts=n_starts,
             zeta_max=zeta_max,
             key=subkey,
@@ -331,6 +329,7 @@ def cross_validate_sweep(
         rel_errors.append(rel_err)
 
     import numpy as np
+
     rel_errors = np.array(rel_errors)
 
     return {

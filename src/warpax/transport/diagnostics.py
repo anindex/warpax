@@ -11,6 +11,7 @@ Three observables for admissibility assessment:
 Built on warpax.geodesics (Diffrax integration, Jacobi deviation,
 blueshift observables).
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -96,10 +97,14 @@ def null_coord_time_asymmetry(
     # Forward leg: emitter -> receiver
     _, k0_fwd = null_ic(metric_fn, emitter, dx_safe)
     sol_fwd = integrate_geodesic(
-        metric_fn, emitter, k0_fwd,
+        metric_fn,
+        emitter,
+        k0_fwd,
         tau_span=(0.0, tau_max),
         num_points=num_points,
-        dt0=dt0, rtol=rtol, atol=atol,
+        dt0=dt0,
+        rtol=rtol,
+        atol=atol,
     )
 
     # Find arrival: closest approach to receiver position
@@ -118,10 +123,14 @@ def null_coord_time_asymmetry(
     )
     _, k0_bwd = null_ic(metric_fn, arrival_pos, dx_back_safe)
     sol_bwd = integrate_geodesic(
-        metric_fn, arrival_pos, k0_bwd,
+        metric_fn,
+        arrival_pos,
+        k0_bwd,
         tau_span=(0.0, tau_max),
         num_points=num_points,
-        dt0=dt0, rtol=rtol, atol=atol,
+        dt0=dt0,
+        rtol=rtol,
+        atol=atol,
     )
 
     # Find return: closest approach to emitter position
@@ -201,14 +210,16 @@ def blueshift_hazard(
     u_observer = jnp.array([u_t, 0.0, 0.0, 0.0], dtype=emitter.dtype)
 
     # Probe directions: +/-x, +/-y, +/-z (or fewer)
-    directions = jnp.stack([
-        jnp.array([1.0, 0.0, 0.0]),
-        jnp.array([-1.0, 0.0, 0.0]),
-        jnp.array([0.0, 1.0, 0.0]),
-        jnp.array([0.0, -1.0, 0.0]),
-        jnp.array([0.0, 0.0, 1.0]),
-        jnp.array([0.0, 0.0, -1.0]),
-    ])[:n_directions]
+    directions = jnp.stack(
+        [
+            jnp.array([1.0, 0.0, 0.0]),
+            jnp.array([-1.0, 0.0, 0.0]),
+            jnp.array([0.0, 1.0, 0.0]),
+            jnp.array([0.0, -1.0, 0.0]),
+            jnp.array([0.0, 0.0, 1.0]),
+            jnp.array([0.0, 0.0, -1.0]),
+        ]
+    )[:n_directions]
 
     def omega_at(x, k):
         g_at = metric_fn(x)
@@ -219,17 +230,19 @@ def blueshift_hazard(
     def _hazard_one(d):
         _, k0 = null_ic(metric_fn, emitter, d)
         sol = integrate_geodesic(
-            metric_fn, emitter, k0,
+            metric_fn,
+            emitter,
+            k0,
             tau_span=(0.0, tau_max),
             num_points=num_points,
-            dt0=0.01, rtol=1e-8, atol=1e-8,
+            dt0=0.01,
+            rtol=1e-8,
+            atol=1e-8,
         )
         # omega = -g_{ab} k^a u^b for a static observer
         omega_emit = -jnp.einsum("ab,a,b", g, k0, u_observer)
         omegas = jax.vmap(omega_at)(sol.positions, sol.velocities)
-        log_shifts = jnp.abs(
-            jnp.log(jnp.maximum(jnp.abs(omegas / omega_emit), 1e-30))
-        )
+        log_shifts = jnp.abs(jnp.log(jnp.maximum(jnp.abs(omegas / omega_emit), 1e-30)))
         return jnp.max(log_shifts)
 
     max_log_shift = jnp.max(jax.vmap(_hazard_one)(directions))

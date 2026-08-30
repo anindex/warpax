@@ -25,6 +25,7 @@ Usage
     PYTHONPATH=src python scripts/run_clustered_convergence.py
     PYTHONPATH=src python scripts/run_clustered_convergence.py --include-rodal-matched
 """
+
 from __future__ import annotations
 
 import argparse
@@ -80,8 +81,12 @@ def run_single(
 
     t0 = time.time()
     comparison = compare_eulerian_vs_robust(
-        curv.stress_energy, curv.metric, curv.metric_inv, grid_spec.shape,
-        n_starts=n_starts, batch_size=batch_size,
+        curv.stress_energy,
+        curv.metric,
+        curv.metric_inv,
+        grid_spec.shape,
+        n_starts=n_starts,
+        batch_size=batch_size,
     )
     t_vg = time.time() - t0
 
@@ -94,9 +99,7 @@ def run_single(
         sec_margins=comparison.robust_margins["sec"],
         dec_margins=comparison.robust_margins["dec"],
     )
-    eulerian_margins = {
-        c: comparison.eulerian_margins[c] for c in ("nec", "wec", "sec", "dec")
-    }
+    eulerian_margins = {c: comparison.eulerian_margins[c] for c in ("nec", "wec", "sec", "dec")}
 
     coords = build_coord_batch(grid_spec, t=0.0)
     mask = shape_function_mask(metric, coords, grid_spec.shape, f_low=F_LOW, f_high=F_HIGH)
@@ -104,7 +107,10 @@ def run_single(
     # raw point-fraction behavior exactly.
     vol_w = proper_volume_weights(grid_spec.volume_weights_array, curv.metric)
     wall = compute_wall_restricted_stats(
-        ec, mask, eulerian_margins=eulerian_margins, volume_weights=vol_w,
+        ec,
+        mask,
+        eulerian_margins=eulerian_margins,
+        volume_weights=vol_w,
     )
 
     def _rate(x):
@@ -152,15 +158,27 @@ def alcubierre_panel(args) -> dict:
         gs_uniform = GridSpec(bounds=bounds, shape=shape)
         print(f"\n--- Alcubierre uniform {N}^3 ---")
         panel["results"].append(
-            run_single("alcubierre", metric, gs_uniform, f"uniform_{N}",
-                       n_starts=args.n_starts, batch_size=args.batch_size)
+            run_single(
+                "alcubierre",
+                metric,
+                gs_uniform,
+                f"uniform_{N}",
+                n_starts=args.n_starts,
+                batch_size=args.batch_size,
+            )
         )
         # Wall-clustered grid (a=1.2 empirical, wall radius inferred)
         gs_clustered = wall_clustered(metric, bounds, shape, a=1.2)
         print(f"\n--- Alcubierre wall-clustered {N}^3 (a=1.2) ---")
         panel["results"].append(
-            run_single("alcubierre", metric, gs_clustered, f"clustered_{N}",
-                       n_starts=args.n_starts, batch_size=args.batch_size)
+            run_single(
+                "alcubierre",
+                metric,
+                gs_clustered,
+                f"clustered_{N}",
+                n_starts=args.n_starts,
+                batch_size=args.batch_size,
+            )
         )
 
     return panel
@@ -185,13 +203,19 @@ def rodal_matched_panel(args) -> dict:
         gs_clustered = wall_clustered(metric, bounds, shape, a=1.2)
         print(f"\n--- Rodal matched clustered {N}^3 ---")
         try:
-            res = run_single("rodal_matched", metric, gs_clustered,
-                             f"clustered_{N}", n_starts=args.n_starts,
-                             batch_size=args.batch_size)
+            res = run_single(
+                "rodal_matched",
+                metric,
+                gs_clustered,
+                f"clustered_{N}",
+                n_starts=args.n_starts,
+                batch_size=args.batch_size,
+            )
         except Exception as exc:
             print(f"    FAILED: {exc}")
             res = {
-                "metric": "rodal_matched", "grid": f"clustered_{N}",
+                "metric": "rodal_matched",
+                "grid": f"clustered_{N}",
                 "error": str(exc),
             }
         panel["results"].append(res)
@@ -206,10 +230,10 @@ def write_convergence_table(panel: dict, out_path: str) -> None:
         return
 
     clustered = [r for r in rows if r["grid"].startswith("clustered_")]
-    uniform   = [r for r in rows if r["grid"].startswith("uniform_")]
+    uniform = [r for r in rows if r["grid"].startswith("uniform_")]
 
     def fmt_pct(x):
-        return f"{100*x:.2f}" if x is not None and not (isinstance(x, float) and x != x) else "--"
+        return f"{100 * x:.2f}" if x is not None and not (isinstance(x, float) and x != x) else "--"
 
     lines = [
         r"\begin{tabular}{@{}l c c c c c@{}}",
@@ -238,20 +262,28 @@ def write_convergence_table(panel: dict, out_path: str) -> None:
     lines.append(r"\end{tabular}")
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_clustered_convergence.py",
-                    sources="results/clustered_convergence_alcubierre.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_clustered_convergence.py",
+        sources="results/clustered_convergence_alcubierre.json",
+    )
     print(f"  Wrote {out_path}")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--resolutions", type=int, nargs="+",
-                        default=[25, 50])  # 100^3 too expensive at default
+    parser.add_argument(
+        "--resolutions", type=int, nargs="+", default=[25, 50]
+    )  # 100^3 too expensive at default
     parser.add_argument("--n-starts", type=int, default=4)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--results-dir", type=str, default="results")
-    parser.add_argument("--include-rodal-matched", action="store_true",
-                        help="Also run matched-parameter Rodal feasibility check.")
+    parser.add_argument(
+        "--include-rodal-matched",
+        action="store_true",
+        help="Also run matched-parameter Rodal feasibility check.",
+    )
     args = parser.parse_args()
 
     os.makedirs(args.results_dir, exist_ok=True)
@@ -265,8 +297,7 @@ def main():
 
     if args.include_rodal_matched:
         rodal_panel = rodal_matched_panel(args)
-        out_rodal = os.path.join(args.results_dir,
-                                 "clustered_convergence_rodal_matched.json")
+        out_rodal = os.path.join(args.results_dir, "clustered_convergence_rodal_matched.json")
         dump_json(rodal_panel, out_rodal)
         print(f"Wrote {out_rodal}")
 
@@ -277,8 +308,8 @@ def main():
     for r in alc_panel["results"]:
         print(
             f"  {r['grid']:<14s}  N_wall={r['wall_n_total']:5d}  "
-            f"Wall%TypeIV={100*r['wall_frac_type_iv']:5.1f}  "
-            f"Full%TypeI={100*r['full_frac_type_i']:5.1f}  "
+            f"Wall%TypeIV={100 * r['wall_frac_type_iv']:5.1f}  "
+            f"Full%TypeI={100 * r['full_frac_type_i']:5.1f}  "
             f"NaN_vac={r['n_vacuum']}"
         )
 

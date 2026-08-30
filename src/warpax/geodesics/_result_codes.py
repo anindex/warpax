@@ -7,6 +7,7 @@ robust conversion used by :mod:`warpax.averaged.anec` and
 :mod:`warpax.averaged.awec` so a non-convertible result is *never*
 silently mapped to success.
 """
+
 from __future__ import annotations
 
 # Sentinel for a result object we could not convert; maps to reason
@@ -21,20 +22,20 @@ RESULT_SUCCESS = 0
 # index -> member name via ``RESULTS._name_to_item``).
 TERMINATION_REASONS: dict[int, str] = {
     RESULT_UNKNOWN: "unknown",
-    0: "complete",              # successful
-    1: "max_steps",             # max_steps_reached
-    2: "singular",              # singular (linear solve)
-    3: "breakdown",             # iterative linear-solve breakdown
-    4: "stagnation",            # iterative linear-solve stagnation
-    5: "conlim",                # condition-number limit exceeded
-    6: "nonfinite_input",       # non-finite linear-solve input
-    7: "nonlinear_max_steps",   # nonlinear_max_steps_reached
+    0: "complete",  # successful
+    1: "max_steps",  # max_steps_reached
+    2: "singular",  # singular (linear solve)
+    3: "breakdown",  # iterative linear-solve breakdown
+    4: "stagnation",  # iterative linear-solve stagnation
+    5: "conlim",  # condition-number limit exceeded
+    6: "nonfinite_input",  # non-finite linear-solve input
+    7: "nonlinear_max_steps",  # nonlinear_max_steps_reached
     8: "nonlinear_divergence",  # nonlinear solve diverged
-    9: "nonfinite",             # non-finite values during solve
-    10: "dt_min_reached",       # minimum step size reached
-    11: "event_occurred",       # terminating event triggered
-    12: "max_steps_rejected",   # max rejected steps reached
-    13: "internal_error",       # diffrax internal error
+    9: "nonfinite",  # non-finite values during solve
+    10: "dt_min_reached",  # minimum step size reached
+    11: "event_occurred",  # terminating event triggered
+    12: "max_steps_rejected",  # max rejected steps reached
+    13: "internal_error",  # diffrax internal error
 }
 
 

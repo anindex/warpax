@@ -15,6 +15,7 @@ many warp metrics are presented with claimed energy conditions based
 on T = G/8pi, but when an explicit source is postulated, the actual
 T_input may differ.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

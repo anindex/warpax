@@ -4,6 +4,7 @@ Produces figures showing:
 - Log-log convergence plot with fitted order line
 - Convergence summary table
 """
+
 from __future__ import annotations
 
 import json
@@ -83,15 +84,25 @@ def plot_convergence(
     # error is exactly zero and cannot be drawn on a log axis. Plot the levels
     # that carry information rather than clamping it to 1e-30 off the bottom.
     finite = errors > 0.0
-    h, errors, values = h[finite], errors[finite], [v for v, k in zip(values, finite, strict=True) if k]
+    h, errors, values = (
+        h[finite],
+        errors[finite],
+        [v for v, k in zip(values, finite, strict=True) if k],
+    )
 
-    fig, ax = (ax.figure, ax) if ax is not None else plt.subplots(figsize=(SINGLE_COL, SINGLE_COL * 0.8))
+    fig, ax = (
+        (ax.figure, ax) if ax is not None else plt.subplots(figsize=(SINGLE_COL, SINGLE_COL * 0.8))
+    )
 
     # Data points
     ax.loglog(
-        h, errors,
-        color=COLORS[0], marker=LINE_STYLES[0]["marker"],
-        markersize=5, linestyle="none", label="Data",
+        h,
+        errors,
+        color=COLORS[0],
+        marker=LINE_STYLES[0]["marker"],
+        markersize=5,
+        linestyle="none",
+        label="Data",
     )
 
     # Fitted line: error ~ C * h^p
@@ -102,9 +113,12 @@ def plot_convergence(
         C = errors[0] / h[0] ** p
         h_fine = np.logspace(np.log10(h[-1] * 0.5), np.log10(h[0] * 2), 50)
         ax.loglog(
-            h_fine, C * h_fine**p,
-            color=COLORS[1], linestyle=LINE_STYLES[1]["linestyle"],
-            linewidth=1, label=f"$p = {p:.2f}$",
+            h_fine,
+            C * h_fine**p,
+            color=COLORS[1],
+            linestyle=LINE_STYLES[1]["linestyle"],
+            linewidth=1,
+            label=f"$p = {p:.2f}$",
         )
 
     ax.set_xlabel(r"Grid spacing $h \propto 1/N$")
@@ -159,15 +173,21 @@ def plot_convergence_table(
             row = [qname]
             for v in qdata["values"]:
                 row.append(f"{v:.4e}")
-            row.append(f"{qdata.get('extrapolated_value', 'N/A'):.4e}"
-                       if isinstance(qdata.get("extrapolated_value"), (int, float))
-                       else "N/A")
-            row.append(f"{qdata.get('observed_order', 'N/A'):.2f}"
-                       if isinstance(qdata.get("observed_order"), (int, float))
-                       else "N/A")
-            row.append(f"{qdata.get('error_estimate', 'N/A'):.2e}"
-                       if isinstance(qdata.get("error_estimate"), (int, float))
-                       else "N/A")
+            row.append(
+                f"{qdata.get('extrapolated_value', 'N/A'):.4e}"
+                if isinstance(qdata.get("extrapolated_value"), (int, float))
+                else "N/A"
+            )
+            row.append(
+                f"{qdata.get('observed_order', 'N/A'):.2f}"
+                if isinstance(qdata.get("observed_order"), (int, float))
+                else "N/A"
+            )
+            row.append(
+                f"{qdata.get('error_estimate', 'N/A'):.2e}"
+                if isinstance(qdata.get("error_estimate"), (int, float))
+                else "N/A"
+            )
             cell_data.append(row)
 
     n_rows = len(cell_data)

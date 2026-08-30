@@ -14,6 +14,7 @@ Index conventions:
 - Einstein ``G_{ab}``, shape ``(4, 4)``.
 - Stress-energy ``T_{ab}``, shape ``(4, 4)``.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -27,6 +28,7 @@ from jaxtyping import Array, Float
 
 class CurvatureResult(NamedTuple):
     """All tensors from the curvature computation chain at a single point."""
+
     metric: Float[Array, "4 4"]
     metric_inv: Float[Array, "4 4"]
     christoffel: Float[Array, "4 4 4"]
@@ -62,9 +64,9 @@ def christoffel_symbols(
 
     # Gamma^lam_{mu nu} = 0.5 * g^{lam sig} * (d_mu g_{nu sig} + d_nu g_{mu sig} - d_sig g_{mu nu})
     # In dg indexing: d_mu g_{nu sig} = dg[nu, sig, mu]
-    term1 = jnp.einsum('ls,nsm->lmn', g_inv, dg)  # g^{ls} d_m g_{ns}
-    term2 = jnp.einsum('ls,msn->lmn', g_inv, dg)  # g^{ls} d_n g_{ms}
-    term3 = jnp.einsum('ls,mns->lmn', g_inv, dg)  # g^{ls} d_s g_{mn}
+    term1 = jnp.einsum("ls,nsm->lmn", g_inv, dg)  # g^{ls} d_m g_{ns}
+    term2 = jnp.einsum("ls,msn->lmn", g_inv, dg)  # g^{ls} d_n g_{ms}
+    term3 = jnp.einsum("ls,mns->lmn", g_inv, dg)  # g^{ls} d_s g_{mn}
 
     return 0.5 * (term1 + term2 - term3)
 
@@ -97,6 +99,7 @@ def riemann_tensor(
         Riemann tensor of shape (4, 4, 4, 4) with index convention
         R^lam_{mu nu rho}.
     """
+
     def gamma_at(x):
         return christoffel_symbols(metric_fn, x)
 
@@ -109,8 +112,8 @@ def riemann_tensor(
     deriv_term = jnp.swapaxes(dgamma, 2, 3) - dgamma
 
     # Quadratic terms
-    quad_pos = jnp.einsum('lsn,smr->lmnr', gamma, gamma)  # Gamma^l_{sn} Gamma^s_{mr}
-    quad_neg = jnp.einsum('lsr,smn->lmnr', gamma, gamma)  # Gamma^l_{sr} Gamma^s_{mn}
+    quad_pos = jnp.einsum("lsn,smr->lmnr", gamma, gamma)  # Gamma^l_{sn} Gamma^s_{mr}
+    quad_neg = jnp.einsum("lsr,smn->lmnr", gamma, gamma)  # Gamma^l_{sr} Gamma^s_{mn}
 
     return deriv_term + quad_pos - quad_neg
 
@@ -126,7 +129,7 @@ def ricci_tensor(riemann: Float[Array, "4 4 4 4"]) -> Float[Array, "4 4"]:
     Returns:
         Ricci tensor of shape (4, 4).
     """
-    return jnp.einsum('lmlr->mr', riemann)
+    return jnp.einsum("lmlr->mr", riemann)
 
 
 def ricci_scalar(
@@ -144,7 +147,7 @@ def ricci_scalar(
     Returns:
         Ricci scalar (scalar array).
     """
-    return jnp.einsum('mn,mn->', g_inv, ricci)
+    return jnp.einsum("mn,mn->", g_inv, ricci)
 
 
 def einstein_tensor(

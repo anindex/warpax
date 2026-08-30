@@ -37,12 +37,14 @@ class MinkowskiMetric(MetricSpecification):
     def symbolic(self) -> SymbolicMetric:
         """Return SymPy symbolic form for inspection and cross-validation."""
         t, x, y, z = sp.symbols("t x y z")
-        g = sp.Matrix([
-            [-1, 0, 0, 0],
-            [0, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-1, 0, 0, 0],
+                [0, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:

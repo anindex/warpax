@@ -47,7 +47,7 @@ class SchwarzschildMetric(MetricSpecification):
         psi4 = (1.0 + ratio) ** 4
 
         g = jnp.zeros((4, 4))
-        g = g.at[0, 0].set(-alpha**2)
+        g = g.at[0, 0].set(-(alpha**2))
         g = g.at[1, 1].set(psi4)
         g = g.at[2, 2].set(psi4)
         g = g.at[3, 3].set(psi4)
@@ -68,12 +68,14 @@ class SchwarzschildMetric(MetricSpecification):
         alpha = (1 - ratio) / (1 + ratio)
         psi4 = (1 + ratio) ** 4
 
-        g = sp.Matrix([
-            [-alpha**2, 0, 0, 0],
-            [0, psi4, 0, 0],
-            [0, 0, psi4, 0],
-            [0, 0, 0, psi4],
-        ])
+        g = sp.Matrix(
+            [
+                [-(alpha**2), 0, 0, 0],
+                [0, psi4, 0, 0],
+                [0, 0, psi4, 0],
+                [0, 0, 0, psi4],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:
@@ -97,12 +99,14 @@ def schwarzschild_symbolic(M: sp.Symbol | None = None) -> SymbolicMetric:
     alpha = (1 - ratio) / (1 + ratio)
     psi4 = (1 + ratio) ** 4
 
-    g = sp.Matrix([
-        [-alpha**2, 0, 0, 0],
-        [0, psi4, 0, 0],
-        [0, 0, psi4, 0],
-        [0, 0, 0, psi4],
-    ])
+    g = sp.Matrix(
+        [
+            [-(alpha**2), 0, 0, 0],
+            [0, psi4, 0, 0],
+            [0, 0, psi4, 0],
+            [0, 0, 0, psi4],
+        ]
+    )
     return SymbolicMetric([t, x, y, z], g)
 
 

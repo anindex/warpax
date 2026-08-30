@@ -47,8 +47,11 @@ class ECFourWayAlcubierre:
     def time_tanh_baseline(self) -> None:
         """Curve 1: tanh + cold + axis+gaussian (baseline)."""
         r = optimize_wec(
-            self.T, self.g, key=self.key,
-            strategy="tanh", warm_start="cold",
+            self.T,
+            self.g,
+            key=self.key,
+            strategy="tanh",
+            warm_start="cold",
             starts="axis+gaussian",
         )
         r.margin.block_until_ready()
@@ -56,8 +59,11 @@ class ECFourWayAlcubierre:
     def time_hard_bound_alone(self) -> None:
         """Curve 2: hard_bound + cold + axis+gaussian."""
         r = optimize_wec(
-            self.T, self.g, key=self.key,
-            strategy="hard_bound", warm_start="cold",
+            self.T,
+            self.g,
+            key=self.key,
+            strategy="hard_bound",
+            warm_start="cold",
             starts="axis+gaussian",
         )
         r.margin.block_until_ready()
@@ -65,8 +71,11 @@ class ECFourWayAlcubierre:
     def time_hard_bound_plus_spatial_neighbor(self) -> None:
         """Curve 3: hard_bound + spatial_neighbor."""
         r = optimize_wec(
-            self.T, self.g, key=self.key,
-            strategy="hard_bound", warm_start="spatial_neighbor",
+            self.T,
+            self.g,
+            key=self.key,
+            strategy="hard_bound",
+            warm_start="spatial_neighbor",
             starts="axis+gaussian",
         )
         r.margin.block_until_ready()
@@ -74,8 +83,11 @@ class ECFourWayAlcubierre:
     def time_hard_bound_plus_fibonacci_pool(self) -> None:
         """Curve 4: hard_bound + fibonacci+bfgs_top_k."""
         r = optimize_wec(
-            self.T, self.g, key=self.key,
-            strategy="hard_bound", warm_start="cold",
+            self.T,
+            self.g,
+            key=self.key,
+            strategy="hard_bound",
+            warm_start="cold",
             starts="fibonacci+bfgs_top_k",
         )
         r.margin.block_until_ready()

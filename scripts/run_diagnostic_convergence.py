@@ -27,6 +27,7 @@ Outputs
 - results/diagnostic_convergence.json
 - ../warpax_arxiv/tables/diagnostic_convergence.tex
 """
+
 from __future__ import annotations
 
 import os
@@ -93,8 +94,7 @@ def _grid_diagnostics(metric, N):
     curv = evaluate_curvature_grid(metric, grid, batch_size=4096)
     coords = build_coord_batch(grid, t=0.0)
     mask = shape_function_mask(metric, coords, grid.shape)
-    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv,
-                                 lmi_where=mask)
+    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv, lmi_where=mask)
     vol_w = proper_volume_weights(grid.volume_weights_array, curv.metric)
     fracs = type_fractions(ff, mask=mask, volume_weights=vol_w)
     m = np.asarray(mask).ravel().astype(bool)
@@ -117,8 +117,7 @@ def _grid_diagnostics(metric, N):
     # vorticity scalar to the full shift-gradient magnitude). Same definition as
     # run_shift_vorticity.wall_decomposition; reported across the ladder to show
     # it is grid-stable.
-    theta, sigma_sq, omega_sq = compute_shift_kinematics_grid(
-        metric, grid, t=0.0, batch_size=512)
+    theta, sigma_sq, omega_sq = compute_shift_kinematics_grid(metric, grid, t=0.0, batch_size=512)
     wv = np.where(m, np.asarray(vol_w).reshape(-1), 0.0)
     wsum = float(wv.sum())
     exp = float((wv * (np.asarray(theta).reshape(-1) ** 2 / 3.0)).sum() / wsum)
@@ -138,20 +137,27 @@ def _grid_diagnostics(metric, N):
         jnp.reshape(curv.metric_inv, (-1, 4, 4)),
     )
     ec = SimpleNamespace(
-        he_types=ff.he_types, nec_margins=ff.nec_margins,
-        wec_margins=ff.wec_margins, sec_margins=ff.sec_margins,
-        dec_margins=ff.dec_margins, eigenvalues=ff.eigenvalues)
+        he_types=ff.he_types,
+        nec_margins=ff.nec_margins,
+        wec_margins=ff.wec_margins,
+        sec_margins=ff.sec_margins,
+        dec_margins=ff.dec_margins,
+        eigenvalues=ff.eigenvalues,
+    )
     eul_m = {c: jnp.reshape(eul[c], grid.shape) for c in ("nec", "wec", "sec", "dec")}
-    wr = compute_wall_restricted_stats(
-        ec, mask, eulerian_margins=eul_m, volume_weights=vol_w)
+    wr = compute_wall_restricted_stats(ec, mask, eulerian_margins=eul_m, volume_weights=vol_w)
 
     return {
         "type_iv_frac": fracs["frac_type_iv"],
-        "max_imag": max_imag, "seed_imag": seed_imag,
-        "nec_min": nec_min, "seed_nec": seed_nec,
-        "dec_min": dec_min, "seed_dec": seed_dec,
+        "max_imag": max_imag,
+        "seed_imag": seed_imag,
+        "nec_min": nec_min,
+        "seed_nec": seed_nec,
+        "dec_min": dec_min,
+        "seed_dec": seed_dec,
         "r_omega": r_omega,
-        "wec_miss": wr.wec_miss_rate, "dec_miss": wr.dec_miss_rate,
+        "wec_miss": wr.wec_miss_rate,
+        "dec_miss": wr.dec_miss_rate,
     }
 
 
@@ -169,8 +175,7 @@ def _masked_min(field, sel, shape, axes):
 def _polish(metric, seed, field_fn, mode):
     if seed is None:
         return None
-    res = refine_extremum(metric, seed, field_fn, mode=mode,
-                          half_width=0.15, n=9, levels=7)
+    res = refine_extremum(metric, seed, field_fn, mode=mode, half_width=0.15, n=9, levels=7)
     return res["value"]
 
 
@@ -216,7 +221,12 @@ def write_table(results, wall_info, out_path):
     lines[-1] = r"  \bottomrule"
     lines.append(r"\end{tabular}")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_diagnostic_convergence.py", sources="results/diagnostic_convergence.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_diagnostic_convergence.py",
+        sources="results/diagnostic_convergence.json",
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -230,14 +240,25 @@ def main():
         print(f"\n{name}:")
         wc = {N: wall_cells(metric, N) for N in N_LADDER}
         wall_info[name] = {str(N): {"cells": wc[N][0], "dx_wall": wc[N][1]} for N in N_LADDER}
-        print("  wall cells: " + ", ".join(f"N={N}:{wc[N][0]}c/dx={wc[N][1]:.3f}" for N in N_LADDER))
-        series = {k: [] for k in ("type_iv_frac", "max_imag", "nec_min", "dec_min",
-                                   "r_omega", "wec_miss", "dec_miss")}
+        print(
+            "  wall cells: " + ", ".join(f"N={N}:{wc[N][0]}c/dx={wc[N][1]:.3f}" for N in N_LADDER)
+        )
+        series = {
+            k: []
+            for k in (
+                "type_iv_frac",
+                "max_imag",
+                "nec_min",
+                "dec_min",
+                "r_omega",
+                "wec_miss",
+                "dec_miss",
+            )
+        }
         # Track the most extreme SAMPLE across the whole ladder (not just the
         # finest grid): a coarser grid can catch a deeper/higher sample the finest
         # grid misses by alignment, and the polish must be seeded from that.
-        best = {"max_imag": (-np.inf, None), "nec_min": (np.inf, None),
-                "dec_min": (np.inf, None)}
+        best = {"max_imag": (-np.inf, None), "nec_min": (np.inf, None), "dec_min": (np.inf, None)}
         for N in N_LADDER:
             d = _grid_diagnostics(metric, N)
             for k in series:
@@ -248,20 +269,28 @@ def main():
                 best["nec_min"] = (d["nec_min"], d["seed_nec"])
             if d["dec_min"] is not None and d["dec_min"] < best["dec_min"][0]:
                 best["dec_min"] = (d["dec_min"], d["seed_dec"])
-            print(f"  N={N}: TypeIV={d['type_iv_frac']:.3f} max|Im|={d['max_imag']:.4f} "
-                  f"NECmin={_f(d['nec_min'])} DECmin={_f(d['dec_min'])}")
+            print(
+                f"  N={N}: TypeIV={d['type_iv_frac']:.3f} max|Im|={d['max_imag']:.4f} "
+                f"NECmin={_f(d['nec_min'])} DECmin={_f(d['dec_min'])}"
+            )
         # Continuum polish, seeded from the ladder's most extreme sample and
         # guaranteed at least as extreme as every sample (a grid sample is a valid
         # field value, so the continuum extremum cannot be less extreme than it).
         pi = _polish(metric, best["max_imag"][1], _field_max_imag, "max")
         pol_imag = max(best["max_imag"][0], pi) if pi is not None else best["max_imag"][0]
         pn = _polish(metric, best["nec_min"][1], lambda c: _field_typeI(c, "nec"), "min")
-        pol_nec = (min(best["nec_min"][0], pn) if pn is not None
-                   else (best["nec_min"][0] if np.isfinite(best["nec_min"][0]) else None))
+        pol_nec = (
+            min(best["nec_min"][0], pn)
+            if pn is not None
+            else (best["nec_min"][0] if np.isfinite(best["nec_min"][0]) else None)
+        )
         pd = _polish(metric, best["dec_min"][1], lambda c: _field_typeI(c, "dec"), "min")
-        pol_dec = (min(best["dec_min"][0], pd) if pd is not None
-                   else (best["dec_min"][0] if np.isfinite(best["dec_min"][0]) else None))
-        print(f"  polished: max|Im|={_f(pol_imag,4)} NECmin={_f(pol_nec)} DECmin={_f(pol_dec)}")
+        pol_dec = (
+            min(best["dec_min"][0], pd)
+            if pd is not None
+            else (best["dec_min"][0] if np.isfinite(best["dec_min"][0]) else None)
+        )
+        print(f"  polished: max|Im|={_f(pol_imag, 4)} NECmin={_f(pol_nec)} DECmin={_f(pol_dec)}")
 
         st = f_miss_stability([v * 100 for v in series["type_iv_frac"]])
         stw = f_miss_stability([v * 100 for v in series["r_omega"]])
@@ -269,24 +298,46 @@ def main():
         # that condition); certify their grid stability like the other fractions.
         stwec = f_miss_stability([(v or 0.0) * 100 for v in series["wec_miss"]])
         stdec = f_miss_stability([(v or 0.0) * 100 for v in series["dec_miss"]])
-        print(f"  WEC miss={_f(series['wec_miss'][-1])} DEC miss={_f(series['dec_miss'][-1])} "
-              f"(spread {_f(stwec['max_dev_pp'],2)}/{_f(stdec['max_dev_pp'],2)} pp)")
+        print(
+            f"  WEC miss={_f(series['wec_miss'][-1])} DEC miss={_f(series['dec_miss'][-1])} "
+            f"(spread {_f(stwec['max_dev_pp'], 2)}/{_f(stdec['max_dev_pp'], 2)} pp)"
+        )
         results[name] = {
-            "type_iv_frac": {"ladder": series["type_iv_frac"],
-                             "max_dev_pp": st["max_dev_pp"], "stable": bool(st["stable"])},
+            "type_iv_frac": {
+                "ladder": series["type_iv_frac"],
+                "max_dev_pp": st["max_dev_pp"],
+                "stable": bool(st["stable"]),
+            },
             "max_imag": {"ladder": series["max_imag"], "polished": pol_imag},
             "nec_min": {"ladder": series["nec_min"], "polished": pol_nec},
             "dec_min": {"ladder": series["dec_min"], "polished": pol_dec},
-            "r_omega": {"ladder": series["r_omega"],
-                        "max_dev_pp": stw["max_dev_pp"], "stable": bool(stw["stable"])},
-            "wec_miss": {"ladder": series["wec_miss"],
-                         "max_dev_pp": stwec["max_dev_pp"], "stable": bool(stwec["stable"])},
-            "dec_miss": {"ladder": series["dec_miss"],
-                         "max_dev_pp": stdec["max_dev_pp"], "stable": bool(stdec["stable"])},
+            "r_omega": {
+                "ladder": series["r_omega"],
+                "max_dev_pp": stw["max_dev_pp"],
+                "stable": bool(stw["stable"]),
+            },
+            "wec_miss": {
+                "ladder": series["wec_miss"],
+                "max_dev_pp": stwec["max_dev_pp"],
+                "stable": bool(stwec["stable"]),
+            },
+            "dec_miss": {
+                "ladder": series["dec_miss"],
+                "max_dev_pp": stdec["max_dev_pp"],
+                "stable": bool(stdec["stable"]),
+            },
         }
-    dump_json({"ladder_N": N_LADDER, "cluster_a": CLUSTER_A, "box": BOX, "v_s": V_S,
-               "wall_info": wall_info, "results": results},
-              os.path.join(RESULTS_DIR, "diagnostic_convergence.json"))
+    dump_json(
+        {
+            "ladder_N": N_LADDER,
+            "cluster_a": CLUSTER_A,
+            "box": BOX,
+            "v_s": V_S,
+            "wall_info": wall_info,
+            "results": results,
+        },
+        os.path.join(RESULTS_DIR, "diagnostic_convergence.json"),
+    )
     write_table(results, wall_info, os.path.join(TABLES_DIR, "diagnostic_convergence.tex"))
 
 

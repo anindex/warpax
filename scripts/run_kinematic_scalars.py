@@ -1,4 +1,3 @@
-
 """Kinematic scalar field computation for warp drive metrics.
 
 Computes expansion (theta), shear-squared, and vorticity-squared for the
@@ -13,6 +12,7 @@ All metrics (default):
 Specific metrics:
     python scripts/run_kinematic_scalars.py --metrics alcubierre natario
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,7 +41,10 @@ from warpax.metrics import (
 METRICS: dict[str, tuple[type, dict]] = {
     "alcubierre": (AlcubierreMetric, {"R": 1.0, "sigma": 8.0}),
     "rodal": (RodalMetric, {"R": 100.0, "sigma": 0.03}),
-    "vdb": (VanDenBroeckMetric, {"R": 1.0, "sigma": 8.0, "R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}),
+    "vdb": (
+        VanDenBroeckMetric,
+        {"R": 1.0, "sigma": 8.0, "R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0},
+    ),
     "natario": (NatarioMetric, {"R": 1.0, "sigma": 8.0}),
     "lentz": (LentzMetric, {"R": 100.0, "sigma": 8.0}),
     "warpshell": (WarpShellMetric, {"R_1": 0.5, "R_2": 1.0}),

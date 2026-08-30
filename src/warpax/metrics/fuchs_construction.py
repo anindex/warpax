@@ -22,6 +22,7 @@ Fuchs, Helmerich, Bobrick, Sellers, Melcher, Martire (2024).
     CQG 41, DOI: 10.1088/1361-6382/ad26aa.  arXiv: 2405.02709.
 Carroll, S. M. (2004). Spacetime and Geometry. Eqs. 5.143, 5.152.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -67,11 +68,13 @@ def _gaussian_smooth(
     kernel = kernel / jnp.sum(kernel)
 
     # Reflect-pad the signal
-    padded = jnp.concatenate([
-        jnp.flip(values[1:k_radius + 1]),
-        values,
-        jnp.flip(values[-k_radius - 1:-1]),
-    ])
+    padded = jnp.concatenate(
+        [
+            jnp.flip(values[1 : k_radius + 1]),
+            values,
+            jnp.flip(values[-k_radius - 1 : -1]),
+        ]
+    )
 
     result = jnp.convolve(padded, kernel, mode="valid")
     return result[:n]
@@ -110,11 +113,13 @@ def _moving_average_smooth(
     window = 2 * half + 1
     kernel = jnp.ones(window, dtype=jnp.float64) / window
 
-    padded = jnp.concatenate([
-        jnp.flip(values[1:half + 1]),
-        values,
-        jnp.flip(values[-half - 1:-1]),
-    ])
+    padded = jnp.concatenate(
+        [
+            jnp.flip(values[1 : half + 1]),
+            values,
+            jnp.flip(values[-half - 1 : -1]),
+        ]
+    )
     result = jnp.convolve(padded, kernel, mode="valid")
     return result[:n]
 
@@ -132,10 +137,7 @@ def _iterative_smooth(
     spectrally clean substitute) or ``"moving_average"`` (the original
     MATLAB ``smooth()`` boxcar, for exact-pipeline reproduction).
     """
-    smooth_fn = (
-        _moving_average_smooth if kernel_type == "moving_average"
-        else _gaussian_smooth
-    )
+    smooth_fn = _moving_average_smooth if kernel_type == "moving_average" else _gaussian_smooth
     result = values
     for _ in range(n_iter):
         result = smooth_fn(result, r_grid, sigma)
@@ -183,16 +185,16 @@ def _solve_tov_inward(
             jnp.where(denom >= 0.0, 1e-30, -1e-30),
             denom,
         )
-        numer = -(rho + p) * (m + 4.0 * jnp.pi * r_safe ** 3 * p)
+        numer = -(rho + p) * (m + 4.0 * jnp.pi * r_safe**3 * p)
         return numer / denom_safe
 
     def scan_step(p_current, inputs):
         r_a, rho_a, m_a, r_b, rho_b, m_b, rho_m, m_m = inputs
         r_mid = r_a + 0.5 * h
-        k1 = tov_rhs(r_a,   p_current,                rho_a, m_a)
+        k1 = tov_rhs(r_a, p_current, rho_a, m_a)
         k2 = tov_rhs(r_mid, p_current + 0.5 * h * k1, rho_m, m_m)
         k3 = tov_rhs(r_mid, p_current + 0.5 * h * k2, rho_m, m_m)
-        k4 = tov_rhs(r_b,   p_current + h * k3,       rho_b, m_b)
+        k4 = tov_rhs(r_b, p_current + h * k3, rho_b, m_b)
         dp = (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
         p_next = jnp.maximum(p_current + dp, 0.0)
         return p_next, p_next
@@ -200,9 +202,7 @@ def _solve_tov_inward(
     _, p_scan = jax.lax.scan(
         scan_step,
         jnp.float64(0.0),
-        (r_rev[:-1], rho_rev[:-1], m_rev[:-1],
-         r_rev[1:],  rho_rev[1:],  m_rev[1:],
-         rho_mid,    m_mid),
+        (r_rev[:-1], rho_rev[:-1], m_rev[:-1], r_rev[1:], rho_rev[1:], m_rev[1:], rho_mid, m_mid),
     )
 
     p_rev = jnp.concatenate([jnp.array([0.0]), p_scan])
@@ -235,7 +235,7 @@ def _compute_metric_functions(
     b_grid = -0.5 * jnp.log(1.0 - compactness_safe)
 
     # da/dr
-    numer = m_tilde + 4.0 * jnp.pi * r_safe ** 3 * P_tilde
+    numer = m_tilde + 4.0 * jnp.pi * r_safe**3 * P_tilde
     denom = r_safe * (r_safe - 2.0 * m_tilde)
     denom_safe = jnp.where(
         jnp.abs(denom) < 1e-30,
@@ -248,10 +248,12 @@ def _compute_metric_functions(
 
     # Integrate da/dr from the outer boundary inward
     dr = r_grid[1] - r_grid[0]
-    forward_integral = jnp.concatenate([
-        jnp.array([0.0]),
-        jnp.cumsum(0.5 * (da_dr[:-1] + da_dr[1:]) * dr),
-    ])
+    forward_integral = jnp.concatenate(
+        [
+            jnp.array([0.0]),
+            jnp.cumsum(0.5 * (da_dr[:-1] + da_dr[1:]) * dr),
+        ]
+    )
 
     # Schwarzschild boundary: a(r_max) = -b(r_max)
     total_mass = float(m_tilde[-1])
@@ -308,6 +310,7 @@ class FuchsConstructionResult(NamedTuple):
     P_smoothed : Gaussian-smoothed isotropic pressure.
     total_mass : total shell mass.
     """
+
     r_grid: Float[Array, "N"]
     a_grid: Float[Array, "N"]
     b_grid: Float[Array, "N"]
@@ -348,7 +351,7 @@ def build_fuchs_construction(
     from ..numerics import assert_uniform_grid
 
     M_total = r_s_param / 2.0
-    shell_vol = R_2 ** 3 - R_1 ** 3
+    shell_vol = R_2**3 - R_1**3
     rho_0 = 3.0 * M_total / (4.0 * jnp.pi * shell_vol)
 
     r_max = r_pad_factor * R_2
@@ -361,11 +364,13 @@ def build_fuchs_construction(
 
     # Cumulative mass from initial density (input to the TOV solve)
     dr = r_grid[1] - r_grid[0]
-    integrand_m = 4.0 * jnp.pi * rho_initial * r_grid ** 2
-    m_initial = jnp.concatenate([
-        jnp.array([0.0]),
-        jnp.cumsum(0.5 * (integrand_m[:-1] + integrand_m[1:]) * dr),
-    ])
+    integrand_m = 4.0 * jnp.pi * rho_initial * r_grid**2
+    m_initial = jnp.concatenate(
+        [
+            jnp.array([0.0]),
+            jnp.cumsum(0.5 * (integrand_m[:-1] + integrand_m[1:]) * dr),
+        ]
+    )
 
     # Step 2: TOV for initial isotropic pressure
     P_initial = _solve_tov_inward(rho_initial, m_initial, r_grid, R_1)
@@ -375,25 +380,31 @@ def build_fuchs_construction(
     sigma_P = sigma_rho / sigma_ratio
 
     rho_smoothed = _iterative_smooth(
-        rho_initial, r_grid, sigma_rho, n_smooth, kernel_type=kernel_type)
-    P_smoothed = _iterative_smooth(
-        P_initial, r_grid, sigma_P, n_smooth, kernel_type=kernel_type)
+        rho_initial, r_grid, sigma_rho, n_smooth, kernel_type=kernel_type
+    )
+    P_smoothed = _iterative_smooth(P_initial, r_grid, sigma_P, n_smooth, kernel_type=kernel_type)
 
     # Ensure non-negative after smoothing
     rho_smoothed = jnp.maximum(rho_smoothed, 0.0)
     P_smoothed = jnp.maximum(P_smoothed, 0.0)
 
     # Step 4: Recompute mass from smoothed density
-    integrand_m_smooth = 4.0 * jnp.pi * rho_smoothed * r_grid ** 2
-    m_smoothed = jnp.concatenate([
-        jnp.array([0.0]),
-        jnp.cumsum(0.5 * (integrand_m_smooth[:-1] + integrand_m_smooth[1:]) * dr),
-    ])
+    integrand_m_smooth = 4.0 * jnp.pi * rho_smoothed * r_grid**2
+    m_smoothed = jnp.concatenate(
+        [
+            jnp.array([0.0]),
+            jnp.cumsum(0.5 * (integrand_m_smooth[:-1] + integrand_m_smooth[1:]) * dr),
+        ]
+    )
     total_mass = float(m_smoothed[-1])
 
     # Step 5: Metric functions from smoothed profiles
     a_grid, b_grid = _compute_metric_functions(
-        rho_smoothed, P_smoothed, m_smoothed, r_grid, R_2,
+        rho_smoothed,
+        P_smoothed,
+        m_smoothed,
+        r_grid,
+        R_2,
     )
 
     return FuchsConstructionResult(
@@ -420,6 +431,7 @@ class FuchsMetric(ADMMetric):
     R_1, R_2, R_b : shell radii and buffer zone.
     total_mass : total shell mass.
     """
+
     _r_grid: Float[Array, "N"]
     _a_grid: Float[Array, "N"]
     _b_grid: Float[Array, "N"]
@@ -431,10 +443,13 @@ class FuchsMetric(ADMMetric):
     total_mass: float
 
     def _interp(
-        self, r: Float[Array, ""], grid_vals: Float[Array, "N"],
+        self,
+        r: Float[Array, ""],
+        grid_vals: Float[Array, "N"],
     ) -> Float[Array, ""]:
         """Cubic interpolation on the stored grid."""
         import interpax
+
         r_clamped = jnp.clip(r, self._r_grid[0], self._r_grid[-1])
         return interpax.interp1d(r_clamped, self._r_grid, grid_vals, method="cubic")
 
@@ -468,7 +483,7 @@ class FuchsMetric(ADMMetric):
         """Lapse alpha = e^{a(r)}, smoothly interpolated from grid."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
         a_val, _ = self._potentials(r)
         return jnp.maximum(jnp.exp(a_val), 1e-12)
 
@@ -476,7 +491,7 @@ class FuchsMetric(ADMMetric):
         """Shift beta^x = -S_warp(r) * v_s."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
         S_warp = _fuchs_shift_transition(r, self.R_1, self.R_2, self.R_b)
         return jnp.array([-S_warp * self.v_s, 0.0, 0.0])
 
@@ -484,7 +499,7 @@ class FuchsMetric(ADMMetric):
         """Spatial metric: delta_{ij} + (e^{2b} - 1) n_i n_j."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
 
         _, b_val = self._potentials(r)
         gamma_rr = jnp.exp(2.0 * b_val)
@@ -498,7 +513,7 @@ class FuchsMetric(ADMMetric):
         """Warp transition function S_warp(r)."""
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-60)
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
         return _fuchs_shift_transition(r, self.R_1, self.R_2, self.R_b)
 
     def symbolic(self):
@@ -520,7 +535,7 @@ class FuchsMetric(ADMMetric):
         beta = sp.Function("S_warp")
         v_s = sp.Symbol("v_s")
         x_rel = x - v_s * t
-        r = sp.sqrt(x_rel ** 2 + y ** 2 + z ** 2)
+        r = sp.sqrt(x_rel**2 + y**2 + z**2)
 
         gamma_rr = sp.exp(2 * b(r))
         delta = sp.eye(3)
@@ -569,7 +584,10 @@ def fuchs_default(
     ``scripts/fuchs_kernel_comparison.py``.
     """
     construction = build_fuchs_construction(
-        R_1=R_1, R_2=R_2, r_s_param=r_s_param, n_grid=n_grid,
+        R_1=R_1,
+        R_2=R_2,
+        r_s_param=r_s_param,
+        n_grid=n_grid,
         kernel_type=kernel_type,
     )
 

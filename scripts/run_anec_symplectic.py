@@ -19,6 +19,7 @@ sentinel.
 Outputs:
 - ../results/anec/retained_symplectic.json
 """
+
 from __future__ import annotations
 
 import os
@@ -52,7 +53,7 @@ X_START = -8.0
 # and integrated only the rear half (ratio 2.0000 for Alcubierre, VdB, Rodal).
 # Natario was unaffected: its exterior shift drags the ray clear inside the same
 # span. The window is read off the geodesic now (_measure_span below).
-SPAN0 = 16.0       # reference span for the step density
+SPAN0 = 16.0  # reference span for the step density
 # 8192 left one ray of 50 (Natario, b = 0.307) at |g(k,k)| = 1.4e-05, which
 # downgraded the whole row to the projection fallback. 32768 clears every ray by
 # two orders; the line integrals move in the 5th digit.
@@ -76,9 +77,6 @@ SENTINEL_TOL = 1.0e-6
 B_REFINE_POINTS = 21
 B_REFINE_LEVELS = 4
 B_REFINE_RTOL = 1.0e-4
-
-
-
 
 
 def _affine_scale(metric, x0) -> float:
@@ -109,12 +107,15 @@ def _rigorous_at(metric, b: float, span: float):
     # geodesic covers an identical coordinate path and only its parametrization
     # (hence the reported magnitude) is pinned.
     return anec_rigorous(
-        metric, x0, jnp.array([s, 0.0, 0.0]),
+        metric,
+        x0,
+        jnp.array([s, 0.0, 0.0]),
         affine_bounds=(0.0, span / s),
         # Fixed step density.
         num_steps=int(round(NUM_STEPS * span / SPAN0)),
         num_save=None,  # quadrature nodes = every step
-        order=ORDER, null_tol=NULL_TOL,
+        order=ORDER,
+        null_tol=NULL_TOL,
         # K = d_t + v_s d_x is Killing; E_K = -p_a K^a is the second witness.
         killing=jnp.array([1.0, V_S, 0.0, 0.0], dtype=jnp.float64),
     )
@@ -135,22 +136,26 @@ def _refine_min(metric, span, b_lo: float, b_hi: float):
         recs = []
         for b in grid:
             r = _rigorous_at(metric, float(b), span)
-            recs.append((
-                float(r.symplectic.line_integral),
-                float(r.symplectic.max_abs_g_kk),
-                float(r.killing_drift),
-            ))
+            recs.append(
+                (
+                    float(r.symplectic.line_integral),
+                    float(r.symplectic.max_abs_g_kk),
+                    float(r.killing_drift),
+                )
+            )
         vals = np.array([v for v, _, _ in recs])
         k = int(np.argmin(vals))
-        history.append({
-            "level": level + 1,
-            "db": float(grid[1] - grid[0]),
-            "b": float(grid[k]),
-            "line_integral": float(vals[k]),
-            "witness_g_kk": recs[k][1],
-            "killing_drift": recs[k][2],
-            "interior": bool(0 < k < len(grid) - 1),
-        })
+        history.append(
+            {
+                "level": level + 1,
+                "db": float(grid[1] - grid[0]),
+                "b": float(grid[k]),
+                "line_integral": float(vals[k]),
+                "witness_g_kk": recs[k][1],
+                "killing_drift": recs[k][2],
+                "interior": bool(0 < k < len(grid) - 1),
+            }
+        )
         if best is not None and abs(vals[k] - best[1]) <= B_REFINE_RTOL * abs(best[1]):
             best = (float(grid[k]), float(vals[k]), recs[k][1], recs[k][2])
             converged = True
@@ -173,8 +178,12 @@ def _measure_span(metric) -> tuple[float, bool]:
     sc = _affine_scale(metric, x0)
     x0c, p0 = null_ic_canonical(metric, x0, jnp.array([sc, 0.0, 0.0]))
     geo = integrate_geodesic_symplectic(
-        metric, x0c, p0, (0.0, PROBE_SPAN / sc),
-        num_steps=int(round(NUM_STEPS * PROBE_SPAN / SPAN0)), order=ORDER,
+        metric,
+        x0c,
+        p0,
+        (0.0, PROBE_SPAN / sc),
+        num_steps=int(round(NUM_STEPS * PROBE_SPAN / SPAN0)),
+        order=ORDER,
     )
     pos = np.asarray(geo.positions)
     lam = np.asarray(geo.ts) * sc
@@ -198,23 +207,22 @@ def main() -> None:
     sent_anec, sent_wit = _minkowski_sentinel()
     print(f"Minkowski sentinel: |ANEC|_max={sent_anec:.2e}  witness_max={sent_wit:.2e}")
     if sent_anec >= SENTINEL_TOL:
-        raise RuntimeError(
-            f"Minkowski ANEC sentinel {sent_anec:.2e} exceeds tol {SENTINEL_TOL}"
-        )
+        raise RuntimeError(f"Minkowski ANEC sentinel {sent_anec:.2e} exceeds tol {SENTINEL_TOL}")
     # The flat-space rays must also stay on the null cone; a regressed
     # integrator that drifts off-cone even in Minkowski would invalidate the
     # on-cone witness reported for the warp metrics below.
     if sent_wit >= NULL_TOL:
-        raise RuntimeError(
-            f"Minkowski g(k,k) witness {sent_wit:.2e} exceeds tol {NULL_TOL}"
-        )
+        raise RuntimeError(f"Minkowski g(k,k) witness {sent_wit:.2e} exceeds tol {NULL_TOL}")
 
     per_metric: dict[str, dict] = {}
     for name in METRIC_ORDER:
         metric = instantiate(name, V_S, R_B, SIGMA)
         span, span_converged = _measure_span(metric)
-        print(f"  {name:16s} affine window {span:.1f} "
-              f"({'crossing covered' if span_converged else 'RAY DID NOT LEAVE'})", flush=True)
+        print(
+            f"  {name:16s} affine window {span:.1f} "
+            f"({'crossing covered' if span_converged else 'RAY DID NOT LEAVE'})",
+            flush=True,
+        )
         anec_scan, witness_scan, preserved_scan, method_scan = [], [], [], []
         proj_scan, killing_scan = [], []
         for b in B_SCAN:
@@ -224,14 +232,12 @@ def main() -> None:
             preserved_scan.append(bool(r.symplectic.null_preserved))
             method_scan.append(r.method_used)
             killing_scan.append(r.killing_drift)
-            proj_scan.append(
-                None if r.projection is None
-                else float(r.projection.line_integral)
-            )
+            proj_scan.append(None if r.projection is None else float(r.projection.line_integral))
         anec_arr = np.array(anec_scan)
         j = int(np.argmin(anec_arr))
         b_ref, v_ref, w_ref, k_ref, ref_hist, ref_conv = _refine_min(
-            metric, span,
+            metric,
+            span,
             float(B_SCAN[max(j - 1, 0)]),
             float(B_SCAN[min(j + 1, len(B_SCAN) - 1)]),
         )
@@ -249,9 +255,9 @@ def main() -> None:
             "b_at_min": b_ref,
             "min_line_integral_coarse": float(anec_arr[j]),
             "b_at_min_coarse": float(B_SCAN[j]),
-            "refinement_deepening_rel": float(
-                (v_ref - anec_arr[j]) / abs(anec_arr[j])
-            ) if anec_arr[j] != 0 else None,
+            "refinement_deepening_rel": float((v_ref - anec_arr[j]) / abs(anec_arr[j]))
+            if anec_arr[j] != 0
+            else None,
             "refinement_witness_g_kk": w_ref,
             "refinement_killing_drift": k_ref,
             "refinement_converged": bool(ref_conv),
@@ -275,18 +281,23 @@ def main() -> None:
         }
         flag = "" if all(preserved_scan) else " [some rays needed projection]"
         deep = (v_ref - anec_arr[j]) / abs(anec_arr[j]) * 100.0 if anec_arr[j] else 0.0
-        print(f"  {name:16s} on-axis={anec_scan[0]:+.4e}  "
-              f"coarse min={anec_arr[j]:+.4e} @ b={B_SCAN[j]:.3f}  "
-              f"refined={v_ref:+.4e} @ b={b_ref:.4f} ({deep:+.1f}%, "
-              f"{'converged' if ref_conv else 'NOT CONVERGED'}, "
-              f"|g(k,k)|={w_ref:.1e})  "
-              f"worst|g(k,k)|={worst_witness:.2e}  "
-              f"worst dE_K/E_K={worst_killing:.2e}{flag}")
+        print(
+            f"  {name:16s} on-axis={anec_scan[0]:+.4e}  "
+            f"coarse min={anec_arr[j]:+.4e} @ b={B_SCAN[j]:.3f}  "
+            f"refined={v_ref:+.4e} @ b={b_ref:.4f} ({deep:+.1f}%, "
+            f"{'converged' if ref_conv else 'NOT CONVERGED'}, "
+            f"|g(k,k)|={w_ref:.1e})  "
+            f"worst|g(k,k)|={worst_witness:.2e}  "
+            f"worst dE_K/E_K={worst_killing:.2e}{flag}"
+        )
 
     out = {
         "params": {
-            "v_s": V_S, "R_b": R_B, "sigma": SIGMA,
-            "x_start": X_START, "affine_span_start": SPAN0,
+            "v_s": V_S,
+            "R_b": R_B,
+            "sigma": SIGMA,
+            "x_start": X_START,
+            "affine_span_start": SPAN0,
             "affine_span_note": (
                 "the window is measured per metric from the geodesic's own "
                 "trajectory: out to where it leaves r_s = 3, the radius beyond "
@@ -295,7 +306,9 @@ def main() -> None:
                 "a quantified truncation margin, not a support theorem: no bound "
                 "on T_ab k^a k^b outside r_s = 3 is computed"
             ),
-            "num_steps_at_span_start": NUM_STEPS, "order": ORDER, "null_tol": NULL_TOL,
+            "num_steps_at_span_start": NUM_STEPS,
+            "order": ORDER,
+            "null_tol": NULL_TOL,
             "quadrature_nodes": "every symplectic step (num_save = num_steps + 1)",
             "killing_vector": [1.0, V_S, 0.0, 0.0],
             "integrator": "symplectic (Tao 2016 extended phase space, Yoshida-4)",
@@ -311,7 +324,8 @@ def main() -> None:
 
     # Paper table: rigorous geodesic ANEC + on-cone rigor witness.
     def _w(b):
-        return ("symplectic" if b else "fallback")
+        return "symplectic" if b else "fallback"
+
     tlines = [
         r"\begin{tabular}{@{}l rr cc l@{}}",
         r"  \toprule",
@@ -331,8 +345,12 @@ def main() -> None:
     tlines += [r"  \bottomrule", r"\end{tabular}"]
     tab_path = os.path.join(TABLES_DIR, "anec_symplectic.tex")
     os.makedirs(TABLES_DIR, exist_ok=True)
-    write_tex_table(tab_path, tlines, script="scripts/run_anec_symplectic.py",
-                    sources="results/anec/retained_symplectic.json")
+    write_tex_table(
+        tab_path,
+        tlines,
+        script="scripts/run_anec_symplectic.py",
+        sources="results/anec/retained_symplectic.json",
+    )
     print(f"Wrote {tab_path}")
 
 

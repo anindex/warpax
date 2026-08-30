@@ -32,6 +32,7 @@ Outputs
 - results/closing_speed.json
 - ../warpax_arxiv/tables/closing_speed.tex
 """
+
 from __future__ import annotations
 
 import argparse
@@ -64,18 +65,18 @@ F_LOW, F_HIGH = 0.1, 0.9
 A_FLOOR_REL = 1e-12
 
 
-
-
 def coefficients(name, v_s, N):
     """Wall values of (a, d, weight), with a, d stripped of their v_s scaling."""
     metric = instantiate(name, v_s)
     grid = benchmark_grid(metric, N)
     curv = evaluate_curvature_grid(metric, grid, batch_size=2048)
     coords = build_coord_batch(grid, t=0.0)
-    mask = np.asarray(jnp.reshape(
-        shape_function_mask(metric, coords, (N, N, N), f_low=F_LOW, f_high=F_HIGH),
-        (-1,),
-    )).astype(bool)
+    mask = np.asarray(
+        jnp.reshape(
+            shape_function_mask(metric, coords, (N, N, N), f_low=F_LOW, f_high=F_HIGH),
+            (-1,),
+        )
+    ).astype(bool)
 
     T = jnp.reshape(curv.stress_energy, (-1, 4, 4))
     g = jnp.reshape(curv.metric, (-1, 4, 4))
@@ -113,9 +114,7 @@ def main():
 
     with open(os.path.join(RESULTS_DIR, "velocity_sweep.json")) as fh:
         sweep = json.load(fh)
-    measured = {
-        (r["metric"], r["v_s"]): r["wall_frac_type_iv"] for r in sweep["rows"]
-    }
+    measured = {(r["metric"], r["v_s"]): r["wall_frac_type_iv"] for r in sweep["rows"]}
     speeds = sorted({v for (_, v) in measured})
 
     rows = []
@@ -134,8 +133,7 @@ def main():
         # Against the tensor scale, not max(d): on an irrotational drive max(d)
         # is itself roundoff, and a relative floor would select the noise.
         active = d > 1e-9 * scale_a * args.reference_v
-        a_dev = (float(np.max(np.abs(a - a2)[active])) / scale_a
-                 if active.any() else 0.0)
+        a_dev = float(np.max(np.abs(a - a2)[active])) / scale_a if active.any() else 0.0
         d_dev = float(np.max(np.abs(d - d2))) / scale_d
 
         v_star = closing_speeds(a, d)
@@ -143,45 +141,49 @@ def main():
         pred = {v: float(np.sum(w * (v_star > v)) / wt) for v in speeds}
         # Signed, not absolute: the claim is a bound, and its direction is the
         # content. gap = measured - predicted = the transverse channel's share.
-        gaps = [measured[(name, v)] - pred[v] for v in speeds
-                if (name, v) in measured]
+        gaps = [measured[(name, v)] - pred[v] for v in speeds if (name, v) in measured]
         # Flat-slice drives must satisfy the bound; a negative gap there would
         # falsify it. Van den Broeck is exempt and is flagged, not gated.
         flat_slice = a_dev < 1e-9
-        rows.append({
-            "metric": name,
-            "reference_v_s": args.reference_v,
-            "check_v_s": args.check_v,
-            "N": args.N,
-            "n_wall": int(a.size),
-            "coeff_rel_dev_a": a_dev,
-            "n_wall_with_momentum": int(active.sum()),
-            "coeff_rel_dev_d": d_dev,
-            "v_star_median": float(np.median(v_star[np.isfinite(v_star)]))
-            if np.any(np.isfinite(v_star)) else None,
-            "frac_never_closing": float(np.sum(w * ~np.isfinite(v_star)) / wt),
-            "speeds": speeds,
-            "predicted_frac_type_iv": [pred[v] for v in speeds],
-            "measured_frac_type_iv": [measured.get((name, v)) for v in speeds],
-            "flat_slice_premise_holds": bool(flat_slice),
-            "transverse_gap_pp": [100.0 * g for g in gaps],
-            "min_gap_pp": 100.0 * min(gaps) if gaps else None,
-            "max_gap_pp": 100.0 * max(gaps) if gaps else None,
-        })
+        rows.append(
+            {
+                "metric": name,
+                "reference_v_s": args.reference_v,
+                "check_v_s": args.check_v,
+                "N": args.N,
+                "n_wall": int(a.size),
+                "coeff_rel_dev_a": a_dev,
+                "n_wall_with_momentum": int(active.sum()),
+                "coeff_rel_dev_d": d_dev,
+                "v_star_median": float(np.median(v_star[np.isfinite(v_star)]))
+                if np.any(np.isfinite(v_star))
+                else None,
+                "frac_never_closing": float(np.sum(w * ~np.isfinite(v_star)) / wt),
+                "speeds": speeds,
+                "predicted_frac_type_iv": [pred[v] for v in speeds],
+                "measured_frac_type_iv": [measured.get((name, v)) for v in speeds],
+                "flat_slice_premise_holds": bool(flat_slice),
+                "transverse_gap_pp": [100.0 * g for g in gaps],
+                "min_gap_pp": 100.0 * min(gaps) if gaps else None,
+                "max_gap_pp": 100.0 * max(gaps) if gaps else None,
+            }
+        )
         if flat_slice and gaps and min(gaps) < -1e-9:
             raise RuntimeError(
                 f"{name}: momentum-channel fraction exceeds the measured Type-IV "
                 f"fraction by {-100.0 * min(gaps):.2f} pp; the bound is claimed "
                 f"for flat-slice drives and this would falsify it"
             )
-        print(f"  {name:>15s}  a,d speed-dev {a_dev:.1e}, {d_dev:.1e}  "
-              f"{'flat-slice' if flat_slice else 'PREMISE FAILS'}  "
-              f"transverse gap {100.0 * min(gaps):+5.1f} to "
-              f"{100.0 * max(gaps):+5.1f} pp", flush=True)
+        print(
+            f"  {name:>15s}  a,d speed-dev {a_dev:.1e}, {d_dev:.1e}  "
+            f"{'flat-slice' if flat_slice else 'PREMISE FAILS'}  "
+            f"transverse gap {100.0 * min(gaps):+5.1f} to "
+            f"{100.0 * max(gaps):+5.1f} pp",
+            flush=True,
+        )
 
     name_out = "closing_speed_smoke.json" if args.smoke else "closing_speed.json"
-    dump_json({"config": vars(args), "rows": rows},
-              os.path.join(RESULTS_DIR, name_out))
+    dump_json({"config": vars(args), "rows": rows}, os.path.join(RESULTS_DIR, name_out))
     print(f"\nWrote {os.path.join(RESULTS_DIR, name_out)}")
     if not args.smoke:
         write_table(rows, os.path.join(TABLES_DIR, "closing_speed.tex"))
@@ -214,14 +216,18 @@ def write_table(rows, out_path, table_vels=(0.1, 0.5, 1.0, 2.5)):
         med = r["v_star_median"]
         lines.append(
             f"  {r['metric']} & "
-            + f"{r['coeff_rel_dev_a']:.0e}" + " & "
+            + f"{r['coeff_rel_dev_a']:.0e}"
+            + " & "
             + ("--" if med is None else f"{med:.2f}")
-            + " & " + " & ".join(cells) + r" \\"
+            + " & "
+            + " & ".join(cells)
+            + r" \\"
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_closing_speed.py",
-                    sources="results/closing_speed.json")
+    write_tex_table(
+        out_path, lines, script="scripts/run_closing_speed.py", sources="results/closing_speed.json"
+    )
     print(f"  Wrote {out_path}")
 
 

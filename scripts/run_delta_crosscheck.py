@@ -24,6 +24,7 @@ Outputs
 -------
 - results/delta_crosscheck.json
 """
+
 from __future__ import annotations
 
 import os
@@ -131,15 +132,14 @@ def _analyze(name):
             "agreement_rate": (agree / n) if n else float("nan"),
             "n_active": n_active,
             "agreement_rate_active": (agree_active / n_active) if n_active else 1.0,
-            "eig_iv_delta_nonneg": n_exc,   # eig-IV & Delta>=0 (off-momentum channel)
-            "delta_only": delta_only,       # Delta<0 & not eig-IV
+            "eig_iv_delta_nonneg": n_exc,  # eig-IV & Delta>=0 (off-momentum channel)
+            "delta_only": delta_only,  # Delta<0 & not eig-IV
             # median |Im lambda| of the off-momentum exception points: confirms
             # they are genuine complex pairs, not classifier noise.
             "exc_median_abs_imag": float(np.median(im[exc])) if n_exc else 0.0,
         }
 
-    return {"full_grid": _stats(np.ones_like(eig_iv, bool)),
-            "wall": _stats(wall)}
+    return {"full_grid": _stats(np.ones_like(eig_iv, bool)), "wall": _stats(wall)}
 
 
 def main():
@@ -156,20 +156,28 @@ def main():
         for region, s in (("wall", w), ("full", g)):
             ar = s["agreement_rate"]
             ara = s["agreement_rate_active"]
-            print(f"  [{region:4s}] n={s['n_points']:>7d}  eig-IV={s['n_eig_typeIV']:>6d}  "
-                  f"Delta-IV={s['n_delta_typeIV']:>6d}  agree={ar*100:6.2f}%  "
-                  f"agree(active)={ara*100:6.2f}%  "
-                  f"eig-IV&Delta>=0={s['eig_iv_delta_nonneg']:>5d}"
-                  f"(med|Im|={s['exc_median_abs_imag']:.1e})  "
-                  f"delta_only={s['delta_only']:>5d}")
+            print(
+                f"  [{region:4s}] n={s['n_points']:>7d}  eig-IV={s['n_eig_typeIV']:>6d}  "
+                f"Delta-IV={s['n_delta_typeIV']:>6d}  agree={ar * 100:6.2f}%  "
+                f"agree(active)={ara * 100:6.2f}%  "
+                f"eig-IV&Delta>=0={s['eig_iv_delta_nonneg']:>5d}"
+                f"(med|Im|={s['exc_median_abs_imag']:.1e})  "
+                f"delta_only={s['delta_only']:>5d}"
+            )
 
-    out = {"params": {"v_s": V_S, "N": N,
-                      "note": "matched family R_b=1 sigma=8; Rodal native R=100 sigma=0.03. "
-                              "eig_iv_delta_nonneg = eig Type-IV but Delta>=0 (off-momentum-plane "
-                              "channel: VdB conformal, Natario vortical). Wall = shape function in "
-                              "[0.1,0.9]; full-grid delta_only is dominated by Type-I NEC-violating "
-                              "far field (Delta<0 is a NEC-violation witness, broader than Type IV)."},
-           "order": ORDER, "results": results}
+    out = {
+        "params": {
+            "v_s": V_S,
+            "N": N,
+            "note": "matched family R_b=1 sigma=8; Rodal native R=100 sigma=0.03. "
+            "eig_iv_delta_nonneg = eig Type-IV but Delta>=0 (off-momentum-plane "
+            "channel: VdB conformal, Natario vortical). Wall = shape function in "
+            "[0.1,0.9]; full-grid delta_only is dominated by Type-I NEC-violating "
+            "far field (Delta<0 is a NEC-violation witness, broader than Type IV).",
+        },
+        "order": ORDER,
+        "results": results,
+    }
     dump_json(out, os.path.join(RESULTS_DIR, "delta_crosscheck.json"))
     print(f"\nWrote {os.path.join(RESULTS_DIR, 'delta_crosscheck.json')}")
 

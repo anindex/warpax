@@ -10,6 +10,7 @@ Usage::
 
     python scripts/emit_paper_numbers.py
 """
+
 from __future__ import annotations
 
 import os
@@ -52,8 +53,7 @@ def main() -> int:
 
     with open(PAPER_NUMBERS, "w") as f:
         f.write("\n".join(lines))
-    print(f"Wrote {PAPER_NUMBERS} "
-          f"({len(MANUAL)} manual + {len(AUTO_SOURCED)} auto-sourced macros)")
+    print(f"Wrote {PAPER_NUMBERS} ({len(MANUAL)} manual + {len(AUTO_SOURCED)} auto-sourced macros)")
     return 0
 
 

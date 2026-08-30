@@ -5,6 +5,7 @@ S-shell has zero shift, so a positive result here would indicate that the
 boundary DEC failure is shift-driven; an empty admissible set indicates
 the boundary failure is geometric (smooth transition curvature).
 """
+
 from __future__ import annotations
 
 import os
@@ -28,9 +29,7 @@ from warpax.visualization.phase_diagram import (
 
 
 def main():
-    output_dir = (
-        Path(__file__).resolve().parents[1] / "results" / "phase_diagram_sshell"
-    )
+    output_dir = Path(__file__).resolve().parents[1] / "results" / "phase_diagram_sshell"
     output_dir.mkdir(parents=True, exist_ok=True)
     sweep_path = str(output_dir / "sweep_results.npz")
 

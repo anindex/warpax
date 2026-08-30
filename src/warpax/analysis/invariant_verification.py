@@ -23,6 +23,7 @@ whose ADM normal is only timelike for ``v_s < 1``; the verification is therefore
 subluminal velocities (the regime in which positive-energy claims are stated).
 The invariant quantities themselves remain valid at all velocities.
 """
+
 from __future__ import annotations
 
 import jax
@@ -63,8 +64,7 @@ def single_frame_miss(
     ``n_missed``, plus the Type-IV volume fraction within the selection.
     """
     # Only the masked points are read, so only they need the LMI.
-    ff = certify_grid_frame_free(T_field, g_field, g_inv_field,
-                                 lmi_where=mask)
+    ff = certify_grid_frame_free(T_field, g_field, g_inv_field, lmi_where=mask)
     flat_T = _flat(T_field, (4, 4))
     flat_g = _flat(g_field, (4, 4))
     flat_gi = _flat(g_inv_field, (4, 4))
@@ -77,8 +77,7 @@ def single_frame_miss(
 
     n = he.size
     sel = np.ones(n, bool) if mask is None else np.asarray(mask).ravel().astype(bool)
-    w = (np.ones(n) if volume_weights is None
-         else np.asarray(volume_weights).ravel())
+    w = np.ones(n) if volume_weights is None else np.asarray(volume_weights).ravel()
     w = w * sel
 
     inv = {
@@ -107,9 +106,7 @@ def single_frame_miss(
     # Same population as typeIV_viol above: near-vacuum points are excluded there,
     # so counting them here made the reported fraction describe a different set
     # from the one that produced the violations.
-    out["frac_type_iv"] = (
-        float(np.sum(w * (he == 4.0) * (~vac)) / wsel) if wsel > 0 else 0.0
-    )
+    out["frac_type_iv"] = float(np.sum(w * (he == 4.0) * (~vac)) / wsel) if wsel > 0 else 0.0
     out["n_selected"] = int(np.sum(sel))
     return out
 
@@ -135,8 +132,7 @@ def integrated_exotic_content(
     ``balance_inv`` (E_+/|E_-|), ``typeIV_volume_frac``.
     """
     # Only the masked points are read, so only they need the LMI.
-    ff = certify_grid_frame_free(T_field, g_field, g_inv_field,
-                                 lmi_where=mask)
+    ff = certify_grid_frame_free(T_field, g_field, g_inv_field, lmi_where=mask)
     flat_T = _flat(T_field, (4, 4))
     flat_g = _flat(g_field, (4, 4))
     flat_gi = _flat(g_inv_field, (4, 4))
@@ -162,9 +158,7 @@ def integrated_exotic_content(
         "E_minus_eul": E_minus_eul,
         "E_plus_eul": E_plus_eul,
         "balance_inv": (E_plus_inv / abs(E_minus_inv)) if E_minus_inv != 0 else None,
-        "typeIV_volume_frac": (
-            float(np.sum(w * (he == 4.0)) / wsel) if wsel > 0 else 0.0
-        ),
+        "typeIV_volume_frac": (float(np.sum(w * (he == 4.0)) / wsel) if wsel > 0 else 0.0),
     }
 
 
@@ -187,8 +181,7 @@ def peak_proper_energy_deficit(
     claims.
     """
     # Only the masked points are read, so only they need the LMI.
-    ff = certify_grid_frame_free(T_field, g_field, g_inv_field,
-                                 lmi_where=mask)
+    ff = certify_grid_frame_free(T_field, g_field, g_inv_field, lmi_where=mask)
     flat_T = _flat(T_field, (4, 4))
     flat_g = _flat(g_field, (4, 4))
     flat_gi = _flat(g_inv_field, (4, 4))
@@ -197,8 +190,7 @@ def peak_proper_energy_deficit(
 
     he = np.asarray(ff.he_types).ravel()
     rho_inv = np.asarray(ff.rho).ravel()
-    sel = (np.ones(he.size, bool) if mask is None
-           else np.asarray(mask).ravel().astype(bool))
+    sel = np.ones(he.size, bool) if mask is None else np.asarray(mask).ravel().astype(bool)
     typeI = sel & (he == 1.0) & np.isfinite(rho_inv)
     inv_vals = rho_inv[typeI]
     eul_vals = rho_eul[sel]

@@ -3,6 +3,7 @@
 Applies the 5-criterion admissibility check to the three foundational
 Natario-class warp metrics at a common scale (v_s=0.1, R=20, sigma=2).
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,16 +31,11 @@ def _verify(name, metric, **kw):
 
 def main():
     out = {}
-    out["Alcubierre"] = _verify(
-        "Alcubierre", AlcubierreMetric(v_s=0.1, R=20.0, sigma=2.0)
-    )
-    out["Natario"] = _verify(
-        "Natario", NatarioMetric(v_s=0.1, R=20.0, sigma=2.0)
-    )
+    out["Alcubierre"] = _verify("Alcubierre", AlcubierreMetric(v_s=0.1, R=20.0, sigma=2.0))
+    out["Natario"] = _verify("Natario", NatarioMetric(v_s=0.1, R=20.0, sigma=2.0))
     out["VanDenBroeck"] = _verify(
         "Van den Broeck",
-        VanDenBroeckMetric(v_s=0.1, R=20.0, sigma=2.0,
-                            R_tilde=10.0, alpha_vdb=0.5, sigma_B=2.0),
+        VanDenBroeckMetric(v_s=0.1, R=20.0, sigma=2.0, R_tilde=10.0, alpha_vdb=0.5, sigma_B=2.0),
     )
     save_json(OUTPUT, out)
 

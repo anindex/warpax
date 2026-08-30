@@ -9,6 +9,7 @@ Usage
 -----
     PYTHONPATH=src python scripts/summarize_results.py
 """
+
 from __future__ import annotations
 
 import json
@@ -98,11 +99,11 @@ def main():
         print("-" * 100)
         for row in rows:
             print(
-                f"  {row.get('metric','?'):>14s} v_s={row.get('v_s',0):.2f}  "
-                f"NEC miss={row.get('nec_pct_missed',0):.2f}%  "
-                f"WEC miss={row.get('wec_pct_missed',0):.2f}%  "
-                f"SEC miss={row.get('sec_pct_missed',0):.2f}%  "
-                f"DEC miss={row.get('dec_pct_missed',0):.2f}%"
+                f"  {row.get('metric', '?'):>14s} v_s={row.get('v_s', 0):.2f}  "
+                f"NEC miss={row.get('nec_pct_missed', 0):.2f}%  "
+                f"WEC miss={row.get('wec_pct_missed', 0):.2f}%  "
+                f"SEC miss={row.get('sec_pct_missed', 0):.2f}%  "
+                f"DEC miss={row.get('dec_pct_missed', 0):.2f}%"
             )
         print()
 
@@ -125,11 +126,11 @@ def main():
         print("-" * 100)
         for r in cc.get("results", []):
             print(
-                f"  {r['grid']:<16s} N_wall={r.get('wall_n_total',0):4d}  "
-                f"Wall%TypeIV={100*r.get('wall_frac_type_iv',0):5.1f}  "
-                f"Full%TypeI={100*r.get('full_frac_type_i',0):5.1f}  "
-                f"NEC_min={r.get('nec_min_margin',0):.3e}  "
-                f"DEC_min={r.get('dec_min_margin',0):.3e}"
+                f"  {r['grid']:<16s} N_wall={r.get('wall_n_total', 0):4d}  "
+                f"Wall%TypeIV={100 * r.get('wall_frac_type_iv', 0):5.1f}  "
+                f"Full%TypeI={100 * r.get('full_frac_type_i', 0):5.1f}  "
+                f"NEC_min={r.get('nec_min_margin', 0):.3e}  "
+                f"DEC_min={r.get('dec_min_margin', 0):.3e}"
             )
         print()
 
@@ -144,8 +145,8 @@ def main():
                 print(f"  {r['grid']:<16s} ERROR: {r['error'][:100]}")
             else:
                 print(
-                    f"  {r['grid']:<16s} N_wall={r.get('wall_n_total',0):4d}  "
-                    f"Wall%TypeIV={100*r.get('wall_frac_type_iv',0):5.1f}  "
+                    f"  {r['grid']:<16s} N_wall={r.get('wall_n_total', 0):4d}  "
+                    f"Wall%TypeIV={100 * r.get('wall_frac_type_iv', 0):5.1f}  "
                     f"NEC_miss={fmt(r.get('wall_nec_miss_rate'))}  "
                     f"DEC_miss={fmt(r.get('wall_dec_miss_rate'))}"
                 )

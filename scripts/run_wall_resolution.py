@@ -1,4 +1,3 @@
-
 """Per-metric wall-resolution analysis.
 
 Computes the analytical transition wall width for each metric's shape
@@ -27,6 +26,7 @@ Usage
 -----
     python scripts/run_wall_resolution.py
 """
+
 from __future__ import annotations
 
 import os
@@ -52,6 +52,7 @@ def main():
     # Rodal's sigma*R = 3 it gives 73.24 against the true 72.53.
     def _width_10_90(sigma, R):
         f = lambda r: float(alcubierre_shape(jnp.asarray(r), R, sigma))
+
         def root(target, lo, hi):
             for _ in range(200):
                 mid = 0.5 * (lo + hi)
@@ -60,6 +61,7 @@ def main():
                 else:
                     hi = mid
             return 0.5 * (lo + hi)
+
         hi = R + 40.0 / sigma
         return root(0.1, R, hi) - root(0.9, 0.0, R + hi)
 
@@ -156,17 +158,23 @@ def main():
         results.append(row)
 
     # Print formatted table
-    print(f"{'Metric':>14s}  {'Shape':>8s}  {'sigma':>7s}  {'wall_w':>8s}  "
-          f"{'dx':>8s}  {'cells':>6s}  {'resolved':>8s}")
+    print(
+        f"{'Metric':>14s}  {'Shape':>8s}  {'sigma':>7s}  {'wall_w':>8s}  "
+        f"{'dx':>8s}  {'cells':>6s}  {'resolved':>8s}"
+    )
     print("-" * 76)
     for r in results:
         sigma_str = f"{r['sigma']:.2f}" if r["sigma"] is not None else "N/A"
         wall_str = f"{r['wall_width']:.4f}" if r["wall_width"] is not None else "N/A"
-        cells_str = f"{r['cells_resolving_wall']:.2f}" if r["cells_resolving_wall"] is not None else "N/A"
+        cells_str = (
+            f"{r['cells_resolving_wall']:.2f}" if r["cells_resolving_wall"] is not None else "N/A"
+        )
         resolved_str = str(r["resolved"]) if r["resolved"] is not None else "N/A"
-        print(f"{r['metric']:>14s}  {r['shape_function'] or 'N/A'!s:>8s}  "
-              f"{sigma_str:>7s}  {wall_str:>8s}  {r['dx']:>8.4f}  "
-              f"{cells_str:>6s}  {resolved_str:>8s}")
+        print(
+            f"{r['metric']:>14s}  {r['shape_function'] or 'N/A'!s:>8s}  "
+            f"{sigma_str:>7s}  {wall_str:>8s}  {r['dx']:>8.4f}  "
+            f"{cells_str:>6s}  {resolved_str:>8s}"
+        )
 
     # Save JSON
     out_path = os.path.join(results_dir, "wall_resolution.json")
@@ -214,13 +222,16 @@ def write_latex_table(results, out_path):
         resolved = "Yes" if cells >= 4.0 else "No"
         conv = CONVERGENCE.get(key, "--")
         lines.append(
-            f"    {DISPLAY[key]} & {w:.4f} & {dx:.4f} & {cells:.2f} & "
-            f"{resolved} & {conv} \\\\"
+            f"    {DISPLAY[key]} & {w:.4f} & {dx:.4f} & {cells:.2f} & {resolved} & {conv} \\\\"
         )
     lines += [r"    \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_wall_resolution.py",
-                    sources="results/wall_resolution.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_wall_resolution.py",
+        sources="results/wall_resolution.json",
+    )
     print(f"Wrote {out_path}")
 
 

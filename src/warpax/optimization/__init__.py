@@ -5,6 +5,7 @@ multi-objective loss (constraints + EC + tidal + transport + mass),
 EC constraint enforcement (soft penalty + hard feasibility),
 and parameter space sweep for transport utility maximization.
 """
+
 from __future__ import annotations
 
 from .basis import (

@@ -4,6 +4,7 @@ This table was copied verbatim into nine scripts and the two-line
 ``_instantiate`` into eight. ``analysis.construction_adapter.construction_registry``
 is a richer structure (grid bounds, wall radii, claims) and is not a drop-in.
 """
+
 from __future__ import annotations
 
 from warpax.benchmarks import AlcubierreMetric
@@ -12,8 +13,7 @@ from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 METRICS = {
     "Alcubierre": (AlcubierreMetric, {}),
     "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (VanDenBroeckMetric,
-                       {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}),
+    "Van den Broeck": (VanDenBroeckMetric, {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}),
     "Rodal": (RodalMetric, {}),
 }
 

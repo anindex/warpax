@@ -9,6 +9,7 @@ point and solves the appropriate norm constraint:
 Also provides Schwarzschild-specific IC builders for circular orbits and
 radial infall in isotropic coordinates.
 """
+
 from __future__ import annotations
 
 import jax
@@ -214,26 +215,26 @@ def eulerian_affine_scale(
 ) -> Float[Array, ""]:
     """Factor pinning the free null affine scale to ``-g(k, n) = 1`` at ``x0``.
 
-    ``null_ic`` solves only ``k^0`` and passes the spatial direction through, so
-    the affine parameter of a null geodesic is left free. The ANEC line integral
-    scales linearly under ``k -> c k``, so its *magnitude* is undefined until this
-    is fixed; only its sign is not. Pinning against the Eulerian normal works at
-    every warp speed, since ``n`` stays unit timelike where ``d_t`` does not.
+     ``null_ic`` solves only ``k^0`` and passes the spatial direction through, so
+     the affine parameter of a null geodesic is left free. The ANEC line integral
+     scales linearly under ``k -> c k``, so its *magnitude* is undefined until this
+     is fixed; only its sign is not. Pinning against the Eulerian normal works at
+     every warp speed, since ``n`` stays unit timelike where ``d_t`` does not.
 
-    This is a physics convention, not a formality, and it lives here rather than
-    in a script because having it in one script and not another is exactly how it
-    went wrong: Alcubierre, Van den Broeck and Rodal are written in the lab frame
-    and already satisfy ``-g(k, n) = 1`` for a unit seed, but the Natario shift
-    follows Natario's own bubble-at-rest convention and tends to ``-v_s x_hat`` at
-    infinity, giving ``-g(k, n) = 1 / (1 + v_s)``. The rescaling factor is therefore
-    ``1 + v_s``, which at ``v_s = 1/2`` is exactly ``3/2``, putting its ANEC magnitude
-    on the same footing as the others.  (The factor is ``1 + v_s``, not ``1/(1 - v_s)``
-   , both give 3/2 only by coincidence at v_s = 1/2, and the second is wrong
-    everywhere else.  ``tests/test_geodesics.py`` pins the formula across speeds.)
+     This is a physics convention, not a formality, and it lives here rather than
+     in a script because having it in one script and not another is exactly how it
+     went wrong: Alcubierre, Van den Broeck and Rodal are written in the lab frame
+     and already satisfy ``-g(k, n) = 1`` for a unit seed, but the Natario shift
+     follows Natario's own bubble-at-rest convention and tends to ``-v_s x_hat`` at
+     infinity, giving ``-g(k, n) = 1 / (1 + v_s)``. The rescaling factor is therefore
+     ``1 + v_s``, which at ``v_s = 1/2`` is exactly ``3/2``, putting its ANEC magnitude
+     on the same footing as the others.  (The factor is ``1 + v_s``, not ``1/(1 - v_s)``
+    , both give 3/2 only by coincidence at v_s = 1/2, and the second is wrong
+     everywhere else.  ``tests/test_geodesics.py`` pins the formula across speeds.)
 
-    Use as ``k -> s * k`` with the affine window shrunk by the same factor, so the
-    geodesic covers an identical coordinate path and only its parametrization
-    changes.
+     Use as ``k -> s * k`` with the affine window shrunk by the same factor, so the
+     geodesic covers an identical coordinate path and only its parametrization
+     changes.
     """
     if n_spatial is None:
         n_spatial = jnp.array([1.0, 0.0, 0.0])

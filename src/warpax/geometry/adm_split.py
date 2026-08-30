@@ -16,6 +16,7 @@ For a static slice (d__t gamma_{ij} = 0):
 
 where D_i is the spatial covariant derivative compatible with gamma_{ij}.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

@@ -122,26 +122,26 @@ class VanDenBroeckMetric(ADMMetric):
 
         r_s = sp.sqrt((x - v_s * t) ** 2 + y**2 + z**2)
 
-        f = (
-            sp.tanh(sigma_val * (r_s + R_val))
-            - sp.tanh(sigma_val * (r_s - R_val))
-        ) / (2 * sp.tanh(sigma_val * R_val))
+        f = (sp.tanh(sigma_val * (r_s + R_val)) - sp.tanh(sigma_val * (r_s - R_val))) / (
+            2 * sp.tanh(sigma_val * R_val)
+        )
 
-        f_B = (
-            sp.tanh(sigma_B * (r_s + R_tilde))
-            - sp.tanh(sigma_B * (r_s - R_tilde))
-        ) / (2 * sp.tanh(sigma_B * R_tilde))
+        f_B = (sp.tanh(sigma_B * (r_s + R_tilde)) - sp.tanh(sigma_B * (r_s - R_tilde))) / (
+            2 * sp.tanh(sigma_B * R_tilde)
+        )
         B = 1 + alpha_vdb * f_B
 
         beta_x = -v_s * f
 
         # g_00 = -(1 - B^2 beta_x^2); g_0x = B^2 beta_x; g_ij = B^2 delta_ij
-        g = sp.Matrix([
-            [-(1 - B**2 * beta_x**2), B**2 * beta_x, 0, 0],
-            [B**2 * beta_x, B**2, 0, 0],
-            [0, 0, B**2, 0],
-            [0, 0, 0, B**2],
-        ])
+        g = sp.Matrix(
+            [
+                [-(1 - B**2 * beta_x**2), B**2 * beta_x, 0, 0],
+                [B**2 * beta_x, B**2, 0, 0],
+                [0, 0, B**2, 0],
+                [0, 0, 0, B**2],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:

@@ -133,6 +133,12 @@ ignore = [
     "RUF046",
 ]
 
+[tool.ruff.lint.pycodestyle]
+# The formatter wraps code at line-length = 100. E501 gets a wider limit
+# because the only lines that exceed it are single string literals (regexes,
+# messages) that cannot be split without hurting them.
+max-line-length = 120
+
 [tool.ruff.lint.per-file-ignores]
 # Re-exports in __init__.py
 "__init__.py" = ["F401"]

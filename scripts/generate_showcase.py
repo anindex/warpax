@@ -1,4 +1,3 @@
-
 """Generate showcase animations for warp drive physics.
 
 Produces three animations: velocity ramp-down, velocity ramp, and
@@ -23,6 +22,7 @@ Specific formats only:
 Combine flags:
     python scripts/generate_showcase.py --quick --scene rampdown --formats gif
 """
+
 from __future__ import annotations
 
 import argparse
@@ -55,9 +55,9 @@ QUICK_FRAMES = {"rampdown": 15, "ramp": 15, "observer": 10}
 QUICK_GRID = 20
 
 # Resolution settings
-GIF_RES = (720, 720)       # Square for social media
-MP4_RES = (1920, 1080)     # 16:9 for talks
-PNG_RES = (1920, 1080)     # 16:9 for supplement
+GIF_RES = (720, 720)  # Square for social media
+MP4_RES = (1920, 1080)  # 16:9 for talks
+PNG_RES = (1920, 1080)  # 16:9 for supplement
 
 # Grid bounds (standard warp bubble domain)
 GRID_BOUNDS = [(-3, 3), (-3, 3), (-3, 3)]
@@ -118,6 +118,7 @@ def _apply_overlays(images, title, param_fn, watermark=False):
 def _write_gif(images, path, fps=20):
     """Write RGBA images to GIF."""
     import imageio.v3 as iio
+
     duration_ms = 1000.0 / fps
     iio.imwrite(
         path,
@@ -132,6 +133,7 @@ def _write_gif(images, path, fps=20):
 def _write_mp4(images, path, fps=30, quality=5):
     """Write RGB images to MP4 (H.264)."""
     import imageio.v2 as iio_v2
+
     writer = iio_v2.get_writer(
         str(path),
         format="FFMPEG",
@@ -151,6 +153,7 @@ def _write_png(images, directory, basename):
     """Write RGBA images as numbered PNG frames."""
     os.makedirs(directory, exist_ok=True)
     import imageio.v3 as iio
+
     for idx, img in enumerate(images):
         frame_path = os.path.join(directory, f"{basename}_{idx:04d}.png")
         iio.imwrite(frame_path, img)
@@ -165,6 +168,7 @@ def _render_2d_frame(frame_data, field="energy_density", title=""):
     Returns an RGBA numpy array.
     """
     import matplotlib
+
     matplotlib.use("Agg")  # non-interactive backend
     import matplotlib.pyplot as plt
 
@@ -222,14 +226,18 @@ def render_scene_rampdown(grid_spec, n_frames, output_dir, formats, quick):
 
     images = []
     for i, fd in enumerate(frames):
-        img = _render_2d_frame(fd, field="energy_density",
-                               title=f"Velocity Ramp-Down  v_s = {fd.v_s:.3f}")
+        img = _render_2d_frame(
+            fd, field="energy_density", title=f"Velocity Ramp-Down  v_s = {fd.v_s:.3f}"
+        )
         images.append(img)
 
     _export_images(
-        images, scene_name="rampdown", title="Velocity Ramp-Down",
-        param_fn=lambda i: f"v_s = {frames[min(i, len(frames)-1)].v_s:.3f}",
-        output_dir=output_dir, formats=formats,
+        images,
+        scene_name="rampdown",
+        title="Velocity Ramp-Down",
+        param_fn=lambda i: f"v_s = {frames[min(i, len(frames) - 1)].v_s:.3f}",
+        output_dir=output_dir,
+        formats=formats,
     )
 
 
@@ -241,14 +249,16 @@ def render_scene_ramp(grid_spec, n_frames, output_dir, formats, quick):
     images = []
     for i, fd in enumerate(frames):
         field = "wec_margin_sweep" if "wec_margin_sweep" in fd.scalar_fields else "energy_density"
-        img = _render_2d_frame(fd, field=field,
-                               title=f"Velocity Ramp  v_s = {fd.v_s:.3f}")
+        img = _render_2d_frame(fd, field=field, title=f"Velocity Ramp  v_s = {fd.v_s:.3f}")
         images.append(img)
 
     _export_images(
-        images, scene_name="ramp", title="Velocity Ramp",
-        param_fn=lambda i: f"v_s = {frames[min(i, len(frames)-1)].v_s:.3f}",
-        output_dir=output_dir, formats=formats,
+        images,
+        scene_name="ramp",
+        title="Velocity Ramp",
+        param_fn=lambda i: f"v_s = {frames[min(i, len(frames) - 1)].v_s:.3f}",
+        output_dir=output_dir,
+        formats=formats,
     )
 
 
@@ -260,14 +270,16 @@ def render_scene_observer(grid_spec, n_frames, output_dir, formats, quick):
     images = []
     for i, fd in enumerate(frames):
         field = "wec_margin_sweep" if "wec_margin_sweep" in fd.scalar_fields else "energy_density"
-        img = _render_2d_frame(fd, field=field,
-                               title=f"Observer Sweep  \u03b6 = {fd.t:.2f}")
+        img = _render_2d_frame(fd, field=field, title=f"Observer Sweep  \u03b6 = {fd.t:.2f}")
         images.append(img)
 
     _export_images(
-        images, scene_name="observer", title="Observer Sweep",
-        param_fn=lambda i: f"\u03b6 = {frames[min(i, len(frames)-1)].t:.2f}",
-        output_dir=output_dir, formats=formats,
+        images,
+        scene_name="observer",
+        title="Observer Sweep",
+        param_fn=lambda i: f"\u03b6 = {frames[min(i, len(frames) - 1)].t:.2f}",
+        output_dir=output_dir,
+        formats=formats,
     )
 
 
@@ -365,11 +377,7 @@ def main():
     )
     frames_config = QUICK_FRAMES if quick else PROD_FRAMES
 
-    scenes = (
-        ["rampdown", "ramp", "observer"]
-        if args.scene == "all"
-        else [args.scene]
-    )
+    scenes = ["rampdown", "ramp", "observer"] if args.scene == "all" else [args.scene]
 
     print(f"Grid: {grid_size}^3 | Quick: {quick} | Formats: {args.formats}")
     print(f"Scenes: {', '.join(scenes)}")
@@ -390,7 +398,11 @@ def main():
         t0 = time.time()
         n_frames = frames_config[scene_name]
         render_fns[scene_name](
-            grid_spec, n_frames, args.output_dir, args.formats, quick,
+            grid_spec,
+            n_frames,
+            args.output_dir,
+            args.formats,
+            quick,
         )
         elapsed = time.time() - t0
         print(f"\n  {scene_name} complete in {elapsed:.1f}s")

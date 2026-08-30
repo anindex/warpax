@@ -11,6 +11,7 @@ Conventions
   are only meaningful after Type I eigenvalue extraction).
 - ``he_type`` encodes the Hawking-Ellis integer label: 1=I, 2=II, 3=III, 4=IV.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple

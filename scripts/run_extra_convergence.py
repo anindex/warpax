@@ -18,6 +18,7 @@ anec_symplectic / exoticity_ranking tables).
 
 Outputs: results/extra_convergence.json, ../warpax_arxiv/tables/extra_convergence.tex
 """
+
 from __future__ import annotations
 
 import os
@@ -57,9 +58,13 @@ def _stability(values):
     report the spread across the ladder, not an assumed order."""
     vals = [v for v in values if v is not None and np.isfinite(v)]
     spread = float(max(vals) - min(vals)) if vals else float("nan")
-    return {"values": list(values), "spread": spread,
-            "stable": bool(spread <= 0.05 * (abs(np.mean(vals)) + 1e-12) or spread <= 0.02),
-            "verdict": "stability"}
+    return {
+        "values": list(values),
+        "spread": spread,
+        "stable": bool(spread <= 0.05 * (abs(np.mean(vals)) + 1e-12) or spread <= 0.02),
+        "verdict": "stability",
+    }
+
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
@@ -74,7 +79,8 @@ FAMILY = {
     "Van den Broeck": (
         VanDenBroeckMetric,
         {"R": 1.0, "sigma": 8.0, "R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0},
-        [(-3.0, 3.0)] * 3, 1.0,
+        [(-3.0, 3.0)] * 3,
+        1.0,
     ),
     # Matched family (R=1, sigma=8), same as run_anec_symplectic / run_velocity_sweep
     # -> run_exoticity_ranking. At native R=100/sigma=0.03 the wall sits at r~100 and
@@ -82,7 +88,7 @@ FAMILY = {
     # matching the family reproduces both published tables (ANEC -0.0041, exoticity 0.014).
     "Rodal": (RodalMetric, {"R": 1.0, "sigma": 8.0}, [(-3.0, 3.0)] * 3, 1.0),
 }
-GRID_N = N_LADDER             # exoticity-index spatial resolutions (wall-resolved ladder)
+GRID_N = N_LADDER  # exoticity-index spatial resolutions (wall-resolved ladder)
 # Brackets the production setting (run_anec_symplectic.py uses 32768 at SPAN0),
 # so the ladder certifies the resolution the paper actually reports. Now that
 # num_save follows num_steps, it refines the quadrature as well as the path.
@@ -107,12 +113,18 @@ def _anec_ray(metric, R, b, span, num_steps):
     # infinity), and this table certified an ANEC minimum the paper does not
     # report: -0.0510 against the published -0.0764.
     sc = float(eulerian_affine_scale(metric, x0))
-    return anec_rigorous(metric, x0, jnp.array([sc, 0.0, 0.0]),
-                         affine_bounds=(0.0, span / sc), num_steps=num_steps,
-                         order=4, null_tol=1e-6)
+    return anec_rigorous(
+        metric,
+        x0,
+        jnp.array([sc, 0.0, 0.0]),
+        affine_bounds=(0.0, span / sc),
+        num_steps=num_steps,
+        order=4,
+        null_tol=1e-6,
+    )
 
 
-WALL_SUPPORT_R = 3.0   # tail_bound certifies f < 1.3e-14 outside this radius
+WALL_SUPPORT_R = 3.0  # tail_bound certifies f < 1.3e-14 outside this radius
 PROBE_SPAN_MULT = 8.0
 
 
@@ -128,8 +140,12 @@ def _anec_span(metric, R, num_steps) -> tuple[float, bool]:
     x0c, p0 = null_ic_canonical(metric, x0, jnp.array([sc, 0.0, 0.0]))
     probe = PROBE_SPAN_MULT * 16.0 * R
     geo = integrate_geodesic_symplectic(
-        metric, x0c, p0, (0.0, probe / sc),
-        num_steps=int(round(num_steps * PROBE_SPAN_MULT)), order=4,
+        metric,
+        x0c,
+        p0,
+        (0.0, probe / sc),
+        num_steps=int(round(num_steps * PROBE_SPAN_MULT)),
+        order=4,
     )
     pos = np.asarray(geo.positions)
     lam = np.asarray(geo.ts) * sc
@@ -159,8 +175,7 @@ def _grid_axes(name, N):
     curv = evaluate_curvature_grid(metric, grid, batch_size=bs)
     coords = build_coord_batch(grid, t=0.0)
     mask = shape_function_mask(metric, coords, grid.shape)
-    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv,
-                                 lmi_where=mask)
+    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv, lmi_where=mask)
     vol_w = proper_volume_weights(grid.volume_weights_array, curv.metric)
     fracs = type_fractions(ff, mask=mask, volume_weights=vol_w)
     margins = typeI_min_margins(ff, mask=mask)
@@ -235,12 +250,18 @@ def main():
             vals.append(mn)
             wits.append(wit)
         anec_series[name] = vals
-        anec_spans[name] = {"affine_span": float(span),
-                            "affine_span_covers_crossing": bool(span_ok)}
+        anec_spans[name] = {
+            "affine_span": float(span),
+            "affine_span_covers_crossing": bool(span_ok),
+        }
         anec_min_abs[name] = abs(vals[-1])  # finest resolution
-        print(f"  {name:16s} " + " ".join(f"{v:+.5f}" for v in vals) +
-              f"   worst|g(k,k)|={max(wits):.1e}  span={span:.1f}"
-              f"{'' if span_ok else ' [RAY DID NOT LEAVE]'}", flush=True)
+        print(
+            f"  {name:16s} "
+            + " ".join(f"{v:+.5f}" for v in vals)
+            + f"   worst|g(k,k)|={max(wits):.1e}  span={span:.1f}"
+            f"{'' if span_ok else ' [RAY DID NOT LEAVE]'}",
+            flush=True,
+        )
 
     # ---- Exoticity index vs wall grid resolution
     print("\nExoticity index vs wall grid resolution:")
@@ -270,12 +291,16 @@ def main():
         print(f"  {name:16s} exoticity: {_verdict_str(e):20s}  ANEC: {_verdict_str(a)}")
 
     out = {
-        "params": {"v_s": V_S, "grid_N": GRID_N, "anec_steps": ANEC_STEPS,
-                   "n_b": int(SYMPLECTIC_B_SCAN.size),
-                   "note": "exoticity resolution = spatial grid N (wall-clustered); "
-                           "ANEC resolution = symplectic integrator steps (geodesic, "
-                           "not a spatial grid). matched family R_b=1 sigma=8 for all "
-                           "four drives (Rodal included)."},
+        "params": {
+            "v_s": V_S,
+            "grid_N": GRID_N,
+            "anec_steps": ANEC_STEPS,
+            "n_b": int(SYMPLECTIC_B_SCAN.size),
+            "note": "exoticity resolution = spatial grid N (wall-clustered); "
+            "ANEC resolution = symplectic integrator steps (geodesic, "
+            "not a spatial grid). matched family R_b=1 sigma=8 for all "
+            "four drives (Rodal included).",
+        },
         "order": ORDER,
         "anec_affine_window": anec_spans,
         "anec_min_series": anec_series,

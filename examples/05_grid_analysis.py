@@ -1,4 +1,3 @@
-
 """Grid-level Eulerian vs observer-robust comparison.
 
 Demonstrates warpax's core workflow: evaluating energy conditions across a
@@ -45,14 +44,16 @@ print(f"  Max |T_ab|: {np.max(np.abs(grid_result.stress_energy)):.4e}")
 # Step 2: Eulerian vs robust EC comparison
 print("\n[2/3] Running Eulerian vs robust comparison (BFGS optimization)...")
 
-T_field = grid_result.stress_energy    # (*grid_shape, 4, 4)
-g_field = grid_result.metric           # (*grid_shape, 4, 4)
-g_inv_field = grid_result.metric_inv   # (*grid_shape, 4, 4)
+T_field = grid_result.stress_energy  # (*grid_shape, 4, 4)
+g_field = grid_result.metric  # (*grid_shape, 4, 4)
+g_inv_field = grid_result.metric_inv  # (*grid_shape, 4, 4)
 
 comparison = compare_eulerian_vs_robust(
-    T_field, g_field, g_inv_field,
+    T_field,
+    g_field,
+    g_inv_field,
     grid_shape=grid.shape,
-    n_starts=8,      # reduced for speed in example
+    n_starts=8,  # reduced for speed in example
     zeta_max=5.0,
     batch_size=64,
 )
@@ -83,7 +84,7 @@ print("  Hawking-Ellis classification:")
 for t in range(1, 5):
     count = int(np.sum(he_types == t))
     if count > 0:
-        print(f"    Type {t}: {count} points ({100*count/len(he_types):.1f}%)")
+        print(f"    Type {t}: {count} points ({100 * count / len(he_types):.1f}%)")
 
 # Step 4: Generate comparison figure
 output_dir = os.path.join(os.path.dirname(__file__), "output")

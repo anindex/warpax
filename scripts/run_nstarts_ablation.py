@@ -1,4 +1,3 @@
-
 """N_starts ablation study: sensitivity of robust margins to restart count.
 
 Sweeps N_starts in {1, 2, 4, 8, 16} for three representative metrics at
@@ -18,6 +17,7 @@ Usage
     python scripts/run_nstarts_ablation.py
     python scripts/run_nstarts_ablation.py --n-starts 1 2 4 8 16 32
 """
+
 from __future__ import annotations
 
 import argparse
@@ -145,9 +145,9 @@ def main():
 
             # Algebraic min: min of merged margin over Type-I points only
             is_type_i = np.asarray(comparison.he_types) == 1.0
-            min_wec_alg = float(np.nanmin(np.where(
-                is_type_i, np.asarray(comparison.robust_margins["wec"]), np.inf
-            )))
+            min_wec_alg = float(
+                np.nanmin(np.where(is_type_i, np.asarray(comparison.robust_margins["wec"]), np.inf))
+            )
 
             metric_results["min_wec_margin"].append(min_wec)
             metric_results["min_wec_algebraic"].append(min_wec_alg)

@@ -1,4 +1,5 @@
 """Tests for the closed-form Type-I worst observer."""
+
 from __future__ import annotations
 
 import jax

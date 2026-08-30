@@ -49,11 +49,7 @@ class TensorField(eqx.Module):
     @property
     def grid_shape(self) -> tuple[int, ...]:
         """Shape of the spatial grid dimensions."""
-        return (
-            self.components.shape[: -self.rank]
-            if self.rank > 0
-            else self.components.shape
-        )
+        return self.components.shape[: -self.rank] if self.rank > 0 else self.components.shape
 
     @property
     def tensor_shape(self) -> tuple[int, ...]:
@@ -115,10 +111,7 @@ class GridSpec(eqx.Module):
         """
         if self.coord_arrays is not None:
             return [jnp.asarray(arr) for arr in self.coord_arrays]
-        return [
-            jnp.linspace(b[0], b[1], n)
-            for b, n in zip(self.bounds, self.shape, strict=True)
-        ]
+        return [jnp.linspace(b[0], b[1], n) for b, n in zip(self.bounds, self.shape, strict=True)]
 
     @property
     def volume_weights_array(self) -> jnp.ndarray | None:

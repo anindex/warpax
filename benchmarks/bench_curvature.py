@@ -4,6 +4,7 @@ Two benchmarks covering the full autodiff curvature chain
 (metric -> Christoffel -> Riemann -> Ricci -> Einstein -> stress-energy)
 on Alcubierre warp spacetimes at two grid sizes.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,9 +31,7 @@ class CurvatureChain32:
         self.grid = GridSpec(bounds=[(-6.0, 6.0)] * 3, shape=(32, 32, 32))
 
         def _run(metric: AlcubierreMetric) -> jnp.ndarray:
-            result = evaluate_curvature_grid(
-                metric, self.grid, t=0.0, compute_invariants=False
-            )
+            result = evaluate_curvature_grid(metric, self.grid, t=0.0, compute_invariants=False)
             return result.stress_energy
 
         self.fn = jax.jit(_run)
@@ -55,9 +54,7 @@ class CurvatureChain64:
         self.grid = GridSpec(bounds=[(-6.0, 6.0)] * 3, shape=(64, 64, 64))
 
         def _run(metric: AlcubierreMetric) -> jnp.ndarray:
-            result = evaluate_curvature_grid(
-                metric, self.grid, t=0.0, compute_invariants=False
-            )
+            result = evaluate_curvature_grid(metric, self.grid, t=0.0, compute_invariants=False)
             return result.stress_energy
 
         self.fn = jax.jit(_run)

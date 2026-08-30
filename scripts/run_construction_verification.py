@@ -35,6 +35,7 @@ Outputs
 - ../warpax_arxiv/tables/construction_matched.tex
 - ../warpax_arxiv/tables/construction_native.tex
 """
+
 from __future__ import annotations
 
 import argparse
@@ -76,7 +77,11 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
     metric = spec.metric()
     center = spec.center_of(metric)
     grid = axisymmetric_grid(
-        spec.r_max, n_r, n_mu, wall_radius=spec.wall_radius, a=spec.cluster_a,
+        spec.r_max,
+        n_r,
+        n_mu,
+        wall_radius=spec.wall_radius,
+        a=spec.cluster_a,
         center=center,
     )
     # The resolution witness must be measured on the axis the grid actually samples,
@@ -125,20 +130,19 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
 
     # The Eulerian comparison needs a timelike coordinate-stationary congruence.
     eulerian_valid = float(spec.default_speed) < 1.0
-    miss = (
-        single_frame_miss(T, g, gi, mask=wall, volume_weights=w)
-        if eulerian_valid else None
-    )
+    miss = single_frame_miss(T, g, gi, mask=wall, volume_weights=w) if eulerian_valid else None
 
-    row.update({
-        "n_wall_points": int(sel.sum()),
-        "frac_type_i": float(w[sel & (he == 1.0)].sum() / w_wall) if w_wall else float("nan"),
-        "frac_type_iv": float(w[sel & (he == 4.0)].sum() / w_wall) if w_wall else float("nan"),
-        "invariant_nec_min": nec_min,
-        # Curvature carries 1/L^2, so this is the comparable quantity.
-        "nec_min_dimensionless": nec_min * spec.wall_radius ** 2,
-        "eulerian_valid": eulerian_valid,
-    })
+    row.update(
+        {
+            "n_wall_points": int(sel.sum()),
+            "frac_type_i": float(w[sel & (he == 1.0)].sum() / w_wall) if w_wall else float("nan"),
+            "frac_type_iv": float(w[sel & (he == 4.0)].sum() / w_wall) if w_wall else float("nan"),
+            "invariant_nec_min": nec_min,
+            # Curvature carries 1/L^2, so this is the comparable quantity.
+            "nec_min_dimensionless": nec_min * spec.wall_radius**2,
+            "eulerian_valid": eulerian_valid,
+        }
+    )
     # miss_rate is None when nothing violates at all (empty denominator), which
     # is a meaningful outcome here, not an error: it is what a construction that
     # clears the all-observer check on its wall looks like.
@@ -164,11 +168,13 @@ def write_table(rows_by_metric: dict, out_path: str, *, show_speed: bool) -> Non
     lines = [
         r"\begin{tabular}{@{}l" + speed_col + r" cc cc c cc@{}}",
         r"  \toprule",
-        (r"  & $v_s$ & \multicolumn{2}{c}{Wall cells}" if show_speed
-         else r"  & \multicolumn{2}{c}{Wall cells}")
+        (
+            r"  & $v_s$ & \multicolumn{2}{c}{Wall cells}"
+            if show_speed
+            else r"  & \multicolumn{2}{c}{Wall cells}"
+        )
         + r" & Type~I & Type~IV & $R_c^2\min(\rho+p_i)$ & WEC & NEC \\",
-        (r"  Metric & & coarse & fine" if show_speed
-         else r"  Metric & coarse & fine")
+        (r"  Metric & & coarse & fine" if show_speed else r"  Metric & coarse & fine")
         + r" & (\%) & (\%) & (Type~I) & \multicolumn{2}{c}{miss (\%)} \\",
         r"  \midrule",
     ]
@@ -187,15 +193,19 @@ def write_table(rows_by_metric: dict, out_path: str, *, show_speed: bool) -> Non
             )
             continue
         lines.append(
-            lead
-            + f" & {_fmt(coarse['wall_cells'])} & {_fmt(fine['wall_cells'])}"
+            lead + f" & {_fmt(coarse['wall_cells'])} & {_fmt(fine['wall_cells'])}"
             f" & {_fmt(fine['frac_type_i'] * 100)} & {_fmt(fine['frac_type_iv'] * 100)}"
             f" & {_fmt_margin(fine['nec_min_dimensionless'])}"
             f" & {_fmt(fine.get('miss_wec_pct'))} & {_fmt(fine.get('miss_nec_pct'))} \\\\"
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_construction_verification.py", sources="results/construction_verification.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_construction_verification.py",
+        sources="results/construction_verification.json",
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -212,11 +222,12 @@ def run_mode(registry, ladder, label: str) -> dict:
         if fine.get("resolved", False):
             spread_i = (
                 abs(rows[-1]["frac_type_i"] - rows[-2]["frac_type_i"]) * 100
-                if len(rows) > 1 else float("nan")
+                if len(rows) > 1
+                else float("nan")
             )
             print(
                 f"  {name:>11s}  cells {rows[0]['wall_cells']:5.2f}->{fine['wall_cells']:5.2f}"
-                f"  TypeI={fine['frac_type_i']*100:6.2f}%  TypeIV={fine['frac_type_iv']*100:6.2f}%"
+                f"  TypeI={fine['frac_type_i'] * 100:6.2f}%  TypeIV={fine['frac_type_iv'] * 100:6.2f}%"
                 f"  Rc^2 minNEC={fine['nec_min_dimensionless']:+.4g}"
                 f"  missW/N={_fmt(fine.get('miss_wec_pct'))}/{_fmt(fine.get('miss_nec_pct'))}"
                 f"  [finest-two TypeI spread {spread_i:.2f} pp]"
@@ -237,15 +248,20 @@ def main() -> None:
     print("=" * 78)
     print("CROSS-CONSTRUCTION ALL-OBSERVER VERIFICATION")
     print("=" * 78)
-    print(f"  matched point: v_s={MATCHED_V_S}  R_c={MATCHED_R_C}  "
-          f"sigma={MATCHED_SIGMA:.9f}  W={MATCHED_WIDTH}")
+    print(
+        f"  matched point: v_s={MATCHED_V_S}  R_c={MATCHED_R_C}  "
+        f"sigma={MATCHED_SIGMA:.9f}  W={MATCHED_WIDTH}"
+    )
     print(f"  ladder: {list(ladder)}   wall band f in [{F_LOW}, {F_HIGH}]")
     print(f"  NOT matched: {MATCHING_CAVEAT}")
 
     payload = {
         "matched_point": {
-            "v_s": MATCHED_V_S, "R_c": MATCHED_R_C, "sigma": MATCHED_SIGMA,
-            "wall_width": MATCHED_WIDTH, "width_over_Rc": MATCHED_WIDTH / MATCHED_R_C,
+            "v_s": MATCHED_V_S,
+            "R_c": MATCHED_R_C,
+            "sigma": MATCHED_SIGMA,
+            "wall_width": MATCHED_WIDTH,
+            "width_over_Rc": MATCHED_WIDTH / MATCHED_R_C,
         },
         "matching_caveat": MATCHING_CAVEAT,
         "ladder": [list(x) for x in ladder],
@@ -257,14 +273,14 @@ def main() -> None:
         rows = run_mode(matched_registry(), ladder, "MATCHED shift kinematics")
         payload["matched"] = rows
         if not args.smoke:
-            write_table(rows, os.path.join(TABLES_DIR, "construction_matched.tex"),
-                        show_speed=False)
+            write_table(
+                rows, os.path.join(TABLES_DIR, "construction_matched.tex"), show_speed=False
+            )
     if args.mode in ("native", "both"):
         rows = run_mode(construction_registry(), ladder, "NATIVE published parameters")
         payload["native"] = rows
         if not args.smoke:
-            write_table(rows, os.path.join(TABLES_DIR, "construction_native.tex"),
-                        show_speed=True)
+            write_table(rows, os.path.join(TABLES_DIR, "construction_native.tex"), show_speed=True)
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
     out_path = os.path.join(RESULTS_DIR, "construction_verification.json")

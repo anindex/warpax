@@ -14,6 +14,7 @@ Binding configurations:
 For each setting we report the worst DEC margin (value + sign) and eps_H at the
 worst-DEC probe point, and the relationship between eps_H and |worst margin|.
 """
+
 from __future__ import annotations
 
 import os
@@ -40,6 +41,7 @@ from warpax.metrics.tshell_profiles import (
 from warpax.optimization.sweep import _rho_from_compactness
 
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "error_budget.json"
+
 
 # Boundary + shell probe radii, concentrated near the inner edge R_1 where
 # the geometric DEC violation binds, plus a couple of bulk-shell probes.
@@ -90,9 +92,13 @@ def _worst_dec(metric, R_1, R_2, n_starts):
 CONFIGS = [
     {"label": "default", "R_1": 10.0, "R_2": 20.0, "rho_0": 1e-4, "v_0": 0.1},
     # high-C corner: C=0.20, dR/R_2=0.80 -> R_1 = R_2*(1-0.80) = 4
-    {"label": "high-C corner C=0.20 dR/R2=0.80",
-     "R_1": 4.0, "R_2": 20.0,
-     "rho_0": _rho_from_compactness(0.20, 4.0, 20.0), "v_0": 0.1},
+    {
+        "label": "high-C corner C=0.20 dR/R2=0.80",
+        "R_1": 4.0,
+        "R_2": 20.0,
+        "rho_0": _rho_from_compactness(0.20, 4.0, 20.0),
+        "v_0": 0.1,
+    },
 ]
 
 N_GRID = [256, 512, 1024]
@@ -113,42 +119,75 @@ def main():
             t0 = time.time()
             m = _build_metric("c2_smoothstep", R_1, R_2, rho_0, v_0, ng)
             worst, r_w, eHw, eHmax = _worst_dec(m, R_1, R_2, n_starts=16)
-            rec = {"config": cfg["label"], "axis": "n_grid", "value": ng,
-                   "profile": "c2_smoothstep", "n_starts": 16, "n_grid": ng,
-                   "worst_dec_margin": worst, "sign": "neg" if worst < 0 else "pos",
-                   "r_at_worst": r_w, "eps_H_at_worst": eHw, "eps_H_max": eHmax,
-                   "elapsed_s": time.time() - t0}
+            rec = {
+                "config": cfg["label"],
+                "axis": "n_grid",
+                "value": ng,
+                "profile": "c2_smoothstep",
+                "n_starts": 16,
+                "n_grid": ng,
+                "worst_dec_margin": worst,
+                "sign": "neg" if worst < 0 else "pos",
+                "r_at_worst": r_w,
+                "eps_H_at_worst": eHw,
+                "eps_H_max": eHmax,
+                "elapsed_s": time.time() - t0,
+            }
             out["sweeps"].append(rec)
-            print(f"  n_grid={ng:5d}: worst DEC={worst:+.4e} ({rec['sign']})  "
-                  f"eps_H@worst={eHw:.3e}  ({rec['elapsed_s']:.1f}s)")
+            print(
+                f"  n_grid={ng:5d}: worst DEC={worst:+.4e} ({rec['sign']})  "
+                f"eps_H@worst={eHw:.3e}  ({rec['elapsed_s']:.1f}s)"
+            )
 
         # (b) observer-search depth sweep (default profile=c2, n_grid=512)
         for ns in N_STARTS:
             t0 = time.time()
             m = _build_metric("c2_smoothstep", R_1, R_2, rho_0, v_0, 512)
             worst, r_w, eHw, eHmax = _worst_dec(m, R_1, R_2, n_starts=ns)
-            rec = {"config": cfg["label"], "axis": "n_starts", "value": ns,
-                   "profile": "c2_smoothstep", "n_starts": ns, "n_grid": 512,
-                   "worst_dec_margin": worst, "sign": "neg" if worst < 0 else "pos",
-                   "r_at_worst": r_w, "eps_H_at_worst": eHw, "eps_H_max": eHmax,
-                   "elapsed_s": time.time() - t0}
+            rec = {
+                "config": cfg["label"],
+                "axis": "n_starts",
+                "value": ns,
+                "profile": "c2_smoothstep",
+                "n_starts": ns,
+                "n_grid": 512,
+                "worst_dec_margin": worst,
+                "sign": "neg" if worst < 0 else "pos",
+                "r_at_worst": r_w,
+                "eps_H_at_worst": eHw,
+                "eps_H_max": eHmax,
+                "elapsed_s": time.time() - t0,
+            }
             out["sweeps"].append(rec)
-            print(f"  n_starts={ns:3d}: worst DEC={worst:+.4e} ({rec['sign']})  "
-                  f"eps_H@worst={eHw:.3e}  ({rec['elapsed_s']:.1f}s)")
+            print(
+                f"  n_starts={ns:3d}: worst DEC={worst:+.4e} ({rec['sign']})  "
+                f"eps_H@worst={eHw:.3e}  ({rec['elapsed_s']:.1f}s)"
+            )
 
         # (c) source-profile family (n_grid=512, n_starts=16)
         for pf in PROFILES:
             t0 = time.time()
             m = _build_metric(pf, R_1, R_2, rho_0, v_0, 512)
             worst, r_w, eHw, eHmax = _worst_dec(m, R_1, R_2, n_starts=16)
-            rec = {"config": cfg["label"], "axis": "profile", "value": pf,
-                   "profile": pf, "n_starts": 16, "n_grid": 512,
-                   "worst_dec_margin": worst, "sign": "neg" if worst < 0 else "pos",
-                   "r_at_worst": r_w, "eps_H_at_worst": eHw, "eps_H_max": eHmax,
-                   "elapsed_s": time.time() - t0}
+            rec = {
+                "config": cfg["label"],
+                "axis": "profile",
+                "value": pf,
+                "profile": pf,
+                "n_starts": 16,
+                "n_grid": 512,
+                "worst_dec_margin": worst,
+                "sign": "neg" if worst < 0 else "pos",
+                "r_at_worst": r_w,
+                "eps_H_at_worst": eHw,
+                "eps_H_max": eHmax,
+                "elapsed_s": time.time() - t0,
+            }
             out["sweeps"].append(rec)
-            print(f"  profile={pf:14s}: worst DEC={worst:+.4e} ({rec['sign']})  "
-                  f"eps_H@worst={eHw:.3e}  ({rec['elapsed_s']:.1f}s)")
+            print(
+                f"  profile={pf:14s}: worst DEC={worst:+.4e} ({rec['sign']})  "
+                f"eps_H@worst={eHw:.3e}  ({rec['elapsed_s']:.1f}s)"
+            )
 
     # eps_H vs |worst margin| relationship and sign invariance
     margins = [r["worst_dec_margin"] for r in out["sweeps"]]
@@ -158,6 +197,7 @@ def main():
 
     # Correlation between eps_H and |worst margin| (across all settings)
     import math
+
     n = len(margins)
     abs_m = [abs(v) for v in margins]
     finite = [(e, a) for e, a in zip(epsH, abs_m, strict=True) if e == e and a == a]
@@ -184,8 +224,8 @@ def main():
             "eps_H ~ 5e-3 is a constraint-residual floor that does NOT flip the "
             "sign: |worst margin| does not track eps_H, confirming the boundary "
             "DEC violation is physical (geometric), not numerical."
-            if all_neg else
-            "WARNING: sign NOT invariant across settings."
+            if all_neg
+            else "WARNING: sign NOT invariant across settings."
         ),
     }
 

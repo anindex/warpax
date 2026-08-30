@@ -23,7 +23,7 @@ print("Alcubierre warp drive analysis")
 print("=" * 40)
 print(f"Parameters: v_s={v_s}, R={R}, sigma={sigma}")
 
-r_s = jnp.sqrt(coords[1]**2 + coords[2]**2 + coords[3]**2)
+r_s = jnp.sqrt(coords[1] ** 2 + coords[2] ** 2 + coords[3] ** 2)
 print(f"Point: (t, x, y, z) = ({coords[0]}, {coords[1]}, {coords[2]}, {coords[3]})")
 print(f"Distance from bubble center: r_s = {r_s:.4f}")
 
@@ -50,8 +50,12 @@ print(f"  NEC: {eulerian_ec['nec']:.6e}")
 print(f"  WEC: {eulerian_ec['wec']:.6e}")
 
 rho_analytical = eulerian_energy_density(
-    jnp.array(coords[1]), jnp.array(coords[2]), jnp.array(coords[3]),
-    v_s=v_s, R=R, sigma=sigma,
+    jnp.array(coords[1]),
+    jnp.array(coords[2]),
+    jnp.array(coords[3]),
+    v_s=v_s,
+    R=R,
+    sigma=sigma,
 )
 print(f"\nAnalytical Eulerian energy density: {rho_analytical:.6e}")
 print("(Negative value confirms WEC/NEC violation.)")

@@ -5,6 +5,7 @@ timelike observer manifold for NEC / WEC / SEC / DEC on a single
 Alcubierre wall point. Uses the default ``n_starts=16`` and
 ``zeta_max=5.0``.
 """
+
 from __future__ import annotations
 
 import os

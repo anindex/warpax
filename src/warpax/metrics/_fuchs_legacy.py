@@ -7,6 +7,7 @@ This module provides only the analytical shell profile helpers:
 - ``fuchs_shell_profiles()``: factory with paper-default parameters
 - ``fuchs_input_stress_energy()``: construct T_input from profiles
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -163,9 +164,7 @@ class _FuchsAnalytical(WarpShellPhysical):
         return "Fuchs-Analytical"
 
     def shell_profiles(self) -> FuchsShellProfiles:
-        return _constant_density_shell_profiles(
-            self.R_1, self.R_2, self.r_s_param
-        )
+        return _constant_density_shell_profiles(self.R_1, self.R_2, self.r_s_param)
 
 
 def _fuchs_analytical_default() -> _FuchsAnalytical:
@@ -253,10 +252,7 @@ def fuchs_input_stress_energy(
     s_down = g @ s_up
 
     T_input = (
-        (rho + p_r) * jnp.outer(u_down, u_down)
-        + p_r * g
-        + (p_t - p_r) * jnp.outer(s_down, s_down)
+        (rho + p_r) * jnp.outer(u_down, u_down) + p_r * g + (p_t - p_r) * jnp.outer(s_down, s_down)
     )
 
     return 0.5 * (T_input + T_input.T)
-

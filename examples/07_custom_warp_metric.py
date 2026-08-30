@@ -2,7 +2,7 @@
 
 This is the canonical custom-metric workflow. A user defines a new warp
 spacetime by subclassing :class:`ADMMetric` (implementing ``lapse``,
-``shift``, ``spatial_metric``, ``symbolic``, ``name`` and the 
+``shift``, ``spatial_metric``, ``symbolic``, ``name`` and the
 abstract method ``shape_function_value``), then runs:
 
     1. Single-point curvature + EC verification at the bubble wall
@@ -26,6 +26,7 @@ Usage
 -----
     python examples/07_custom_warp_metric.py
 """
+
 from __future__ import annotations
 
 import os
@@ -96,16 +97,12 @@ class GaussianWarpMetric(ADMMetric):
         return jnp.array([-self.v_s * f, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)
-    def spatial_metric(
-        self, coords: Float[Array, "4"]
-    ) -> Float[Array, "3 3"]:
+    def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
         return jnp.eye(3)
 
     @jaxtyped(typechecker=beartype)
-    def shape_function_value(
-        self, coords: Float[Array, "4"]
-    ) -> Float[Array, ""]:
-        """ abstract method: return f(coords) in [0, 1].
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """abstract method: return f(coords) in [0, 1].
 
         For this Gaussian bubble: ``f = exp(-r_s^2 / (2 w^2))``.
         ``f = 1`` at the bubble center, ``f -> 0`` far from the bubble.
@@ -155,10 +152,7 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
     print(f"Parameters: v_s = {metric.v_s}, w = {metric.w}")
 
     r_s = float(jnp.sqrt(coords[1] ** 2 + coords[2] ** 2 + coords[3] ** 2))
-    print(
-        f"Probe point: (t,x,y,z) = ({coords[0]}, {coords[1]}, "
-        f"{coords[2]}, {coords[3]})"
-    )
+    print(f"Probe point: (t,x,y,z) = ({coords[0]}, {coords[1]}, {coords[2]}, {coords[3]})")
     print(f"Radial distance: r_s = {r_s:.4f}")
     print(f"Shape function f at probe: {f_at_wall:.4f}")
 
@@ -168,10 +162,7 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
 
     print(f"\nRicci scalar:       {float(result.ricci_scalar):+.6e}")
     print(f"Kretschmann scalar: {float(K):+.6e}")
-    print(
-        f"Max |T_ab|:        "
-        f"{float(jnp.max(jnp.abs(result.stress_energy))):+.6e}"
-    )
+    print(f"Max |T_ab|:        {float(jnp.max(jnp.abs(result.stress_energy))):+.6e}")
 
     # Observer-robust EC verification (all four conditions)
     ec = verify_point(result.stress_energy, result.metric, result.metric_inv)
@@ -184,22 +175,15 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
     print(f"  Hawking-Ellis type: {int(ec.he_type)}")
 
     # Eulerian-frame EC for comparison
-    eul_ec = compute_eulerian_ec(
-        result.stress_energy, result.metric, result.metric_inv
-    )
+    eul_ec = compute_eulerian_ec(result.stress_energy, result.metric, result.metric_inv)
     print("\nEulerian-frame EC margins:")
     print(f"  NEC: {float(eul_ec['nec']):+.6e}")
     print(f"  WEC: {float(eul_ec['wec']):+.6e}")
 
     gap = float(eul_ec["nec"]) - float(ec.nec_margin)
     if gap > 1e-10:
-        print(
-            f"\n  -> Eulerian NEC is {gap:.2e} less negative than robust NEC."
-        )
-        print(
-            " A boosted observer sees a worse violation than the "
-            "Eulerian one."
-        )
+        print(f"\n  -> Eulerian NEC is {gap:.2e} less negative than robust NEC.")
+        print(" A boosted observer sees a worse violation than the Eulerian one.")
 
 
 # Step 3: Grid-level Eulerian vs robust comparison
@@ -229,14 +213,8 @@ def run_grid_comparison(
 
     print("\n[1/3] Computing curvature tensors on grid...")
     grid_result = evaluate_curvature_grid(metric, grid)
-    print(
-        f"  Max |Ricci scalar|: "
-        f"{float(np.max(np.abs(grid_result.ricci_scalar))):.4e}"
-    )
-    print(
-        f"  Max |T_ab|:         "
-        f"{float(np.max(np.abs(grid_result.stress_energy))):.4e}"
-    )
+    print(f"  Max |Ricci scalar|: {float(np.max(np.abs(grid_result.ricci_scalar))):.4e}")
+    print(f"  Max |T_ab|:         {float(np.max(np.abs(grid_result.stress_energy))):.4e}")
 
     print("\n[2/3] Running Eulerian vs robust comparison...")
     comparison = compare_eulerian_vs_robust(

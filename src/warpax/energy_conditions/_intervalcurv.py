@@ -40,8 +40,7 @@ _ZERO = iv.mpf([0, 0])
 
 # ``_jet.sqrt`` is ``iv.sqrt`` on a bare interval and the chain rule on a jet, so the
 # chain below runs unchanged over either scalar ring.
-_sqrt, _add, _mul, _sub, _div = (
-    _jet.sqrt, _jet.add, _jet.mul, _jet.sub, _jet.div)
+_sqrt, _add, _mul, _sub, _div = (_jet.sqrt, _jet.add, _jet.mul, _jet.sub, _jet.div)
 
 
 def _fold(terms):
@@ -65,8 +64,11 @@ def _inv4(m):
     enclosure unbounded, which the caller treats as "cannot bound this box".
     """
     n = _N
-    a = [[m[i][j] for j in range(n)] + [iv.mpf([1, 1]) if i == k else iv.mpf([0, 0]) for k in range(n)]
-         for i in range(n)]
+    a = [
+        [m[i][j] for j in range(n)]
+        + [iv.mpf([1, 1]) if i == k else iv.mpf([0, 0]) for k in range(n)]
+        for i in range(n)
+    ]
     for col in range(n):
         piv = max(range(col, n), key=lambda r: abs(_mid(a[r][col])))
         pv = a[piv][col]
@@ -185,9 +187,7 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
         for c in range(_N):
             for d in range(_N):
                 for e in range(_N):
-                    S2[b][c][d][e] = _sub(
-                        _add(ddg[b][d][c][e], ddg[c][d][b][e]), ddg[b][c][d][e]
-                    )
+                    S2[b][c][d][e] = _sub(_add(ddg[b][d][c][e], ddg[c][d][b][e]), ddg[b][c][d][e])
 
     dGam = [[[[_ZERO] * _N for _ in range(_N)] for _ in range(_N)] for _ in range(_N)]
     for a in range(_N):
@@ -209,8 +209,9 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
             for a in range(_N):
                 s = _sub(_add(s, dGam[a][b][c][a]), dGam[a][b][a][c])
                 for f in range(_N):
-                    s = _sub(_add(s, _mul(Gam[a][a][f], Gam[f][b][c])),
-                             _mul(Gam[a][c][f], Gam[f][b][a]))
+                    s = _sub(
+                        _add(s, _mul(Gam[a][a][f], Gam[f][b][c])), _mul(Gam[a][c][f], Gam[f][b][a])
+                    )
             Ric[b][c] = s
 
     Rs = _ZERO
@@ -220,8 +221,7 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
 
     eight_pi = 8 * iv.pi
     T = [
-        [_div(_sub(Ric[a][b], _div(_mul(Rs, g[a][b]), 2)), eight_pi)
-         for b in range(_N)]
+        [_div(_sub(Ric[a][b], _div(_mul(Rs, g[a][b]), 2)), eight_pi) for b in range(_N)]
         for a in range(_N)
     ]
 
@@ -255,6 +255,6 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
     L = _chol3(gam)
     b_vec = _fwd_solve3(L, b_cov)
     # M = L^{-1} S  (column by column), then S_hat = L^{-1} M^T, using S symmetric.
-    M = [_fwd_solve3(L, [S_cov[i][j] for i in range(3)]) for j in range(3)]   # M[j] = column j
+    M = [_fwd_solve3(L, [S_cov[i][j] for i in range(3)]) for j in range(3)]  # M[j] = column j
     S = [_fwd_solve3(L, [M[j][i] for j in range(3)]) for i in range(3)]
     return rho_n, b_vec, S

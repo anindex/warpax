@@ -28,6 +28,7 @@ Outputs
 - results/ssv_bound.json
 - ../warpax_arxiv/tables/ssv_bound.tex
 """
+
 from __future__ import annotations
 
 import json
@@ -80,19 +81,25 @@ def fit_bound(vs, deficits, n_type_i=None):
     the fixed-exponent fit.
     """
     if len(vs) < 3:
-        return {"C": None, "r_squared_fixed": None, "q_free": None,
-                "r_squared_free": None, "max_rel_dev": None,
-                "max_rel_dev_dense": None, "n_type_i_min": None,
-                "n": len(vs)}
-    v2 = vs ** 2
-    C = float(np.sum(deficits * v2) / np.sum(v2 ** 2))
+        return {
+            "C": None,
+            "r_squared_fixed": None,
+            "q_free": None,
+            "r_squared_free": None,
+            "max_rel_dev": None,
+            "max_rel_dev_dense": None,
+            "n_type_i_min": None,
+            "n": len(vs),
+        }
+    v2 = vs**2
+    C = float(np.sum(deficits * v2) / np.sum(v2**2))
     pred = C * v2
     ss_res = float(np.sum((deficits - pred) ** 2))
     # Through-origin fit (deficit = C v_s^2, no intercept): use the uncentered
     # total sum of squares. The mean-centered form is only valid for fits with
     # an intercept and here produces a spurious negative R^2 for poorly-fit
     # metrics (e.g. the Type-IV-dominated Van den Broeck branch).
-    ss_tot = float(np.sum(deficits ** 2))
+    ss_tot = float(np.sum(deficits**2))
     r2_fixed = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
     rel_dev = np.abs(deficits - pred) / np.abs(deficits)
     max_rel_dev = float(np.max(rel_dev))
@@ -111,14 +118,21 @@ def fit_bound(vs, deficits, n_type_i=None):
     (C2, D), *_ = np.linalg.lstsq(A, deficits, rcond=None)
     pred2 = A @ np.array([C2, D])
     r2_two = 1.0 - float(np.sum((deficits - pred2) ** 2)) / ss_tot if ss_tot > 0 else 1.0
-    return {"C": C, "r_squared_fixed": float(r2_fixed), "q_free": float(q),
-            "r_squared_free": float(r2_free), "max_rel_dev": max_rel_dev,
-            "max_rel_dev_dense": max_rel_dev_dense,
-            "dense_v_s_min": DENSE_VS,
-            "n_type_i_min": int(np.min(n_type_i)) if n_type_i is not None else None,
-            "n_type_i_max": int(np.max(n_type_i)) if n_type_i is not None else None,
-            "C_two": float(C2), "D_two": float(D), "r_squared_two": float(r2_two),
-            "n": len(vs)}
+    return {
+        "C": C,
+        "r_squared_fixed": float(r2_fixed),
+        "q_free": float(q),
+        "r_squared_free": float(r2_free),
+        "max_rel_dev": max_rel_dev,
+        "max_rel_dev_dense": max_rel_dev_dense,
+        "dense_v_s_min": DENSE_VS,
+        "n_type_i_min": int(np.min(n_type_i)) if n_type_i is not None else None,
+        "n_type_i_max": int(np.max(n_type_i)) if n_type_i is not None else None,
+        "C_two": float(C2),
+        "D_two": float(D),
+        "r_squared_two": float(r2_two),
+        "n": len(vs),
+    }
 
 
 def _f(x, nd=3):
@@ -137,7 +151,7 @@ def write_table(fits, out_path):
     ]
 
     def _pct(x):
-        return f"{x*100:.2f}\\%" if (x is not None and np.isfinite(x)) else "--"
+        return f"{x * 100:.2f}\\%" if (x is not None and np.isfinite(x)) else "--"
 
     for name in ORDER:
         fit = fits[name]
@@ -146,7 +160,7 @@ def write_table(fits, out_path):
             lines.append(
                 f"  {name} & {_f(fit.get('C'))} & {_pct(fit.get('max_rel_dev'))} & "
                 f"{_pct(fit.get('max_rel_dev_dense'))} & "
-                f"{_f(fit.get('r_squared_fixed'),4)} & violated \\\\"
+                f"{_f(fit.get('r_squared_fixed'), 4)} & violated \\\\"
             )
         else:
             # The gate is R^2 >= 0.99, not the existence of Type-I points: Van den
@@ -174,13 +188,15 @@ def main():
         vs, deficits, n_type_i = _subluminal_deficits(rows, name)
         fit = fit_bound(vs, deficits, n_type_i)
         fits[name] = fit
-        print(f"  {name:16s} C={_f(fit['C'])}  q_free={_f(fit['q_free'],2)}  "
-              f"R^2={_f(fit['r_squared_fixed'],4)}  "
-              f"maxdev={_f((fit['max_rel_dev'] or float('nan'))*100,2)}%  "
-              f"dev(v_s>={DENSE_VS})="
-              f"{_f((fit['max_rel_dev_dense'] or float('nan'))*100,2)}%  "
-              f"n_typeI={fit['n_type_i_min']}..{fit['n_type_i_max']}  "
-              f"n={fit['n']}")
+        print(
+            f"  {name:16s} C={_f(fit['C'])}  q_free={_f(fit['q_free'], 2)}  "
+            f"R^2={_f(fit['r_squared_fixed'], 4)}  "
+            f"maxdev={_f((fit['max_rel_dev'] or float('nan')) * 100, 2)}%  "
+            f"dev(v_s>={DENSE_VS})="
+            f"{_f((fit['max_rel_dev_dense'] or float('nan')) * 100, 2)}%  "
+            f"n_typeI={fit['n_type_i_min']}..{fit['n_type_i_max']}  "
+            f"n={fit['n']}"
+        )
 
     out = {
         "model": "min(rho+p_i) = -C v_s^2 (unit-lapse flat-slice velocity scaling)",

@@ -35,12 +35,8 @@ class TestANEC:
         """Synthetic GeodesicResult with non-success result_code:
         `geodesic_complete` must be False + termination_reason != 'complete'."""
         lam = jnp.linspace(-1.0, 1.0, 16)
-        positions = jnp.stack(
-            [lam, lam, jnp.zeros_like(lam), jnp.zeros_like(lam)], axis=-1
-        )
-        velocities = jnp.broadcast_to(
-            jnp.array([1.0, 1.0, 0.0, 0.0]), positions.shape
-        )
+        positions = jnp.stack([lam, lam, jnp.zeros_like(lam), jnp.zeros_like(lam)], axis=-1)
+        velocities = jnp.broadcast_to(jnp.array([1.0, 1.0, 0.0, 0.0]), positions.shape)
         # result=1 => max_steps_reached
         truncated_geo = GeodesicResult(
             ts=lam,
@@ -92,7 +88,8 @@ class TestRigorousANEC:
             MinkowskiMetric(),
             jnp.array([0.0, -5.0, 1e-3, 0.0]),
             jnp.array([1.0, 0.0, 0.0]),
-            affine_bounds=(0.0, 10.0), num_steps=512,
+            affine_bounds=(0.0, 10.0),
+            num_steps=512,
         )
         assert isinstance(r, RigorousANEC)
         assert r.method_used == "symplectic"
@@ -105,8 +102,11 @@ class TestRigorousANEC:
         on-cone by the symplectic integrator (witness << tol)."""
         m = AlcubierreMetric(v_s=0.1, R=20.0, sigma=2.0)
         r = anec_rigorous(
-            m, jnp.array([0.0, -30.0, 1e-3, 0.0]), jnp.array([1.0, 0.0, 0.0]),
-            affine_bounds=(0.0, 60.0), num_steps=8192,
+            m,
+            jnp.array([0.0, -30.0, 1e-3, 0.0]),
+            jnp.array([1.0, 0.0, 0.0]),
+            affine_bounds=(0.0, 60.0),
+            num_steps=8192,
         )
         assert r.symplectic.geodesic_complete is True
         assert r.symplectic.null_preserved is True
@@ -114,8 +114,11 @@ class TestRigorousANEC:
         assert jnp.isfinite(r.symplectic.line_integral)
         # Deterministic across invocations.
         r2 = anec_rigorous(
-            m, jnp.array([0.0, -30.0, 1e-3, 0.0]), jnp.array([1.0, 0.0, 0.0]),
-            affine_bounds=(0.0, 60.0), num_steps=8192,
+            m,
+            jnp.array([0.0, -30.0, 1e-3, 0.0]),
+            jnp.array([1.0, 0.0, 0.0]),
+            affine_bounds=(0.0, 60.0),
+            num_steps=8192,
         )
         assert float(r2.symplectic.line_integral) == float(r.symplectic.line_integral)
 
@@ -133,8 +136,11 @@ class TestRigorousANEC:
         future-directed ray)."""
         m = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
         r = anec_rigorous(
-            m, jnp.array([0.0, -8.0, 0.5, 0.0]), jnp.array([1.0, 0.0, 0.0]),
-            affine_bounds=(0.0, 30.0), num_steps=8192,
+            m,
+            jnp.array([0.0, -8.0, 0.5, 0.0]),
+            jnp.array([1.0, 0.0, 0.0]),
+            affine_bounds=(0.0, 30.0),
+            num_steps=8192,
         )
         assert r.symplectic.null_preserved is True
         assert float(r.symplectic.line_integral) < -1e-3
@@ -206,7 +212,7 @@ class TestFordRoman:
 
     def test_C_constant_units(self):
         """C = 3 / (32 pi^2) per Fewster 2012 eq. 2.1."""
-        C_ref = 3.0 / (32.0 * math.pi ** 2)
+        C_ref = 3.0 / (32.0 * math.pi**2)
         assert abs(float(FORD_ROMAN_CONSTANT_C) - C_ref) < 1e-15
 
     def test_minkowski_vacuum_satisfies_qi(self):
@@ -306,13 +312,9 @@ class TestDiffraxResultCodes:
         from warpax.geodesics import integrate_geodesic, null_ic
 
         m = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
-        x0, k0 = null_ic(
-            m, jnp.array([0.0, 5.0, 0.1, 0.0]), jnp.array([-1.0, 0.0, 0.0])
-        )
+        x0, k0 = null_ic(m, jnp.array([0.0, 5.0, 0.1, 0.0]), jnp.array([-1.0, 0.0, 0.0]))
         # max_steps far too small: diffrax reports max_steps_reached (code 1).
-        geo = integrate_geodesic(
-            m, x0, k0, tau_span=(0.0, 15.0), num_points=32, max_steps=8
-        )
+        geo = integrate_geodesic(m, x0, k0, tau_span=(0.0, 15.0), num_points=32, max_steps=8)
         result = anec(m, geo)
         assert result.geodesic_complete is False
         assert result.termination_reason != "complete"
@@ -340,9 +342,7 @@ class TestDiffraxResultCodes:
         from warpax.geodesics import integrate_geodesic, timelike_ic
 
         mk = MinkowskiMetric()
-        x0, v0 = timelike_ic(
-            mk, jnp.array([0.0, 0.0, 0.0, 0.0]), jnp.array([0.3, 0.0, 0.0])
-        )
+        x0, v0 = timelike_ic(mk, jnp.array([0.0, 0.0, 0.0, 0.0]), jnp.array([0.3, 0.0, 0.0]))
         geo = integrate_geodesic(mk, x0, v0, tau_span=(0.0, 5.0), num_points=64)
         result = awec(mk, geo)
         assert result.geodesic_complete is True
@@ -370,8 +370,7 @@ class TestDefaultTangentNorm:
     def test_witness_vanishes_on_a_genuine_null_ray(self):
         """On Minkowski a coordinate null ray is exactly null."""
         ray = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
-        result = anec(MinkowskiMetric(), ray, n_samples=64,
-                      affine_bounds=(-3.0, 3.0))
+        result = anec(MinkowskiMetric(), ray, n_samples=64, affine_bounds=(-3.0, 3.0))
         assert float(result.max_abs_g_kk) <= 1e-10
         assert result.null_preserved is True
 

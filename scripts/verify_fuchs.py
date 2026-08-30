@@ -6,6 +6,7 @@ conditions, constraint residuals, source consistency, TOV equilibrium,
 geodesic deviation, ADM mass, and asymptotic flatness. Includes Rodal and
 Lentz comparison cases. Outputs a structured JSON report.
 """
+
 from __future__ import annotations
 
 import sys
@@ -117,13 +118,19 @@ def run_fuchs_evaluation():
     print("Energy Conditions (observer-robust)")
     print("=" * 70)
     print()
-    print(f"{'r':>8s}  {'HE':>3s}  {'||T||':>10s}  {'NEC':>12s}  {'WEC':>12s}  "
-          f"{'SEC':>12s}  {'DEC':>12s}")
+    print(
+        f"{'r':>8s}  {'HE':>3s}  {'||T||':>10s}  {'NEC':>12s}  {'WEC':>12s}  "
+        f"{'SEC':>12s}  {'DEC':>12s}"
+    )
     print("-" * 75)
 
     n_violated = {"nec": 0, "wec": 0, "sec": 0, "dec": 0}
-    min_margins = {"nec": float("inf"), "wec": float("inf"),
-                   "sec": float("inf"), "dec": float("inf")}
+    min_margins = {
+        "nec": float("inf"),
+        "wec": float("inf"),
+        "sec": float("inf"),
+        "dec": float("inf"),
+    }
 
     for res in sweep_results:
         ec = res["ec_robust"]
@@ -132,21 +139,24 @@ def run_fuchs_evaluation():
                 n_violated[k] += 1
             min_margins[k] = min(min_margins[k], ec[k])
 
-        print(f"{res['r']:8.2f}  {res['he_type']:3d}  {res['T_norm']:10.2e}  "
-              f"{ec['nec']:+12.4e}  {ec['wec']:+12.4e}  "
-              f"{ec['sec']:+12.4e}  {ec['dec']:+12.4e}")
+        print(
+            f"{res['r']:8.2f}  {res['he_type']:3d}  {res['T_norm']:10.2e}  "
+            f"{ec['nec']:+12.4e}  {ec['wec']:+12.4e}  "
+            f"{ec['sec']:+12.4e}  {ec['dec']:+12.4e}"
+        )
 
     print()
     for k in ["nec", "wec", "sec", "dec"]:
-        print(f"  {k.upper()}: {n_violated[k]}/{n_sweep} violated  "
-              f"min={min_margins[k]:+.4e}")
+        print(f"  {k.upper()}: {n_violated[k]}/{n_sweep} violated  min={min_margins[k]:+.4e}")
 
     type_counts = {1: 0, 2: 0, 3: 0, 4: 0}
     for res in sweep_results:
         type_counts[res["he_type"]] += 1
     print()
-    print("  HE type census:", {"I": type_counts[1], "II": type_counts[2],
-                                "III": type_counts[3], "IV": type_counts[4]})
+    print(
+        "  HE type census:",
+        {"I": type_counts[1], "II": type_counts[2], "III": type_counts[3], "IV": type_counts[4]},
+    )
     print()
 
     # Constraint residuals
@@ -162,8 +172,10 @@ def run_fuchs_evaluation():
 
     for res in sweep_results:
         c = res["constraints"]
-        print(f"{res['r']:8.2f}  {c['epsilon_H']:12.4e}  {c['epsilon_M']:12.4e}  "
-              f"{c['R_spatial']:+12.4e}")
+        print(
+            f"{res['r']:8.2f}  {c['epsilon_H']:12.4e}  {c['epsilon_M']:12.4e}  "
+            f"{c['R_spatial']:+12.4e}"
+        )
         max_eps_H = max(max_eps_H, c["epsilon_H"])
         max_eps_M = max(max_eps_M, c["epsilon_M"])
 
@@ -184,8 +196,7 @@ def run_fuchs_evaluation():
 
     for res in sweep_results:
         sc = res["source_consistency"]
-        print(f"{res['r']:8.2f}  {sc['max_residual']:14.4e}  "
-              f"{sc['relative_residual']:14.4e}")
+        print(f"{res['r']:8.2f}  {sc['max_residual']:14.4e}  {sc['relative_residual']:14.4e}")
         max_abs_delta = max(max_abs_delta, sc["max_residual"])
         max_rel_delta = max(max_rel_delta, sc["relative_residual"])
 
@@ -208,8 +219,10 @@ def run_fuchs_evaluation():
     for res in sweep_results:
         r_val = res["r"]
         tov_res = tov_residual_from_metric(
-            metric, jnp.array(r_val),
-            profiles.density, profiles.radial_pressure,
+            metric,
+            jnp.array(r_val),
+            profiles.density,
+            profiles.radial_pressure,
             profiles.tangential_pressure,
         )
         tov_abs = float(jnp.abs(tov_res))
@@ -246,12 +259,12 @@ def run_fuchs_evaluation():
     print(f"ADM mass at R_2: M_ADM = {M_adm:+.6e}")
 
     falloff = asymptotic_flatness_report(
-        metric, radii=[30.0, 50.0, 100.0, 200.0],
+        metric,
+        radii=[30.0, 50.0, 100.0, 200.0],
     )
     print(f"Asymptotic flatness: {falloff['is_asymptotically_flat']}")
     for name, diag in falloff["diagonal"].items():
-        print(f"  {name}: order={diag['measured_order']:.2f}  "
-              f"pass={diag['passed']}")
+        print(f"  {name}: order={diag['measured_order']:.2f}  pass={diag['passed']}")
     print()
 
     # Comparison: Rodal, Lentz
@@ -278,20 +291,24 @@ def run_fuchs_evaluation():
             T, g, gi = curv.stress_energy, curv.metric, curv.metric_inv
             cls = classify_mixed_tensor(T, g, gi)
             ec = verify_point(T, g, gi, n_starts=4)
-            comp_data.append({
-                "r": r_val,
-                "he_type": int(cls.he_type),
-                "nec": float(ec.nec_margin),
-                "wec": float(ec.wec_margin),
-            })
+            comp_data.append(
+                {
+                    "r": r_val,
+                    "he_type": int(cls.he_type),
+                    "nec": float(ec.nec_margin),
+                    "wec": float(ec.wec_margin),
+                }
+            )
         comparison[label] = comp_data
 
     print(f"{'Metric':<10s}  {'r':>8s}  {'HE':>3s}  {'NEC':>12s}  {'WEC':>12s}")
     print("-" * 50)
     for label, comp_data in comparison.items():
         for pt in comp_data:
-            print(f"{label:<10s}  {pt['r']:8.1f}  {pt['he_type']:3d}  "
-                  f"{pt['nec']:+12.4e}  {pt['wec']:+12.4e}")
+            print(
+                f"{label:<10s}  {pt['r']:8.1f}  {pt['he_type']:3d}  "
+                f"{pt['nec']:+12.4e}  {pt['wec']:+12.4e}"
+            )
     print()
 
     # JSON report
@@ -348,6 +365,7 @@ def run_fuchs_evaluation():
     }
 
     from pathlib import Path
+
     report_path = Path(__file__).resolve().parents[1] / "results" / "fuchs_verification_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     dump_json(report, report_path)

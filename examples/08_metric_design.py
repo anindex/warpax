@@ -16,6 +16,7 @@ only, not a gating check).
 
 Requires: ``pip install -e ".[design]"`` (interpax).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -91,13 +92,13 @@ def main(argv=None):
     print(f"  Optimizer converged      : {report.converged}")
     print(f"  Strategy                 : {report.strategy}")
 
-    assert rel_err < 1e-4, (
-        f"FAILED: rel_err={float(rel_err):.2e} >= 1e-4"
-    )
+    assert rel_err < 1e-4, f"FAILED: rel_err={float(rel_err):.2e} >= 1e-4"
 
     fixture_path = (
         pathlib.Path(__file__).parent.parent
-        / "tests" / "fixtures" / "alcubierre_optimal_parameters.npy"
+        / "tests"
+        / "fixtures"
+        / "alcubierre_optimal_parameters.npy"
     )
     fixture_path.parent.mkdir(parents=True, exist_ok=True)
     final_values = np.asarray(metric.shape_fn.params["values"])
@@ -125,18 +126,19 @@ def main(argv=None):
         print(f"  max rel_err    : {max_rel_err:.3e}")
         print(f"  mean rel_err   : {mean_rel_err:.3e}")
         print(f"  median rel_err : {median_rel_err:.3e}")
-        print(
-            f"  rel_err at knots : "
-            f"{float(rel_err):.2e} (exact by spline construction)"
-        )
+        print(f"  rel_err at knots : {float(rel_err):.2e} (exact by spline construction)")
 
         # Capture commit SHA (best-effort; non-fatal if git/repo unavailable).
         try:
-            commit_sha = subprocess.check_output(
-                ["git", "rev-parse", "--short", "HEAD"],
-                cwd=pathlib.Path(__file__).parent.parent,
-                stderr=subprocess.DEVNULL,
-            ).decode().strip()
+            commit_sha = (
+                subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    cwd=pathlib.Path(__file__).parent.parent,
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode()
+                .strip()
+            )
         except Exception:
             commit_sha = "unknown"
 
@@ -158,22 +160,13 @@ def main(argv=None):
             "mean_rel_err": mean_rel_err,
             "median_rel_err": median_rel_err,
             "rel_err_at_knots": 0.0,
-            "recipe": (
-                "JAX_PLATFORMS=cpu python examples/08_metric_design.py "
-                "--probe-grid dense"
-            ),
+            "recipe": ("JAX_PLATFORMS=cpu python examples/08_metric_design.py --probe-grid dense"),
             "jax_version": jax.__version__,
-            "date": datetime.datetime.now(datetime.UTC).isoformat(
-                timespec="seconds"
-            ),
+            "date": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
             "commit_sha": commit_sha,
         }
 
-        json_path = (
-            pathlib.Path(__file__).parent.parent
-            / "results"
-            / "design_dense_probe.json"
-        )
+        json_path = pathlib.Path(__file__).parent.parent / "results" / "design_dense_probe.json"
         json_path.parent.mkdir(parents=True, exist_ok=True)
         with open(json_path, "w") as f:
             json.dump(payload, f, indent=2)

@@ -9,6 +9,7 @@ wall-restricted fraction is a physical statement.
 Outputs
 - results/box_sensitivity.json
 """
+
 from __future__ import annotations
 
 import os
@@ -40,16 +41,22 @@ def main():
         coords = build_coord_batch(grid, t=0.0)
         wall_mask = shape_function_mask(metric, coords, grid.shape)
         wall = type_fractions(ff, mask=wall_mask)
-        rows.append({
-            "half_box": half,
-            "full_type_i": full["frac_type_i"],
-            "wall_type_i": wall["frac_type_i"],
-            "wall_n": wall["n_selected"],
-        })
-        print(f"  box=+/-{half:<4}: full Type-I={full['frac_type_i']*100:.1f}%  "
-              f"wall Type-I={wall['frac_type_i']*100:.1f}%  wall_n={wall['n_selected']}")
-    dump_json({"metric": "Alcubierre", "v_s": 0.5, "N": N, "rows": rows},
-              os.path.join(RESULTS_DIR, "box_sensitivity.json"))
+        rows.append(
+            {
+                "half_box": half,
+                "full_type_i": full["frac_type_i"],
+                "wall_type_i": wall["frac_type_i"],
+                "wall_n": wall["n_selected"],
+            }
+        )
+        print(
+            f"  box=+/-{half:<4}: full Type-I={full['frac_type_i'] * 100:.1f}%  "
+            f"wall Type-I={wall['frac_type_i'] * 100:.1f}%  wall_n={wall['n_selected']}"
+        )
+    dump_json(
+        {"metric": "Alcubierre", "v_s": 0.5, "N": N, "rows": rows},
+        os.path.join(RESULTS_DIR, "box_sensitivity.json"),
+    )
 
 
 if __name__ == "__main__":

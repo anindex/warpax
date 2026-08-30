@@ -42,9 +42,9 @@ class TestDesignObjectives:
     def test_nec_margin_on_minkowski(self):
         """NEC margin on Minkowski vacuum is exactly zero."""
         m = MinkowskiMetric()
-        margin = ec_margin_objective(m, objective="nec",
-                                     grid_shape=(4, 4, 4),
-                                     bounds=((-1, 1), (-1, 1), (-1, 1)))
+        margin = ec_margin_objective(
+            m, objective="nec", grid_shape=(4, 4, 4), bounds=((-1, 1), (-1, 1), (-1, 1))
+        )
         assert jnp.isfinite(margin)
         # Vacuum: T_ab = 0, so the NEC margin is analytically 0 for all
         # null directions (pipeline returns exactly 0.0)
@@ -54,9 +54,9 @@ class TestDesignObjectives:
         """WEC margin on Minkowski is exactly zero (vacuum: T_ab = 0,
         so every observer sees T_ab u^a u^b = 0)."""
         m = MinkowskiMetric()
-        margin = ec_margin_objective(m, objective="wec",
-                                     grid_shape=(4, 4, 4),
-                                     bounds=((-1, 1), (-1, 1), (-1, 1)))
+        margin = ec_margin_objective(
+            m, objective="wec", grid_shape=(4, 4, 4), bounds=((-1, 1), (-1, 1), (-1, 1))
+        )
         assert abs(float(margin)) <= 1e-12
 
     def test_registry_lookup(self):
@@ -66,12 +66,10 @@ class TestDesignObjectives:
         # Check the NEC dispatcher is callable and returns finite
         m = MinkowskiMetric()
         margin_direct = ec_margin_objective(
-            m, objective="nec", grid_shape=(4, 4, 4),
-            bounds=((-1, 1), (-1, 1), (-1, 1))
+            m, objective="nec", grid_shape=(4, 4, 4), bounds=((-1, 1), (-1, 1), (-1, 1))
         )
         margin_registry = OBJECTIVE_REGISTRY["nec"](
-            m, grid_shape=(4, 4, 4),
-            bounds=((-1, 1), (-1, 1), (-1, 1))
+            m, grid_shape=(4, 4, 4), bounds=((-1, 1), (-1, 1), (-1, 1))
         )
         assert float(margin_direct) == float(margin_registry)
 
@@ -80,13 +78,13 @@ class TestDesignObjectives:
         from warpax.averaged import anec
 
         m = MinkowskiMetric()
+
         # Straight null geodesic as a callable: gamma(lambda) = (lambda, lambda, 0, 0)
         def gamma(lam):
             return jnp.array([lam, lam, 0.0, 0.0])
 
         direct = anec(m, gamma, affine_bounds=(0.0, 1.0), n_samples=16).line_integral
-        composed = averaged_objective(m, gamma, kind="anec",
-                                       affine_bounds=(0.0, 1.0), n_samples=16)
+        composed = averaged_objective(m, gamma, kind="anec", affine_bounds=(0.0, 1.0), n_samples=16)
         assert float(direct) == float(composed)
 
     def test_ford_roman_composition(self):
@@ -94,6 +92,7 @@ class TestDesignObjectives:
         from warpax.quantum import ford_roman
 
         m = MinkowskiMetric()
+
         # Static timelike worldline: (tau, 0, 0, 0)
         def worldline(tau):
             return jnp.array([tau, 0.0, 0.0, 0.0])
@@ -162,9 +161,7 @@ class TestDesignConstraints:
 
     def test_jax_grad_through_constraint(self):
         """jax.grad(lambda v: velocity_constraint(v, ...).margin) returns finite gradient."""
-        g = jax.grad(lambda v: velocity_constraint(v, 10.0).margin)(
-            jnp.asarray(5.0)
-        )
+        g = jax.grad(lambda v: velocity_constraint(v, 10.0).margin)(jnp.asarray(5.0))
         assert jnp.isfinite(g)
 
 
@@ -262,9 +259,7 @@ class TestDesignOptimization:
         truth = 1.0 - jnp.tanh((knots - R) / sigma) ** 2
         recovered = jax.vmap(metric.shape_fn)(knots)
         max_abs_err = float(jnp.max(jnp.abs(recovered - truth)))
-        assert max_abs_err <= 1e-12, (
-            f"Knot interpolation not exact: max abs err={max_abs_err:.2e}"
-        )
+        assert max_abs_err <= 1e-12, f"Knot interpolation not exact: max abs err={max_abs_err:.2e}"
         # Mid-knot regression pin: dense 1000-point probe, peak-normalized.
         # Measured 0.611 - the knots are too coarse for the wall, and that
         # is the measured number (cf. examples/08_metric_design.py dense probe).
@@ -272,8 +267,7 @@ class TestDesignOptimization:
         truth_dense = 1.0 - jnp.tanh((x_dense - R) / sigma) ** 2
         recovered_dense = jax.vmap(metric.shape_fn)(x_dense)
         rel_err_dense = float(
-            jnp.max(jnp.abs(recovered_dense - truth_dense))
-            / jnp.max(jnp.abs(truth_dense))
+            jnp.max(jnp.abs(recovered_dense - truth_dense)) / jnp.max(jnp.abs(truth_dense))
         )
         npt.assert_allclose(rel_err_dense, 0.611, rtol=0.05)
 
@@ -286,9 +280,7 @@ class TestDesignOptimization:
         bit-identical spline values.
         """
         if not FIXTURE_PATH.exists():
-            pytest.skip(
-                "Golden fixture not yet generated."
-            )
+            pytest.skip("Golden fixture not yet generated.")
         knots, values = alcubierre_knots_values
         shape = ShapeFunction.spline(knots, values)
         metric, _ = design_metric(
@@ -301,8 +293,10 @@ class TestDesignOptimization:
         )
         golden = jnp.asarray(np.load(FIXTURE_PATH))
         np.testing.assert_allclose(
-            np.asarray(metric.shape_fn.params["values"]), np.asarray(golden),
-            rtol=0.0, atol=1e-14,
+            np.asarray(metric.shape_fn.params["values"]),
+            np.asarray(golden),
+            rtol=0.0,
+            atol=1e-14,
         )
 
     def test_construction_under_jit_tracing_does_not_raise(self):
@@ -342,10 +336,18 @@ class TestDesignOptimization:
         key = jax.random.PRNGKey(7)
 
         _, report_seed = design_metric(
-            shape, objective="nec", n_starts=1, max_steps=0, key=key,
+            shape,
+            objective="nec",
+            n_starts=1,
+            max_steps=0,
+            key=key,
         )
         _, report = design_metric(
-            shape, objective="nec", n_starts=1, max_steps=20, key=key,
+            shape,
+            objective="nec",
+            n_starts=1,
+            max_steps=20,
+            key=key,
         )
         assert report.n_steps > 0
         assert float(report.final_margin) < float(report_seed.final_margin), (

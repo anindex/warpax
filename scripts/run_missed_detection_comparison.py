@@ -1,4 +1,3 @@
-
 """Missed-violation detection comparison: Eulerian vs sampling vs BFGS.
 
 For each metric/velocity where BFGS optimization finds missed violations
@@ -15,6 +14,7 @@ Usage:
     python scripts/run_missed_detection_comparison.py
     python scripts/run_missed_detection_comparison.py --max-points 500
 """
+
 from __future__ import annotations
 
 import argparse
@@ -73,7 +73,7 @@ def dense_sample_margin(
     # against a point set selected by the NEC/DEC robust margins.
     g_inv = jnp.linalg.inv(g_ab)
     trace = jnp.einsum("ab,ab->", g_inv, T_ab)
-    theta_ab = T_ab - 0.5 * trace * g_ab                      # trace-reversed
+    theta_ab = T_ab - 0.5 * trace * g_ab  # trace-reversed
     flux_ab = -jnp.einsum("ac,cd,db->ab", T_ab, g_inv, T_ab)  # -T g^-1 T
 
     def eval_single(zeta, theta, phi):
@@ -107,8 +107,9 @@ def _batch_tetrad(g_batch):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--max-points", type=int, default=1000,
-                        help="Max missed points to test per case")
+    parser.add_argument(
+        "--max-points", type=int, default=1000, help="Max missed points to test per case"
+    )
     args = parser.parse_args()
 
     print("=" * 80)
@@ -125,9 +126,9 @@ def main():
 
         data = np.load(cache_path)
         case_key = f"{metric_name}_vs{v_s}"
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"{metric_name} (v_s={v_s})")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
 
         for cond in CONDITIONS:
             eul_key = f"{cond}_eulerian"
@@ -147,16 +148,16 @@ def main():
                 print(f"\n  {cond.upper()}: No missed violations (0/{n_total})")
                 continue
 
-            print(f"\n  {cond.upper()}: {n_missed} missed violations "
-                  f"({100*n_missed/n_total:.3f}%)")
+            print(
+                f"\n  {cond.upper()}: {n_missed} missed violations "
+                f"({100 * n_missed / n_total:.3f}%)"
+            )
 
             # Select subset of missed points
             missed_indices = np.where(missed_mask)[0]
             if len(missed_indices) > args.max_points:
                 rng = np.random.RandomState(42)
-                missed_indices = rng.choice(
-                    missed_indices, args.max_points, replace=False
-                )
+                missed_indices = rng.choice(missed_indices, args.max_points, replace=False)
                 n_test = args.max_points
             else:
                 n_test = len(missed_indices)
@@ -172,8 +173,10 @@ def main():
             n_grid = int(np.prod(grid_shape))
 
             # Reconstruct grid coordinates
-            axes = [np.linspace(lo, hi, int(n))
-                    for (lo, hi), n in zip(grid_bounds, grid_shape, strict=True)]
+            axes = [
+                np.linspace(lo, hi, int(n))
+                for (lo, hi), n in zip(grid_bounds, grid_shape, strict=True)
+            ]
             X, Y, Z = np.meshgrid(*axes, indexing="ij")
             T_grid = np.zeros_like(X)
             coords = np.stack([T_grid, X, Y, Z], axis=-1).reshape(-1, 4)
@@ -181,9 +184,11 @@ def main():
             # Import metric class
             if metric_name == "rodal":
                 from warpax.metrics import RodalMetric
+
                 metric = RodalMetric(v_s=v_s, R=100.0, sigma=0.03)
             elif metric_name == "warpshell":
                 from warpax.metrics import WarpShellMetric
+
                 metric = WarpShellMetric(v_s=v_s, R_1=0.5, R_2=1.0)
             else:
                 continue
@@ -203,7 +208,7 @@ def main():
             T_missed = []
             g_missed = []
             for i in range(0, n_test, chunk_size):
-                chunk = missed_coords[i:i + chunk_size]
+                chunk = missed_coords[i : i + chunk_size]
                 result = jax.vmap(chain_fn)(chunk)
                 T_missed.append(np.array(result.stress_energy))
                 g_missed.append(np.array(result.metric))
@@ -224,7 +229,8 @@ def main():
                     g_ab = jnp.array(g_missed[j])
 
                     samp_margin = dense_sample_margin(
-                        T_ab, g_ab,
+                        T_ab,
+                        g_ab,
                         n_samples=n_samp,
                         zeta_max=5.0,
                         key=jax.random.PRNGKey(j),
@@ -244,19 +250,22 @@ def main():
                     "time_s": elapsed,
                 }
 
-                print(f"      Detected: {detected}/{n_test} "
-                      f"({detection_rate:.1f}%) in {elapsed:.1f}s")
+                print(
+                    f"      Detected: {detected}/{n_test} ({detection_rate:.1f}%) in {elapsed:.1f}s"
+                )
 
             # Summary for this condition
             print(f"\n    Summary for {cond.upper()}:")
             print(f"      {'Method':>12s} | {'Detected':>8s} | {'Rate':>6s}")
-            print(f"      {'-'*12}-+-{'-'*8}-+-{'-'*6}")
+            print(f"      {'-' * 12}-+-{'-' * 8}-+-{'-' * 6}")
             print(f"      {'Eulerian':>12s} | {'0':>8s} | {'0.0%':>6s}")
             for n_samp in SAMPLING_DENSITIES:
                 r = cond_results[n_samp]
-                print(f"      {f'Sample-{n_samp}':>12s} | "
-                      f"{r['n_detected']:>8d} | "
-                      f"{r['detection_rate_pct']:>5.1f}%")
+                print(
+                    f"      {f'Sample-{n_samp}':>12s} | "
+                    f"{r['n_detected']:>8d} | "
+                    f"{r['detection_rate_pct']:>5.1f}%"
+                )
             print(f"      {'BFGS-8':>12s} | {n_test:>8d} | {'100.0%':>6s}")
 
             if case_key not in all_results:

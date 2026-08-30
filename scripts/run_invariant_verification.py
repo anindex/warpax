@@ -24,6 +24,7 @@ Outputs
 - results/invariant_verification.json
 - ../warpax_arxiv/tables/invariant_benchmark.tex
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,9 +66,8 @@ def _field_nec_typeI(curv):
     he = np.asarray(ff.he_types)
     return np.where(he == 1.0, np.asarray(ff.nec_margins), np.inf)
 
+
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
-
-
 
 
 def verify_metric(name, v_s, N):
@@ -84,7 +84,9 @@ def verify_metric(name, v_s, N):
 
     ff = certify_grid_frame_free(T, g, gi, solver="standard", lmi_where=mask)
     fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
-    miss = single_frame_miss(T, g, gi, mask=mask_flat, volume_weights=np.asarray(jnp.reshape(vol_w, (-1,))))
+    miss = single_frame_miss(
+        T, g, gi, mask=mask_flat, volume_weights=np.asarray(jnp.reshape(vol_w, (-1,)))
+    )
     exotic = integrated_exotic_content(T, g, gi, vol_w, mask=mask)
     peaks = peak_proper_energy_deficit(T, g, gi, mask=mask_flat)
 
@@ -102,8 +104,9 @@ def verify_metric(name, v_s, N):
         axes = [np.asarray(grid.axes[a]) for a in range(3)]
         i0, i1, i2 = np.unravel_index(k, shape)
         nec_coord = [float(axes[0][i0]), float(axes[1][i1]), float(axes[2][i2])]
-        pol = refine_extremum(metric, nec_coord, _field_nec_typeI, mode="min",
-                              half_width=0.15, n=9, levels=7)
+        pol = refine_extremum(
+            metric, nec_coord, _field_nec_typeI, mode="min", half_width=0.15, n=9, levels=7
+        )
         if pol["value"] is not None and np.isfinite(pol["value"]):
             # guarantee the polished value is at least as deep as the grid sample
             nec_min = float(min(nec_min_grid, pol["value"]))
@@ -114,9 +117,13 @@ def verify_metric(name, v_s, N):
         return x * 100.0 if x is not None else None
 
     return {
-        "metric": name, "v_s": v_s, "N": N,
-        "wall_cells": wc, "dx_wall": dxw,
-        "frac_type_i": fr["frac_type_i"], "frac_type_iv": fr["frac_type_iv"],
+        "metric": name,
+        "v_s": v_s,
+        "N": N,
+        "wall_cells": wc,
+        "dx_wall": dxw,
+        "frac_type_i": fr["frac_type_i"],
+        "frac_type_iv": fr["frac_type_iv"],
         "wall_n": fr["n_selected"],
         "invariant_nec_min": nec_min,
         "invariant_nec_min_grid": nec_min_grid,
@@ -148,13 +155,18 @@ def write_table(rows, out_path):
         if r is None:
             continue
         lines.append(
-            f"  {name} & {_f(r['frac_type_i']*100)} & {_f(r['frac_type_iv']*100)} & "
-            f"{_f(r['invariant_nec_min'],3)} & "
+            f"  {name} & {_f(r['frac_type_i'] * 100)} & {_f(r['frac_type_iv'] * 100)} & "
+            f"{_f(r['invariant_nec_min'], 3)} & "
             f"{_f(r['miss_wec_pct'])} & {_f(r['miss_nec_pct'])} & {_f(r['miss_dec_pct'])} \\\\"
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_invariant_verification.py", sources="results/invariant_verification.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_invariant_verification.py",
+        sources="results/invariant_verification.json",
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -177,24 +189,35 @@ def main():
     for name in args.metrics:
         r = verify_metric(name, args.v_s, args.N)
         rows.append(r)
-        print(f"  {name:>15s}  TypeI={r['frac_type_i']*100:5.1f}% TypeIV={r['frac_type_iv']*100:5.1f}%  "
-              f"NECmin={r['invariant_nec_min']:.3g}  "
-              f"miss W/N/D={r['miss_wec_pct']}/{r['miss_nec_pct']}/{r['miss_dec_pct']}  "
-              f"E-_inv={r['E_minus_inv']:.3g} E-_eul={r['E_minus_eul']:.3g}")
+        print(
+            f"  {name:>15s}  TypeI={r['frac_type_i'] * 100:5.1f}% TypeIV={r['frac_type_iv'] * 100:5.1f}%  "
+            f"NECmin={r['invariant_nec_min']:.3g}  "
+            f"miss W/N/D={r['miss_wec_pct']}/{r['miss_nec_pct']}/{r['miss_dec_pct']}  "
+            f"E-_inv={r['E_minus_inv']:.3g} E-_eul={r['E_minus_eul']:.3g}"
+        )
 
-    peaks = {r["metric"]: {"peak_deficit_inv": r["peak_deficit_inv"],
-                           "peak_deficit_eul": r["peak_deficit_eul"]} for r in rows}
+    peaks = {
+        r["metric"]: {
+            "peak_deficit_inv": r["peak_deficit_inv"],
+            "peak_deficit_eul": r["peak_deficit_eul"],
+        }
+        for r in rows
+    }
     rfac = reduction_factors(peaks) if "Alcubierre" in peaks else {}
 
-    dump_json({"config": vars(args), "rows": rows, "reduction_factors": rfac},
-              os.path.join(RESULTS_DIR, "invariant_verification.json"))
+    dump_json(
+        {"config": vars(args), "rows": rows, "reduction_factors": rfac},
+        os.path.join(RESULTS_DIR, "invariant_verification.json"),
+    )
     print(f"\nWrote {os.path.join(RESULTS_DIR, 'invariant_verification.json')}")
     if rfac:
         print("\nPeak-deficit reduction factors vs Alcubierre (invariant / Eulerian):")
         for name in ORDER:
             if name in rfac:
                 rf = rfac[name]
-                print(f"  {name:>15s}  inv={rf['vs_Alcubierre_inv']}  eul={rf['vs_Alcubierre_eul']}")
+                print(
+                    f"  {name:>15s}  inv={rf['vs_Alcubierre_inv']}  eul={rf['vs_Alcubierre_eul']}"
+                )
 
     if not args.smoke:
         write_table(rows, os.path.join(TABLES_DIR, "invariant_benchmark.tex"))

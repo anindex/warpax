@@ -19,6 +19,7 @@ Outputs
 - results/curvature_convergence.json
 - ../warpax_arxiv/tables/curvature_convergence.tex
 """
+
 from __future__ import annotations
 
 import argparse
@@ -89,7 +90,8 @@ def write_table(fits, out_path):
             if not clean or all(q is None for q in series):
                 lines.append(
                     rf"  {mcol} & {label} & \multicolumn{{4}}{{c}}{{no clean "
-                    rf"Type-I branch (Type-IV-dominated wall)}} \\")
+                    rf"Type-I branch (Type-IV-dominated wall)}} \\"
+                )
                 continue
             cells = " & ".join(_f(q) for q in series)
             spread = f"{_f(stab['max_dev'])}" if stab["max_dev"] is not None else "--"
@@ -98,7 +100,12 @@ def write_table(fits, out_path):
     lines[-1] = r"  \bottomrule"
     lines.append(r"\end{tabular}")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_curvature_convergence.py", sources="results/curvature_convergence.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_curvature_convergence.py",
+        sources="results/curvature_convergence.json",
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -126,12 +133,11 @@ def main():
             for v_s in args.velocities:
                 rows.append(run_point(name, v_s, N))
         for name in args.metrics:
-            fits[name][str(N)] = {
-                key: fit_power_law(rows, name, key) for key, _ in INVARIANTS
-            }
+            fits[name][str(N)] = {key: fit_power_law(rows, name, key) for key, _ in INVARIANTS}
             qs = {key: fits[name][str(N)][key]["q"] for key, _ in INVARIANTS}
-            print(f"  {name:16s} q(C^2)={_f(qs['weyl_squared'])}  "
-                  f"q(Ricci)={_f(qs['ricci_squared'])}")
+            print(
+                f"  {name:16s} q(C^2)={_f(qs['weyl_squared'])}  q(Ricci)={_f(qs['ricci_squared'])}"
+            )
 
     # Stability summary across the ladder.
     summary = {}
@@ -144,13 +150,23 @@ def main():
     for name in args.metrics:
         for key, _ in INVARIANTS:
             s = summary[name][key]
-            print(f"    {name:16s} {key:14s} mean q={_f(s['mean'])}  "
-                  f"spread={_f(s['max_dev'])}  stable={s['stable']}")
+            print(
+                f"    {name:16s} {key:14s} mean q={_f(s['mean'])}  "
+                f"spread={_f(s['max_dev'])}  stable={s['stable']}"
+            )
 
-    dump_json({"ladder_N": args.ladder, "cluster_a": CLUSTER_A, "box": BOX,
-               "velocities": args.velocities, "theory_q": THEORY_Q,
-               "fits": fits, "summary": summary},
-              os.path.join(RESULTS_DIR, "curvature_convergence.json"))
+    dump_json(
+        {
+            "ladder_N": args.ladder,
+            "cluster_a": CLUSTER_A,
+            "box": BOX,
+            "velocities": args.velocities,
+            "theory_q": THEORY_Q,
+            "fits": fits,
+            "summary": summary,
+        },
+        os.path.join(RESULTS_DIR, "curvature_convergence.json"),
+    )
     if not args.smoke:
         write_table(fits, os.path.join(TABLES_DIR, "curvature_convergence.tex"))
 

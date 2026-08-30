@@ -21,6 +21,7 @@ Both are evaluated at user-supplied probe points on either side of the
 boundary; the discontinuities ``[[h]] = h_in - h_out`` and
 ``[[K]] = K_in - K_out`` are compared against the tolerance ``tol``.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -184,9 +185,7 @@ def darmois(
     if probe_coords_outside is None:
         probe_coords_outside = jnp.array([0.0, 1.1, 0.0, 0.0])
 
-    h_in, K_in, _ = _one_sided_limit(
-        metric, boundary_fn, probe_coords_inside, probe_coords_outside
-    )
+    h_in, K_in, _ = _one_sided_limit(metric, boundary_fn, probe_coords_inside, probe_coords_outside)
     h_out, K_out, _ = _one_sided_limit(
         metric, boundary_fn, probe_coords_outside, probe_coords_inside
     )
@@ -238,12 +237,8 @@ def surface_stress_energy(
     Float[Array, "4 4"]
         Surface stress-energy tensor (full 4x4, tangential to Sigma).
     """
-    h_in, K_in, eps_in = _induced_and_extrinsic(
-        metric, boundary_fn, probe_coords_inside
-    )
-    h_out, K_out, eps_out = _induced_and_extrinsic(
-        metric, boundary_fn, probe_coords_outside
-    )
+    h_in, K_in, eps_in = _induced_and_extrinsic(metric, boundary_fn, probe_coords_inside)
+    h_out, K_out, eps_out = _induced_and_extrinsic(metric, boundary_fn, probe_coords_outside)
 
     delta_K = K_out - K_in
     h_avg = 0.5 * (h_in + h_out)
@@ -259,4 +254,3 @@ def surface_stress_energy(
 
     S_ab = -(epsilon / (8.0 * jnp.pi)) * (delta_K - delta_K_trace * h_avg)
     return S_ab
-

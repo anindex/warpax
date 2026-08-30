@@ -9,6 +9,7 @@ final ``min(WEC, DEC)`` because DEC implies WEC.
 Eulerian-frame margins are exposed separately by
 :func:`compute_eulerian_ec` for clean single-frame comparisons.
 """
+
 from __future__ import annotations
 
 import jax
@@ -45,10 +46,16 @@ def _classify_grid_batch(
     default and could see a point typed differently on a grid than on its own.
     """
     if solver == "generalized":
+
         def _classify_gen(T_mixed_i, g_i, T_ab_i):
             return classify_hawking_ellis(
-                T_mixed_i, g_i, solver="generalized", T_ab=T_ab_i, tol=tol,
+                T_mixed_i,
+                g_i,
+                solver="generalized",
+                T_ab=T_ab_i,
+                tol=tol,
             )
+
         return jax.vmap(_classify_gen)(flat_T_mixed, flat_g, flat_T)
 
     if solver == "standard":
@@ -63,9 +70,7 @@ def _classify_grid_batch(
     # sequential pure_callback) generalized pencil on the entire grid. Instead,
     # batch the generalized solve over just the unreliable subset and scatter
     # the results back with a single vectorized ``.at[idx].set``.
-    cls_std = jax.vmap(lambda Tm, gg: classify_hawking_ellis(Tm, gg, tol=tol))(
-        flat_T_mixed, flat_g
-    )
+    cls_std = jax.vmap(lambda Tm, gg: classify_hawking_ellis(Tm, gg, tol=tol))(flat_T_mixed, flat_g)
     unreliable = np.asarray(
         _standard_solver_unreliable_mask(
             cls_std.he_type,
@@ -81,12 +86,14 @@ def _classify_grid_batch(
 
     def _classify_gen(T_mixed_i, g_i, T_ab_i):
         return classify_hawking_ellis(
-            T_mixed_i, g_i, solver="generalized", T_ab=T_ab_i, tol=tol,
+            T_mixed_i,
+            g_i,
+            solver="generalized",
+            T_ab=T_ab_i,
+            tol=tol,
         )
 
-    sub = jax.vmap(_classify_gen)(
-        flat_T_mixed[idx], flat_g[idx], flat_T[idx]
-    )
+    sub = jax.vmap(_classify_gen)(flat_T_mixed[idx], flat_g[idx], flat_T[idx])
 
     return type(cls_std)(
         he_type=cls_std.he_type.at[idx].set(sub.he_type),
@@ -94,9 +101,7 @@ def _classify_grid_batch(
         eigenvectors=cls_std.eigenvectors.at[idx].set(sub.eigenvectors),
         rho=cls_std.rho.at[idx].set(sub.rho),
         pressures=cls_std.pressures.at[idx].set(sub.pressures),
-        eigenvalues_imag=cls_std.eigenvalues_imag.at[idx].set(
-            sub.eigenvalues_imag
-        ),
+        eigenvalues_imag=cls_std.eigenvalues_imag.at[idx].set(sub.eigenvalues_imag),
         is_vacuum=cls_std.is_vacuum.at[idx].set(sub.is_vacuum),
     )
 
@@ -141,7 +146,8 @@ def _run_grid_optimization(
     def optimize_single(args):
         T_i, g_i, subkey, neighbor_obs = args
         opt = optimize_point(
-            T_i, g_i,
+            T_i,
+            g_i,
             conditions=("nec", "wec", "sec", "dec"),
             n_starts=n_starts,
             zeta_max=zeta_max,
@@ -178,17 +184,27 @@ def _run_grid_optimization(
         prev_worst = None
         for i in range(n_points):
             if skip_type_i_optimization and is_type_i[i]:
-                results.append((
-                    nan, nan, nan, nan,
-                    jnp.zeros(4), jnp.zeros(3),
-                    0.0, 0.0, 0.0, 0.0,
-                    0.0, 0.0, 0.0, 0.0,
-                ))
+                results.append(
+                    (
+                        nan,
+                        nan,
+                        nan,
+                        nan,
+                        jnp.zeros(4),
+                        jnp.zeros(3),
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                    )
+                )
                 continue
             neighbor = prev_worst if i > 0 else None
-            results.append(
-                optimize_single((flat_T[i], flat_g[i], subkeys[i], neighbor))
-            )
+            results.append(optimize_single((flat_T[i], flat_g[i], subkeys[i], neighbor)))
             prev_worst = results[-1][4]
         stacked = tuple(jnp.stack([r[k] for r in results], axis=0) for k in range(14))
         return stacked
@@ -199,9 +215,9 @@ def _run_grid_optimization(
         sub_T = flat_T[idx]
         sub_g = flat_g[idx]
         sub_keys = subkeys[idx]
-        sub_results = jax.vmap(
-            lambda args: optimize_single((args[0], args[1], args[2], None))
-        )((sub_T, sub_g, sub_keys))
+        sub_results = jax.vmap(lambda args: optimize_single((args[0], args[1], args[2], None)))(
+            (sub_T, sub_g, sub_keys)
+        )
 
         idx_dev = jnp.asarray(idx)
 
@@ -225,9 +241,20 @@ def _run_grid_optimization(
         sec_nsteps = _scatter(out[12], sub_results[12], idx)
         dec_nsteps = _scatter(out[13], sub_results[13], idx)
         return (
-            nec_opt, wec_opt, sec_opt, dec_opt, worst_obs, worst_par,
-            nec_conv, wec_conv, sec_conv, dec_conv,
-            nec_nsteps, wec_nsteps, sec_nsteps, dec_nsteps,
+            nec_opt,
+            wec_opt,
+            sec_opt,
+            dec_opt,
+            worst_obs,
+            worst_par,
+            nec_conv,
+            wec_conv,
+            sec_conv,
+            dec_conv,
+            nec_nsteps,
+            wec_nsteps,
+            sec_nsteps,
+            dec_nsteps,
         )
 
     args = (flat_T, flat_g, subkeys, jnp.full((n_points, 4), jnp.nan))
@@ -248,7 +275,7 @@ def verify_point(
     zeta_max: float = 5.0,
     key=None,
     *,
-    solver: str = 'auto',
+    solver: str = "auto",
 ) -> ECPointResult:
     """Verify all energy conditions at a single spacetime point.
 
@@ -294,7 +321,9 @@ def verify_point(
 
     T_mixed = jnp.einsum("ac,cb->ab", g_inv, T_ab)
     cls = classify_with_solver(
-        T_mixed, g_ab, T_ab,
+        T_mixed,
+        g_ab,
+        T_ab,
         solver=solver,
     )
     he_type = cls.he_type
@@ -310,15 +339,21 @@ def verify_point(
             eigenvalues=cls.eigenvalues,
             rho=rho,
             pressures=pressures,
-            nec_margin=nan, wec_margin=nan, sec_margin=nan, dec_margin=nan,
+            nec_margin=nan,
+            wec_margin=nan,
+            sec_margin=nan,
+            dec_margin=nan,
             worst_observer=jnp.full((4,), jnp.nan),
             worst_params=jnp.full((3,), jnp.nan),
-            nec_opt_margin=nan, wec_opt_margin=nan,
-            sec_opt_margin=nan, dec_opt_margin=nan,
+            nec_opt_margin=nan,
+            wec_opt_margin=nan,
+            sec_opt_margin=nan,
+            dec_opt_margin=nan,
         )
 
     opt_results = optimize_point(
-        T_ab, g_ab,
+        T_ab,
+        g_ab,
         conditions=("nec", "wec", "sec", "dec"),
         n_starts=n_starts,
         zeta_max=zeta_max,
@@ -417,7 +452,7 @@ def verify_grid(
     key=None,
     compute_eulerian: bool = False,
     *,
-    solver: str = 'auto',
+    solver: str = "auto",
     strategy: str = "tanh",
     skip_type_i_optimization: bool = True,
     warm_start: str = "cold",
@@ -500,7 +535,10 @@ def verify_grid(
 
     flat_T_mixed = jax.vmap(jnp.matmul)(flat_g_inv, flat_T)
     cls_results = _classify_grid_batch(
-        flat_T_mixed, flat_g, flat_T, solver=solver,
+        flat_T_mixed,
+        flat_g,
+        flat_T,
+        solver=solver,
     )
 
     he_types = cls_results.he_type
@@ -512,7 +550,9 @@ def verify_grid(
 
     subkeys = jax.random.split(key, n_points)
     opt_results = _run_grid_optimization(
-        flat_T, flat_g, subkeys,
+        flat_T,
+        flat_g,
+        subkeys,
         n_starts=n_starts,
         zeta_max=zeta_max,
         strategy=strategy,
@@ -524,15 +564,29 @@ def verify_grid(
         starts=starts,
     )
 
-    (nec_opt, wec_opt, sec_opt, dec_opt, worst_obs, worst_par,
-     nec_conv, wec_conv, sec_conv, dec_conv,
-     nec_nsteps, wec_nsteps, sec_nsteps, dec_nsteps) = opt_results
+    (
+        nec_opt,
+        wec_opt,
+        sec_opt,
+        dec_opt,
+        worst_obs,
+        worst_par,
+        nec_conv,
+        wec_conv,
+        sec_conv,
+        dec_conv,
+        nec_nsteps,
+        wec_nsteps,
+        sec_nsteps,
+        dec_nsteps,
+    ) = opt_results
 
-    is_type_i = (he_types == 1.0)
+    is_type_i = he_types == 1.0
 
     n_non_type_i = int(jnp.sum(~is_type_i))
     if n_non_type_i > 0:
         import warnings
+
         warnings.warn(
             f"{n_non_type_i} of {n_points} grid points are non-Type-I. "
             f"DEC future-directedness is only guaranteed for Type I.",
@@ -547,9 +601,7 @@ def verify_grid(
     sec_margins = merge_margins(sec_eig, sec_opt)
     # Type-I DEC: min(algebraic proxy, optimizer) when the optimizer ran.
     dec_opt_finite = jnp.isfinite(dec_opt)
-    dec_margins_type_i = jnp.where(
-        dec_opt_finite, jnp.minimum(dec_eig, dec_opt), dec_eig
-    )
+    dec_margins_type_i = jnp.where(dec_opt_finite, jnp.minimum(dec_eig, dec_opt), dec_eig)
     dec_margins = jnp.where(is_type_i, dec_margins_type_i, dec_opt)
     dec_margins = jnp.minimum(wec_margins, dec_margins)
 
@@ -647,9 +699,7 @@ def _eulerian_ec_point(
 
     tetrad = compute_orthonormal_tetrad(g_ab)
     spatial = tetrad[1:4]
-    k_all = jnp.concatenate(
-        [tetrad[0][None, :] + spatial, tetrad[0][None, :] - spatial], axis=0
-    )
+    k_all = jnp.concatenate([tetrad[0][None, :] + spatial, tetrad[0][None, :] - spatial], axis=0)
     nec_vals = jnp.einsum("ia,ab,ib->i", k_all, T_ab, k_all)
     nec_margin = jnp.min(nec_vals)
 
@@ -708,4 +758,3 @@ def anec_integrand(
     :func:`warpax.averaged.anec`.
     """
     return jnp.einsum("a,ab,b->", k, T_ab, k)
-

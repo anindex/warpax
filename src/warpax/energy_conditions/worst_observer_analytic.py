@@ -38,6 +38,7 @@ asymptotic SIGN. It does not return a finite "worst energy density" because, whe
 ``zeta_max``-capped optimizer can only approximate). DEC is handled at the
 eigenvalue-bound level (``rho >= |p_i|``); its worst axis is ``argmax_i |p_i|``.
 """
+
 from __future__ import annotations
 
 import jax.numpy as jnp

@@ -120,7 +120,11 @@ def test_momentum_constraint_minkowski():
     K = jnp.zeros((3, 3), dtype=jnp.float64)
     momentum_density = jnp.zeros(3, dtype=jnp.float64)
     result = momentum_constraint(
-        gamma, K, momentum_density, metric_fn=metric, coords=coords,
+        gamma,
+        K,
+        momentum_density,
+        metric_fn=metric,
+        coords=coords,
     )
     assert jnp.allclose(result, 0.0, atol=1e-14)
 
@@ -133,7 +137,11 @@ def test_momentum_constraint_flat_with_momentum():
     K = jnp.zeros((3, 3), dtype=jnp.float64)
     S_i = jnp.array([1.0, 0.0, 0.0], dtype=jnp.float64)
     result = momentum_constraint(
-        gamma, K, S_i, metric_fn=metric, coords=coords,
+        gamma,
+        K,
+        S_i,
+        metric_fn=metric,
+        coords=coords,
     )
     expected = -8.0 * jnp.pi * S_i
     assert jnp.allclose(result, expected, atol=1e-14)
@@ -145,6 +153,7 @@ def test_momentum_constraint_raises_without_metric():
     K = jnp.zeros((3, 3), dtype=jnp.float64)
     S_i = jnp.zeros(3, dtype=jnp.float64)
     import pytest
+
     with pytest.raises(ValueError, match="metric_fn"):
         momentum_constraint(gamma, K, S_i)
 
@@ -155,6 +164,7 @@ def test_hamiltonian_constraint_raises_without_R_or_metric():
     K = jnp.zeros((3, 3), dtype=jnp.float64)
     energy_density = jnp.array(0.0, dtype=jnp.float64)
     import pytest
+
     with pytest.raises(ValueError, match="R"):
         hamiltonian_constraint(gamma, K, energy_density)
 

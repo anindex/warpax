@@ -29,6 +29,7 @@ Outputs
 - results/enclosures.json
 - ../warpax_arxiv/tables/enclosures.tex
 """
+
 from __future__ import annotations
 
 import argparse
@@ -114,8 +115,9 @@ def _load_references():
             doc = json.load(fh)
         if fname == "comparison_table.json":
             key_a, val_a, key_b, val_b, field = path
-            hits = [r for r in doc
-                    if r.get(key_a) == val_a and abs(r.get(key_b, 1e9) - val_b) < 1e-12]
+            hits = [
+                r for r in doc if r.get(key_a) == val_a and abs(r.get(key_b, 1e9) - val_b) < 1e-12
+            ]
             if len(hits) != 1:
                 raise RuntimeError(
                     f"{fname}: expected exactly one row with {key_a}={val_a!r}, "
@@ -131,6 +133,7 @@ def _load_references():
             where = f"{fname}:" + ".".join(str(k) for k in path)
         out[name] = (float(value), label, where)
     return out
+
 
 # Van den Broeck's conformal parameters. Its shift is the same tanh top-hat as
 # Alcubierre's, so the wall mask is unchanged; the slice carries B^2 delta_ij.
@@ -185,14 +188,11 @@ def write_table(rows, out_path):
         r = rows.get(name)
         if r is None:
             continue
-        label = name.replace("VanDenBroeck", "Van den Broeck").replace(
-            "Natario", "Nat\\'ario")
+        label = name.replace("VanDenBroeck", "Van den Broeck").replace("Natario", "Nat\\'ario")
         # Taken from the row, not re-looked-up, so --table-only rewrites exactly
         # what the search recorded.
         ref_val, ref_stat = r.get("reference"), r.get("reference_statistic")
-        ref_cell = (
-            f"${_f(ref_val, 3)}$ ({ref_stat})" if ref_val is not None else "--"
-        )
+        ref_cell = f"${_f(ref_val, 3)}$ ({ref_stat})" if ref_val is not None else "--"
         if not math.isfinite(r["lower"]):
             # Report non-closure explicitly rather than printing a bare -inf: a
             # bound that did not close is a coverage statement, not a number.
@@ -207,7 +207,7 @@ def write_table(rows, out_path):
         # numbers and get a third that disagrees with a printed one.
         ratio = r["lower"] / r["upper"] if r["upper"] != 0.0 else float("inf")
         lines.append(
-            f"  {label} & ${_f(r['lower'],nd)}$ & ${_f(r['upper'],nd)}$ & "
+            f"  {label} & ${_f(r['lower'], nd)}$ & ${_f(r['upper'], nd)}$ & "
             f"${ratio:.5g}$ & {ref_cell} \\\\"
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
@@ -226,8 +226,12 @@ def certify_one(job):
     build_s = time.time() - t0
     t0 = time.time()
     enc = certify_nec_deficit(
-        metric, shape, x_range=BOX_X, s_range=BOX_S,
-        tol=tol, max_boxes=max_boxes,
+        metric,
+        shape,
+        x_range=BOX_X,
+        s_range=BOX_S,
+        tol=tol,
+        max_boxes=max_boxes,
     )
     search_s = time.time() - t0
     # The exterior is excluded because it holds no wall point, not because its
@@ -256,10 +260,14 @@ def main():
     ap.add_argument("--tol", type=float, default=1e-4)
     ap.add_argument("--max-boxes", type=int, default=120000)
     ap.add_argument("--metrics", nargs="+", default=ORDER)
-    ap.add_argument("--jobs", type=int, default=0,
-                    help="worker processes; 0 = one per construction, 1 = serial")
-    ap.add_argument("--table-only", action="store_true",
-                    help="rewrite the table from results/enclosures.json; no search")
+    ap.add_argument(
+        "--jobs", type=int, default=0, help="worker processes; 0 = one per construction, 1 = serial"
+    )
+    ap.add_argument(
+        "--table-only",
+        action="store_true",
+        help="rewrite the table from results/enclosures.json; no search",
+    )
     args = ap.parse_args()
 
     # Four hours of branch-and-bound is too much to pay to change a format string.
@@ -284,6 +292,7 @@ def main():
     if n_workers > 1:
         import concurrent.futures as _cf
         import multiprocessing as _mp
+
         ctx = _mp.get_context("spawn")
         results = []
         with _cf.ProcessPoolExecutor(max_workers=n_workers, mp_context=ctx) as pool:
@@ -323,10 +332,15 @@ def _dump(args, rows, *, partial):
     out = {
         "partial": partial,
         "params": {
-            "v_s": V_S, "R_b": R_B, "sigma": SIGMA,
-            "box_x": list(BOX_X), "box_s": list(BOX_S),
-            "tail_x": list(TAIL_X), "tail_s": list(TAIL_S),
-            "tol": args.tol, "max_boxes": args.max_boxes,
+            "v_s": V_S,
+            "R_b": R_B,
+            "sigma": SIGMA,
+            "box_x": list(BOX_X),
+            "box_s": list(BOX_S),
+            "tail_x": list(TAIL_X),
+            "tail_s": list(TAIL_S),
+            "tol": args.tol,
+            "max_boxes": args.max_boxes,
             "wall_mask": [0.1, 0.9],
             "note": (
                 "N = min_{|v|=1} (rho_n + 2 b.v + v^T S v), the Eulerian-normalized "

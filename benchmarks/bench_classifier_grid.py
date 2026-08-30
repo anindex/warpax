@@ -4,6 +4,7 @@ Float64 JIT path; measures the warm-code execution of
 ``classify_hawking_ellis`` batched via ``jax.vmap`` over a 32^3 Alcubierre
 stress-energy grid.
 """
+
 from __future__ import annotations
 
 import os
@@ -88,8 +89,12 @@ class ClassifierGrid32Generalized:
         # vmap the generalized path; pure_callback is sequential per vmap_method.
         def _classify_gen(T_mixed_i, g_i, T_ab_i):
             return classify_hawking_ellis(
-                T_mixed_i, g_i, solver='generalized', T_ab=T_ab_i,
+                T_mixed_i,
+                g_i,
+                solver="generalized",
+                T_ab=T_ab_i,
             )
+
         self.fn = jax.jit(jax.vmap(_classify_gen, in_axes=(0, 0, 0)))
         _ = self.fn(self.T_mixed_flat, self.g_flat, self.T_flat)  # JIT warmup
 

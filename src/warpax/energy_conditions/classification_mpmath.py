@@ -10,6 +10,7 @@ grid pipeline (mpmath is pure-Python and thousands of times slower than
 ``jnp.linalg.eig``). Intended for verifying a small subset of Type-IV
 grid points at 50-digit precision and flagging any that flip.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -122,9 +123,7 @@ def classify_hawking_ellis_mpmath(
           NOT a wrong classification - this is a known limitation of float64)
     """
     if T_mixed.shape != (4, 4) or g_ab.shape != (4, 4):
-        raise ValueError(
-            f"Expected (4, 4) matrices, got T={T_mixed.shape}, g={g_ab.shape}"
-        )
+        raise ValueError(f"Expected (4, 4) matrices, got T={T_mixed.shape}, g={g_ab.shape}")
 
     # No verdict on non-finite input, matching classification.py. Zeroing it
     # here returned he_type=1, near_vacuum=True for a NaN tensor.
@@ -154,8 +153,7 @@ def classify_hawking_ellis_mpmath(
         # carries was missing here, so a nilpotent Segre [3,1] core, the
         # paper's own general Type III, was labelled vacuum at any amplitude.
         max_mod_abs = max(
-            float(mpmath.sqrt(r * r + i * i))
-            for r, i in zip(evals_real, evals_imag, strict=True)
+            float(mpmath.sqrt(r * r + i * i)) for r, i in zip(evals_real, evals_imag, strict=True)
         )
         near_vacuum = (max_mod_abs < tol) and (max_T_abs == 0.0)
 
@@ -182,9 +180,11 @@ def classify_hawking_ellis_mpmath(
         # 120 digits alike. The discriminator is the defect: algebraic minus
         # geometric multiplicity of the repeated eigenvalue is 1 for [2,1,1] and
         # 2 for [3,1].
-        defect = _jordan_defect(M, evals, tol * scale, precision) if (
-            all_real and not near_vacuum and n_null >= 1
-        ) else 0
+        defect = (
+            _jordan_defect(M, evals, tol * scale, precision)
+            if (all_real and not near_vacuum and n_null >= 1)
+            else 0
+        )
         is_type_iii = all_real and not near_vacuum and n_null >= 1 and defect >= 2
 
         if is_type_iv:
@@ -213,7 +213,7 @@ def classify_hawking_ellis_mpmath(
         "eigenvalues_real": evals_real,
         "eigenvalues_imag": evals_imag,
         "precision": precision,
-        "cond_V": cond_V,        # Bauer-Fike condition number
+        "cond_V": cond_V,  # Bauer-Fike condition number
         "uncertain": uncertain,  # cond_V > 10^(precision/2)
     }
 
@@ -252,7 +252,8 @@ def verify_classification_at_points(
         - ``max_imag_abs`` : np.ndarray, shape (N,)
         - ``precision`` : int
         - ``tol``, ``imag_rtol`` : float
-        - ``cond_V_per_point`` : np.ndarray[float64], shape (N,) - Bauer-Fike eigenvector-matrix condition number per point (possibly
+        - ``cond_V_per_point`` : np.ndarray[float64], shape (N,) - Bauer-Fike
+          eigenvector-matrix condition number per point (possibly
           ``inf``).
         - ``uncertain_mask`` : np.ndarray[bool], shape (N,) - per-point
           ``cond_V > 10 ** (precision / 2)`` flag.
@@ -305,9 +306,7 @@ def verify_classification_at_points(
     }
 
 
-def _cond_V_mpmath(
-    evecs: mpmath.matrix, precision: int
-) -> tuple[float, bool]:
+def _cond_V_mpmath(evecs: mpmath.matrix, precision: int) -> tuple[float, bool]:
     """Bauer-Fike eigenvector-matrix condition number for the mpmath classifier.
 
     Computes ``cond(V) = sigma_max(V) / sigma_min(V)`` via ``mpmath.svd``
@@ -384,7 +383,7 @@ def _jordan_defect(M, evals, cluster_tol, precision):
             A = M - lam * mpmath.eye(4)
             try:
                 sv = mpmath.svd(A, compute_uv=False)
-            except Exception:                     # pragma: no cover - solver guard
+            except Exception:  # pragma: no cover - solver guard
                 continue
             svals = [float(x) for x in sv]
             smax = max(svals) if svals else 0.0
@@ -394,9 +393,8 @@ def _jordan_defect(M, evals, cluster_tol, precision):
             worst = max(worst, alg - max(geo, 1))
         return worst
 
-def _causal_counts(
-    evecs: mpmath.matrix, g_ab: np.ndarray, tol: float
-) -> tuple[int, int]:
+
+def _causal_counts(evecs: mpmath.matrix, g_ab: np.ndarray, tol: float) -> tuple[int, int]:
     """Count timelike / null eigenvectors via g_{ab} v^a v^b.
 
     Mirrors the float64 classifier's causal-character accounting. For

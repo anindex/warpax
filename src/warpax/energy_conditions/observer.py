@@ -84,8 +84,7 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     g_inv_scale = jnp.max(jnp.abs(g_inv))
     alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], _DEGENERATE_RTOL * g_inv_scale))
     beta_up = -g_inv[0, 1:4] / g_inv[0, 0]
-    e0 = jnp.array([1.0 / alpha, -beta_up[0] / alpha,
-                    -beta_up[1] / alpha, -beta_up[2] / alpha])
+    e0 = jnp.array([1.0 / alpha, -beta_up[0] / alpha, -beta_up[1] / alpha, -beta_up[2] / alpha])
 
     spatial_basis = jnp.eye(4)[1:]
     tetrad = jnp.zeros((4, 4)).at[0].set(e0)

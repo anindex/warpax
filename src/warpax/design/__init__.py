@@ -17,6 +17,7 @@ Public API:
 - :func:`design_metric`, :class:`OptimizationReport` - constrained-BFGS
   shape-function optimizer with sigmoid reparameterization.
 """
+
 from __future__ import annotations
 
 from .constraints import (

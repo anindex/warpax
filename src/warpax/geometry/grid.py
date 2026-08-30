@@ -11,6 +11,7 @@ Invariants are computed inside the vmapped function so the full Riemann
 tensor at each point does not need to persist across the batch, only the
 resulting scalars survive into the output.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -34,6 +35,7 @@ class GridCurvatureResult(NamedTuple):
     has shape ``(*grid_shape, ...)`` where the trailing dimensions are the
     tensor indices (e.g. ``(4, 4)`` for the metric).
     """
+
     metric: Float[Array, "..."]
     metric_inv: Float[Array, "..."]
     christoffel: Float[Array, "..."]
@@ -75,6 +77,7 @@ def build_coord_batch(
 def _make_point_fn(metric_fn, compute_invariants: bool) -> Callable:
     """Build the per-point function (with or without invariants)."""
     if compute_invariants:
+
         def point_fn(c: Float[Array, "4"]) -> GridCurvatureResult:
             result = compute_curvature_chain(metric_fn, c)
             K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
@@ -94,8 +97,10 @@ def _make_point_fn(metric_fn, compute_invariants: bool) -> Callable:
                 weyl_squared=W2,
             )
     else:
+
         def point_fn(c: Float[Array, "4"]) -> CurvatureResult:
             return compute_curvature_chain(metric_fn, c)
+
     return point_fn
 
 
@@ -175,8 +180,7 @@ def evaluate_curvature_grid(
     """
     if auto_chunk_threshold is not None and auto_chunk_threshold <= 0:
         raise ValueError(
-            "auto_chunk_threshold must be a positive integer or None, "
-            f"got {auto_chunk_threshold}"
+            f"auto_chunk_threshold must be a positive integer or None, got {auto_chunk_threshold}"
         )
 
     coords_flat = build_coord_batch(grid_spec, t=t)

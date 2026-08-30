@@ -74,9 +74,7 @@ class AlcubierreMetric(ADMMetric):
         """Co-moving bubble center: x_s + v_s t."""
         return self.x_s + self.v_s * t
 
-    def _radial_distance(
-        self, coords: Float[Array, "4"]
-    ) -> Float[Array, ""]:
+    def _radial_distance(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Distance from co-moving bubble center (with autodiff floor)."""
         t, x, y, z = coords
         dx = x - self._bubble_center_x(t)
@@ -114,19 +112,20 @@ class AlcubierreMetric(ADMMetric):
         x_s_val = sp.Symbol("x_s", real=True)
         dx = x - x_s_val - v_s * t
         r_s = sp.sqrt(dx**2 + y**2 + z**2)
-        f = (
-            sp.tanh(sigma_val * (r_s + R_val))
-            - sp.tanh(sigma_val * (r_s - R_val))
-        ) / (2 * sp.tanh(sigma_val * R_val))
+        f = (sp.tanh(sigma_val * (r_s + R_val)) - sp.tanh(sigma_val * (r_s - R_val))) / (
+            2 * sp.tanh(sigma_val * R_val)
+        )
 
         # Full metric: ds^2 = -(1 - v_s^2 f^2) dt^2 - 2 v_s f dx dt
         # + dx^2 + dy^2 + dz^2
-        g = sp.Matrix([
-            [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
-            [-v_s * f, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
+                [-v_s * f, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:
@@ -156,17 +155,18 @@ def alcubierre_symbolic(
     x_s_val = sp.Symbol("x_s", real=True)
     dx = x - x_s_val - v_s * t
     r_s = sp.sqrt(dx**2 + y**2 + z**2)
-    f = (
-        sp.tanh(sigma_val * (r_s + R_val))
-        - sp.tanh(sigma_val * (r_s - R_val))
-    ) / (2 * sp.tanh(sigma_val * R_val))
+    f = (sp.tanh(sigma_val * (r_s + R_val)) - sp.tanh(sigma_val * (r_s - R_val))) / (
+        2 * sp.tanh(sigma_val * R_val)
+    )
 
-    g = sp.Matrix([
-        [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
-        [-v_s * f, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1],
-    ])
+    g = sp.Matrix(
+        [
+            [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
+            [-v_s * f, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ]
+    )
     return SymbolicMetric([t, x, y, z], g)
 
 

@@ -5,6 +5,7 @@ out-of-bounds safety (extrapolation clamped to the grid boundary).
 
 Private module; consumers should use :class:`warpax.io.InterpolatedADMMetric`.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -24,9 +25,7 @@ __all__ = [
 _CUBIC_FALLBACK_WARNED = False
 
 
-def _coords_to_indices(
-    coords: Float[Array, "4"], grid_spec: GridSpec
-) -> Float[Array, "4"]:
+def _coords_to_indices(coords: Float[Array, "4"], grid_spec: GridSpec) -> Float[Array, "4"]:
     """Map physical coords ``(t, x, y, z)`` to fractional grid indices."""
     bounds = jnp.asarray(grid_spec.bounds)
     shape = jnp.asarray(grid_spec.shape)
@@ -51,9 +50,7 @@ def _order_for_method(method: str) -> int:
             )
             _CUBIC_FALLBACK_WARNED = True
         return 1
-    raise ValueError(
-        f"Unknown interp_method: {method!r}; expected 'linear' or 'cubic'."
-    )
+    raise ValueError(f"Unknown interp_method: {method!r}; expected 'linear' or 'cubic'.")
 
 
 def _interpolate_scalar(

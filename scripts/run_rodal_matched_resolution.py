@@ -1,4 +1,3 @@
-
 """Test Rodal at matched parameters R=1, sigma=8 for numerical feasibility.
 
 Runs Eulerian vs robust EC comparison at resolutions N=30/50/70 on a [-3,3]^3
@@ -16,6 +15,7 @@ Usage
 -----
     python scripts/run_rodal_matched_resolution.py
 """
+
 from __future__ import annotations
 
 import os
@@ -43,8 +43,8 @@ from warpax.metrics import RodalMetric
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 RESOLUTIONS = [30, 50, 70]  # three-point resolution sweep
 V_S = 0.5
-R = 1.0       # matched parameter (was R=100 in the native Rodal config)
-SIGMA = 8.0   # matched parameter (was sigma=0.03 in the native Rodal config)
+R = 1.0  # matched parameter (was R=100 in the native Rodal config)
+SIGMA = 8.0  # matched parameter (was sigma=0.03 in the native Rodal config)
 DOMAIN = [(-3, 3)] * 3  # compact domain for R=1 (not [-300,300]^3)
 TOLERANCE = 0.05  # +/-5% relative stability criterion across resolutions
 ABS_TOL_PP = 0.5  # absolute-floor: spread within 0.5 percentage points is stable
@@ -65,7 +65,7 @@ def run_resolution_study():
     results = []
     for N in RESOLUTIONS:
         grid = GridSpec(bounds=DOMAIN, shape=(N, N, N))
-        n_total = N ** 3
+        n_total = N**3
 
         print(f"\n--- Resolution: {N}^3 = {n_total} points ---")
         metric = RodalMetric(v_s=V_S, R=R, sigma=SIGMA)
@@ -97,9 +97,7 @@ def run_resolution_study():
             violated = float(jnp.sum(rob_margins < -1e-10)) / n_total * 100
             # Missed: Eulerian says OK but robust says violated
             # Use >= 0.0 threshold to match comparison.py convention
-            missed = float(jnp.sum(
-                (eul_margins >= 0.0) & (rob_margins < -1e-10)
-            )) / n_total * 100
+            missed = float(jnp.sum((eul_margins >= 0.0) & (rob_margins < -1e-10))) / n_total * 100
             min_margin = float(jnp.nanmin(rob_margins))
 
             row[f"{cond}_total"] = violated
@@ -126,13 +124,17 @@ def run_resolution_study():
     print("=" * 70)
     print(f"{'N':>5s} {'NEC_miss':>10s} {'WEC_miss':>10s} {'SEC_miss':>10s} {'DEC_miss':>10s}")
     for r in results:
-        print(f"{r['N']:>5d} {r['nec_missed']:>10.2f} {r['wec_missed']:>10.2f} "
-              f"{r['sec_missed']:>10.2f} {r['dec_missed']:>10.2f}")
+        print(
+            f"{r['N']:>5d} {r['nec_missed']:>10.2f} {r['wec_missed']:>10.2f} "
+            f"{r['sec_missed']:>10.2f} {r['dec_missed']:>10.2f}"
+        )
 
     print(f"\n{'N':>5s} {'NEC_tot':>10s} {'WEC_tot':>10s} {'SEC_tot':>10s} {'DEC_tot':>10s}")
     for r in results:
-        print(f"{r['N']:>5d} {r['nec_total']:>10.2f} {r['wec_total']:>10.2f} "
-              f"{r['sec_total']:>10.2f} {r['dec_total']:>10.2f}")
+        print(
+            f"{r['N']:>5d} {r['nec_total']:>10.2f} {r['wec_total']:>10.2f} "
+            f"{r['sec_total']:>10.2f} {r['dec_total']:>10.2f}"
+        )
 
     return results
 
@@ -252,12 +254,10 @@ def save_report(results, stability, start_time):
     # Per-resolution table
     lines.append("## Per-Resolution Results\n")
     lines.append(
-        "| N | n_total | NEC_miss% | WEC_miss% | SEC_miss% | DEC_miss% "
-        "| Type_I_pct | Time (s) |"
+        "| N | n_total | NEC_miss% | WEC_miss% | SEC_miss% | DEC_miss% | Type_I_pct | Time (s) |"
     )
     lines.append(
-        "|--:|--------:|----------:|----------:|----------:|----------:"
-        "|-----------:|---------:|"
+        "|--:|--------:|----------:|----------:|----------:|----------:|-----------:|---------:|"
     )
     for r in results:
         lines.append(
@@ -276,8 +276,7 @@ def save_report(results, stability, start_time):
         s = stability[cond]
         stable_str = "Yes" if s["stable"] else "No"
         lines.append(
-            f"| {cond.upper()} | {stable_str} "
-            f"| {s['mean']:.4f} | {s['max_deviation']:.4f} |"
+            f"| {cond.upper()} | {stable_str} | {s['mean']:.4f} | {s['max_deviation']:.4f} |"
         )
     lines.append("")
 
@@ -324,8 +323,7 @@ def main():
         s = stability[cond]
         status = "STABLE" if s["stable"] else "UNSTABLE"
         print(
-            f"  {cond.upper()}: {status} "
-            f"(mean={s['mean']:.4f}, max_dev={s['max_deviation']:.4f})"
+            f"  {cond.upper()}: {status} (mean={s['mean']:.4f}, max_dev={s['max_deviation']:.4f})"
         )
 
     all_stable = all(v["stable"] for v in stability.values())

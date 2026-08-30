@@ -68,7 +68,9 @@ class TestMinkowskiStraightLine:
         actual_final = sol.positions[-1]
 
         np.testing.assert_allclose(
-            actual_final, expected_final, atol=1e-8,
+            actual_final,
+            expected_final,
+            atol=1e-8,
             err_msg="Minkowski straight-line geodesic deviated from analytical trajectory",
         )
 
@@ -90,13 +92,15 @@ class TestSchwarzschildCircularOrbit:
         x0, v0 = circular_orbit_ic(metric, r_schw=r_schw, M=M)
 
         # Orbital period in Schwarzschild coordinate time
-        T_schw = 2.0 * np.pi * r_schw ** 1.5 / np.sqrt(M)
+        T_schw = 2.0 * np.pi * r_schw**1.5 / np.sqrt(M)
         # Convert to proper time
         T_proper = T_schw * np.sqrt(1.0 - 3.0 * M / r_schw)
 
         # Integrate for one full orbital period
         sol = integrate_geodesic(
-            metric, x0, v0,
+            metric,
+            x0,
+            v0,
             tau_span=(0.0, T_proper),
             num_points=2000,
             max_steps=65536,
@@ -104,17 +108,13 @@ class TestSchwarzschildCircularOrbit:
 
         # Check radial distance oscillation: compute isotropic r at all points
         r_iso_traj = jnp.sqrt(
-            sol.positions[:, 1] ** 2
-            + sol.positions[:, 2] ** 2
-            + sol.positions[:, 3] ** 2
+            sol.positions[:, 1] ** 2 + sol.positions[:, 2] ** 2 + sol.positions[:, 3] ** 2
         )
         r_iso_start = float(jnp.sqrt(x0[1] ** 2 + x0[2] ** 2 + x0[3] ** 2))
 
         # With correct ICs from conserved quantities, radial variation
         # should be extremely small (sub-ppm level).
-        max_radial_variation = float(
-            jnp.max(jnp.abs(r_iso_traj - r_iso_start)) / r_iso_start
-        )
+        max_radial_variation = float(jnp.max(jnp.abs(r_iso_traj - r_iso_start)) / r_iso_start)
         assert max_radial_variation < 0.01, (
             f"Radial variation {max_radial_variation:.6%} exceeds 1% threshold. "
             f"r_iso_start={r_iso_start:.4f}"
@@ -143,7 +143,9 @@ class TestSchwarzschildRadialInfall:
         event = make_event(horizon_event)
 
         sol = integrate_geodesic(
-            metric, x0, v0,
+            metric,
+            x0,
+            v0,
             tau_span=(0.0, 100.0),
             num_points=2000,
             max_steps=32768,
@@ -152,9 +154,7 @@ class TestSchwarzschildRadialInfall:
 
         # Compute isotropic radius along trajectory
         r_iso_traj = jnp.sqrt(
-            sol.positions[:, 1] ** 2
-            + sol.positions[:, 2] ** 2
-            + sol.positions[:, 3] ** 2
+            sol.positions[:, 1] ** 2 + sol.positions[:, 2] ** 2 + sol.positions[:, 3] ** 2
         )
 
         # After event termination, remaining save-points repeat the last valid
@@ -165,9 +165,7 @@ class TestSchwarzschildRadialInfall:
         dr = jnp.diff(r_valid)
         # Allow small positive bumps up to 1e-10 (numerical noise)
         n_increasing = int(jnp.sum(dr > 1e-10))
-        assert n_increasing == 0, (
-            f"Radius increased at {n_increasing} points during radial infall"
-        )
+        assert n_increasing == 0, f"Radius increased at {n_increasing} points during radial infall"
 
         # Check 4-velocity norm conservation (first 500 points)
         norms = monitor_conservation(metric, sol)
@@ -199,7 +197,9 @@ class TestSchwarzschildPhotonSphere:
 
         # Integrate for a short time (unstable orbit)
         sol = integrate_geodesic(
-            metric, x0, k0,
+            metric,
+            x0,
+            k0,
             tau_span=(0.0, 5.0),
             num_points=500,
             max_steps=16384,
@@ -207,9 +207,7 @@ class TestSchwarzschildPhotonSphere:
 
         # Compute isotropic radius along trajectory
         r_iso_traj = jnp.sqrt(
-            sol.positions[:, 1] ** 2
-            + sol.positions[:, 2] ** 2
-            + sol.positions[:, 3] ** 2
+            sol.positions[:, 1] ** 2 + sol.positions[:, 2] ** 2 + sol.positions[:, 3] ** 2
         )
 
         # For short integration, radius should stay within 10% of the photon sphere
@@ -236,12 +234,14 @@ class TestGeodesicFamilyBatch:
         metric = MinkowskiMetric()
 
         # 4 different initial conditions in Minkowski
-        x0_batch = jnp.array([
-            [0.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ])
+        x0_batch = jnp.array(
+            [
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
         # Use timelike_ic for proper normalization
         _, v0_0 = timelike_ic(metric, x0_batch[0], jnp.array([0.5, 0.0, 0.0]))
         _, v0_1 = timelike_ic(metric, x0_batch[1], jnp.array([0.0, 0.5, 0.0]))
@@ -252,7 +252,9 @@ class TestGeodesicFamilyBatch:
 
         num_pts = 100
         sol = integrate_geodesic_family(
-            metric, x0_batch, v0_batch,
+            metric,
+            x0_batch,
+            v0_batch,
             tau_span=(0.0, 5.0),
             num_points=num_pts,
         )
@@ -270,7 +272,9 @@ class TestGeodesicFamilyBatch:
             expected_final = x0_batch[i] + v0_batch[i] * 5.0
             actual_final = sol.positions[i, -1]
             np.testing.assert_allclose(
-                actual_final, expected_final, atol=1e-6,
+                actual_final,
+                expected_final,
+                atol=1e-6,
                 err_msg=f"Geodesic family member {i} deviates from straight line",
             )
 
@@ -303,7 +307,9 @@ class TestEventDetection:
         # At v=0.9c (spatial), v_x = 0.9 proper, reaching R=50 takes
         # tau ~ 50/0.9 ~ 55.6 proper time.
         sol = integrate_geodesic(
-            metric, x0, v0,
+            metric,
+            x0,
+            v0,
             tau_span=(0.0, 80.0),
             num_points=1000,
             event=event,
@@ -311,9 +317,7 @@ class TestEventDetection:
 
         # Compute radius along trajectory
         r_traj = jnp.sqrt(
-            sol.positions[:, 1] ** 2
-            + sol.positions[:, 2] ** 2
-            + sol.positions[:, 3] ** 2
+            sol.positions[:, 1] ** 2 + sol.positions[:, 2] ** 2 + sol.positions[:, 3] ** 2
         )
 
         # After event termination, Diffrax fills remaining save-points
@@ -322,9 +326,7 @@ class TestEventDetection:
         r_valid = r_traj[valid_mask]
 
         # The event should have triggered (some points are inf)
-        assert int(jnp.sum(~valid_mask)) > 0, (
-            "Event did not trigger all save points are finite"
-        )
+        assert int(jnp.sum(~valid_mask)) > 0, "Event did not trigger all save points are finite"
 
         # The last valid radius should be near R_max (within a few percent)
         last_valid_r = float(r_valid[-1])
@@ -369,7 +371,9 @@ class TestWarpMetricsGeodesicSmoke:
         _, v0 = timelike_ic(metric, x0, jnp.array([0.0, 0.0, 0.0]))
 
         sol = integrate_geodesic(
-            metric, x0, v0,
+            metric,
+            x0,
+            v0,
             tau_span=(0.0, 1.0),
             num_points=100,
             max_steps=4096,
@@ -446,7 +450,9 @@ class TestSchwarzschildTidalEigenvalues:
         # The most negative eigenvalue should be near -2M/r^3
         most_negative = min(eigs_np)
         np.testing.assert_allclose(
-            most_negative, radial_eig, rtol=1e-6,
+            most_negative,
+            radial_eig,
+            rtol=1e-6,
             err_msg=(
                 f"Radial tidal eigenvalue {most_negative:.6e} does not match "
                 f"analytical {radial_eig:.6e}"
@@ -460,7 +466,9 @@ class TestSchwarzschildTidalEigenvalues:
         )
         for pe in positive_eigs[:2]:
             np.testing.assert_allclose(
-                pe, transverse_eig, rtol=1e-6,
+                pe,
+                transverse_eig,
+                rtol=1e-6,
                 err_msg=(
                     f"Transverse tidal eigenvalue {pe:.6e} does not match "
                     f"analytical {transverse_eig:.6e}"
@@ -481,7 +489,9 @@ class TestTidalTensorFlatSpace:
 
         # All eigenvalues should be zero (Riemann = 0 in flat space)
         np.testing.assert_allclose(
-            eigs, 0.0, atol=1e-14,
+            eigs,
+            0.0,
+            atol=1e-14,
             err_msg="Tidal eigenvalues not zero in flat Minkowski spacetime",
         )
 
@@ -513,7 +523,11 @@ class TestDeviationCoIntegration:
 
         tau_end = 5.0
         sol = integrate_geodesic_with_deviation(
-            metric, x0, v0, xi0, w0,
+            metric,
+            x0,
+            v0,
+            xi0,
+            w0,
             tau_span=(0.0, tau_end),
             num_points=500,
         )
@@ -523,7 +537,9 @@ class TestDeviationCoIntegration:
         actual_final_xi = sol.deviations[-1]
 
         np.testing.assert_allclose(
-            actual_final_xi, expected_final_xi, atol=1e-8,
+            actual_final_xi,
+            expected_final_xi,
+            atol=1e-8,
             err_msg="Deviation vector did not grow linearly in flat space",
         )
 
@@ -551,11 +567,19 @@ class TestBlueshiftMinkowskiNoShift:
         k_recv = jnp.array([1.0, 1.0, 0.0, 0.0])  # same photon 4-momentum
 
         z_plus_1 = compute_blueshift(
-            metric, k_emit, u_emit, x_emit, k_recv, u_recv, x_recv,
+            metric,
+            k_emit,
+            u_emit,
+            x_emit,
+            k_recv,
+            u_recv,
+            x_recv,
         )
 
         np.testing.assert_allclose(
-            float(z_plus_1), 1.0, atol=1e-14,
+            float(z_plus_1),
+            1.0,
+            atol=1e-14,
             err_msg="Blueshift in flat Minkowski should be exactly 1.0",
         )
 
@@ -588,7 +612,13 @@ class TestBlueshiftMinkowskiDoppler:
         k_recv = jnp.array([1.0, 1.0, 0.0, 0.0])
 
         z_plus_1 = compute_blueshift(
-            metric, k_emit, u_emit, x_emit, k_recv, u_recv, x_recv,
+            metric,
+            k_emit,
+            u_emit,
+            x_emit,
+            k_recv,
+            u_recv,
+            x_recv,
         )
 
         # Relativistic Doppler for head-on approach:
@@ -597,7 +627,9 @@ class TestBlueshiftMinkowskiDoppler:
         expected = np.sqrt((1.0 + v) / (1.0 - v))
 
         np.testing.assert_allclose(
-            float(z_plus_1), expected, rtol=1e-10,
+            float(z_plus_1),
+            expected,
+            rtol=1e-10,
             err_msg=(
                 f"Doppler blueshift {float(z_plus_1):.10f} does not match "
                 f"analytical {expected:.10f} for v={v}"
@@ -649,7 +681,13 @@ class TestBlueshiftSchwarzschildGravitational:
         k_recv = jnp.array([k_t_recv, k_x_recv, 0.0, 0.0])
 
         z_plus_1 = compute_blueshift(
-            metric, k_emit, u_emit, x_emit, k_recv, u_recv, x_recv,
+            metric,
+            k_emit,
+            u_emit,
+            x_emit,
+            k_recv,
+            u_recv,
+            x_recv,
         )
 
         # Analytical gravitational redshift for static observers:
@@ -659,7 +697,9 @@ class TestBlueshiftSchwarzschildGravitational:
         expected = float(alpha_emit / alpha_recv)
 
         np.testing.assert_allclose(
-            float(z_plus_1), expected, rtol=1e-8,
+            float(z_plus_1),
+            expected,
+            rtol=1e-8,
             err_msg=(
                 f"Gravitational blueshift {float(z_plus_1):.10f} does not match "
                 f"analytical {expected:.10f}"
@@ -680,11 +720,14 @@ class TestConservationMonitoringTimelike:
 
         # Use radial infall from r=15M
         from warpax.geodesics import horizon_event, make_event
+
         x0, v0 = radial_infall_ic(metric, r_start_schw=15.0, M=M)
         event = make_event(horizon_event)
 
         sol = integrate_geodesic(
-            metric, x0, v0,
+            metric,
+            x0,
+            v0,
             tau_span=(0.0, 50.0),
             num_points=1000,
             max_steps=16384,
@@ -696,9 +739,7 @@ class TestConservationMonitoringTimelike:
         # Use first half of points (well before any event termination)
         norms_valid = norms[:500]
         max_norm_error = float(jnp.max(jnp.abs(norms_valid + 1.0)))
-        assert max_norm_error < 1e-6, (
-            f"Timelike norm drift {max_norm_error:.2e} exceeds 1e-6"
-        )
+        assert max_norm_error < 1e-6, f"Timelike norm drift {max_norm_error:.2e} exceeds 1e-6"
 
 
 class TestConservationMonitoringNull:
@@ -714,16 +755,16 @@ class TestConservationMonitoringNull:
         x0, k0 = null_ic(metric, x0, n_spatial)
 
         sol = integrate_geodesic(
-            metric, x0, k0,
+            metric,
+            x0,
+            k0,
             tau_span=(0.0, 10.0),
             num_points=500,
         )
 
         norms = monitor_conservation(metric, sol)
         max_null_error = float(jnp.max(jnp.abs(norms)))
-        assert max_null_error < 1e-8, (
-            f"Null norm drift {max_null_error:.2e} exceeds 1e-8"
-        )
+        assert max_null_error < 1e-8, f"Null norm drift {max_null_error:.2e} exceeds 1e-8"
 
     def test_conservation_monitoring_null_schwarzschild(self):
         """Null norm should stay near 0 in curved spacetime too."""
@@ -737,7 +778,9 @@ class TestConservationMonitoringNull:
         x0, k0 = null_ic(metric, x0, n_spatial)
 
         sol = integrate_geodesic(
-            metric, x0, k0,
+            metric,
+            x0,
+            k0,
             tau_span=(0.0, 10.0),
             num_points=500,
         )
@@ -795,8 +838,11 @@ class TestFutureDirectedICs:
     CASES = (
         ("Minkowski", MinkowskiMetric(), jnp.array([0.0, 0.0, 0.0, 0.0])),
         ("Schwarzschild", SchwarzschildMetric(M=1.0), jnp.array([0.0, 10.0, 0.0, 0.0])),
-        ("Alcubierre", AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0),
-         jnp.array([0.0, 5.0, 0.1, 0.0])),
+        (
+            "Alcubierre",
+            AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0),
+            jnp.array([0.0, 5.0, 0.1, 0.0]),
+        ),
     )
 
     @pytest.mark.parametrize("name,metric,x0", CASES, ids=[c[0] for c in CASES])
@@ -823,8 +869,7 @@ class TestFutureDirectedICs:
         must still return the NaN sentinel rather than a spurious root.
         """
         m = AlcubierreMetric(v_s=2.0, R=2.0, sigma=8.0)
-        _, v0 = timelike_ic(m, jnp.array([0.0, 0.1, 0.0, 0.0]),
-                            jnp.array([0.0, 0.0, 0.0]))
+        _, v0 = timelike_ic(m, jnp.array([0.0, 0.1, 0.0, 0.0]), jnp.array([0.0, 0.0, 0.0]))
         assert bool(jnp.isnan(v0[0])), "expected NaN sentinel for no real root"
 
 
@@ -888,15 +933,16 @@ class TestKillingEnergyNormalization:
         x, k = null_ic_killing_normalized(metric, x0, jnp.array([1.0, 0.0, 0.0]), v_s)
 
         res = integrate_geodesic_symplectic(
-            metric, x, metric(x) @ k, affine_bounds=(0.0, 32.0),
-            num_steps=8192, num_save=512, order=4,
+            metric,
+            x,
+            metric(x) @ k,
+            affine_bounds=(0.0, 32.0),
+            num_steps=8192,
+            num_save=512,
+            order=4,
         )
-        tangents = jax.vmap(lambda c, p: jnp.linalg.inv(metric(c)) @ p)(
-            res.positions, res.momenta
-        )
-        e_k = jax.vmap(lambda c, kk: killing_energy(metric, c, kk, v_s))(
-            res.positions, tangents
-        )
+        tangents = jax.vmap(lambda c, p: jnp.linalg.inv(metric(c)) @ p)(res.positions, res.momenta)
+        e_k = jax.vmap(lambda c, kk: killing_energy(metric, c, kk, v_s))(res.positions, tangents)
         assert float(jnp.max(jnp.abs(e_k - 1.0))) < 1e-5
 
 
@@ -912,12 +958,14 @@ class TestInitialConditionsOnTheNullLocus:
     @staticmethod
     def _null_dt_metric():
         # Lorentzian, g_00 = 0, so d_t is null but the metric is non-degenerate.
-        return jnp.array([
-            [0.0, 1.0, 0.0, 0.0],
-            [1.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ])
+        return jnp.array(
+            [
+                [0.0, 1.0, 0.0, 0.0],
+                [1.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
 
     def test_metric_is_lorentzian_with_null_dt(self):
         g = self._null_dt_metric()
@@ -954,8 +1002,7 @@ class TestInitialConditionsOnTheNullLocus:
         root where the slice normal direction is itself spacelike, ``g_00 > 0``.
         """
         riemannian = jnp.eye(4)  # no timelike directions at all
-        _, u = timelike_ic(lambda x: riemannian, jnp.zeros(4),
-                           jnp.array([1.0, 0.0, 0.0]))
+        _, u = timelike_ic(lambda x: riemannian, jnp.zeros(4), jnp.array([1.0, 0.0, 0.0]))
         assert not jnp.all(jnp.isfinite(u))
 
     def test_fast_but_subluminal_direction_is_fine(self):
@@ -1016,9 +1063,9 @@ class TestNatarioAffineNormalization:
     @pytest.mark.parametrize("v_s", SPEEDS)
     def test_lab_frame_metrics_need_no_rescaling(self, v_s):
         """Alcubierre and Rodal already satisfy -g(k, n) = 1 for a unit seed."""
-        assert self._frequency(
-            AlcubierreMetric(v_s=v_s, R=1.0, sigma=8.0)
-        ) == pytest.approx(1.0, rel=1e-9)
+        assert self._frequency(AlcubierreMetric(v_s=v_s, R=1.0, sigma=8.0)) == pytest.approx(
+            1.0, rel=1e-9
+        )
         # Rodal is lab-frame too, up to the wall profile at the seed point
         assert self._frequency(RodalMetric(v_s=v_s, R=1.0, sigma=8.0)) == pytest.approx(
             1.0, abs=5e-3
@@ -1048,8 +1095,6 @@ class TestRodalShiftIsIrrotational:
 
         p = jnp.array(pt)
         J = jax.jacfwd(beta)(p)
-        curl = jnp.array(
-            [J[2, 1] - J[1, 2], J[0, 2] - J[2, 0], J[1, 0] - J[0, 1]]
-        )
+        curl = jnp.array([J[2, 1] - J[1, 2], J[0, 2] - J[2, 0], J[1, 0] - J[0, 1]])
         scale = float(jnp.linalg.norm(beta(p)))
         assert float(jnp.linalg.norm(curl)) < 1e-10 * max(scale, 1.0)

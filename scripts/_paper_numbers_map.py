@@ -5,6 +5,7 @@ callable that recomputes its value from the cached analysis outputs; macros with
 multi-file / derived provenance are listed as manually maintained with their
 source file for review (they are checked for existence, not recomputed).
 """
+
 from __future__ import annotations
 
 import json
@@ -38,8 +39,7 @@ def _kappa_vorticity():
 
 def _vdb_transition_vs():
     """v_s where the VdB wall Type-I fraction first reaches 0.5 (linear interp)."""
-    rows = [r for r in _load("velocity_sweep.json")["rows"]
-            if r["metric"] == "Van den Broeck"]
+    rows = [r for r in _load("velocity_sweep.json")["rows"] if r["metric"] == "Van den Broeck"]
     rows.sort(key=lambda r: r["v_s"])
     prev = None
     for r in rows:
@@ -61,8 +61,11 @@ AUTO_SOURCED = {
     "vdbVortFrac": (lambda: _vort("Van den Broeck"), 3, "shift_vorticity.json"),
     "rodalNECscaling": (_rodal_nec_scaling, 3, "exoticity_ranking.json (scaling fit)"),
     "vdbTransitionVS": (_vdb_transition_vs, 2, "velocity_sweep.json (50% Type-I crossover)"),
-    "kappaVorticity": (_kappa_vorticity, 3,
-                       "vorticity_type_analytic.json (controlled pure-rotation slope)"),
+    "kappaVorticity": (
+        _kappa_vorticity,
+        3,
+        "vorticity_type_analytic.json (controlled pure-rotation slope)",
+    ),
 }
 
 # Manually maintained (multi-file/derived provenance): verified by hand against

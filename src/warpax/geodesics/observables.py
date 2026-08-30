@@ -7,6 +7,7 @@ Provides physical observables extracted from geodesic integration results:
 - blueshift_along_trajectory: blueshift profile along a null geodesic
 - proper_time_elapsed: cumulative proper time via trapezoidal integration
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -69,6 +70,7 @@ def monitor_conservation(
     Float[Array, "N"]
         Array of g_ab v^a v^b at each saved point.
     """
+
     def norm_at_point(x: Float[Array, "4"], v: Float[Array, "4"]) -> Float[Array, ""]:
         return velocity_norm(metric_fn, x, v)
 
@@ -164,9 +166,7 @@ def blueshift_along_trajectory(
     g_emit = metric_fn(x_emit)
     omega_emit = -jnp.einsum("ab,a,b", g_emit, k_emit, u_emit)
 
-    def blueshift_at_point(
-        x: Float[Array, "4"], k: Float[Array, "4"]
-    ) -> Float[Array, ""]:
+    def blueshift_at_point(x: Float[Array, "4"], k: Float[Array, "4"]) -> Float[Array, ""]:
         g = metric_fn(x)
         u = observer_velocity_fn(x)
         omega = -jnp.einsum("ab,a,b", g, k, u)

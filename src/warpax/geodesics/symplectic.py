@@ -35,6 +35,7 @@ References
 - Christian & Chan, "FANTASY: User-friendly Symplectic Geodesic Integrator
   for Arbitrary Metrics with Automatic Differentiation," ApJ 909, 67 (2021).
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -110,7 +111,7 @@ def _phi_HA(state, delta, metric_fn):
     """
     x, p, xb, pb = state
     g_inv, dginv = _g_inv_and_dginv(metric_fn, x)
-    dxb = jnp.einsum("ab,b->a", g_inv, pb)               # dH_A/dp_bar
+    dxb = jnp.einsum("ab,b->a", g_inv, pb)  # dH_A/dp_bar
     dp = -0.5 * jnp.einsum("bca,b,c->a", dginv, pb, pb)  # -dH_A/dx
     return (x, p + delta * dp, xb + delta * dxb, pb)
 
@@ -123,8 +124,8 @@ def _phi_HB(state, delta, metric_fn):
     """
     x, p, xb, pb = state
     g_inv, dginv = _g_inv_and_dginv(metric_fn, xb)
-    dx = jnp.einsum("ab,b->a", g_inv, p)                 # dH_B/dp
-    dpb = -0.5 * jnp.einsum("bca,b,c->a", dginv, p, p)   # -dH_B/dx_bar
+    dx = jnp.einsum("ab,b->a", g_inv, p)  # dH_B/dp
+    dpb = -0.5 * jnp.einsum("bca,b,c->a", dginv, p, p)  # -dH_B/dx_bar
     return (x + delta * dx, p, xb, pb + delta * dpb)
 
 
@@ -193,7 +194,7 @@ def _integrate_core(
     _, (xs, ps) = jax.lax.scan(scan_body, init, xs=None, length=num_steps)
 
     # Prepend the initial point, then subsample to num_save evenly.
-    xs = jnp.concatenate([x0[None, :], xs], axis=0)   # (num_steps+1, 4)
+    xs = jnp.concatenate([x0[None, :], xs], axis=0)  # (num_steps+1, 4)
     ps = jnp.concatenate([p0[None, :], ps], axis=0)
     lam_full = jnp.linspace(lam0, lam1, num_steps + 1)
     save_idx = jnp.linspace(0, num_steps, num_save).astype(jnp.int32)
@@ -251,39 +252,39 @@ def integrate_geodesic_symplectic(
 ) -> SymplecticGeodesicResult:
     """Integrate a geodesic with the extended-phase-space symplectic scheme.
 
-    Empirically, on a long crossing of a large warp bubble
-    (Alcubierre ``v_s=0.1, R=20, sigma=2`` over affine span 60) the adaptive
-    Tsit5 integrator drifts off the null cone to ``max|g(k,k)| ~ 0.2``, while
-    this scheme at ``num_steps=8192, omega=1, order=4`` holds it at ``~1e-10``
-   , the difference that makes a rigorous geodesic-integrated ANEC possible.
+     Empirically, on a long crossing of a large warp bubble
+     (Alcubierre ``v_s=0.1, R=20, sigma=2`` over affine span 60) the adaptive
+     Tsit5 integrator drifts off the null cone to ``max|g(k,k)| ~ 0.2``, while
+     this scheme at ``num_steps=8192, omega=1, order=4`` holds it at ``~1e-10``
+    , the difference that makes a rigorous geodesic-integrated ANEC possible.
 
-    Parameters
-    ----------
-    metric_fn : MetricSpecification
-        Spacetime metric (Equinox module), ``coords (4,) -> g_ab (4,4)``.
-    x0 : Float[Array, "4"]
-        Initial position.
-    p0 : Float[Array, "4"]
-        Initial canonical momentum ``p_a`` (e.g. from :func:`null_ic_canonical`).
-        A non-finite ``p0`` (superluminal null IC) yields an all-NaN result with
-        ``termination_reason='superluminal'`` rather than garbage.
-    affine_bounds : tuple[float, float]
-        ``(lam0, lam1)`` integration interval.
-    num_steps : int
-        Number of fixed symplectic steps (static; keys the compile cache).
-    num_save : int
-        Number of evenly-spaced saved points (static).
-    order : int
-        ``2`` (Strang) or ``4`` (Yoshida); default 4.
-    omega : float
-        Tao binding strength for the extended phase space (dynamic; tune for
-        strong-shift metrics). Larger ``omega`` binds the two copies more
-        tightly; the conserved ``H_values`` witness is the objective acceptance
-        criterion regardless of ``omega``.
+     Parameters
+     ----------
+     metric_fn : MetricSpecification
+         Spacetime metric (Equinox module), ``coords (4,) -> g_ab (4,4)``.
+     x0 : Float[Array, "4"]
+         Initial position.
+     p0 : Float[Array, "4"]
+         Initial canonical momentum ``p_a`` (e.g. from :func:`null_ic_canonical`).
+         A non-finite ``p0`` (superluminal null IC) yields an all-NaN result with
+         ``termination_reason='superluminal'`` rather than garbage.
+     affine_bounds : tuple[float, float]
+         ``(lam0, lam1)`` integration interval.
+     num_steps : int
+         Number of fixed symplectic steps (static; keys the compile cache).
+     num_save : int
+         Number of evenly-spaced saved points (static).
+     order : int
+         ``2`` (Strang) or ``4`` (Yoshida); default 4.
+     omega : float
+         Tao binding strength for the extended phase space (dynamic; tune for
+         strong-shift metrics). Larger ``omega`` binds the two copies more
+         tightly; the conserved ``H_values`` witness is the objective acceptance
+         criterion regardless of ``omega``.
 
-    Returns
-    -------
-    SymplecticGeodesicResult
+     Returns
+     -------
+     SymplecticGeodesicResult
     """
     if order not in (2, 4):
         raise ValueError(f"order must be 2 or 4; got {order}")
@@ -294,20 +295,36 @@ def integrate_geodesic_symplectic(
         nan_s = jnp.full((num_save,), jnp.nan)
         return SymplecticGeodesicResult(
             ts=jnp.linspace(affine_bounds[0], affine_bounds[1], num_save),
-            positions=nan_v, momenta=nan_v, velocities=nan_v, H_values=nan_s,
-            complete=False, termination_reason="superluminal",
+            positions=nan_v,
+            momenta=nan_v,
+            velocities=nan_v,
+            H_values=nan_s,
+            complete=False,
+            termination_reason="superluminal",
         )
 
     ts, xs, ps, ks, Hs = _integrate_core(
-        metric_fn, x0, p0, affine_bounds[0], affine_bounds[1], omega,
-        num_steps=num_steps, num_save=num_save, order=order,
+        metric_fn,
+        x0,
+        p0,
+        affine_bounds[0],
+        affine_bounds[1],
+        omega,
+        num_steps=num_steps,
+        num_save=num_save,
+        order=order,
     )
 
     complete = bool(jnp.all(jnp.isfinite(xs)) & jnp.all(jnp.isfinite(ks)))
     reason = "complete" if complete else "nan"
     return SymplecticGeodesicResult(
-        ts=ts, positions=xs, momenta=ps, velocities=ks, H_values=Hs,
-        complete=complete, termination_reason=reason,
+        ts=ts,
+        positions=xs,
+        momenta=ps,
+        velocities=ks,
+        H_values=Hs,
+        complete=complete,
+        termination_reason=reason,
     )
 
 
@@ -328,10 +345,18 @@ def integrate_geodesic_symplectic_family(
     batch axis. (The host-side ``complete``/``termination_reason`` flags are not
     returned in the batched form; check ``jnp.isfinite`` per row.)
     """
+
     def core(x0, p0):
         return _integrate_core(
-            metric_fn, x0, p0, affine_bounds[0], affine_bounds[1], omega,
-            num_steps=num_steps, num_save=num_save, order=order,
+            metric_fn,
+            x0,
+            p0,
+            affine_bounds[0],
+            affine_bounds[1],
+            omega,
+            num_steps=num_steps,
+            num_save=num_save,
+            order=order,
         )
 
     return jax.vmap(core)(x0_batch, p0_batch)

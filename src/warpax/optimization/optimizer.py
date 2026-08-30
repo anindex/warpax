@@ -4,6 +4,7 @@ Uses scipy.optimize.minimize (Nelder-Mead/Powell) on the multi-objective
 loss. The forward pass includes interpax interpolation construction which
 is not JIT-compilable, so derivative-free methods are used.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -102,6 +103,7 @@ def optimize_shell(
             return 1e10
 
     import numpy as np
+
     x0 = np.asarray(theta_init)
 
     result = scipy_minimize(
@@ -151,10 +153,12 @@ def _build_metric(coeffs, ansatz, R_1, R_2, n_grid):
 
     if ansatz == "sshell":
         from ..metrics.sshell import sshell_from_profiles
+
         profiles = coeffs_to_profiles_sshell(coeffs, R_1, R_2)
         return sshell_from_profiles(profiles, v_s=0.0, n_grid=n_grid)
     if ansatz == "tshell":
         from ..metrics.tshell import tshell_from_profiles
+
         profiles = coeffs_to_profiles_tshell(coeffs, R_1, R_2)
         return tshell_from_profiles(profiles, n_grid=n_grid)
     raise ValueError(f"Unknown ansatz: {ansatz!r}")

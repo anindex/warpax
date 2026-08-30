@@ -122,6 +122,7 @@ def _c_cosh(u):
     e = _c_exp(u)
     return (e + 1 / e) / 2
 
+
 # ---------------------------------------------------------------------------
 # metrics in the interval-AD algebra
 # ---------------------------------------------------------------------------
@@ -173,6 +174,7 @@ def alcubierre_metric(v_s=0.5, R=1.0, sigma=8.0):
 
 def rodal_metric(v_s=0.5, R=1.0, sigma=8.0):
     """Irrotational Rodal drive, lab-frame standardization (paper Appendix F)."""
+
     def fn(t, x, y, z):
         dx = x - v_s * t
         r2 = dx * dx + y * y + z * z
@@ -212,6 +214,7 @@ def natario_metric(v_s=0.5, R=1.0, sigma=8.0):
     values are unchanged (``tests/test_enclosure.py`` pins them against
     ``metrics/natario.py``); it is also cheaper, two ``tanh`` and no ``cosh``.
     """
+
     def fn(t, x, y, z):
         dx = x - v_s * t
         r = ad.sqrt(dx * dx + y * y + z * z + ad.constant(1e-60))
@@ -221,9 +224,7 @@ def natario_metric(v_s=0.5, R=1.0, sigma=8.0):
         n = (1 - (tp - tm) / norm) / 2
         # dn/dr = -sigma (sech^2(sigma(r+R)) - sech^2(sigma(r-R))) / (4 tanh(sigma R))
         #       =  sigma (tp^2 - tm^2)            / (4 tanh(sigma R))
-        dn = (tp * tp - tm * tm) * ad.constant(
-            iv.mpf([sigma, sigma]) / (4 * _c_tanh(sigma * R))
-        )
+        dn = (tp * tp - tm * tm) * ad.constant(iv.mpf([sigma, sigma]) / (4 * _c_tanh(sigma * R)))
         q = dn / r
         beta = [
             -v_s * (2 * n + q * (y * y + z * z)),
@@ -235,14 +236,14 @@ def natario_metric(v_s=0.5, R=1.0, sigma=8.0):
     return fn
 
 
-def van_den_broeck_metric(v_s=0.5, R=1.0, sigma=8.0, R_tilde=1.0,
-                          alpha_vdb=0.5, sigma_B=8.0):
+def van_den_broeck_metric(v_s=0.5, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0):
     """Van den Broeck volume-modified drive: Alcubierre shift on a conformal slice.
 
     ``B(r) = 1 + alpha f_B(r; R_tilde, sigma_B)`` with ``f_B`` the same tanh top-hat,
     and ``gamma_ij = B^2 delta_ij``. Transcription of ``metrics/van_den_broeck.py``,
     checked against it pointwise in ``tests/test_enclosure.py``.
     """
+
     def fn(t, x, y, z):
         dx = x - v_s * t
         r = ad.sqrt(dx * dx + y * y + z * z + ad.constant(1e-60))
@@ -277,8 +278,7 @@ def shape_interval(R=1.0, sigma=8.0):
 
         xlo, xhi = _abs_range(bx)
         ylo, yhi = _abs_range(by)
-        r2 = iv.mpf([mpmath.mpf((xlo * xlo + ylo * ylo).a),
-                     mpmath.mpf((xhi * xhi + yhi * yhi).b)])
+        r2 = iv.mpf([mpmath.mpf((xlo * xlo + ylo * ylo).a), mpmath.mpf((xhi * xhi + yhi * yhi).b)])
         r = iv.sqrt(r2)
         th = lambda u: 1 - 2 / (iv.exp(2 * u) + 1)
         return (th(sigma * (r + R)) - th(sigma * (r - R))) / (2 * _c_tanh(sigma * R))
@@ -404,8 +404,7 @@ _OUTWARD = 1e-12
 # lambda_min >= t pointwise on the whole box. Both are rigorous, so the two bounds
 # can simply be maxed.
 
-_ETA4 = ((-1.0, 0.0, 0.0, 0.0), (0.0, 1.0, 0.0, 0.0),
-         (0.0, 0.0, 1.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+_ETA4 = ((-1.0, 0.0, 0.0, 0.0), (0.0, 1.0, 0.0, 0.0), (0.0, 0.0, 1.0, 0.0), (0.0, 0.0, 0.0, 1.0))
 
 
 def _that_interval(rho_iv, b_iv, S_iv):
@@ -655,9 +654,7 @@ def _objective_interval(rho_iv, b_iv, S_iv, v):
     nrm = iv.sqrt(n2)
     u = [c / nrm for c in vi]
     bdotv = b_iv[0] * u[0] + b_iv[1] * u[1] + b_iv[2] * u[2]
-    quad = sum(
-        (S_iv[i][j] * u[i]) * u[j] for i in range(3) for j in range(3)
-    )
+    quad = sum((S_iv[i][j] * u[i]) * u[j] for i in range(3) for j in range(3))
     return rho_iv + 2 * bdotv + quad
 
 
@@ -712,9 +709,11 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
         jet_fields = None
         try:
             jet_fields = _eval(bx, by, jet=True)
-            rho, bvec, S = (jet_fields[0].v,
-                            [c.v for c in jet_fields[1]],
-                            [[jet_fields[2][i][j].v for j in range(3)] for i in range(3)])
+            rho, bvec, S = (
+                jet_fields[0].v,
+                [c.v for c in jet_fields[1]],
+                [[jet_fields[2][i][j].v for j in range(3)] for i in range(3)],
+            )
         except (ZeroDivisionError, ValueError, OverflowError, NotImplementedError):
             jet_fields = None
             try:
@@ -729,7 +728,6 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
             # branch-and-bound splits it rather than trusting it; the sub-boxes
             # leave the wall band and are then discarded by the mask test.
             return -math.inf, math.inf, f_iv
-
 
         def _decoupled(rho_, b_, S_):
             """Rigorous version of ``N >= rho_lo - 2|b|_max + lambda_min_lo(S)``.
@@ -758,9 +756,16 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
                     if j != i:
                         row = row + abs(S_[i][j])
                 cand = S_[i][i] - row
-                lam_iv = cand if lam_iv is None else iv.mpf(
-                    [min(mpmath.mpf(lam_iv.a), mpmath.mpf(cand.a)),
-                     min(mpmath.mpf(lam_iv.b), mpmath.mpf(cand.b))])
+                lam_iv = (
+                    cand
+                    if lam_iv is None
+                    else iv.mpf(
+                        [
+                            min(mpmath.mpf(lam_iv.a), mpmath.mpf(cand.a)),
+                            min(mpmath.mpf(lam_iv.b), mpmath.mpf(cand.b)),
+                        ]
+                    )
+                )
             b2 = iv.mpf([0, 0])
             for c in b_:
                 b2 = b2 + c * c
@@ -806,18 +811,19 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
             dy = by - iv.mpf([cy, cy])
             rho_k = _centered(jet_fields[0], ctr[0], dx, dy)
             b_k = [_centered(jet_fields[1][i], ctr[1][i], dx, dy) for i in range(3)]
-            S_k = [[_centered(jet_fields[2][i][j], ctr[2][i][j], dx, dy)
-                    for j in range(3)] for i in range(3)]
+            S_k = [
+                [_centered(jet_fields[2][i][j], ctr[2][i][j], dx, dy) for j in range(3)]
+                for i in range(3)
+            ]
             parts_k = [rho_k, *b_k, *[S_k[i][j] for i in range(3) for j in range(3)]]
             # On a very wide box the centered form can be looser than the naive one
             # and large enough to overflow the squaring in the decoupled bound. It is
             # a tightening only, so any failure here just leaves ``lower`` as it was.
             try:
-                if all(math.isfinite(_lo(c)) and math.isfinite(_hi(c))
-                       for c in parts_k):
-                    lower = max(lower,
-                                _decoupled(rho_k, b_k, S_k),
-                                _lmi_dual_lower(rho_k, b_k, S_k))
+                if all(math.isfinite(_lo(c)) and math.isfinite(_hi(c)) for c in parts_k):
+                    lower = max(
+                        lower, _decoupled(rho_k, b_k, S_k), _lmi_dual_lower(rho_k, b_k, S_k)
+                    )
             except (OverflowError, ValueError, ZeroDivisionError):
                 pass
 
@@ -843,8 +849,7 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
                 # upper endpoint wins. Neither can invalidate the bound, any unit
                 # direction gives a valid upper bound on the infimum, so this is
                 # purely a tightening.
-                for v_star in (_trs_argmin_lmi(rho_m, b_m, S_m),
-                               _trs_argmin(rho_m, b_m, S_m)):
+                for v_star in (_trs_argmin_lmi(rho_m, b_m, S_m), _trs_argmin(rho_m, b_m, S_m)):
                     if v_star is None:
                         continue
                     q_iv = _objective_interval(rho_c, b_c, S_c, v_star)
@@ -854,7 +859,11 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
                 pass
 
         scale = max(1.0, abs(lower), abs(upper) if math.isfinite(upper) else 1.0)
-        return lower - _OUTWARD * scale, upper + (_OUTWARD * scale if math.isfinite(upper) else 0.0), f_iv
+        return (
+            lower - _OUTWARD * scale,
+            upper + (_OUTWARD * scale if math.isfinite(upper) else 0.0),
+            f_iv,
+        )
 
     return bounds
 

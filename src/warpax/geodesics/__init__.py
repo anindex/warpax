@@ -6,6 +6,7 @@ families via vmap, event-based termination, initial condition helpers,
 Jacobi geodesic deviation (tidal forces), and physical observables
 (blueshift, conservation monitoring, proper time).
 """
+
 from __future__ import annotations
 
 from .deviation import (

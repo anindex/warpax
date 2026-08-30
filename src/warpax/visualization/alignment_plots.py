@@ -6,6 +6,7 @@ predicted by algebraic analysis. Each panel corresponds to a different
 warp velocity, demonstrating that the worst-case observer is typically
 misaligned with the eigenvector prediction.
 """
+
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
@@ -41,15 +42,15 @@ def plot_alignment_histogram(
     n_panels = len(angle_arrays)
     if n_panels == 0:
         fig, ax = plt.subplots(1, 1, figsize=(DOUBLE_COL, 2))
-        ax.text(0.5, 0.5, "No alignment data", ha="center", va="center",
-                transform=ax.transAxes)
+        ax.text(0.5, 0.5, "No alignment data", ha="center", va="center", transform=ax.transAxes)
         return fig
 
     if figsize is None:
         figsize = (DOUBLE_COL, DOUBLE_COL * 0.45)
 
     fig, axes = plt.subplots(
-        1, n_panels,
+        1,
+        n_panels,
         figsize=figsize,
         sharey=True,
         squeeze=False,
@@ -85,8 +86,11 @@ def plot_alignment_histogram(
             ax.legend(fontsize=7, loc="upper right")
         else:
             ax.text(
-                0.5, 0.5, "No violations",
-                ha="center", va="center",
+                0.5,
+                0.5,
+                "No violations",
+                ha="center",
+                va="center",
                 transform=ax.transAxes,
                 fontsize=8,
             )

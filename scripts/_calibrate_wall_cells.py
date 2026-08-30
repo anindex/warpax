@@ -6,6 +6,7 @@ sinh-clustered nodes. 1-D only (uses _cosh_stretch directly, bypassing the 3-D
 volume-weight build), so it is fast: shape-function evals only, no curvature.
 Picks a* and an N-ladder giving ~8/12/16 wall cells at sigma=8, R_b=1, box +-3.
 """
+
 from __future__ import annotations
 
 import jax
@@ -42,8 +43,9 @@ def _x_nodes(metric, N, a):
 
 
 def _shape_on(metric, xs):
-    coords = jnp.stack([jnp.zeros_like(xs), jnp.asarray(xs), jnp.zeros_like(xs),
-                        jnp.zeros_like(xs)], axis=1)
+    coords = jnp.stack(
+        [jnp.zeros_like(xs), jnp.asarray(xs), jnp.zeros_like(xs), jnp.zeros_like(xs)], axis=1
+    )
     return np.asarray(jax.vmap(metric.shape_function_value)(coords))
 
 

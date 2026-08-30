@@ -38,6 +38,7 @@ Each Hawking-Ellis type is decided exactly, with no rapidity cap and no optimize
 The rapidity-capped optimizer in :mod:`.optimization` is a severity display off
 Type I, not the certification path.
 """
+
 from __future__ import annotations
 
 import jax
@@ -98,7 +99,7 @@ def eulerian_momentum_frame(
     proj = jnp.eye(4) + jnp.outer(n_up, n_low2)  # h^a_b = delta + n^a n_b
     T_mixed = g_inv @ T_ab
     rho = n_up @ (T_ab @ n_up)
-    j_up = -(proj @ (T_mixed @ n_up))            # spatial momentum density j^a
+    j_up = -(proj @ (T_mixed @ n_up))  # spatial momentum density j^a
     j2 = j_up @ (g_ab @ j_up)
     jmag = jnp.sqrt(jnp.clip(j2, min=0.0))
     # Normalise j by its own largest component first. The direction is
@@ -129,8 +130,7 @@ def ill_conditioned_eigenbasis(evecs, cond_max: float = _EVEC_COND_MAX):
     return (sv[..., 0] / jnp.maximum(sv[..., -1], 1e-300)) > cond_max
 
 
-def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi,
-                   ill_conditioned=None):
+def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi, ill_conditioned=None):
     """Select cap-free EC margins by Hawking-Ellis type (branchless for vmap).
 
     Type I -> eigenvalue-inequality margins (exact, necessary & sufficient).
@@ -217,7 +217,12 @@ def certify_point_frame_free(
     nec_I, wec_I, sec_I, dec_I = check_all(cls.rho, cls.pressures)
     witness = eulerian_null_witness(T_ab, g_ab, g_inv)
     nec, wec, sec, dec = _exact_margins(
-        cls.he_type, nec_I, wec_I, sec_I, dec_I, witness,
+        cls.he_type,
+        nec_I,
+        wec_I,
+        sec_I,
+        dec_I,
+        witness,
         certify_point_lmi(T_ab, g_ab),
         ill_conditioned_eigenbasis(cls.eigenvectors),
     )
@@ -320,7 +325,13 @@ def certify_grid_frame_free(
         skipped = jnp.asarray(((he != 1) | ill) & ~wanted)
         lmi = {k: jnp.where(skipped, nan, v) for k, v in lmi.items()}
     nec, wec, sec, dec = jax.vmap(_exact_margins)(
-        cls.he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi,
+        cls.he_type,
+        nec_I,
+        wec_I,
+        sec_I,
+        dec_I,
+        witness,
+        lmi,
         jnp.asarray(ill),
     )
 
@@ -336,8 +347,7 @@ def certify_grid_frame_free(
     # inconclusive, not a verdict. Carrying the floor alongside the margin is what
     # lets a consumer honour that, an audit that thresholds at exactly zero counts
     # saturated points as classification errors and reports rounding noise.
-    nec_floor = jax.vmap(lambda T, g: noise_floor(T, g, condition="nec"))(
-        flat_T, flat_g)
+    nec_floor = jax.vmap(lambda T, g: noise_floor(T, g, condition="nec"))(flat_T, flat_g)
 
     return FrameFreeGridResult(
         he_types=_rs(cls.he_type),
@@ -385,21 +395,11 @@ def type_fractions(
         ``frac_type_i/ii/iii/iv`` and ``n_selected``.
     """
     he = np.asarray(result.he_types).ravel()
-    sel = (
-        np.ones_like(he, dtype=float)
-        if mask is None
-        else np.asarray(mask).ravel().astype(float)
-    )
-    w = (
-        sel
-        if volume_weights is None
-        else sel * np.asarray(volume_weights).ravel()
-    )
+    sel = np.ones_like(he, dtype=float) if mask is None else np.asarray(mask).ravel().astype(float)
+    w = sel if volume_weights is None else sel * np.asarray(volume_weights).ravel()
     wt = float(np.sum(w))
     if wt <= 0.0:
-        return {f"frac_type_{k}": 0.0 for k in ("i", "ii", "iii", "iv")} | {
-            "n_selected": 0
-        }
+        return {f"frac_type_{k}": 0.0 for k in ("i", "ii", "iii", "iv")} | {"n_selected": 0}
     out = {
         f"frac_type_{k}": float(np.sum(w * (he == t)) / wt)
         for k, t in (("i", 1.0), ("ii", 2.0), ("iii", 3.0), ("iv", 4.0))
@@ -423,11 +423,7 @@ def typeI_min_margins(
     normalisation, so they are excluded here.
     """
     he = np.asarray(result.he_types).ravel()
-    sel = (
-        np.ones_like(he, dtype=bool)
-        if mask is None
-        else np.asarray(mask).ravel().astype(bool)
-    )
+    sel = np.ones_like(he, dtype=bool) if mask is None else np.asarray(mask).ravel().astype(bool)
     typeI = sel & (he == 1.0)
     if result.lmi_substituted is not None:
         typeI &= np.asarray(result.lmi_substituted).ravel() < 0.5

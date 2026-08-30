@@ -12,6 +12,7 @@ Public API:
 Both return a NamedTuple with ``line_integral``,
 ``geodesic_complete: bool``, and ``termination_reason: str``.
 """
+
 from __future__ import annotations
 
 from .anec import ANECResult, RigorousANEC, anec, anec_rigorous

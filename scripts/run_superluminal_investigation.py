@@ -21,6 +21,7 @@ Usage
 -----
     python scripts/run_superluminal_investigation.py
 """
+
 from __future__ import annotations
 
 import os
@@ -99,15 +100,17 @@ def compute_g00_transition(metric, v_s, r_values, t=0.0):
         v_s_times_f = v_s * f_val
         in_horizon = v_s_times_f > 1.0
 
-        results.append({
-            "r": float(r),
-            "f": f_val,
-            "g_00": g_00,
-            "det_g": det_g,
-            "metric_eigenvalues": evals_g,
-            "v_s_times_f": v_s_times_f,
-            "in_horizon": in_horizon,
-        })
+        results.append(
+            {
+                "r": float(r),
+                "f": f_val,
+                "g_00": g_00,
+                "det_g": det_g,
+                "metric_eigenvalues": evals_g,
+                "v_s_times_f": v_s_times_f,
+                "in_horizon": in_horizon,
+            }
+        )
     return results
 
 
@@ -142,21 +145,26 @@ def characterize_velocity(metric, metric_name, v_s, r_values):
         he_type = int(float(cls.he_type))
 
         ec = verify_point(
-            curv.stress_energy, curv.metric, curv.metric_inv,
-            n_starts=8, zeta_max=5.0,
+            curv.stress_energy,
+            curv.metric,
+            curv.metric_inv,
+            n_starts=8,
+            zeta_max=5.0,
         )
 
-        results.append({
-            "r": float(r),
-            "coords": [0.0, float(r), 0.01, 0.0],
-            "has_nan_stress_energy": has_nan,
-            "T_max": T_max,
-            "he_type": he_type,
-            "nec_margin": float(ec.nec_margin),
-            "wec_margin": float(ec.wec_margin),
-            "sec_margin": float(ec.sec_margin),
-            "dec_margin": float(ec.dec_margin),
-        })
+        results.append(
+            {
+                "r": float(r),
+                "coords": [0.0, float(r), 0.01, 0.0],
+                "has_nan_stress_energy": has_nan,
+                "T_max": T_max,
+                "he_type": he_type,
+                "nec_margin": float(ec.nec_margin),
+                "wec_margin": float(ec.wec_margin),
+                "sec_margin": float(ec.sec_margin),
+                "dec_margin": float(ec.dec_margin),
+            }
+        )
     return results
 
 
@@ -335,9 +343,7 @@ def compute_summary(all_results):
 
         for v_key, v_data in vel_results.items():
             # Check det(g) = -1 across all sampled points
-            det_g_values = [
-                pt["det_g"] for pt in v_data["g00_transition"] if "det_g" in pt
-            ]
+            det_g_values = [pt["det_g"] for pt in v_data["g00_transition"] if "det_g" in pt]
             det_g_deviations = [abs(d - (-1.0)) for d in det_g_values]
             max_det_deviation = max(det_g_deviations) if det_g_deviations else 0.0
             det_g_ok = max_det_deviation < 1e-6
@@ -500,9 +506,7 @@ def save_report(results, summary, start_time):
             g00_str = f"r ~ {g00_r:.1f}" if g00_r is not None else "N/A"
 
             # det(g) status
-            det_str = (
-                f"det(g) = -1 (max dev: {det_check['max_deviation_from_minus1']:.1e})"
-            )
+            det_str = f"det(g) = -1 (max dev: {det_check['max_deviation_from_minus1']:.1e})"
 
             # NaN status
             nan_str = "No" if ec_info["n_nan_stress_energy"] == 0 else "Yes"
@@ -541,8 +545,7 @@ def save_report(results, summary, start_time):
     lines.append("## det(g) = -1 Confirmation")
     lines.append("")
     lines.append(
-        "For unit-lapse (alpha = 1) and flat-spatial (gamma_ij = delta_ij) ADM "
-        "warp metrics:"
+        "For unit-lapse (alpha = 1) and flat-spatial (gamma_ij = delta_ij) ADM warp metrics:"
     )
     lines.append("")
     lines.append(" det(g) = -alpha^2 * det(gamma) = -1 * 1 = -1")
@@ -622,9 +625,7 @@ def main():
     )
 
     print("\n[2/2] Lentz metric")
-    all_results["lentz"] = analyze_metric(
-        LentzMetric, "lentz", METRIC_CONFIGS["lentz"]
-    )
+    all_results["lentz"] = analyze_metric(LentzMetric, "lentz", METRIC_CONFIGS["lentz"])
 
     summary = compute_summary(all_results)
     save_json(all_results, summary, start_time)

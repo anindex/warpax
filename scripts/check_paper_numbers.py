@@ -15,6 +15,7 @@ week. Adding a check is three lines; that is the point.
 
 Exits non-zero, listing every mismatch, if any check fails.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -150,8 +151,10 @@ def main() -> int:
         ),
         (
             "Section 3.4 Rodal wall DEC miss range vs the two tables that report it",
-            (f"{min(float(rodal_dec_missed), float(rodal_dec_bench)):.1f}",
-             f"{max(float(rodal_dec_missed), float(rodal_dec_bench)):.1f}"),
+            (
+                f"{min(float(rodal_dec_missed), float(rodal_dec_bench)):.1f}",
+                f"{max(float(rodal_dec_missed), float(rodal_dec_bench)):.1f}",
+            ),
             r"DEC miss \$([\d.]+)\$--\$([\d.]+)\\%\$",
         ),
         (
@@ -181,18 +184,25 @@ def main() -> int:
         def typeI_pct(metric: str, v: float) -> str:
             return f"{100 * rows[(metric, v)]['wall_frac_type_i']:.1f}"
 
-        checks.append((
-            "Section 3.1 superluminal Type-I fractions vs velocity_sweep.json",
-            (typeI_pct("Alcubierre", 2.5), typeI_pct("Natário", 2.5),
-             typeI_pct("Van den Broeck", 2.5)),
-            r"reach(?:ing|es) \$([\d.]+)\\%\$\s*\n\(Alcubierre\), \$([\d.]+)\\%\$ "
-            r"\(Nat\\'ario\), and \$([\d.]+)\\%\$ \(Van~den~Broeck\)",
-        ))
-        checks.append((
-            "Section 3.1 Rodal margin at v_s=2.5 vs velocity_sweep.json",
-            (f"{rows[('Rodal', 2.5)]['typeI_nec_min']:.3f}",),
-            r"to \$(-[\d.]+)\$\s*\nat \$v_s=2\.5\$",
-        ))
+        checks.append(
+            (
+                "Section 3.1 superluminal Type-I fractions vs velocity_sweep.json",
+                (
+                    typeI_pct("Alcubierre", 2.5),
+                    typeI_pct("Natário", 2.5),
+                    typeI_pct("Van den Broeck", 2.5),
+                ),
+                r"reach(?:ing|es) \$([\d.]+)\\%\$\s*\n\(Alcubierre\), \$([\d.]+)\\%\$ "
+                r"\(Nat\\'ario\), and \$([\d.]+)\\%\$ \(Van~den~Broeck\)",
+            )
+        )
+        checks.append(
+            (
+                "Section 3.1 Rodal margin at v_s=2.5 vs velocity_sweep.json",
+                (f"{rows[('Rodal', 2.5)]['typeI_nec_min']:.3f}",),
+                r"to \$(-[\d.]+)\$\s*\nat \$v_s=2\.5\$",
+            )
+        )
         # The grid the sweep actually ran on must be the grid the captions claim.
         n_run = sweep["config"]["N"]
         # The caption wording moved from "velocity sweep ($N=...$)" to
@@ -201,7 +211,8 @@ def main() -> int:
         for caption_n in re.findall(r"benchmark grid\s*\(\$N=(\d+)\$", tex):
             if int(caption_n) != n_run:
                 failures_pre.append(
-                    "a caption attributes the velocity sweep to $N=" + caption_n
+                    "a caption attributes the velocity sweep to $N="
+                    + caption_n
                     + f"$ but velocity_sweep.json ran at N={n_run}"
                 )
 
@@ -212,15 +223,19 @@ def main() -> int:
     anec = artifact("anec/retained_symplectic.json")
     if anec is not None:
         m = anec["metrics"]
-        checks.append((
-            "Section 3.4 geodesic ANEC minima vs anec/retained_symplectic.json",
-            (f"{m['Natário']['min_line_integral']:.2f}",
-             f"{m['Alcubierre']['min_line_integral']:.2f}",
-             f"{m['Van den Broeck']['min_line_integral']:.3f}",
-             f"{m['Rodal']['min_line_integral']:.4f}"),
-            r"the impact-parameter scan is \$(-[\d.]+)\$ \(Nat\\'ario\), \$(-[\d.]+)\$ \(Alcubierre\),\s*\n?"
-            r"\$(-[\d.]+)\$ \(Van~den~Broeck\), and \$(-[\d.]+)\$ \(Rodal\)",
-        ))
+        checks.append(
+            (
+                "Section 3.4 geodesic ANEC minima vs anec/retained_symplectic.json",
+                (
+                    f"{m['Natário']['min_line_integral']:.2f}",
+                    f"{m['Alcubierre']['min_line_integral']:.2f}",
+                    f"{m['Van den Broeck']['min_line_integral']:.3f}",
+                    f"{m['Rodal']['min_line_integral']:.4f}",
+                ),
+                r"the impact-parameter scan is \$(-[\d.]+)\$ \(Nat\\'ario\), \$(-[\d.]+)\$ \(Alcubierre\),\s*\n?"
+                r"\$(-[\d.]+)\$ \(Van~den~Broeck\), and \$(-[\d.]+)\$ \(Rodal\)",
+            )
+        )
 
     # The coordinate-ray minima of Section 3.4 are a SECOND list, from a different
     # artifact, and they were not pinned. Rodal's drifted from -0.0134 to -0.0136 when
@@ -229,16 +244,20 @@ def main() -> int:
     ray = artifact("anec/retained.json")
     if ray is not None:
         r = ray["metrics"]
-        checks.append((
-            "Section 3.4 coordinate-ray ANEC minima vs anec/retained.json",
-            (f"{r['Alcubierre']['min_line_integral']:.2f}",
-             f"{r['Van den Broeck']['min_line_integral']:.3f}",
-             f"{r['Rodal']['min_line_integral']:.3f}",
-             f"{r['Natário']['min_line_integral']:.4f}"),
-            r"the minimum over \$b\$ is\s*\n?"
-            r"\$(-[\d.]+)\$ \(Alcubierre, \$b\\!\\approx\\!0\.86\$\), \$(-[\d.]+)\$ \(Van~den~Broeck,\s*\n?"
-            r"\$b\\!\\approx\\!0\.82\$\), \$(-[\d.]+)\$ \(Rodal, \$b\\!\\approx\\!1\.27\$\), and \$(-[\d.]+)\$",
-        ))
+        checks.append(
+            (
+                "Section 3.4 coordinate-ray ANEC minima vs anec/retained.json",
+                (
+                    f"{r['Alcubierre']['min_line_integral']:.2f}",
+                    f"{r['Van den Broeck']['min_line_integral']:.3f}",
+                    f"{r['Rodal']['min_line_integral']:.3f}",
+                    f"{r['Natário']['min_line_integral']:.4f}",
+                ),
+                r"the minimum over \$b\$ is\s*\n?"
+                r"\$(-[\d.]+)\$ \(Alcubierre, \$b\\!\\approx\\!0\.86\$\), \$(-[\d.]+)\$ \(Van~den~Broeck,\s*\n?"
+                r"\$b\\!\\approx\\!0\.82\$\), \$(-[\d.]+)\$ \(Rodal, \$b\\!\\approx\\!1\.27\$\), and \$(-[\d.]+)\$",
+            )
+        )
         # Appendix F reads the enclosures as ratios rather than widths, so pin the
         # ratios the prose quotes. The Alcubierre one is the whole A2 claim: a
         # certified bound that agrees with the achieved value to four digits.
@@ -250,16 +269,21 @@ def main() -> int:
                 r = e[name]
                 return f"{r['lower'] / r['upper']:.{sig}g}"
 
-            checks.append((
-                "Appendix F enclosure ratios vs enclosures.json",
-                (f"{e['Alcubierre']['width']:.1e}".replace("e-04", r"\times10^{-4}"),
-                 ratio("Alcubierre", 5), ratio("VanDenBroeck", 3),
-                 ratio("Natario", 2)),
-                r"bracketed to a width of \$(.+?)\$,[\s\S]{0,200}?"
-                r"a factor of \$([\d.]+)\$ apart"
-                r"[\s\S]{0,140}?within a factor of \$([\d.]+)\$"
-                r"[\s\S]{0,300}?finite but \$([\d.]+)\$ times its own achieved value",
-            ))
+            checks.append(
+                (
+                    "Appendix F enclosure ratios vs enclosures.json",
+                    (
+                        f"{e['Alcubierre']['width']:.1e}".replace("e-04", r"\times10^{-4}"),
+                        ratio("Alcubierre", 5),
+                        ratio("VanDenBroeck", 3),
+                        ratio("Natario", 2),
+                    ),
+                    r"bracketed to a width of \$(.+?)\$,[\s\S]{0,200}?"
+                    r"a factor of \$([\d.]+)\$ apart"
+                    r"[\s\S]{0,140}?within a factor of \$([\d.]+)\$"
+                    r"[\s\S]{0,300}?finite but \$([\d.]+)\$ times its own achieved value",
+                )
+            )
 
         order = sorted(m, key=lambda k: m[k]["min_line_integral"])
         if order[0] != "Natário":
@@ -282,19 +306,36 @@ def main() -> int:
         # pattern that breaks on a moved line break reports a defect that is not one
         # while saying nothing about the number it is supposed to pin.
         for desc, pattern, expected in (
-            ("abstract", r"reading of Rodal misses about \$(\d+)\\%\$ of its wall weak-energy",
-             (wec,)),
-            ("Section 1", r"register \$\{\\approx\}(\d+)\\%\$ of the dominant and "
-                          r"\$\{\\approx\}(\d+)\\%\$ of the weak energy-condition", (dec, wec)),
-            ("Section 2", r"at \$\{\\approx\}(\d+)\\%\$ of the wall points where a boosted "
-                          r"observer sees a\s*\n?weak-energy violation, and at "
-                          r"\$\{\\approx\}(\d+)\\%\$ for the dominant energy", (wec, dec)),
-            ("Discussion, Van den Broeck wall miss",
-             r"Van~den~Broeck is intermediate \(WEC \$(\d+)\\%\$,\s*\n?"
-             r"DEC \$(\d+)\\%\$ wall miss", (vdb_wec, vdb_dec)),
-            ("Appendix C cross-reference",
-             r"matched-parameter benchmark \(\$\{\\approx\}(\d+)\\%\$ DEC, "
-             r"\$\{\\approx\}(\d+)\\%\$ WEC;", (dec, wec)),
+            (
+                "abstract",
+                r"reading of Rodal misses about \$(\d+)\\%\$ of its wall weak-energy",
+                (wec,),
+            ),
+            (
+                "Section 1",
+                r"register \$\{\\approx\}(\d+)\\%\$ of the dominant and "
+                r"\$\{\\approx\}(\d+)\\%\$ of the weak energy-condition",
+                (dec, wec),
+            ),
+            (
+                "Section 2",
+                r"at \$\{\\approx\}(\d+)\\%\$ of the wall points where a boosted "
+                r"observer sees a\s*\n?weak-energy violation, and at "
+                r"\$\{\\approx\}(\d+)\\%\$ for the dominant energy",
+                (wec, dec),
+            ),
+            (
+                "Discussion, Van den Broeck wall miss",
+                r"Van~den~Broeck is intermediate \(WEC \$(\d+)\\%\$,\s*\n?"
+                r"DEC \$(\d+)\\%\$ wall miss",
+                (vdb_wec, vdb_dec),
+            ),
+            (
+                "Appendix C cross-reference",
+                r"matched-parameter benchmark \(\$\{\\approx\}(\d+)\\%\$ DEC, "
+                r"\$\{\\approx\}(\d+)\\%\$ WEC;",
+                (dec, wec),
+            ),
             # The Conclusion used to quote both fractions again, six lines after the
             # Discussion does, and the Discussion quoted them a third time. Both
             # restatements were cut in the final editorial passes, the Discussion now
@@ -305,37 +346,46 @@ def main() -> int:
         ):
             # Literal spaces match any run of whitespace, newlines included.
             pattern = re.sub(r"(?<!\\s)(?<!\\n) ", r"\\s+", pattern)
-            checks.append((
-                f"Rodal single-frame miss rates ({desc}) vs invariant_verification.json",
-                expected, pattern,
-            ))
+            checks.append(
+                (
+                    f"Rodal single-frame miss rates ({desc}) vs invariant_verification.json",
+                    expected,
+                    pattern,
+                )
+            )
 
     # The Garattini wall is not uniformly labelled Type I. The balance is Type II and
     # the manuscript now says so; if the fraction moves, the prose must move with it.
     cv = artifact("construction_verification.json")
     if cv is not None:
+
         def type_ii_pct(block: str) -> str:
             row = cv[block]["Garattini"][-1]
             return f"{100 * (1.0 - row['frac_type_i'] - row['frac_type_iv']):.1f}"
-        checks.append((
-            "Garattini Type-II wall balance vs construction_verification.json",
-            (type_ii_pct("matched"), type_ii_pct("native")),
-            r"returns Type~II on \$([\d.]+)\\%\$ of the matched wall volume and "
-            r"\$([\d.]+)\\%\$ of the native",
-        ))
+
+        checks.append(
+            (
+                "Garattini Type-II wall balance vs construction_verification.json",
+                (type_ii_pct("matched"), type_ii_pct("native")),
+                r"returns Type~II on \$([\d.]+)\\%\$ of the matched wall volume and "
+                r"\$([\d.]+)\\%\$ of the native",
+            )
+        )
 
     exo_json = artifact("exoticity_ranking.json")
     if exo_json is not None:
         axes = exo_json["raw_axes"]
         ratio = axes["Natário"]["nec_severity"] / axes["Alcubierre"]["nec_severity"]
-        checks.append((
-            "Table 15 caption uncapped NEC severity ratio vs exoticity_ranking.json",
-            (f"{ratio:.0f}",),
-            # The caption says "~13x" rather than "13x", because the ratio is not an
-            # integer and the caption no longer restates the two tabulated values it
-            # is formed from. Allow the tilde; the digits are still pinned.
-            r"severity is \$(?:\{\\sim\})?(\d+)\\times\$ the Alcubierre\s*\n?\s*baseline",
-        ))
+        checks.append(
+            (
+                "Table 15 caption uncapped NEC severity ratio vs exoticity_ranking.json",
+                (f"{ratio:.0f}",),
+                # The caption says "~13x" rather than "13x", because the ratio is not an
+                # integer and the caption no longer restates the two tabulated values it
+                # is formed from. Allow the tilde; the digits are still pinned.
+                r"severity is \$(?:\{\\sim\})?(\d+)\\times\$ the Alcubierre\s*\n?\s*baseline",
+            )
+        )
 
     curv = artifact("curvature_scaling.json")
     if curv is not None:
@@ -343,11 +393,14 @@ def main() -> int:
         a = fits["Alcubierre"]["ricci_squared"]
         r = fits["Rodal"]["ricci_squared"]
         cross = (a["A"] / r["A"]) ** (1.0 / (r["q"] - a["q"]))
-        checks.append((
-            "Section 3.5 Ricci-axis crossing speed vs curvature_scaling.json",
-            (f"{cross:.2f}",),
-            r"overtaking the Alcubierre wall at \$v_s=([\d.]+)\$ on the Ricci axis",
-        ))
+        checks.append(
+            (
+                "Section 3.5 Ricci-axis crossing speed vs curvature_scaling.json",
+                (f"{cross:.2f}",),
+                r"overtaking the Alcubierre wall at \$v_s=([\d.]+)\$ on the Ricci axis",
+            )
+        )
+
         # The worst single-point departure from each fitted power law. Quoted in
         # Section 3.6 so the log-fit R^2 is not the only thing a reader sees.
         def sci(x: float, sig: int) -> str:
@@ -358,15 +411,19 @@ def main() -> int:
         def worst(metric: str) -> float:
             return max(f["max_rel_dev"] for f in curv["fits"][metric].values())
 
-        checks.append((
-            "Section 3.6 worst power-law deviations vs curvature_scaling.json",
-            (sci(curv["fits"]["Alcubierre"]["weyl_squared"]["max_rel_dev"], 1),
-             sci(worst("Natário"), 0),
-             sci(worst("Rodal"), 0),
-             f"{curv['fits']['Alcubierre']['ricci_squared']['max_rel_dev']:.2f}"),
-            r"is\s*\n?\$(.+?)\$ \(Alcubierre, Weyl\), \$(.+?)\$ \(Nat\\'ario, all three\) and\s*\n?"
-            r"\$(.+?)\$ \(Rodal, all three\), rising to \$([\d.]+)\$ on the one branch",
-        ))
+        checks.append(
+            (
+                "Section 3.6 worst power-law deviations vs curvature_scaling.json",
+                (
+                    sci(curv["fits"]["Alcubierre"]["weyl_squared"]["max_rel_dev"], 1),
+                    sci(worst("Natário"), 0),
+                    sci(worst("Rodal"), 0),
+                    f"{curv['fits']['Alcubierre']['ricci_squared']['max_rel_dev']:.2f}",
+                ),
+                r"is\s*\n?\$(.+?)\$ \(Alcubierre, Weyl\), \$(.+?)\$ \(Nat\\'ario, all three\) and\s*\n?"
+                r"\$(.+?)\$ \(Rodal, all three\), rising to \$([\d.]+)\$ on the one branch",
+            )
+        )
 
     # Appendix H quotes the type-transition audit in prose rather than only through a
     # table, and those are the numbers that carry the answer to the exhaustiveness
@@ -375,22 +432,28 @@ def main() -> int:
     if tt is not None:
         fam = tt["families"]["momentum_aligned"]
         t3 = tt["type_iii_chain"]
-        n_iv_at_tight = sum(
-            1 for r in t3["rows"] if r["labels"]["tol_1e-10"] == 4)
-        checks.append((
-            "Appendix H momentum-family sample count vs type_transition_audit.json",
-            (str(fam["n"]),),
-            r"Across \$(\d+)\$ samples\s+the\s+inequality's margin is Lipschitz",
-        ))
-        checks.append((
-            "Appendix H Type-III branch: every point mislabelled, every point certified",
-            (str(t3["n"]), str(n_iv_at_tight), str(
-                sum(1 for r in t3["rows"]
-                    if r["nec_margin"] < -r["noise_floor"]))),
-            r"family, \$(\d+)\$ points log-spaced over[\s\S]{0,400}?"
-            r"Type~IV at every one of the\s*\n?\$(\d+)\$[\s\S]{0,600}?"
-            r"certifies the null-energy violation at all \$(\d+)\$",
-        ))
+        n_iv_at_tight = sum(1 for r in t3["rows"] if r["labels"]["tol_1e-10"] == 4)
+        checks.append(
+            (
+                "Appendix H momentum-family sample count vs type_transition_audit.json",
+                (str(fam["n"]),),
+                r"Across \$(\d+)\$ samples\s+the\s+inequality's margin is Lipschitz",
+            )
+        )
+        checks.append(
+            (
+                "Appendix H Type-III branch: every point mislabelled, every point certified",
+                (
+                    str(t3["n"]),
+                    str(n_iv_at_tight),
+                    str(sum(1 for r in t3["rows"] if r["nec_margin"] < -r["noise_floor"])),
+                ),
+                r"family, \$(\d+)\$ points log-spaced over[\s\S]{0,400}?"
+                r"Type~IV at every one of the\s*\n?\$(\d+)\$[\s\S]{0,600}?"
+                r"certifies the null-energy violation at all \$(\d+)\$",
+            )
+        )
+
         # The tolerance sweep is the sharpest number in the appendix and the one most
         # likely to drift, since it is the only place the label is quoted as a
         # function of a knob rather than as a verdict.
@@ -398,12 +461,14 @@ def main() -> int:
             c = collections.Counter(r["labels"][tol] for r in t3["rows"])
             return (str(c[2]), str(c[3]), str(c[4]))
 
-        checks.append((
-            "Appendix H Type-III tolerance sweep vs type_transition_audit.json",
-            tol_counts("tol_2e-06") + tol_counts("tol_5e-06"),
-            r"Type~II at \$(\d+)\$, Type~III at \$(\d+)\$ and Type~IV at \$(\d+)\$, "
-            r"and at \$5\\times10\^\{-6\}\$ it\s*\n?returns \$(\d+)\$, \$(\d+)\$ and \$(\d+)\$",
-        ))
+        checks.append(
+            (
+                "Appendix H Type-III tolerance sweep vs type_transition_audit.json",
+                tol_counts("tol_2e-06") + tol_counts("tol_5e-06"),
+                r"Type~II at \$(\d+)\$, Type~III at \$(\d+)\$ and Type~IV at \$(\d+)\$, "
+                r"and at \$5\\times10\^\{-6\}\$ it\s*\n?returns \$(\d+)\$, \$(\d+)\$ and \$(\d+)\$",
+            )
+        )
 
     # tab:rodal_ablation is the last table in the manuscript whose numbers are typed
     # into an inline tabular rather than \input from a generated file. Its values do
@@ -414,15 +479,16 @@ def main() -> int:
         # The sweep is stored as two parallel lists, not as a mapping keyed by N.
         res = rodal_abl.get("sweeps", {}).get("resolution", {})
         by_n = dict(zip(res.get("values", []), res.get("rodal_dec_miss_pct", []), strict=True))
-        want = [f"{by_n[n]:.2f}" for n in (25, 50, 100)
-                if isinstance(by_n.get(n), (int, float))]
+        want = [f"{by_n[n]:.2f}" for n in (25, 50, 100) if isinstance(by_n.get(n), (int, float))]
         if len(want) == 3:
-            checks.append((
-                "Table rodal_ablation resolution rows vs rodal_dec_diagnosis.json",
-                tuple(want),
-                r"& \$25\$\s*& ([\d.]+) & 0\.0 \\\\\s*\n\s*& \$50\$\s*& ([\d.]+) "
-                r"& 0\.0 \\\\\s*\n\s*& \$100\$\s*& ([\d.]+) & 0\.0",
-            ))
+            checks.append(
+                (
+                    "Table rodal_ablation resolution rows vs rodal_dec_diagnosis.json",
+                    tuple(want),
+                    r"& \$25\$\s*& ([\d.]+) & 0\.0 \\\\\s*\n\s*& \$50\$\s*& ([\d.]+) "
+                    r"& 0\.0 \\\\\s*\n\s*& \$100\$\s*& ([\d.]+) & 0\.0",
+                )
+            )
         else:
             failures_pre.append(
                 "rodal_dec_diagnosis.json no longer exposes the three resolution "
@@ -444,9 +510,7 @@ def main() -> int:
             continue
         found = tuple(g.strip() for g in m.groups())
         if found != tuple(e.strip() for e in expected):
-            failures.append(
-                f"{desc}\n    tables say {expected}, prose says {found}"
-            )
+            failures.append(f"{desc}\n    tables say {expected}, prose says {found}")
 
     # The exoticity Type-IV column is the velocity sweep expressed as a fraction.
     if abs(float(nat_exo_iv) * 100.0 - float(nat_iv_sweep)) > 0.05:
@@ -463,9 +527,7 @@ def main() -> int:
     if diag is not None:
         cells = diag["wall_info"]["Alcubierre"]
         rungs = [f"{cells[str(n)]['cells']:.1f}" for n in diag["ladder_N"]]
-        if not re.search(
-            r"\$" + r"\$, \$".join(re.escape(c) for c in rungs) + r"\$ cells", tex
-        ):
+        if not re.search(r"\$" + r"\$, \$".join(re.escape(c) for c in rungs) + r"\$ cells", tex):
             failures.append(
                 f"wall-cell ladder {'/'.join(rungs)} (diagnostic_convergence.json) is "
                 f"not the ladder main.tex states"
@@ -474,8 +536,7 @@ def main() -> int:
         for lo, hi in ranges:
             if (lo, hi) != (rungs[0], rungs[-1]):
                 failures.append(
-                    f"wall-cell range ${lo}$ to ${hi}$ contradicts the "
-                    f"{'/'.join(rungs)} ladder"
+                    f"wall-cell range ${lo}$ to ${hi}$ contradicts the {'/'.join(rungs)} ladder"
                 )
 
     # The census and the branch-and-bound both bound the same infimum from above, by
@@ -485,8 +546,12 @@ def main() -> int:
     # that is actually true, so the sentence cannot drift back.
     cen, enc2 = artifact("interval_lmi_census.json"), artifact("enclosures.json")
     if cen is not None and enc2 is not None:
-        alias = {"Alcubierre": "Alcubierre", "Natário": "Natario",
-                 "Van den Broeck": "VanDenBroeck", "Rodal": "Rodal"}
+        alias = {
+            "Alcubierre": "Alcubierre",
+            "Natário": "Natario",
+            "Van den Broeck": "VanDenBroeck",
+            "Rodal": "Rodal",
+        }
         for drive, row in cen["results"].items():
             nec = row["conditions"]["nec"] if "conditions" in row else row
             attained, br = nec["deepest_upper"], enc2["results"][alias[drive]]
@@ -524,8 +589,7 @@ def main() -> int:
                 failures.append(f"paper_numbers.tex no longer defines \\{macro}")
             elif m.group(1) != want:
                 failures.append(
-                    f"\\{macro} is {m.group(1)}, wall_restricted_analysis.json says "
-                    f"{want}"
+                    f"\\{macro} is {m.group(1)}, wall_restricted_analysis.json says {want}"
                 )
 
     # Rodal's DEC miss on the N=120 level must be the value the tables agree on.
@@ -553,8 +617,7 @@ def main() -> int:
     scripts_dir = pathlib.Path(__file__).resolve().parent
     if src_dir.is_dir():
         watched = list(src_dir.rglob("*.py")) + [
-            q for q in scripts_dir.glob("*.py")
-            if q.name != pathlib.Path(__file__).name
+            q for q in scripts_dir.glob("*.py") if q.name != pathlib.Path(__file__).name
         ]
         newest_code = max((q.stat().st_mtime for q in watched), default=0.0)
         for name in sorted(_TABLE_ARTIFACTS):
@@ -594,9 +657,7 @@ def main() -> int:
         # layer below where anyone was looking. reproduce_all.sh deletes the grids
         # unless --keep-cache is passed, so a clean full run satisfies this; a partial
         # one no longer looks like one.
-        stale_npz = sorted(
-            q.name for q in RESULTS.glob("*.npz") if q.stat().st_mtime < newest_code
-        )
+        stale_npz = sorted(q.name for q in RESULTS.glob("*.npz") if q.stat().st_mtime < newest_code)
         if stale_npz:
             failures.append(
                 f"{len(stale_npz)} cached grid(s) in results/ predate the newest file "
@@ -634,7 +695,7 @@ def main() -> int:
                     f"{fn}: affine window is not the measured crossing-span rule "
                     f"(note: {note[:60]}...)"
                 )
-    except Exception as exc:                      # pragma: no cover - defensive
+    except Exception as exc:  # pragma: no cover - defensive
         failures.append(f"ANEC window-rule check could not run: {exc}")
 
     # The manuscript quotes both integrator witnesses; neither may be asserted.
@@ -647,10 +708,8 @@ def main() -> int:
             if drift is None:
                 failures.append(f"ANEC {name}: Killing-energy witness not computed")
             elif drift >= 1e-5:
-                failures.append(
-                    f"ANEC {name}: Killing drift {drift:.2e} exceeds the quoted 1e-5"
-                )
-    except Exception as exc:                      # pragma: no cover - defensive
+                failures.append(f"ANEC {name}: Killing drift {drift:.2e} exceeds the quoted 1e-5")
+    except Exception as exc:  # pragma: no cover - defensive
         failures.append(f"ANEC witness check could not run: {exc}")
 
     # The momentum-channel fraction is claimed as a LOWER bound on the wall Type-IV
@@ -663,7 +722,7 @@ def main() -> int:
                     f"exceeds the measured Type-IV fraction by "
                     f"{-row['min_gap_pp']:.2f} pp"
                 )
-    except Exception as exc:                      # pragma: no cover - defensive
+    except Exception as exc:  # pragma: no cover - defensive
         failures.append(f"closing-speed bound check could not run: {exc}")
 
     # The cached grids are gitignored, so the manifest is their only integrity
@@ -673,7 +732,7 @@ def main() -> int:
         import write_manifest
 
         failures.extend(f"MANIFEST: {p}" for p in write_manifest.check())
-    except Exception as exc:                      # pragma: no cover - defensive
+    except Exception as exc:  # pragma: no cover - defensive
         failures.append(f"MANIFEST check could not run: {exc}")
 
     if failures:
@@ -685,12 +744,20 @@ def main() -> int:
     # version claimed to be computed and was a literal 6, against a comment listing ten
     # and a body containing more than that.
     extra_gates = (
-        "caption-N pin", "ANEC ordering", "exoticity/velocity cross-table",
-        "wall-cell ladder", "Rodal DEC convergence cross-table",
-        "artifact existence/staleness/partial", "cached-grid staleness",
-        "table provenance headers", "ANEC window rule", "ANEC witnesses",
-        "closing-speed bound", "census vs enclosure ordering",
-        "paper_numbers.tex macros", "MANIFEST",
+        "caption-N pin",
+        "ANEC ordering",
+        "exoticity/velocity cross-table",
+        "wall-cell ladder",
+        "Rodal DEC convergence cross-table",
+        "artifact existence/staleness/partial",
+        "cached-grid staleness",
+        "table provenance headers",
+        "ANEC window rule",
+        "ANEC witnesses",
+        "closing-speed bound",
+        "census vs enclosure ordering",
+        "paper_numbers.tex macros",
+        "MANIFEST",
     )
     print(f"all {len(checks) + len(extra_gates)} paper-number checks passed")
     return 0

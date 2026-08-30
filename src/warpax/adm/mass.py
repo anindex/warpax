@@ -24,6 +24,7 @@ Also provides Richardson extrapolation for convergence verification.
    issue. See the Fuchs canonical regression test in
    ``tests/test_physics_validation.py``.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -98,6 +99,7 @@ def adm_mass(
     # Gauss-Legendre quadrature for theta (mapped to [0, pi])
     # Use numpy for quadrature nodes (compile-time constant)
     import numpy as np
+
     cos_nodes, weights_theta = np.polynomial.legendre.leggauss(n_theta)
     cos_nodes = jnp.array(cos_nodes, dtype=jnp.float64)
     weights_theta = jnp.array(weights_theta, dtype=jnp.float64)
@@ -207,7 +209,11 @@ def adm_mass_richardson(
         # Conservative extrapolation: only return a finite value when the
         # observed convergence order matches the model assumption
         # (within 0.25 of n=1) or ``inf`` (already converged).
-        if conv_order != conv_order or conv_order == float("inf") or abs(conv_order - expected_order) < 0.25:  # NaN: only two points, can't check
+        if (
+            conv_order != conv_order
+            or conv_order == float("inf")
+            or abs(conv_order - expected_order) < 0.25
+        ):  # NaN: only two points, can't check
             M_extrap = M_extrap_linear
             valid = True
         else:
@@ -328,8 +334,7 @@ def asymptotic_flatness_report(
         # Use last two points: n = log(dev1/dev2) / log(r2/r1)
         if len(radii) >= 2 and deviations[-2] > 1e-15 and deviations[-1] > 1e-15:
             measured = float(
-                jnp.log(deviations[-2] / deviations[-1])
-                / jnp.log(radii[-1] / radii[-2])
+                jnp.log(deviations[-2] / deviations[-1]) / jnp.log(radii[-1] / radii[-2])
             )
         elif all(d < 1e-15 for d in deviations):
             measured = float("inf")  # Exactly flat
@@ -369,4 +374,3 @@ def asymptotic_flatness_report(
         "is_asymptotically_flat": all_diag_pass and all_shift_pass,
         "radii": radii,
     }
-

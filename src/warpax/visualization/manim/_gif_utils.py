@@ -1,4 +1,5 @@
 """FFmpeg two-pass palettegen/paletteuse helper for MP4 -> optimized GIF conversion."""
+
 from __future__ import annotations
 
 import logging
@@ -57,9 +58,12 @@ def mp4_to_gif(
         # Pass 1: Generate palette
         cmd_palette = [
             "ffmpeg",
-            "-i", str(input_path),
-            "-vf", f"{scale_filter},palettegen=stats_mode=diff",
-            "-y", str(palette_path),
+            "-i",
+            str(input_path),
+            "-vf",
+            f"{scale_filter},palettegen=stats_mode=diff",
+            "-y",
+            str(palette_path),
         ]
         logger.debug("FFmpeg palette pass: %s", " ".join(cmd_palette))
 
@@ -69,25 +73,24 @@ def mp4_to_gif(
             text=True,
         )
         if result_palette.returncode != 0:
-            logger.error(
-                "FFmpeg palette generation failed:\n%s", result_palette.stderr
-            )
+            logger.error("FFmpeg palette generation failed:\n%s", result_palette.stderr)
             raise RuntimeError(
                 f"FFmpeg palette generation failed (exit {result_palette.returncode}). "
                 f"stderr: {result_palette.stderr[-500:]}"
             )
 
         # Pass 2: Encode GIF using palette
-        lavfi = (
-            f"{scale_filter}[x];[x][1:v]paletteuse="
-            f"dither={dither}:bayer_scale={bayer_scale}"
-        )
+        lavfi = f"{scale_filter}[x];[x][1:v]paletteuse=dither={dither}:bayer_scale={bayer_scale}"
         cmd_gif = [
             "ffmpeg",
-            "-i", str(input_path),
-            "-i", str(palette_path),
-            "-lavfi", lavfi,
-            "-y", str(output_path),
+            "-i",
+            str(input_path),
+            "-i",
+            str(palette_path),
+            "-lavfi",
+            lavfi,
+            "-y",
+            str(output_path),
         ]
         logger.debug("FFmpeg GIF pass: %s", " ".join(cmd_gif))
 
@@ -97,9 +100,7 @@ def mp4_to_gif(
             text=True,
         )
         if result_gif.returncode != 0:
-            logger.error(
-                "FFmpeg GIF encoding failed:\n%s", result_gif.stderr
-            )
+            logger.error("FFmpeg GIF encoding failed:\n%s", result_gif.stderr)
             raise RuntimeError(
                 f"FFmpeg GIF encoding failed (exit {result_gif.returncode}). "
                 f"stderr: {result_gif.stderr[-500:]}"
@@ -140,15 +141,15 @@ def render_and_convert(
     scene_module_path = Path(scene_module_path)
 
     if shutil.which("manim") is None:
-        raise RuntimeError(
-            "Manim CLI not found on PATH. Install with: pip install manim"
-        )
+        raise RuntimeError("Manim CLI not found on PATH. Install with: pip install manim")
 
     # Build render command
     cmd = [
-        "manim", "render",
+        "manim",
+        "render",
         f"-q{quality}",
-        "--format", "mp4",
+        "--format",
+        "mp4",
         str(scene_module_path),
         scene_class_name,
     ]
@@ -163,8 +164,7 @@ def render_and_convert(
     if result.returncode != 0:
         logger.error("Manim render failed:\n%s", result.stderr)
         raise RuntimeError(
-            f"Manim render failed (exit {result.returncode}). "
-            f"stderr: {result.stderr[-500:]}"
+            f"Manim render failed (exit {result.returncode}). stderr: {result.stderr[-500:]}"
         )
 
     # Locate the output MP4
@@ -183,9 +183,7 @@ def render_and_convert(
         search_root = Path("media") / "videos"
 
     module_stem = scene_module_path.stem
-    expected_mp4 = (
-        search_root / module_stem / quality_dir / f"{scene_class_name}.mp4"
-    )
+    expected_mp4 = search_root / module_stem / quality_dir / f"{scene_class_name}.mp4"
 
     if expected_mp4.exists():
         mp4_path = expected_mp4
@@ -194,8 +192,7 @@ def render_and_convert(
         mp4_candidates = list(search_root.rglob(f"{scene_class_name}.mp4"))
         if not mp4_candidates:
             raise RuntimeError(
-                f"Could not find rendered MP4 for {scene_class_name}. "
-                f"Searched in: {search_root}"
+                f"Could not find rendered MP4 for {scene_class_name}. Searched in: {search_root}"
             )
         # Use the most recently modified
         mp4_path = max(mp4_candidates, key=lambda p: p.stat().st_mtime)

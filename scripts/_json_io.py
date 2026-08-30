@@ -6,6 +6,7 @@ parsers. Every script that writes ``results/*.json`` must go through
 :func:`dump_json`, which recursively converts non-finite floats to
 ``None`` (JSON ``null``) and dumps with ``allow_nan=False``.
 """
+
 from __future__ import annotations
 
 import json

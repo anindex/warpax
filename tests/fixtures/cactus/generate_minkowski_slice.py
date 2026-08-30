@@ -14,6 +14,7 @@ Orientation convention (ARCH-3 pin):
 - :func:`warpax.io.load_cactus_slice` transposes to ``(nx, ny, nz)``
   for warpax consistency.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

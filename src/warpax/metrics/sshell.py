@@ -16,6 +16,7 @@ Regions:
     R_1..R_2: constraint-derived curved region
     r > R_2:  Schwarzschild exterior (+ shift decay if v_s > 0)
 """
+
 from __future__ import annotations
 
 import jax.numpy as jnp
@@ -71,11 +72,10 @@ class SShellMetric(ADMMetric):
     smooth_width: float
     total_mass: Float[Array, ""]
 
-    def _interp(
-        self, r: Float[Array, ""], grid_vals: Float[Array, "N"]
-    ) -> Float[Array, ""]:
+    def _interp(self, r: Float[Array, ""], grid_vals: Float[Array, "N"]) -> Float[Array, ""]:
         """Cubic interpolation on the stored grid."""
         import interpax
+
         r_clamped = jnp.clip(r, self._r_grid[0], self._r_grid[-1])
         return interpax.interp1d(r_clamped, self._r_grid, grid_vals, method="cubic")
 
@@ -130,12 +130,14 @@ class SShellMetric(ADMMetric):
         Lambda = sp.Function("Lambda")
         r = sp.sqrt(x**2 + y**2 + z**2)
 
-        g = sp.Matrix([
-            [-sp.exp(2 * Phi(r)), 0, 0, 0],
-            [0, sp.exp(2 * Lambda(r)), 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-sp.exp(2 * Phi(r)), 0, 0, 0],
+                [0, sp.exp(2 * Lambda(r)), 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:

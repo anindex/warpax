@@ -58,9 +58,7 @@ def dump_hlo(output_path: Path) -> tuple[int, int, int]:
 
 
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="Dump HLO text for compute_curvature_chain ."
-    )
+    p = argparse.ArgumentParser(description="Dump HLO text for compute_curvature_chain .")
     p.add_argument(
         "--output",
         required=True,

@@ -9,6 +9,7 @@ Validates the two-tier verifier orchestrator end-to-end:
 - ANEC integrand and placeholder
 - Float64 dtype enforcement
 """
+
 from __future__ import annotations
 
 import jax
@@ -103,12 +104,14 @@ class TestEulerianVsObserverRobust:
     rho = 0.5
     q = -0.6
     p = 0.3
-    T_offdiag = jnp.array([
-        [rho, q, 0.0, 0.0],
-        [q, p, 0.0, 0.0],
-        [0.0, 0.0, p, 0.0],
-        [0.0, 0.0, 0.0, p],
-    ])
+    T_offdiag = jnp.array(
+        [
+            [rho, q, 0.0, 0.0],
+            [q, p, 0.0, 0.0],
+            [0.0, 0.0, p, 0.0],
+            [0.0, 0.0, 0.0, p],
+        ]
+    )
 
     def test_eulerian_wec_satisfied(self):
         """Eulerian observer sees WEC margin = rho = 0.5 >= 0."""
@@ -118,9 +121,7 @@ class TestEulerianVsObserverRobust:
     def test_observer_robust_wec_violated(self):
         """Boosted observer finds WEC violation (margin < 0)."""
         r = verify_point(self.T_offdiag, ETA, n_starts=16, zeta_max=5.0)
-        assert float(r.wec_margin) < 0, (
-            f"Observer-robust WEC margin = {r.wec_margin}, expected < 0"
-        )
+        assert float(r.wec_margin) < 0, f"Observer-robust WEC margin = {r.wec_margin}, expected < 0"
 
     def test_observer_robust_finds_worse_than_eulerian(self):
         """The observer-robust margin is strictly lower than the Eulerian margin."""
@@ -151,7 +152,9 @@ def alcubierre_ec(alcubierre_grid_data):
     """Observer-robust verify_grid result on the shared Alcubierre grid."""
     result, _ = alcubierre_grid_data
     return verify_grid(
-        result.stress_energy, result.metric, result.metric_inv,
+        result.stress_energy,
+        result.metric,
+        result.metric_inv,
         n_starts=4,
     )
 
@@ -204,7 +207,7 @@ class TestGeneralizedSolverIntegration:
 
     def test_verify_point_generalized_dust(self):
         """verify_point(..., solver='generalized') on dust classifies Type I, all ECs satisfied."""
-        r = verify_point(self.T_dust, ETA, n_starts=4, solver='generalized')
+        r = verify_point(self.T_dust, ETA, n_starts=4, solver="generalized")
         assert int(r.he_type) == 1
         assert float(r.wec_margin) >= 0
 
@@ -213,8 +216,11 @@ class TestGeneralizedSolverIntegration:
         """verify_grid(..., solver='generalized') completes on a 5x5x5 Alcubierre grid."""
         result, grid = alcubierre_grid_data
         ec = verify_grid(
-            result.stress_energy, result.metric, result.metric_inv,
-            n_starts=4, solver='generalized',
+            result.stress_energy,
+            result.metric,
+            result.metric_inv,
+            n_starts=4,
+            solver="generalized",
         )
         assert isinstance(ec, ECGridResult)
         assert ec.he_types.shape == (5, 5, 5)
@@ -230,7 +236,9 @@ class TestEulerianGridComparison:
         """compute_eulerian=True merges margins as min(robust, eulerian)."""
         result, grid = alcubierre_grid_data
         ec = verify_grid(
-            result.stress_energy, result.metric, result.metric_inv,
+            result.stress_energy,
+            result.metric,
+            result.metric_inv,
             n_starts=4,
             compute_eulerian=True,
         )
@@ -301,9 +309,7 @@ class TestWorstObserver:
         r = verify_point(self.T_bad, ETA, n_starts=8)
         assert r.worst_observer.shape == (4,)
         norm_sq = float(jnp.einsum("a,ab,b->", r.worst_observer, ETA, r.worst_observer))
-        assert norm_sq == pytest.approx(-1.0, abs=1e-4), (
-            f"g_ab u^a u^b = {norm_sq}, expected -1"
-        )
+        assert norm_sq == pytest.approx(-1.0, abs=1e-4), f"g_ab u^a u^b = {norm_sq}, expected -1"
 
     def test_worst_params_shape(self):
         """worst_params = (zeta, theta, phi)."""
@@ -313,7 +319,11 @@ class TestWorstObserver:
     def test_worst_params_ranges(self):
         """Parameters in expected ranges: zeta >= 0, 0 <= theta <= pi, 0 <= phi <= 2pi."""
         r = verify_point(self.T_bad, ETA, n_starts=8)
-        zeta, theta, phi = float(r.worst_params[0]), float(r.worst_params[1]), float(r.worst_params[2])
+        zeta, theta, phi = (
+            float(r.worst_params[0]),
+            float(r.worst_params[1]),
+            float(r.worst_params[2]),
+        )
         assert zeta >= -1e-6, f"zeta={zeta} should be >= 0"
         assert -1e-6 <= theta <= jnp.pi + 1e-6, f"theta={theta} out of range"
         assert -1e-6 <= phi <= 2 * jnp.pi + 1e-6, f"phi={phi} out of range"
@@ -512,9 +522,7 @@ class TestDECFutureDirectedness:
         """Full verify_point pipeline detects DEC violation from past-directed flux."""
         T_ab = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
         r = verify_point(T_ab, ETA, n_starts=8)
-        assert float(r.dec_margin) < 0, (
-            f"DEC margin = {r.dec_margin}, expected < 0"
-        )
+        assert float(r.dec_margin) < 0, f"DEC margin = {r.dec_margin}, expected < 0"
 
     def test_type_i_dec_uses_full_optimizer(self):
         """Type-I DEC margin reflects min(eigenvalue_proxy, full_optimizer).

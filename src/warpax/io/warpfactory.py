@@ -13,6 +13,7 @@ Expected schema (after ``metricGet_Alcubierre`` + ``save('...', '-v7.3')``):
 - ``metric.type`` - ``str`` (e.g., ``'Alcubierre'``), used for the
   :attr:`InterpolatedADMMetric.name` accessor. Optional.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -137,8 +138,7 @@ def _extract_adm_grids(
     # Final shape assertion.
     if alpha.shape != shape:
         raise ValueError(
-            f"Extracted alpha shape {alpha.shape} does not match implied "
-            f"4D grid shape {shape}."
+            f"Extracted alpha shape {alpha.shape} does not match implied 4D grid shape {shape}."
         )
 
     return alpha, beta_upper, gamma_dd, bounds, shape
@@ -148,20 +148,14 @@ def _derive_name(mat_data: dict[str, Any], path: Path) -> str:
     """Best-effort human-readable name from metric.type or the filename."""
     metric = mat_data.get("metric")
     if metric is not None:
-        mtype = (
-            metric.get("type")
-            if isinstance(metric, dict)
-            else getattr(metric, "type", None)
-        )
+        mtype = metric.get("type") if isinstance(metric, dict) else getattr(metric, "type", None)
         if isinstance(mtype, (bytes, str)):
             name = mtype.decode() if isinstance(mtype, bytes) else mtype
             return f"warpfactory_{name.lower()}"
     return f"warpfactory_{path.stem}"
 
 
-def load_warpfactory(
-    path: str | Path, interp_method: str = "linear"
-) -> InterpolatedADMMetric:
+def load_warpfactory(path: str | Path, interp_method: str = "linear") -> InterpolatedADMMetric:
     """Load a WarpFactory ``.mat`` export into an :class:`InterpolatedADMMetric`.
 
     Parameters

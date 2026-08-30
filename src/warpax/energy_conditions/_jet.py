@@ -150,6 +150,7 @@ def is_jet(x) -> bool:
 # commute, so these helpers simply put the jet first; they are the only reason
 # ``Dual2`` can be instantiated over either ring without duplicating its arithmetic.
 
+
 def add(x, y):
     if isinstance(y, Jet) and not isinstance(x, Jet):
         return y + x

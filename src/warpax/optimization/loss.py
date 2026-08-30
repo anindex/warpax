@@ -5,6 +5,7 @@
 
 Evaluated on a radial probe grid exploiting spherical symmetry.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -82,11 +83,13 @@ def evaluate_loss(
     if ansatz == "sshell":
         profiles = coeffs_to_profiles_sshell(coeffs, R_1, R_2)
         from ..metrics.sshell import sshell_from_profiles
+
         metric = sshell_from_profiles(profiles, v_s=0.0, n_grid=n_grid)
         max_beta = 0.0
     elif ansatz == "tshell":
         profiles = coeffs_to_profiles_tshell(coeffs, R_1, R_2)
         from ..metrics.tshell import tshell_from_profiles
+
         metric = tshell_from_profiles(profiles, n_grid=n_grid)
         max_beta = float(jnp.max(jnp.abs(metric._beta_x_grid)))
     else:
@@ -113,7 +116,7 @@ def evaluate_loss(
     def eval_constraint(r_val):
         coords = jnp.array([0.0, r_val, 0.0, 0.0])
         res = normalized_residuals(metric, coords)
-        return res["epsilon_H"]**2 + res["epsilon_M"]**2
+        return res["epsilon_H"] ** 2 + res["epsilon_M"] ** 2
 
     constraint_vals = jax.vmap(eval_constraint)(r_probes)
     constraint_loss = jnp.mean(constraint_vals)
@@ -141,8 +144,10 @@ def evaluate_loss(
         ec_loss = jnp.mean(jnp.stack(ec_penalties))
 
     from ..transport.diagnostics import geodesic_deviation_diagnostic
+
     tidal = geodesic_deviation_diagnostic(
-        metric, jnp.array([0.0, R_1 * 0.5, 0.0, 0.0]),
+        metric,
+        jnp.array([0.0, R_1 * 0.5, 0.0, 0.0]),
     )
 
     total = (

@@ -67,6 +67,7 @@ through the shift and through its time derivative in the curvature chain. ANEC a
 should be conditional on ``geodesic_complete`` because dS geodesics can leave the
 integration box.
 """
+
 from __future__ import annotations
 
 import equinox as eqx
@@ -113,8 +114,9 @@ class GarattiniMetric(ADMMetric):
     t0: float = 0.0
 
     @classmethod
-    def matched(cls, R: float = 1.0, sigma: float = 8.0, H: float = 0.1,
-                r0: float | None = None) -> "GarattiniMetric":
+    def matched(
+        cls, R: float = 1.0, sigma: float = 8.0, H: float = 0.1, r0: float | None = None
+    ) -> "GarattiniMetric":
         """The paper's matching condition ``v = r_0 / L = H r_0``.
 
         ``r_0`` is the bubble's position at ``t = 0``; the shift is irrotational
@@ -179,23 +181,23 @@ class GarattiniMetric(ADMMetric):
         x_s = (v_s / H) * sp.exp(H * t)
         dx = x - x_s
         r_s = sp.sqrt(dx**2 + y**2 + z**2)
-        f_alc = (
-            sp.tanh(sigma_val * (r_s + R_val))
-            - sp.tanh(sigma_val * (r_s - R_val))
-        ) / (2 * sp.tanh(sigma_val * R_val))
+        f_alc = (sp.tanh(sigma_val * (r_s + R_val)) - sp.tanh(sigma_val * (r_s - R_val))) / (
+            2 * sp.tanh(sigma_val * R_val)
+        )
 
         # N^i = -(1 - f) H x^i - f v^i with v = H x_s; gamma = delta so
         # beta_i = beta^i.
-        b = [-(1 - f_alc) * H * c - f_alc * (H * x_s if c is x else 0)
-             for c in (x, y, z)]
+        b = [-(1 - f_alc) * H * c - f_alc * (H * x_s if c is x else 0) for c in (x, y, z)]
         beta_sq = sum(c * c for c in b)
 
-        g = sp.Matrix([
-            [-(1 - beta_sq), b[0], b[1], b[2]],
-            [b[0], 1, 0, 0],
-            [b[1], 0, 1, 0],
-            [b[2], 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-(1 - beta_sq), b[0], b[1], b[2]],
+                [b[0], 1, 0, 0],
+                [b[1], 0, 1, 0],
+                [b[2], 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:

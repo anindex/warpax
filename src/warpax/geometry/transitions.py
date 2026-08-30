@@ -101,6 +101,4 @@ def smoothstep(t: Float[Array, "..."], order: int = 2) -> Float[Array, "..."]:
         return smoothstep_c1(t)
     if order == 2:
         return smoothstep_c2(t)
-    raise ValueError(
-        f"Unsupported smoothstep order: {order}. Use 1 (C1) or 2 (C2)."
-    )
+    raise ValueError(f"Unsupported smoothstep order: {order}. Use 1 (C1) or 2 (C2).")

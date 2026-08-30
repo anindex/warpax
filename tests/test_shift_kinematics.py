@@ -3,6 +3,7 @@
 Analytic checks on synthetic shift fields plus physics checks on the Rodal
 (irrotational) and Natario (zero-expansion) warp drives.
 """
+
 from __future__ import annotations
 
 import jax
@@ -65,8 +66,8 @@ def test_natario_zero_expansion_but_rotational():
 
     metric = NatarioMetric(v_s=0.5, R=1.0, sigma=8.0)
     theta, _, omega_sq = compute_shift_kinematics(metric, jnp.array([0.0, 1.0, 0.4, 0.0]))
-    assert abs(float(theta)) < 1e-8           # zero-expansion drive
-    assert float(omega_sq) > 1e-3             # yet carries vorticity
+    assert abs(float(theta)) < 1e-8  # zero-expansion drive
+    assert float(omega_sq) > 1e-3  # yet carries vorticity
 
 
 def test_grid_matches_pointwise():

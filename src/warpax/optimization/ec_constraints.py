@@ -6,6 +6,7 @@ Hard feasibility: binary certification with the full warpax EC pipeline.
 The per-probe BFGS multistart is wrapped in :func:`equinox.filter_jit`
 so the inner trace is compiled once and reused across probes.
 """
+
 from __future__ import annotations
 
 from functools import partial
@@ -106,9 +107,7 @@ def ec_penalty(
         key = jax.random.PRNGKey(42)
     T_batch, g_batch = _probe_T_g(metric, r_probes)
     margins = _ec_margins_over_probes(T_batch, g_batch, conditions, n_starts, key)
-    return sum(
-        (jax.nn.softplus(-margins[cond]) ** 2).sum() for cond in conditions
-    )
+    return sum((jax.nn.softplus(-margins[cond]) ** 2).sum() for cond in conditions)
 
 
 def _ec_margins_over_probes(T_batch, g_batch, conditions, n_starts, key):
@@ -117,12 +116,10 @@ def _ec_margins_over_probes(T_batch, g_batch, conditions, n_starts, key):
     Keys stay per-probe via fold_in, so this is numerically the same as the
     loop it replaces.
     """
-    keys = jax.vmap(lambda i: jax.random.fold_in(key, i))(
-        jnp.arange(T_batch.shape[0])
+    keys = jax.vmap(lambda i: jax.random.fold_in(key, i))(jnp.arange(T_batch.shape[0]))
+    return jax.vmap(lambda T, g, k: _ec_margins_at_point(T, g, conditions, n_starts, k))(
+        T_batch, g_batch, keys
     )
-    return jax.vmap(
-        lambda T, g, k: _ec_margins_at_point(T, g, conditions, n_starts, k)
-    )(T_batch, g_batch, keys)
 
 
 def ec_feasibility_check(

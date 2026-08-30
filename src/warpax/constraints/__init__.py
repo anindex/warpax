@@ -1,4 +1,5 @@
 """ADM constraint residual computations and source-consistency diagnostics."""
+
 from __future__ import annotations
 
 from .constraint_solver import SShellPotentials, solve_sshell_potentials
@@ -20,4 +21,3 @@ __all__ = [
     "solve_tshell_potentials",
     "stress_energy_residual",
 ]
-

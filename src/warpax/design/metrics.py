@@ -14,6 +14,7 @@ probe grid: lapse floor (``alpha >= lapse_floor``), CTC-free
 ``UnphysicalMetricError`` on failure; ``strict=False`` warns via
 ``UnphysicalMetricWarning``.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -51,6 +52,7 @@ class PhysicalityVerdict(NamedTuple):
     overall
         Logical AND of the three checks.
     """
+
     lapse_floor_ok: bool
     ctc_free: bool
     bubble_finite: bool
@@ -160,17 +162,17 @@ class ShapeFunctionMetric(ADMMetric):
         v_s = sp.Symbol("v_s", real=True)
         r_s = sp.sqrt(x**2 + y**2 + z**2)
         f = f_sym(r_s)
-        g = sp.Matrix([
-            [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
-            [-v_s * f, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
+                [-v_s * f, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
-    def verify_physical(
-        self, probe_grid: Float[Array, "N 4"] | None = None
-    ) -> PhysicalityVerdict:
+    def verify_physical(self, probe_grid: Float[Array, "N 4"] | None = None) -> PhysicalityVerdict:
         """Evaluate three physicality checks on a probe grid.
 
         Parameters

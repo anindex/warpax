@@ -1,4 +1,3 @@
-
 """Compare BFGS optimization vs dense observer sampling for WEC and DEC.
 
 For a random subset of points on the Alcubierre and Rodal metrics,
@@ -66,11 +65,16 @@ def dense_sampling_wec(
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--n-points", type=int, default=200,
-                        help="Number of random grid points to test")
-    parser.add_argument("--n-samples", type=int, nargs="+",
-                        default=[1000, 5000, 10000],
-                        help="Sampling densities to test")
+    parser.add_argument(
+        "--n-points", type=int, default=200, help="Number of random grid points to test"
+    )
+    parser.add_argument(
+        "--n-samples",
+        type=int,
+        nargs="+",
+        default=[1000, 5000, 10000],
+        help="Sampling densities to test",
+    )
     parser.add_argument("--results-dir", default="results")
     args = parser.parse_args()
 
@@ -136,15 +140,17 @@ def main():
 
                 # BFGS with 8 starts
                 bfgs_result = optimize_wec(
-                    T_ab, g_ab, n_starts=8, zeta_max=5.0,
-                    key=jax.random.PRNGKey(idx)
+                    T_ab, g_ab, n_starts=8, zeta_max=5.0, key=jax.random.PRNGKey(idx)
                 )
                 bfgs_min = float(bfgs_result.margin)
 
                 # Dense sampling
                 samp_min = dense_sampling_wec(
-                    T_ab, g_ab, n_samples=n_samp, zeta_max=5.0,
-                    key=jax.random.PRNGKey(idx + 1000000)
+                    T_ab,
+                    g_ab,
+                    n_samples=n_samp,
+                    zeta_max=5.0,
+                    key=jax.random.PRNGKey(idx + 1000000),
                 )
 
                 bfgs_margins.append(bfgs_min)
@@ -159,10 +165,12 @@ def main():
                     ties += 1
 
                 if (idx_i + 1) % 50 == 0:
-                    print(f"    {idx_i + 1}/{n_pts}: "
-                          f"BFGS better={bfgs_wins}, "
-                          f"Samp better={sampling_wins}, "
-                          f"Ties={ties}")
+                    print(
+                        f"    {idx_i + 1}/{n_pts}: "
+                        f"BFGS better={bfgs_wins}, "
+                        f"Samp better={sampling_wins}, "
+                        f"Ties={ties}"
+                    )
 
             bfgs_arr = np.array(bfgs_margins)
             samp_arr = np.array(samp_margins)
@@ -175,15 +183,13 @@ def main():
                 "mean_improvement": float(np.mean(diff)),
                 "median_improvement": float(np.median(diff)),
                 "max_improvement": float(np.max(diff)),
-                "pct_bfgs_equal_or_better": float(
-                    100.0 * (bfgs_wins + ties) / n_pts
-                ),
+                "pct_bfgs_equal_or_better": float(100.0 * (bfgs_wins + ties) / n_pts),
             }
             print(f"  Results for N_samp={n_samp}:")
-            print(f"    BFGS better: {bfgs_wins}/{n_pts} "
-                  f"({100*bfgs_wins/n_pts:.1f}%)")
-            print(f"    Sampling better: {sampling_wins}/{n_pts} "
-                  f"({100*sampling_wins/n_pts:.1f}%)")
+            print(f"    BFGS better: {bfgs_wins}/{n_pts} ({100 * bfgs_wins / n_pts:.1f}%)")
+            print(
+                f"    Sampling better: {sampling_wins}/{n_pts} ({100 * sampling_wins / n_pts:.1f}%)"
+            )
             print(f"    Ties: {ties}/{n_pts}")
             print(f"    Mean improvement (samp-bfgs): {np.mean(diff):.6f}")
 
@@ -214,10 +220,12 @@ def fibonacci_dec_comparison():
     Vectorized with JAX for performance.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     from warpax.visualization._style import apply_style
+
     apply_style()
 
     from warpax.energy_conditions.classification import classify_hawking_ellis
@@ -253,8 +261,11 @@ def fibonacci_dec_comparison():
     # BFGS
     print("Running BFGS...")
     ec_bfgs = verify_grid(
-        curv.stress_energy, curv.metric, curv.metric_inv,
-        n_starts=8, batch_size=64,
+        curv.stress_energy,
+        curv.metric,
+        curv.metric_inv,
+        n_starts=8,
+        batch_size=64,
     )
     bfgs_dec = np.array(ec_bfgs.dec_margins.reshape(-1))
 
@@ -292,14 +303,12 @@ def fibonacci_dec_comparison():
         Returns scalar: worst margin over n_dir * n_zeta observers.
         """
         # Create all combinations: (n_dir, n_zeta)
-        th_grid = jnp.repeat(thetas, len(zetas))       # (n_dir * n_zeta,)
-        ph_grid = jnp.repeat(phis, len(zetas))          # (n_dir * n_zeta,)
-        z_grid = jnp.tile(zetas, len(thetas))            # (n_dir * n_zeta,)
+        th_grid = jnp.repeat(thetas, len(zetas))  # (n_dir * n_zeta,)
+        ph_grid = jnp.repeat(phis, len(zetas))  # (n_dir * n_zeta,)
+        z_grid = jnp.tile(zetas, len(thetas))  # (n_dir * n_zeta,)
 
         margins = jax.vmap(
-            lambda z, th, ph: _dec_margin_single_observer(
-                T_ab, T_mixed, g_ab, tetrad, z, th, ph
-            )
+            lambda z, th, ph: _dec_margin_single_observer(T_ab, T_mixed, g_ab, tetrad, z, th, ph)
         )(z_grid, th_grid, ph_grid)
         return jnp.nanmin(margins)
 
@@ -327,9 +336,7 @@ def fibonacci_dec_comparison():
         # Define the per-point function for this n_dir
         def _point_fn(args):
             T_ab, T_mixed, g_ab, tetrad = args
-            return _sample_dec_at_point(
-                T_ab, T_mixed, g_ab, tetrad, thetas_arr, phis_arr, zetas
-            )
+            return _sample_dec_at_point(T_ab, T_mixed, g_ab, tetrad, thetas_arr, phis_arr, zetas)
 
         for start in range(0, n_points, chunk_size):
             end = min(start + chunk_size, n_points)
@@ -347,19 +354,23 @@ def fibonacci_dec_comparison():
             sampled_mins[start:end] = np.array(chunk_mins)
 
             if (start // chunk_size) % 10 == 0:
-                print(f"    Chunk {start//chunk_size + 1}/"
-                      f"{(n_points + chunk_size - 1)//chunk_size}")
+                print(
+                    f"    Chunk {start // chunk_size + 1}/"
+                    f"{(n_points + chunk_size - 1) // chunk_size}"
+                )
 
         elapsed = time.time() - t0
         detects = int(np.sum(sampled_mins[viol_mask] < -1e-10))
         rate = detects / max(n_viol, 1) * 100
 
-        results.append({
-            "n_dir": n_dir,
-            "detection_rate": rate,
-            "min_sampled": float(np.nanmin(sampled_mins)),
-            "elapsed": elapsed,
-        })
+        results.append(
+            {
+                "n_dir": n_dir,
+                "detection_rate": rate,
+                "min_sampled": float(np.nanmin(sampled_mins)),
+                "elapsed": elapsed,
+            }
+        )
         print(f"  Detection: {rate:.1f}% ({detects}/{n_viol}), time={elapsed:.1f}s")
 
     # Summary table
@@ -367,8 +378,10 @@ def fibonacci_dec_comparison():
     print(f"{'N_dir':>8} {'N_total':>8} {'Detection%':>12} {'Min margin':>14} {'Time(s)':>10}")
     print("-" * 70)
     for r in results:
-        print(f"{r['n_dir']:>8} {r['n_dir']*n_zeta:>8} {r['detection_rate']:>11.1f}% "
-              f"{r['min_sampled']:>14.6e} {r['elapsed']:>10.1f}")
+        print(
+            f"{r['n_dir']:>8} {r['n_dir'] * n_zeta:>8} {r['detection_rate']:>11.1f}% "
+            f"{r['min_sampled']:>14.6e} {r['elapsed']:>10.1f}"
+        )
     print("=" * 70)
     print(f"BFGS min DEC margin: {float(np.nanmin(bfgs_dec)):.6e}")
     print(f"Algebraic min DEC margin: {float(np.nanmin(alg_dec)):.6e}")
@@ -379,7 +392,8 @@ def fibonacci_dec_comparison():
     ax.semilogx(
         [r["n_dir"] for r in results],
         [r["detection_rate"] for r in results],
-        "o-", label="Fibonacci sampling",
+        "o-",
+        label="Fibonacci sampling",
     )
     ax.axhline(100, ls="--", color="green", label=r"BFGS (100\%)")
     ax.set_xlabel("Number of directions")
@@ -396,20 +410,24 @@ def fibonacci_dec_comparison():
 
     # Save JSON
     json_out = "results/fibonacci_dec_comparison.json"
-    dump_json({
-        "n_zeta": n_zeta,
-        "zeta_max": zeta_max,
-        "n_points": n_points,
-        "n_violations": n_viol,
-        "bfgs_min_dec": float(np.nanmin(bfgs_dec)),
-        "alg_min_dec": float(np.nanmin(alg_dec)),
-        "results": results,
-    }, json_out)
+    dump_json(
+        {
+            "n_zeta": n_zeta,
+            "zeta_max": zeta_max,
+            "n_points": n_points,
+            "n_violations": n_viol,
+            "bfgs_min_dec": float(np.nanmin(bfgs_dec)),
+            "alg_min_dec": float(np.nanmin(alg_dec)),
+            "results": results,
+        },
+        json_out,
+    )
     print(f"JSON saved: {json_out}")
 
 
 if __name__ == "__main__":
     import sys
+
     if "--fibonacci-dec" in sys.argv:
         fibonacci_dec_comparison()
     else:

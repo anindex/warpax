@@ -25,6 +25,7 @@ Outputs
 - results/rodal_sigma_resolved.json
 - ../warpax_arxiv/tables/rodal_sigma_resolved.tex
 """
+
 from __future__ import annotations
 
 import argparse
@@ -68,9 +69,7 @@ def _wall_cells(metric, r_nodes) -> float:
 
 def run_one(sigma: float, n_r: int, n_mu: int) -> dict:
     metric = RodalMetric(v_s=V_S, R=R_B, sigma=sigma)
-    grid = axisymmetric_grid(
-        R_MAX, n_r, n_mu, wall_radius=R_B, a=CLUSTER_A[sigma]
-    )
+    grid = axisymmetric_grid(R_MAX, n_r, n_mu, wall_radius=R_B, a=CLUSTER_A[sigma])
     cells = _wall_cells(metric, grid.r)
 
     curv = evaluate_curvature_points(metric, grid.coords, batch_size=256)
@@ -132,7 +131,12 @@ def write_table(rows_by_sigma: dict, out_path: str) -> None:
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_rodal_sigma_resolved.py", sources="results/rodal_sigma_resolved.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_rodal_sigma_resolved.py",
+        sources="results/rodal_sigma_resolved.json",
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -159,7 +163,7 @@ def main() -> None:
             print(
                 f"  sigma={sigma:<5} ({n_r:3d}x{n_mu:3d})  cells={r['wall_cells']:6.2f}"
                 f"  wallpts={r['n_wall_points']:5d}"
-                f"  TypeI={r['frac_type_i']*100:6.2f}%"
+                f"  TypeI={r['frac_type_i'] * 100:6.2f}%"
                 f"  gridDEC={r['grid_dec_miss_pct']:6.2f}%"
                 f"  wallDEC={r['wall_dec_miss_pct']:6.2f}%{flag}"
             )
@@ -167,22 +171,27 @@ def main() -> None:
         print(
             f"      -> wall DEC miss across ladder: "
             f"{' -> '.join(f'{v:.2f}' for v in series)}"
-            f"   finest-two spread {abs(series[-1]-series[-2]):.2f} pp"
-            if len(series) > 1 else ""
+            f"   finest-two spread {abs(series[-1] - series[-2]):.2f} pp"
+            if len(series) > 1
+            else ""
         )
         out_rows[str(sigma)] = rows
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
     payload = {
         "params": {
-            "v_s": V_S, "R_b": R_B, "r_max": R_MAX,
-            "sigmas": list(args.sigmas), "ladder": [list(x) for x in ladder],
-            "cluster_a": CLUSTER_A, "wall_band": [F_LOW, F_HIGH],
+            "v_s": V_S,
+            "R_b": R_B,
+            "r_max": R_MAX,
+            "sigmas": list(args.sigmas),
+            "ladder": [list(x) for x in ladder],
+            "cluster_a": CLUSTER_A,
+            "wall_band": [F_LOW, F_HIGH],
             "min_wall_cells": MIN_WALL_CELLS,
             "note": "Exact axisymmetric (r, mu) reduction: the Rodal slice is "
-                    "invariant under rotations about the propagation axis, so "
-                    "the half-plane sweeps the full orbit space. Proper-volume "
-                    "weights 2 pi r^2 w_r w_mu; Gauss-Legendre in mu.",
+            "invariant under rotations about the propagation axis, so "
+            "the half-plane sweeps the full orbit space. Proper-volume "
+            "weights 2 pi r^2 w_r w_mu; Gauss-Legendre in mu.",
         },
         "rows": out_rows,
     }

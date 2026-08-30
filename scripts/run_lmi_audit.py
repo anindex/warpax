@@ -29,6 +29,7 @@ Outputs
 - results/lmi_audit.json
 - ../warpax_arxiv/tables/lmi_typefree.tex
 """
+
 from __future__ import annotations
 
 import argparse
@@ -90,9 +91,15 @@ def audit_one(name, v_s, N, batch_size=2048):
 
     routed = {c: np.asarray(getattr(ff, f"{c}_margins")).reshape(-1) for c in CONDITIONS}
 
-    out = {"metric": name, "v_s": v_s, "N": N, "n_points": int(he.size),
-           "n_wall": int(wall.sum()), "n_vacuum": int(vac.sum()),
-           "type_counts": {str(t): int((he == t).sum()) for t in (1, 2, 3, 4)}}
+    out = {
+        "metric": name,
+        "v_s": v_s,
+        "N": N,
+        "n_points": int(he.size),
+        "n_wall": int(wall.sum()),
+        "n_vacuum": int(vac.sum()),
+        "type_counts": {str(t): int((he == t).sum()) for t in (1, 2, 3, 4)},
+    }
 
     # (a) Type-I agreement. Both routes are exact there, so any disagreement is a label
     #     error rather than a disagreement about physics.
@@ -102,9 +109,7 @@ def audit_one(name, v_s, N, batch_size=2048):
         b = _verdict(np.asarray(lmi[c])[isI], floor[isI])
         both = (a != 0) & (b != 0)
         out[f"typeI_{c}_n_decisive"] = int(both.sum())
-        out[f"typeI_{c}_agree"] = (
-            float((a[both] == b[both]).mean()) if both.any() else None
-        )
+        out[f"typeI_{c}_agree"] = float((a[both] == b[both]).mean()) if both.any() else None
 
     # (b) Certified misclassification. Types III and IV violate every standard energy
     #     condition, so an LMI margin that certifies satisfaction there cannot be
@@ -123,8 +128,7 @@ def audit_one(name, v_s, N, batch_size=2048):
     out["n_type_iii_iv"] = int(bad_label.sum())
     out["n_certified_misclassified"] = int((bad_label & lmi_says_ok).sum())
     out["certified_misclassification_rate"] = (
-        float((bad_label & lmi_says_ok).sum() / bad_label.sum())
-        if bad_label.any() else None
+        float((bad_label & lmi_says_ok).sum() / bad_label.sum()) if bad_label.any() else None
     )
     # The NEC-only count is quoted separately in the appendix text, so it is recorded
     # rather than recomputed from the disjunction.
@@ -166,8 +170,9 @@ def write_lmi_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
         lines.append(f"  {name} & " + " & ".join(agree + err) + r" \\")
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_lmi_audit.py",
-                    sources="results/lmi_audit.json")
+    write_tex_table(
+        out_path, lines, script="scripts/run_lmi_audit.py", sources="results/lmi_audit.json"
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -192,12 +197,15 @@ def main():
             rows.append(r)
             agree = r["typeI_nec_agree"]
             rate = r["certified_misclassification_rate"]
-            print(f"  {len(rows):2d}/{len(args.metrics) * len(args.velocities)} "
-                  f"{name:>15s} v_s={v_s:.2f}  "
-                  f"TypeI agree={'n/a' if agree is None else f'{100 * agree:6.2f}%'}  "
-                  f"III/IV={r['n_type_iii_iv']:7d}  "
-                  f"certified label errors="
-                  f"{'n/a' if rate is None else f'{100 * rate:.3f}%'}", flush=True)
+            print(
+                f"  {len(rows):2d}/{len(args.metrics) * len(args.velocities)} "
+                f"{name:>15s} v_s={v_s:.2f}  "
+                f"TypeI agree={'n/a' if agree is None else f'{100 * agree:6.2f}%'}  "
+                f"III/IV={r['n_type_iii_iv']:7d}  "
+                f"certified label errors="
+                f"{'n/a' if rate is None else f'{100 * rate:.3f}%'}",
+                flush=True,
+            )
 
     name = "lmi_audit_smoke.json" if args.smoke else "lmi_audit.json"
     dump_json({"config": vars(args), "rows": rows}, os.path.join(RESULTS_DIR, name))

@@ -8,6 +8,7 @@ interior-vs-exterior breakdown of EC violations.
 Usage:
     python -m scripts.run_fuchs_canonical  # from warpax/
 """
+
 from __future__ import annotations
 
 import sys
@@ -28,10 +29,7 @@ def main():
 
     R_1, R_2 = metric.R_1, metric.R_2
     interior = [p for p in result["per_point"] if R_1 <= p["r"] <= R_2]
-    int_viol = sum(
-        1 for p in interior
-        if any(p["ec_robust"][k] < 0 for k in ("nec", "wec", "dec"))
-    )
+    int_viol = sum(1 for p in interior if any(p["ec_robust"][k] < 0 for k in ("nec", "wec", "dec")))
     result["summary"]["interior_count"] = len(interior)
     result["summary"]["interior_violations"] = int_viol
 

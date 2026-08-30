@@ -16,6 +16,7 @@ Normalized residuals use scale-invariant normalization:
     eps_H = |H| / (|R| + |K^2| + |K_{ij}K^{ij}| + |16piE|)
     eps_M = |M| / (|DK| + |8piS|)
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

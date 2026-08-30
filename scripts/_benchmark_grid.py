@@ -21,6 +21,7 @@ warpax.analysis.extrema.refine_extremum (seeded from the deepest ladder sample),
 so they are resolution-independent; only the (non-smooth) volume fractions carry a
 grid stability spread across the ladder.
 """
+
 from __future__ import annotations
 
 import numpy as np

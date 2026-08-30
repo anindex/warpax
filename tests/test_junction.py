@@ -105,6 +105,7 @@ class TestDarmois:
         assert float(r1.second_form_discontinuity) == float(r2.second_form_discontinuity)
         assert bool(r1.physical) == bool(r2.physical)
 
+
 jax.config.update("jax_enable_x64", True)
 
 

@@ -23,6 +23,7 @@ Outputs
 - ../warpax_arxiv/tables/curvature_scaling.tex
 - ../warpax_arxiv/figures/curvature_scaling.pdf
 """
+
 from __future__ import annotations
 
 import argparse
@@ -79,8 +80,6 @@ INVARIANTS = (
 )
 
 
-
-
 def run_point(name, v_s, N):
     """Wall-peak curvature invariants at one (metric, v_s)."""
     shape = (N, N, N)
@@ -109,8 +108,14 @@ def run_point(name, v_s, N):
         # speed-dependently, which tilts the exponent.
         seed = seed_from_grid_index(k, shape, axes)
         polished = refine_extremum(
-            metric, seed, lambda c, _k=key: np.abs(np.asarray(getattr(c, _k))),
-            mode="max", half_width=0.15, n=9, levels=7, compute_invariants=True,
+            metric,
+            seed,
+            lambda c, _k=key: np.abs(np.asarray(getattr(c, _k))),
+            mode="max",
+            half_width=0.15,
+            n=9,
+            levels=7,
+            compute_invariants=True,
         )
         out[f"{key}_max"] = float(polished["value"])
         out[f"{key}_max_grid"] = raw
@@ -145,9 +150,16 @@ def fit_power_law(rows, metric, key, v_max=1.0):
     """
     vs, xs, dropped = _branch(rows, metric, key, v_max)
     if len(vs) < 3:
-        return {"A": None, "q": None, "r_squared": None,
-                "r_squared_linear": None, "max_rel_dev": None,
-                "v_s_at_max_dev": None, "n": len(vs), "n_dropped": dropped}
+        return {
+            "A": None,
+            "q": None,
+            "r_squared": None,
+            "r_squared_linear": None,
+            "max_rel_dev": None,
+            "v_s_at_max_dev": None,
+            "n": len(vs),
+            "n_dropped": dropped,
+        }
     lv, lx = np.log(vs), np.log(xs)
     q, logA = np.polyfit(lv, lx, 1)
     ss_res = float(np.sum((lx - (q * lv + logA)) ** 2))
@@ -155,16 +167,21 @@ def fit_power_law(rows, metric, key, v_max=1.0):
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
     pred_lin = np.exp(logA) * vs**q
     tot_lin = float(np.sum((xs - xs.mean()) ** 2))
-    r2_lin = (1.0 - float(np.sum((xs - pred_lin) ** 2)) / tot_lin
-              if tot_lin > 0 else 1.0)
+    r2_lin = 1.0 - float(np.sum((xs - pred_lin) ** 2)) / tot_lin if tot_lin > 0 else 1.0
     # Worst single-point deviation, as run_ssv_bound.py reports: R^2 alone hides
     # a fit driven by one sample. Alcubierre's Ricci branch sits 21% off at
     # v_s = 0.9, where the wall-peak argmax migrates to another basin.
     max_rel_dev = float(np.max(np.abs(xs - pred_lin) / xs))
-    return {"A": float(np.exp(logA)), "q": float(q), "r_squared": float(r2),
-            "r_squared_linear": float(r2_lin), "max_rel_dev": max_rel_dev,
-            "v_s_at_max_dev": float(vs[int(np.argmax(np.abs(xs - pred_lin) / xs))]),
-            "n": len(vs), "n_dropped": dropped}
+    return {
+        "A": float(np.exp(logA)),
+        "q": float(q),
+        "r_squared": float(r2),
+        "r_squared_linear": float(r2_lin),
+        "max_rel_dev": max_rel_dev,
+        "v_s_at_max_dev": float(vs[int(np.argmax(np.abs(xs - pred_lin) / xs))]),
+        "n": len(vs),
+        "n_dropped": dropped,
+    }
 
 
 def fit_exact_exponents(rows, metric, key, powers=(2.0, 4.0), v_max=1.0):
@@ -176,15 +193,25 @@ def fit_exact_exponents(rows, metric, key, powers=(2.0, 4.0), v_max=1.0):
     """
     vs, xs, dropped = _branch(rows, metric, key, v_max)
     if len(vs) <= len(powers):
-        return {"powers": list(powers), "coeffs": None, "r_squared": None,
-                "n": len(vs), "n_dropped": dropped}
+        return {
+            "powers": list(powers),
+            "coeffs": None,
+            "r_squared": None,
+            "n": len(vs),
+            "n_dropped": dropped,
+        }
     design = np.vstack([vs**p for p in powers]).T
     coeffs, *_ = np.linalg.lstsq(design, xs, rcond=None)
     resid = xs - design @ coeffs
     tot = float(np.sum((xs - xs.mean()) ** 2))
     r2 = 1.0 - float(np.sum(resid**2)) / tot if tot > 0 else 1.0
-    return {"powers": list(powers), "coeffs": [float(c) for c in coeffs],
-            "r_squared": float(r2), "n": len(vs), "n_dropped": dropped}
+    return {
+        "powers": list(powers),
+        "coeffs": [float(c) for c in coeffs],
+        "r_squared": float(r2),
+        "n": len(vs),
+        "n_dropped": dropped,
+    }
 
 
 def _f(x, nd=2):
@@ -211,8 +238,8 @@ def write_table(fits, out_path):
         # and no clean single power law; report it as such rather than a noisy fit.
         if r2w is not None and np.isfinite(r2w) and r2w >= 0.99:
             lines.append(
-                f"  {name} & {_f(w.get('q'))} & {_f(w.get('A'),3)} & {_f(r2w,4)}"
-                f" & {_f(ri.get('q'))} & {_f(ri.get('A'),3)} & {_f(ri.get('r_squared'),4)} \\\\"
+                f"  {name} & {_f(w.get('q'))} & {_f(w.get('A'), 3)} & {_f(r2w, 4)}"
+                f" & {_f(ri.get('q'))} & {_f(ri.get('A'), 3)} & {_f(ri.get('r_squared'), 4)} \\\\"
             )
         else:
             lines.append(
@@ -221,31 +248,44 @@ def write_table(fits, out_path):
             )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_curvature_scaling.py", sources="results/curvature_scaling.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_curvature_scaling.py",
+        sources="results/curvature_scaling.json",
+    )
     print(f"  Wrote {out_path}")
 
 
-_MARKERS = {"Alcubierre": "o", "Natário": "s",
-            "Van den Broeck": "^", "Rodal": "D"}
+_MARKERS = {"Alcubierre": "o", "Natário": "s", "Van den Broeck": "^", "Rodal": "D"}
 
 
 def make_figure(rows, fits):
     os.makedirs(FIG_DIR, exist_ok=True)
     fig, (ax_w, ax_r) = plt.subplots(1, 2, figsize=(DOUBLE_COL, DOUBLE_COL * 0.44))
-    for ax, key, title in ((ax_w, "weyl_squared", "(a) Weyl $C^2$"),
-                           (ax_r, "ricci_squared", "(b) Ricci $|R_{ab}R^{ab}|$")):
+    for ax, key, title in (
+        (ax_w, "weyl_squared", "(a) Weyl $C^2$"),
+        (ax_r, "ricci_squared", "(b) Ricci $|R_{ab}R^{ab}|$"),
+    ):
         for name in METRIC_ORDER:
-            rs = sorted([r for r in rows if r["metric"] == name],
-                        key=lambda r: r["v_s"])
+            rs = sorted([r for r in rows if r["metric"] == name], key=lambda r: r["v_s"])
             xs = [r["v_s"] for r in rs]
             ys = [r[f"{key}_max"] for r in rs]
-            ax.loglog(xs, ys, marker=_MARKERS.get(name, "o"), ms=4, ls="none",
-                      color=metric_color(name), label=name)
+            ax.loglog(
+                xs,
+                ys,
+                marker=_MARKERS.get(name, "o"),
+                ms=4,
+                ls="none",
+                color=metric_color(name),
+                label=name,
+            )
             fit = fits[name][key]
             if fit.get("A") is not None and fit.get("r_squared", 0) and fit["r_squared"] >= 0.9:
                 vv = np.array([min(xs), 1.0])
-                ax.loglog(vv, fit["A"] * vv ** fit["q"], color=metric_color(name),
-                          lw=0.9, alpha=0.7)
+                ax.loglog(
+                    vv, fit["A"] * vv ** fit["q"], color=metric_color(name), lw=0.9, alpha=0.7
+                )
         ax.axvline(1.0, color="0.6", ls="--", lw=0.8)
         ax.set_xlabel(r"warp speed $v_s$")
         ax.set_ylabel("wall-peak invariant")
@@ -260,8 +300,12 @@ def make_figure(rows, fits):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--velocities", type=float, nargs="+",
-                   default=[0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0, 1.5, 2.0, 2.5])
+    p.add_argument(
+        "--velocities",
+        type=float,
+        nargs="+",
+        default=[0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0, 1.5, 2.0, 2.5],
+    )
     p.add_argument("--N", type=int, default=60)
     p.add_argument("--metrics", type=str, nargs="+", default=METRIC_ORDER)
     p.add_argument("--smoke", action="store_true")
@@ -291,40 +335,52 @@ def main():
         for v_s in args.velocities:
             r = run_point(name, v_s, args.N)
             rows.append(r)
-            print(f"  {name:>15s} v_s={v_s:.2f}  "
-                  f"K={r['kretschmann_max']:.3g}  "
-                  f"C^2={r['weyl_squared_max']:.3g}  "
-                  f"R^2={r['ricci_squared_max']:.3g}")
+            print(
+                f"  {name:>15s} v_s={v_s:.2f}  "
+                f"K={r['kretschmann_max']:.3g}  "
+                f"C^2={r['weyl_squared_max']:.3g}  "
+                f"R^2={r['ricci_squared_max']:.3g}"
+            )
 
-    fits = {name: {key: fit_power_law(rows, name, key) for key, _ in INVARIANTS}
-            for name in args.metrics}
-    two_term = {name: {key: fit_exact_exponents(rows, name, key)
-                       for key, _ in INVARIANTS}
-                for name in args.metrics}
-    print("\n  Subluminal scaling exponents X_max = A v_s^q "
-          "(R^2 of the log-log regression; R^2_lin of the same curve in linear space):")
+    fits = {
+        name: {key: fit_power_law(rows, name, key) for key, _ in INVARIANTS}
+        for name in args.metrics
+    }
+    two_term = {
+        name: {key: fit_exact_exponents(rows, name, key) for key, _ in INVARIANTS}
+        for name in args.metrics
+    }
+    print(
+        "\n  Subluminal scaling exponents X_max = A v_s^q "
+        "(R^2 of the log-log regression; R^2_lin of the same curve in linear space):"
+    )
     for name in args.metrics:
         for key, sym in INVARIANTS:
             fl = fits[name][key]
-            print(f"    {name:16s} {key:14s} q={_f(fl['q'])}  "
-                  f"A={_f(fl['A'],3)}  R^2={_f(fl['r_squared'],4)}  "
-                  f"R^2_lin={_f(fl['r_squared_linear'],4)}  "
-                  f"maxdev={_f(fl['max_rel_dev'],3)}@v={_f(fl['v_s_at_max_dev'],2)}"
-                  + (f"  [{fl['n_dropped']} point(s) dropped]"
-                     if fl.get("n_dropped") else ""))
-    print("\n  Fixed-exponent law X_max = C2 v_s^2 + C4 v_s^4 "
-          "(C2 = 0 iff the shift is irrotational, verify/weyl_scaling.sage):")
+            print(
+                f"    {name:16s} {key:14s} q={_f(fl['q'])}  "
+                f"A={_f(fl['A'], 3)}  R^2={_f(fl['r_squared'], 4)}  "
+                f"R^2_lin={_f(fl['r_squared_linear'], 4)}  "
+                f"maxdev={_f(fl['max_rel_dev'], 3)}@v={_f(fl['v_s_at_max_dev'], 2)}"
+                + (f"  [{fl['n_dropped']} point(s) dropped]" if fl.get("n_dropped") else "")
+            )
+    print(
+        "\n  Fixed-exponent law X_max = C2 v_s^2 + C4 v_s^4 "
+        "(C2 = 0 iff the shift is irrotational, verify/weyl_scaling.sage):"
+    )
     for name in args.metrics:
         for key, sym in INVARIANTS:
             tt = two_term[name][key]
             c = tt["coeffs"]
-            print(f"    {name:16s} {key:14s} "
-                  + (f"C2={c[0]:12.4g}  C4={c[1]:12.4g}  R^2={_f(tt['r_squared'],6)}"
-                     if c else "--"))
+            print(
+                f"    {name:16s} {key:14s} "
+                + (f"C2={c[0]:12.4g}  C4={c[1]:12.4g}  R^2={_f(tt['r_squared'], 6)}" if c else "--")
+            )
 
-    dump_json({"config": vars(args), "rows": rows, "fits": fits,
-               "fits_fixed_exponent": two_term},
-              os.path.join(RESULTS_DIR, "curvature_scaling.json"))
+    dump_json(
+        {"config": vars(args), "rows": rows, "fits": fits, "fits_fixed_exponent": two_term},
+        os.path.join(RESULTS_DIR, "curvature_scaling.json"),
+    )
     print(f"\nWrote {os.path.join(RESULTS_DIR, 'curvature_scaling.json')}")
 
     if not args.smoke:

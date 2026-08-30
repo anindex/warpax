@@ -14,6 +14,7 @@ Proposals evaluated:
     2. Rodal (arXiv:2512.18008), irrotational shift
     3. Lentz (arXiv:2006.07125), diamond soliton
 """
+
 from __future__ import annotations
 
 import sys
@@ -40,6 +41,7 @@ from warpax.metrics import (
 from warpax.transport import geodesic_deviation_diagnostic
 
 # Per-point evaluation
+
 
 def _evaluate_point(metric, coords, *, n_starts=16):
     """Evaluate all diagnostics at a single spacetime point."""
@@ -77,6 +79,7 @@ def _evaluate_point(metric, coords, *, n_starts=16):
 
 
 # Proposal evaluation
+
 
 def evaluate_fuchs():
     """5-criterion evaluation of the Fuchs shell."""
@@ -116,8 +119,10 @@ def evaluate_fuchs():
     max_eps_H = max(r["constraints"]["epsilon_H"] for r in sweep_results)
     max_eps_M = max(r["constraints"]["epsilon_M"] for r in sweep_results)
     constraints_pass = max_eps_H < 0.1 and max_eps_M < 0.1
-    print(f"  [B] Constraints: {'PASS' if constraints_pass else 'FAIL'}"
-          f"  max ε_H={max_eps_H:.4e}  max ε_M={max_eps_M:.4e}")
+    print(
+        f"  [B] Constraints: {'PASS' if constraints_pass else 'FAIL'}"
+        f"  max ε_H={max_eps_H:.4e}  max ε_M={max_eps_M:.4e}"
+    )
 
     # Criterion C: Matter model
     # Fuchs has a prescribed source model (shell profiles)
@@ -126,8 +131,12 @@ def evaluate_fuchs():
 
     # Criterion D: EC margins
     n_violated = {"nec": 0, "wec": 0, "sec": 0, "dec": 0}
-    min_margins = {"nec": float("inf"), "wec": float("inf"),
-                   "sec": float("inf"), "dec": float("inf")}
+    min_margins = {
+        "nec": float("inf"),
+        "wec": float("inf"),
+        "sec": float("inf"),
+        "dec": float("inf"),
+    }
     for res in sweep_results:
         ec = res["ec_robust"]
         for k in n_violated:
@@ -159,12 +168,15 @@ def evaluate_fuchs():
     type_counts = {1: 0, 2: 0, 3: 0, 4: 0}
     for res in sweep_results:
         type_counts[res["he_type"]] += 1
-    print(f"       HE types: I={type_counts[1]} II={type_counts[2]}"
-          f" III={type_counts[3]} IV={type_counts[4]}")
+    print(
+        f"       HE types: I={type_counts[1]} II={type_counts[2]}"
+        f" III={type_counts[3]} IV={type_counts[4]}"
+    )
 
     # Criterion E: Global diagnostics
     try:
         from warpax.adm import adm_mass, asymptotic_flatness_report
+
         M_adm = float(adm_mass(metric, r_surface=20.0, n_theta=16, n_phi=32))
         falloff = asymptotic_flatness_report(metric, radii=[30.0, 50.0, 100.0])
         af_pass = falloff["is_asymptotically_flat"]
@@ -175,8 +187,7 @@ def evaluate_fuchs():
         print(f"       ADM/falloff error: {exc}")
 
     global_pass = M_adm > 0 if not jnp.isnan(M_adm) else False
-    print(f"  [E] Global: {'PASS' if global_pass else 'FAIL'}"
-          f"  M_ADM={M_adm:+.6e}  AF={af_pass}")
+    print(f"  [E] Global: {'PASS' if global_pass else 'FAIL'}  M_ADM={M_adm:+.6e}  AF={af_pass}")
 
     # Transport: geodesic deviation
     transport_results = []
@@ -192,15 +203,22 @@ def evaluate_fuchs():
         "name": "Fuchs",
         "criteria": {
             "A_regularity": {"pass": regularity, "detail": "Gaussian-smoothed C^inf"},
-            "B_constraints": {"pass": constraints_pass,
-                              "max_eps_H": max_eps_H, "max_eps_M": max_eps_M},
-            "C_matter_model": {"pass": matter_model,
-                               "detail": "Iteratively-smoothed shell, TOV-derived"},
-            "D_ec_margins": {"pass": ec_pass,
-                             "violated": n_violated, "min_margins": min_margins,
-                             "interior_violations": f"{interior_violations}/{interior_total}"},
-            "E_global": {"pass": global_pass, "M_ADM": M_adm,
-                         "asymptotic_flat": af_pass},
+            "B_constraints": {
+                "pass": constraints_pass,
+                "max_eps_H": max_eps_H,
+                "max_eps_M": max_eps_M,
+            },
+            "C_matter_model": {
+                "pass": matter_model,
+                "detail": "Iteratively-smoothed shell, TOV-derived",
+            },
+            "D_ec_margins": {
+                "pass": ec_pass,
+                "violated": n_violated,
+                "min_margins": min_margins,
+                "interior_violations": f"{interior_violations}/{interior_total}",
+            },
+            "E_global": {"pass": global_pass, "M_ADM": M_adm, "asymptotic_flat": af_pass},
         },
         "he_type_census": type_counts,
         "transport": transport_results,
@@ -226,9 +244,13 @@ def _evaluate_natario_class(metric, label, *, n_sweep=50, r_range=(0.5, 500.0)):
         sys.stdout.write(f"\r  {i + 1}/{n_sweep}  r={r_val:6.1f}")
         sys.stdout.flush()
         coords = jnp.array([0.0, r_val, 0.0, 0.0], dtype=jnp.float64)
-        sweep_results.append(_evaluate_point(
-            metric, coords, n_starts=16,
-        ))
+        sweep_results.append(
+            _evaluate_point(
+                metric,
+                coords,
+                n_starts=16,
+            )
+        )
     elapsed = time.time() - t0
     print(f"\n  Done in {elapsed:.1f}s")
 
@@ -240,16 +262,22 @@ def _evaluate_natario_class(metric, label, *, n_sweep=50, r_range=(0.5, 500.0)):
     max_eps_H = max(r["constraints"]["epsilon_H"] for r in sweep_results)
     max_eps_M = max(r["constraints"]["epsilon_M"] for r in sweep_results)
     constraints_pass = max_eps_H < 0.1 and max_eps_M < 0.1
-    print(f"  [B] Constraints: {'PASS' if constraints_pass else 'FAIL'}"
-          f"  max ε_H={max_eps_H:.4e}  max ε_M={max_eps_M:.4e}")
+    print(
+        f"  [B] Constraints: {'PASS' if constraints_pass else 'FAIL'}"
+        f"  max ε_H={max_eps_H:.4e}  max ε_M={max_eps_M:.4e}"
+    )
 
     # Criterion C: N/A (metric-first, no source model)
     print("  [C] Matter model: N/A (metric-first construction, no source prescribed)")
 
     # Criterion D: EC margins
     n_violated = {"nec": 0, "wec": 0, "sec": 0, "dec": 0}
-    min_margins = {"nec": float("inf"), "wec": float("inf"),
-                   "sec": float("inf"), "dec": float("inf")}
+    min_margins = {
+        "nec": float("inf"),
+        "wec": float("inf"),
+        "sec": float("inf"),
+        "dec": float("inf"),
+    }
     for res in sweep_results:
         ec = res["ec_robust"]
         for k in n_violated:
@@ -268,8 +296,10 @@ def _evaluate_natario_class(metric, label, *, n_sweep=50, r_range=(0.5, 500.0)):
     type_counts = {1: 0, 2: 0, 3: 0, 4: 0}
     for res in sweep_results:
         type_counts[res["he_type"]] += 1
-    print(f"       HE types: I={type_counts[1]} II={type_counts[2]}"
-          f" III={type_counts[3]} IV={type_counts[4]}")
+    print(
+        f"       HE types: I={type_counts[1]} II={type_counts[2]}"
+        f" III={type_counts[3]} IV={type_counts[4]}"
+    )
 
     # Criterion E: Global - unit lapse -> M_ADM = 0 (no gravitational mass)
     M_adm = 0.0  # Natário class has M_ADM = 0 by construction
@@ -291,15 +321,19 @@ def _evaluate_natario_class(metric, label, *, n_sweep=50, r_range=(0.5, 500.0)):
         "name": label,
         "criteria": {
             "A_regularity": {"pass": regularity, "detail": "C^inf tanh profiles"},
-            "B_constraints": {"pass": constraints_pass,
-                              "max_eps_H": max_eps_H, "max_eps_M": max_eps_M},
-            "C_matter_model": {"pass": False,
-                               "detail": "N/A - metric-first, no source prescribed"},
-            "D_ec_margins": {"pass": ec_pass,
-                             "violated": n_violated, "min_margins": min_margins},
-            "E_global": {"pass": False, "M_ADM": M_adm,
-                         "asymptotic_flat": af_pass,
-                         "detail": "M_ADM=0 (Natário class)"},
+            "B_constraints": {
+                "pass": constraints_pass,
+                "max_eps_H": max_eps_H,
+                "max_eps_M": max_eps_M,
+            },
+            "C_matter_model": {"pass": False, "detail": "N/A - metric-first, no source prescribed"},
+            "D_ec_margins": {"pass": ec_pass, "violated": n_violated, "min_margins": min_margins},
+            "E_global": {
+                "pass": False,
+                "M_ADM": M_adm,
+                "asymptotic_flat": af_pass,
+                "detail": "M_ADM=0 (Natário class)",
+            },
         },
         "he_type_census": type_counts,
         "transport": transport_results,
@@ -312,8 +346,10 @@ def evaluate_rodal():
     """5-criterion evaluation of the Rodal irrotational metric."""
     metric = RodalMetric(v_s=0.1, R=100.0, sigma=0.03)
     return _evaluate_natario_class(
-        metric, "Rodal Irrotational Warp Drive",
-        n_sweep=50, r_range=(0.5, 500.0),
+        metric,
+        "Rodal Irrotational Warp Drive",
+        n_sweep=50,
+        r_range=(0.5, 500.0),
     )
 
 
@@ -321,8 +357,10 @@ def evaluate_lentz():
     """5-criterion evaluation of the Lentz soliton metric."""
     metric = LentzMetric(v_s=0.1, R=100.0, sigma=8.0)
     return _evaluate_natario_class(
-        metric, "Lentz Diamond Soliton",
-        n_sweep=50, r_range=(0.5, 500.0),
+        metric,
+        "Lentz Diamond Soliton",
+        n_sweep=50,
+        r_range=(0.5, 500.0),
     )
 
 
@@ -364,8 +402,7 @@ def _print_summary_table(reports):
     print("VERDICT:")
     for r in reports:
         all_pass = all(
-            c["pass"] for c in r["criteria"].values()
-            if not c.get("detail", "").startswith("N/A")
+            c["pass"] for c in r["criteria"].values() if not c.get("detail", "").startswith("N/A")
         )
         verdict = "ADMISSIBLE" if all_pass else "NOT ADMISSIBLE"
         print(f"  {r['name']}: {verdict}")
@@ -387,17 +424,15 @@ def run_all_evaluations():
 
     # Save combined JSON report
     from pathlib import Path
-    report_path = Path(__file__).resolve().parents[1] / "results" / "proposals_verification_report.json"
+
+    report_path = (
+        Path(__file__).resolve().parents[1] / "results" / "proposals_verification_report.json"
+    )
     report_path.parent.mkdir(parents=True, exist_ok=True)
     combined = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "proposals": {r["name"]: r for r in reports},
-        "summary": {
-            r["name"]: {
-                k: v["pass"] for k, v in r["criteria"].items()
-            }
-            for r in reports
-        },
+        "summary": {r["name"]: {k: v["pass"] for k, v in r["criteria"].items()} for r in reports},
     }
     dump_json(combined, report_path, default=str)
     print(f"Combined report: {report_path}")

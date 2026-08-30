@@ -49,6 +49,7 @@ Conventions match :mod:`warpax.geometry.geometry` and
 Minkowskian (``l.n = -1``, ``m.mbar = +1``), exact as ``g -> eta`` at large
 ``r``, which is where peeling is read.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -103,11 +104,11 @@ def _null_tetrad(c: float, s: float, axis: int):
     (``eta(m, mbar) = +1``).
     """
     nhat = _unit_dir(c, s, axis)
-    e_theta = _unit_dir(-s, c, axis)            # in-plane transverse (d nhat / d theta)
+    e_theta = _unit_dir(-s, c, axis)  # in-plane transverse (d nhat / d theta)
     perp = 1 + (axis % 3)
     rem = ({0, 1, 2} - {axis - 1, perp - 1}).pop()
     e_phi = np.zeros(3)
-    e_phi[rem] = 1.0                            # out-of-plane transverse unit
+    e_phi[rem] = 1.0  # out-of-plane transverse unit
     l_up = np.array([1.0, *nhat])
     n_up = np.array([1.0, *(-nhat)]) * 0.5
     m_up = np.concatenate([[0.0], (e_theta + 1j * e_phi) / np.sqrt(2.0)])
@@ -139,8 +140,8 @@ def weyl_scalars(res, c: float, s: float, axis: int = 1) -> np.ndarray:
     (5,) complex ``np.ndarray`` ``[Psi0, Psi1, Psi2, Psi3, Psi4]``.
     """
     g = np.array(res.metric)
-    Rmix = np.array(res.riemann)                # R^a_{bcd}
-    Ric = np.array(res.ricci)                   # R_{ab}
+    Rmix = np.array(res.riemann)  # R^a_{bcd}
+    Ric = np.array(res.ricci)  # R_{ab}
     Rs = float(res.ricci_scalar)
 
     Rdown = np.einsum("ae,ebcd->abcd", g, Rmix)  # R_{abcd}
@@ -150,9 +151,7 @@ def weyl_scalars(res, c: float, s: float, axis: int = 1) -> np.ndarray:
         - np.einsum("bc,ad->abcd", g, Ric)
         + np.einsum("bd,ac->abcd", g, Ric)
     )
-    scalar_part = (Rs / 6.0) * (
-        np.einsum("ac,bd->abcd", g, g) - np.einsum("ad,bc->abcd", g, g)
-    )
+    scalar_part = (Rs / 6.0) * (np.einsum("ac,bd->abcd", g, g) - np.einsum("ad,bc->abcd", g, g))
     C = Rdown - ricci_part + scalar_part
 
     l, n, m = _null_tetrad(c, s, axis)

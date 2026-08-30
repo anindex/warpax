@@ -1,4 +1,5 @@
 """Tests for the cross-construction adapter."""
+
 from __future__ import annotations
 
 import jax.numpy as jnp
@@ -17,8 +18,7 @@ from warpax.geometry.metric import MetricSpecification
 class TestRegistry:
     def test_registry_has_all_constructions(self):
         reg = construction_registry()
-        expected = ("Alcubierre", "Rodal", "Fuchs", "WarpShell",
-                    "Garattini", "S-shell", "T-shell")
+        expected = ("Alcubierre", "Rodal", "Fuchs", "WarpShell", "Garattini", "S-shell", "T-shell")
         for name in expected:
             assert name in reg
             assert isinstance(reg[name], ConstructionSpec)
@@ -81,8 +81,9 @@ def test_garattini_wall_resolves_when_the_reduction_is_bubble_centred():
         assert center == pytest.approx(metric.v_s / metric.H), "centre is r_0 = v_s / H"
         assert center != 0.0, "the whole point is that the bubble is off-origin"
 
-        grid = axisymmetric_grid(spec.r_max, 32, 32, wall_radius=spec.wall_radius,
-                                 a=spec.cluster_a, center=center)
+        grid = axisymmetric_grid(
+            spec.r_max, 32, 32, wall_radius=spec.wall_radius, a=spec.cluster_a, center=center
+        )
         axis = center + np.concatenate([-grid.r[::-1], grid.r])
         assert wall_cells_on_axis(metric, axis).cells >= 4.0
 
@@ -99,9 +100,7 @@ def test_axisymmetric_center_shifts_only_the_axis():
 
     a = axisymmetric_grid(3.0, 12, 8, wall_radius=1.0)
     b = axisymmetric_grid(3.0, 12, 8, wall_radius=1.0, center=2.5)
-    np.testing.assert_allclose(np.asarray(b.coords)[:, 1],
-                               np.asarray(a.coords)[:, 1] + 2.5)
+    np.testing.assert_allclose(np.asarray(b.coords)[:, 1], np.asarray(a.coords)[:, 1] + 2.5)
     for col in (0, 2, 3):
-        np.testing.assert_array_equal(np.asarray(b.coords)[:, col],
-                                      np.asarray(a.coords)[:, col])
+        np.testing.assert_array_equal(np.asarray(b.coords)[:, col], np.asarray(a.coords)[:, col])
     np.testing.assert_array_equal(b.weights, a.weights)

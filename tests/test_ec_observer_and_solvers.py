@@ -147,9 +147,9 @@ class TestTetradSuperluminal:
         the all-velocity validity of the ADM-normal frame the certifier relies
         on (and guards against confusing g_{00} with g^{00})."""
         metric = AlcubierreMetric(v_s=2.0, R=1.0, sigma=8.0, x_s=0.0)
-        g = metric(jnp.array([0.0, 0.0, 0.0, 0.0]))   # center: f=1, g_00=+3
-        assert float(g[0, 0]) > 0.0                    # coordinate time spacelike
-        assert float(jnp.linalg.inv(g)[0, 0]) < 0.0    # slice normal still timelike
+        g = metric(jnp.array([0.0, 0.0, 0.0, 0.0]))  # center: f=1, g_00=+3
+        assert float(g[0, 0]) > 0.0  # coordinate time spacelike
+        assert float(jnp.linalg.inv(g)[0, 0]) < 0.0  # slice normal still timelike
         tetrad = compute_orthonormal_tetrad(g)
         deviation = _orthonormality_check(tetrad, g)
         np.testing.assert_allclose(deviation, jnp.zeros((4, 4)), atol=1e-10)
@@ -167,11 +167,13 @@ class TestTetradJITVmap:
 
     def test_vmap_batch(self):
         """jax.vmap(compute_orthonormal_tetrad) over batch of metrics."""
-        metrics = jnp.stack([
-            ETA,
-            SchwarzschildMetric(M=1.0)(jnp.array([0.0, 3.0, 0.0, 0.0])),
-            ETA,
-        ])
+        metrics = jnp.stack(
+            [
+                ETA,
+                SchwarzschildMetric(M=1.0)(jnp.array([0.0, 3.0, 0.0, 0.0])),
+                ETA,
+            ]
+        )
         vmap_fn = jax.vmap(compute_orthonormal_tetrad)
         tetrads = vmap_fn(metrics)
         assert tetrads.shape == (3, 4, 4)
@@ -220,9 +222,7 @@ class TestTimelikeFromRapidity:
         coords = jnp.array([0.0, 3.0, 0.0, 0.0])
         g = metric(coords)
         tetrad = compute_orthonormal_tetrad(g)
-        u = timelike_from_rapidity(
-            jnp.float64(2.0), jnp.float64(0.7), jnp.float64(1.2), tetrad
-        )
+        u = timelike_from_rapidity(jnp.float64(2.0), jnp.float64(0.7), jnp.float64(1.2), tetrad)
         norm = jnp.einsum("a,ab,b->", u, g, u)
         np.testing.assert_allclose(norm, -1.0, atol=1e-12)
 
@@ -681,7 +681,9 @@ class TestWallRestrictedStats:
         # Mask: all True except index 5
         self.mask = jnp.array([True, True, True, True, True, False])
         self.ec_result = _make_synthetic_ec_result(
-            self.grid_shape, self.he_types, self.nec_margins,
+            self.grid_shape,
+            self.he_types,
+            self.nec_margins,
         )
 
     def test_wall_restricted_stats_type_counts(self):
@@ -736,7 +738,9 @@ class TestWallRestrictedStatsMissRate:
         self.eulerian_nec = jnp.array([0.5, 0.5, -0.5, -0.5])
         self.mask = jnp.ones(self.grid_shape, dtype=bool)
         self.ec_result = _make_synthetic_ec_result(
-            self.grid_shape, self.he_types, self.robust_nec,
+            self.grid_shape,
+            self.he_types,
+            self.robust_nec,
         )
 
     def test_wall_restricted_stats_miss_rate(self):
@@ -748,7 +752,9 @@ class TestWallRestrictedStatsMissRate:
             "dec": jnp.zeros(self.grid_shape),
         }
         stats = compute_wall_restricted_stats(
-            self.ec_result, self.mask, eulerian_margins=eulerian_margins,
+            self.ec_result,
+            self.mask,
+            eulerian_margins=eulerian_margins,
         )
         # 4 robust-violated, 2 Eulerian-satisfied -> miss rate = 2/4 = 0.5
         assert stats.nec_miss_rate == pytest.approx(0.5), (
@@ -770,7 +776,9 @@ class TestWallRestrictedStatsMissRate:
             "dec": jnp.ones(self.grid_shape),
         }
         stats = compute_wall_restricted_stats(
-            ec_positive, self.mask, eulerian_margins=eulerian_margins,
+            ec_positive,
+            self.mask,
+            eulerian_margins=eulerian_margins,
         )
         assert stats.nec_miss_rate is None, (
             f"Expected nec_miss_rate=None, got {stats.nec_miss_rate}"
@@ -874,9 +882,7 @@ class TestKinematicScalarsLapseGuard:
         def constant_metric(coords):
             return almost_g
 
-        theta, sigma_sq, omega_sq = compute_kinematic_scalars(
-            constant_metric, jnp.zeros(4)
-        )
+        theta, sigma_sq, omega_sq = compute_kinematic_scalars(constant_metric, jnp.zeros(4))
         assert jnp.isfinite(theta)
         assert jnp.isfinite(sigma_sq)
         assert jnp.isfinite(omega_sq)
@@ -915,7 +921,11 @@ class TestStartsFibonacciPool:
         key = jax.random.PRNGKey(7)
         r_axis = optimize_wec(T, g, key=key, starts="axis+gaussian", n_starts=16)
         r_fib = optimize_wec(
-            T, g, key=key, starts="fibonacci+bfgs_top_k", n_starts=16,
+            T,
+            g,
+            key=key,
+            starts="fibonacci+bfgs_top_k",
+            n_starts=16,
         )
         assert r_fib.margin <= r_axis.margin + 1e-9
 
@@ -930,7 +940,9 @@ class TestStartsFibonacciPool:
         """Orthogonal kwargs: strategy + starts compose without conflict."""
         T, g, key = self._bench_inputs()
         r = optimize_wec(
-            T, g, key=key,
+            T,
+            g,
+            key=key,
             strategy="hard_bound",
             starts="fibonacci+bfgs_top_k",
         )
@@ -940,18 +952,17 @@ class TestStartsFibonacciPool:
 
     def test_golden_fixture_metadata_and_determinism(self):
         """Golden header fields present; fibonacci+bfgs_top_k is seed-deterministic."""
-        fixture_path = (
-            Path(__file__).parent
-            / "fixtures"
-            / "golden"
-            / "fibonacci_pool.npy"
-        )
+        fixture_path = Path(__file__).parent / "fixtures" / "golden" / "fibonacci_pool.npy"
         assert fixture_path.exists(), f"golden fixture missing: {fixture_path}"
 
         d = np.load(fixture_path, allow_pickle=True).item()
         for k in (
-            "warpax_version", "jaxlib_version", "jax_random_seed",
-            "backend", "starts", "strategy",
+            "warpax_version",
+            "jaxlib_version",
+            "jax_random_seed",
+            "backend",
+            "starts",
+            "strategy",
         ):
             assert k in d, f"fixture missing required key: {k!r}"
         assert d["starts"] == "fibonacci+bfgs_top_k"
@@ -965,7 +976,10 @@ class TestStartsFibonacciPool:
         T, g = chain.stress_energy[0, 0, 0], chain.metric[0, 0, 0]
         key = jax.random.PRNGKey(int(d["jax_random_seed"]))
         kwargs = dict(
-            key=key, starts=d["starts"], strategy=d["strategy"], n_starts=16,
+            key=key,
+            starts=d["starts"],
+            strategy=d["strategy"],
+            n_starts=16,
         )
         r1 = optimize_wec(T, g, **kwargs)
         r2 = optimize_wec(T, g, **kwargs)
@@ -1017,8 +1031,11 @@ class TestSpatialNeighborWarmStart:
         neighbor = r_cold.worst_observer
         # Smoke check of the public path on a real optimizer output.
         r_neighbor = optimize_wec(
-            T, g, warm_start="spatial_neighbor",
-            neighbor_observer=neighbor, key=jax.random.PRNGKey(43),
+            T,
+            g,
+            warm_start="spatial_neighbor",
+            neighbor_observer=neighbor,
+            key=jax.random.PRNGKey(43),
         )
         assert jnp.isfinite(r_neighbor.margin)
 
@@ -1029,7 +1046,13 @@ class TestSpatialNeighborWarmStart:
         pool = _make_initial_conditions_3d(n_starts, zeta_max, jax.random.PRNGKey(0))
         tetrad = compute_orthonormal_tetrad(g)
         out = _inject_neighbor_start(
-            pool, neighbor, tetrad, g, zeta_max, 1.0 / 16.0, "spatial_neighbor",
+            pool,
+            neighbor,
+            tetrad,
+            g,
+            zeta_max,
+            1.0 / 16.0,
+            "spatial_neighbor",
         )
         n_swap = max(1, round(n_starts / 16))
         w_neighbor = _observer_to_boost_vector(neighbor, tetrad, g, zeta_max)
@@ -1041,11 +1064,23 @@ class TestSpatialNeighborWarmStart:
 
         # cold mode and a missing neighbor both leave the pool unchanged.
         out_cold = _inject_neighbor_start(
-            pool, neighbor, tetrad, g, zeta_max, 1.0 / 16.0, "cold",
+            pool,
+            neighbor,
+            tetrad,
+            g,
+            zeta_max,
+            1.0 / 16.0,
+            "cold",
         )
         assert jnp.array_equal(out_cold, pool)
         out_no_neighbor = _inject_neighbor_start(
-            pool, None, tetrad, g, zeta_max, 1.0 / 16.0, "spatial_neighbor",
+            pool,
+            None,
+            tetrad,
+            g,
+            zeta_max,
+            1.0 / 16.0,
+            "spatial_neighbor",
         )
         assert jnp.array_equal(out_no_neighbor, pool)
 
@@ -1113,7 +1148,7 @@ class TestGeneralizedSolverStability:
         T_flat = np.asarray(chain.stress_energy.reshape(-1, 4, 4))
         g_flat = np.asarray(chain.metric.reshape(-1, 4, 4))
         g_inv_flat = np.asarray(chain.metric_inv.reshape(-1, 4, 4))
-        T_mixed_flat = np.einsum('nab,nbc->nac', g_inv_flat, T_flat)
+        T_mixed_flat = np.einsum("nab,nbc->nac", g_inv_flat, T_flat)
 
         classify_v = jax.vmap(classify_hawking_ellis, in_axes=(0, 0))
         he_types = np.asarray(
@@ -1121,27 +1156,21 @@ class TestGeneralizedSolverStability:
         ).astype(int)
         type_iv_flat = np.where(he_types == 4)[0]
         rng = np.random.default_rng(seed=20260418)
-        sampled = np.sort(
-            rng.choice(
-                type_iv_flat, size=min(200, len(type_iv_flat)), replace=False
-            )
-        )
+        sampled = np.sort(rng.choice(type_iv_flat, size=min(200, len(type_iv_flat)), replace=False))
         if len(sampled) < 9:
-            pytest.skip(
-                f"WarpShell idx=8 requires ≥9 Type-IV points; got {len(sampled)}"
-            )
+            pytest.skip(f"WarpShell idx=8 requires ≥9 Type-IV points; got {len(sampled)}")
         idx_8_flat = int(sampled[8])
         return {
-            'T_ab': T_flat[idx_8_flat],
-            'g_ab': g_flat[idx_8_flat],
-            'T_mixed': T_mixed_flat[idx_8_flat],
-            'idx_8_flat': idx_8_flat,
+            "T_ab": T_flat[idx_8_flat],
+            "g_ab": g_flat[idx_8_flat],
+            "T_mixed": T_mixed_flat[idx_8_flat],
+            "idx_8_flat": idx_8_flat,
         }
 
     def test_standard_solver_perturbation_reproducible(self, warpshell_idx_8_inputs):
         """Machine-epsilon perturbations must not flip he_type at pinned idx=8."""
-        g_ab = warpshell_idx_8_inputs['g_ab']
-        T_mixed = warpshell_idx_8_inputs['T_mixed']
+        g_ab = warpshell_idx_8_inputs["g_ab"]
+        T_mixed = warpshell_idx_8_inputs["T_mixed"]
 
         he_types = []
         for seed in SEEDS:
@@ -1161,9 +1190,9 @@ class TestGeneralizedSolverStability:
         The modal he_type count MUST equal N_SEEDS (i.e. all 10 seeds classify
         the same way).
         """
-        T_ab = warpshell_idx_8_inputs['T_ab']
-        g_ab = warpshell_idx_8_inputs['g_ab']
-        T_mixed = warpshell_idx_8_inputs['T_mixed']
+        T_ab = warpshell_idx_8_inputs["T_ab"]
+        g_ab = warpshell_idx_8_inputs["g_ab"]
+        T_mixed = warpshell_idx_8_inputs["T_mixed"]
 
         he_types = []
         for seed in SEEDS:
@@ -1173,8 +1202,10 @@ class TestGeneralizedSolverStability:
             eps_ab = rng.standard_normal(T_ab.shape) * np.finfo(np.float64).eps
             T_ab_pert = jnp.asarray(T_ab + eps_ab)
             r = classify_hawking_ellis(
-                T_mixed_pert, jnp.asarray(g_ab),
-                solver='generalized', T_ab=T_ab_pert,
+                T_mixed_pert,
+                jnp.asarray(g_ab),
+                solver="generalized",
+                T_ab=T_ab_pert,
             )
             he_types.append(int(r.he_type))
         dist = Counter(he_types)
@@ -1198,33 +1229,34 @@ class TestGeneralizedSolverStability:
             classify_hawking_ellis_mpmath,
         )
 
-        T_mixed = np.asarray(warpshell_idx_8_inputs['T_mixed'])
-        g_ab = np.asarray(warpshell_idx_8_inputs['g_ab'])
+        T_mixed = np.asarray(warpshell_idx_8_inputs["T_mixed"])
+        g_ab = np.asarray(warpshell_idx_8_inputs["g_ab"])
 
         result = classify_hawking_ellis_mpmath(T_mixed, g_ab)
-        uncertain = bool(result['uncertain'])
-        cond_V = float(result['cond_V'])
-        print(
-            f"\n[cond_V diagnostic] idx=8 uncertain={uncertain}, "
-            f"cond_V={cond_V:.3e}"
-        )
+        uncertain = bool(result["uncertain"])
+        cond_V = float(result["cond_V"])
+        print(f"\n[cond_V diagnostic] idx=8 uncertain={uncertain}, cond_V={cond_V:.3e}")
         assert np.isfinite(cond_V), f"cond_V must be finite; got {cond_V}"
-        assert isinstance(uncertain, bool), (
-            f"uncertain must be bool; got {type(uncertain)}"
-        )
+        assert isinstance(uncertain, bool), f"uncertain must be bool; got {type(uncertain)}"
 
     def test_auto_solver_matches_generalized(self, warpshell_idx_8_inputs):
         """solver='auto' reclassifies ill-conditioned points like generalized."""
-        T_ab = jnp.asarray(warpshell_idx_8_inputs['T_ab'])
-        g_ab = jnp.asarray(warpshell_idx_8_inputs['g_ab'])
-        T_mixed = jnp.asarray(warpshell_idx_8_inputs['T_mixed'])
+        T_ab = jnp.asarray(warpshell_idx_8_inputs["T_ab"])
+        g_ab = jnp.asarray(warpshell_idx_8_inputs["g_ab"])
+        T_mixed = jnp.asarray(warpshell_idx_8_inputs["T_mixed"])
         r_auto = classify_with_solver(T_mixed, g_ab, T_ab, solver="auto")
         r_gen = classify_hawking_ellis(
-            T_mixed, g_ab, solver="generalized", T_ab=T_ab,
+            T_mixed,
+            g_ab,
+            solver="generalized",
+            T_ab=T_ab,
         )
         assert int(r_auto.he_type) == int(r_gen.he_type)
         npt.assert_allclose(
-            np.asarray(r_auto.rho), np.asarray(r_gen.rho), rtol=0.0, atol=1e-10,
+            np.asarray(r_auto.rho),
+            np.asarray(r_gen.rho),
+            rtol=0.0,
+            atol=1e-10,
         )
 
 
@@ -1255,9 +1287,9 @@ GOLDEN = np.array(
 
 def test_golden_starter_pool_at_default_config():
     """The canonical starter pool must match the captured values bit-for-bit."""
-    ic = np.asarray(_make_initial_conditions_3d(
-        n_starts=16, zeta_max=5.0, key=jax.random.PRNGKey(42)
-    ))
+    ic = np.asarray(
+        _make_initial_conditions_3d(n_starts=16, zeta_max=5.0, key=jax.random.PRNGKey(42))
+    )
     assert ic.shape == GOLDEN.shape
     assert ic.dtype == GOLDEN.dtype
     npt.assert_allclose(ic, GOLDEN, rtol=0.0, atol=1e-14)
@@ -1364,12 +1396,14 @@ class TestMpmathClassifier:
         """
         # Same fixture as the float64 contract test
         T_mixed = np.diag(np.array([-1.0, 0.3, 0.3, 0.3]))
-        g_ab = np.array([
-            [-0.12, 0.05, 0.05, 0.0],
-            [0.05,   1.5, 0.3,  0.2],
-            [0.05,   0.3, 1.5,  0.1],
-            [0.0,    0.2, 0.1,  1.5],
-        ])
+        g_ab = np.array(
+            [
+                [-0.12, 0.05, 0.05, 0.0],
+                [0.05, 1.5, 0.3, 0.2],
+                [0.05, 0.3, 1.5, 0.1],
+                [0.0, 0.2, 0.1, 1.5],
+            ]
+        )
 
         mp_result = classify_hawking_ellis_mpmath(T_mixed, g_ab, precision=50)
         assert mp_result["he_type"] == 1, (
@@ -1392,9 +1426,7 @@ class TestVerifyClassificationAtPoints:
         g_batch = np.stack([np.asarray(MINKOWSKI)] * 2, axis=0)
         float64_types = np.array([1, 1], dtype=np.int32)
 
-        report = verify_classification_at_points(
-            T_batch, g_batch, float64_types, precision=50
-        )
+        report = verify_classification_at_points(T_batch, g_batch, float64_types, precision=50)
 
         assert report["n_points"] == 2
         assert report["n_flips"] == 1
@@ -1409,9 +1441,7 @@ class TestVerifyClassificationAtPoints:
         g_batch = np.zeros((0, 4, 4))
         float64_types = np.zeros((0,), dtype=np.int32)
 
-        report = verify_classification_at_points(
-            T_batch, g_batch, float64_types, precision=50
-        )
+        report = verify_classification_at_points(T_batch, g_batch, float64_types, precision=50)
 
         assert report["n_points"] == 0
         assert report["n_flips"] == 0
@@ -1419,16 +1449,16 @@ class TestVerifyClassificationAtPoints:
 
     def test_batch_exposes_cond_v_per_point(self) -> None:
         """batch verify exposes cond_V_per_point + uncertain_mask."""
-        T_batch = np.stack([
-            np.asarray(_perfect_fluid(rho=1.0, p=0.3)),
-            np.asarray(_perfect_fluid(rho=2.0, p=0.5)),
-        ])
+        T_batch = np.stack(
+            [
+                np.asarray(_perfect_fluid(rho=1.0, p=0.3)),
+                np.asarray(_perfect_fluid(rho=2.0, p=0.5)),
+            ]
+        )
         g_batch = np.stack([np.asarray(MINKOWSKI), np.asarray(MINKOWSKI)])
         float64_he = np.array([1, 1], dtype=np.int32)
 
-        report = verify_classification_at_points(
-            T_batch, g_batch, float64_he, precision=50
-        )
+        report = verify_classification_at_points(T_batch, g_batch, float64_he, precision=50)
 
         assert "cond_V_per_point" in report
         assert "uncertain_mask" in report
@@ -1468,14 +1498,23 @@ class TestCondV:
             f"got uncertain={result['uncertain']}, cond_V={result['cond_V']}"
         )
         # Threshold for precision=50 is 10^25; clean fluid should be well below.
-        assert result["cond_V"] < 10 ** 10, (
-            f"Expected cond_V < 1e10 for clean perfect fluid; "
-            f"got cond_V={result['cond_V']}"
+        assert result["cond_V"] < 10**10, (
+            f"Expected cond_V < 1e10 for clean perfect fluid; got cond_V={result['cond_V']}"
         )
         # Existing keys still present (additivity contract)
-        for k in ("he_type", "all_real", "near_vacuum", "n_timelike",
-                  "n_null", "n_unique", "max_imag_abs", "max_real_abs",
-                  "eigenvalues_real", "eigenvalues_imag", "precision"):
+        for k in (
+            "he_type",
+            "all_real",
+            "near_vacuum",
+            "n_timelike",
+            "n_null",
+            "n_unique",
+            "max_imag_abs",
+            "max_real_abs",
+            "eigenvalues_real",
+            "eigenvalues_imag",
+            "precision",
+        ):
             assert k in result, f"existing key {k!r} dropped from return dict"
 
     def test_jordan_defective_flags_uncertain(self) -> None:
@@ -1494,12 +1533,14 @@ class TestCondV:
         physically-meaningful fixture for the Bauer-Fike diagnostic.
         """
         # EXACT Jordan block in top-left 2x2: (1,0) entry is 0.0.
-        T = np.array([
-            [1.0, 1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.5, 0.0],
-            [0.0, 0.0, 0.0, -0.3],
-        ])
+        T = np.array(
+            [
+                [1.0, 1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.5, 0.0],
+                [0.0, 0.0, 0.0, -0.3],
+            ]
+        )
         g = np.asarray(MINKOWSKI)
 
         result = classify_hawking_ellis_mpmath(T, g, precision=50)
@@ -1513,6 +1554,6 @@ class TestCondV:
             f"got uncertain={result['uncertain']}, cond_V={result['cond_V']}"
         )
         # cond_V should exceed the half-digit threshold 10^(50/2) = 10^25
-        assert result["cond_V"] > 10 ** 25 or result["cond_V"] == float("inf"), (
+        assert result["cond_V"] > 10**25 or result["cond_V"] == float("inf"), (
             f"Expected cond_V > 10^25 (or inf); got cond_V={result['cond_V']}"
         )

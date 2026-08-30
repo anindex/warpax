@@ -5,6 +5,7 @@ Sets rcParams for CQG (Classical and Quantum Gravity) compatible figures:
 - CQG single-column (3.39") and double-column (6.69") figure widths
 - 300 DPI for rasterised elements in saved figures, 150 DPI for screen display
 """
+
 from __future__ import annotations
 
 import shutil
@@ -28,8 +29,8 @@ if not USE_TEX:
     )
 
 
-SINGLE_COL: float = 3.39   # inches (CQG single column = 8.6 cm)
-DOUBLE_COL: float = 6.69   # inches (CQG double column = 17.0 cm)
+SINGLE_COL: float = 3.39  # inches (CQG single column = 8.6 cm)
+DOUBLE_COL: float = 6.69  # inches (CQG double column = 17.0 cm)
 
 
 STYLE_PARAMS: dict[str, object] = {
@@ -68,10 +69,10 @@ STYLE_PARAMS: dict[str, object] = {
 
 
 LINE_STYLES: list[dict[str, object]] = [
-    {"linestyle": "-",  "marker": "o", "markersize": 5},     # solid + circle
-    {"linestyle": "--", "marker": "s", "markersize": 5},     # dashed + square
-    {"linestyle": "-.", "marker": "^", "markersize": 5.5},   # dash-dot + triangle
-    {"linestyle": ":",  "marker": "D", "markersize": 4.5},   # dotted + diamond
+    {"linestyle": "-", "marker": "o", "markersize": 5},  # solid + circle
+    {"linestyle": "--", "marker": "s", "markersize": 5},  # dashed + square
+    {"linestyle": "-.", "marker": "^", "markersize": 5.5},  # dash-dot + triangle
+    {"linestyle": ":", "marker": "D", "markersize": 4.5},  # dotted + diamond
 ]
 
 COLORS: list[str] = [
@@ -87,13 +88,13 @@ COLORS: list[str] = [
 # the analysis scripts, including accents, so a metric keeps one color across
 # every figure. ``metric_color`` tolerates accent/spelling variants.
 METRIC_COLORS: dict[str, str] = {
-    "Alcubierre":     COLORS[0],  # blue
-    "Natário":        COLORS[4],  # amber
+    "Alcubierre": COLORS[0],  # blue
+    "Natário": COLORS[4],  # amber
     "Van den Broeck": COLORS[2],  # green
-    "Rodal":          COLORS[3],  # reddish purple
-    "WarpShell":      COLORS[5],  # sky blue
-    "Schwarzschild":  "#555555",  # neutral gray (vacuum control)
-    "Lentz":          COLORS[1],  # vermilion (appendix / excluded)
+    "Rodal": COLORS[3],  # reddish purple
+    "WarpShell": COLORS[5],  # sky blue
+    "Schwarzschild": "#555555",  # neutral gray (vacuum control)
+    "Lentz": COLORS[1],  # vermilion (appendix / excluded)
 }
 
 # Accent- and spelling-tolerant lookups for the same colors.

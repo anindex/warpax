@@ -13,6 +13,7 @@ at multiple polar angles at fixed radius (off the x-axis), at the binding
 radii r ~ R_1 = 10 and r ~ R_2 = 20. Compare to the x-axis radial-line
 value.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -46,12 +47,14 @@ def eulerian_E(metric, coords):
     g_inv = curv.metric_inv
     # ADM unit normal n^a = (1/alpha, -beta^i/alpha); alpha = (-g^{00})^{-1/2}
     alpha = 1.0 / jnp.sqrt(-g_inv[0, 0])
-    n_up = jnp.array([
-        1.0 / alpha,
-        -g_inv[0, 1] * alpha,
-        -g_inv[0, 2] * alpha,
-        -g_inv[0, 3] * alpha,
-    ])
+    n_up = jnp.array(
+        [
+            1.0 / alpha,
+            -g_inv[0, 1] * alpha,
+            -g_inv[0, 2] * alpha,
+            -g_inv[0, 3] * alpha,
+        ]
+    )
     return jnp.einsum("a,ab,b->", n_up, T, n_up)
 
 
@@ -70,7 +73,7 @@ def kterm_decomposition(metric):
 
         K_trace = jnp.einsum("ij,ij->", gamma_inv, K)
         K_sq = jnp.einsum("ij,kl,ik,jl", gamma_inv, gamma_inv, K, K)
-        kterm = K_trace**2 - K_sq          # the extrinsic-curvature part of H
+        kterm = K_trace**2 - K_sq  # the extrinsic-curvature part of H
         R = _spatial_ricci_scalar(metric, coords)
         E = eulerian_E(metric, coords)
         sixteen_pi_E = 16.0 * jnp.pi * E
@@ -84,21 +87,23 @@ def kterm_decomposition(metric):
         res = normalized_residuals(metric, coords)
         H_pub = R + kterm
 
-        rows.append({
-            "r": float(r),
-            "abs_kterm": float(jnp.abs(kterm)),
-            "abs_R": float(jnp.abs(R)),
-            "abs_16piE": float(jnp.abs(sixteen_pi_E)),
-            "abs_H_source": float(jnp.abs(H_source)),
-            "abs_H_pub": float(jnp.abs(H_pub)),
-            "epsilon_H_published": float(res["epsilon_H"]),
-            "K_trace": float(K_trace),
-            "K_sq": float(K_sq),
-            "beta_x": float(metric.shift(coords)[0]),
-            "ratio_kterm_over_16piE": float(jnp.abs(kterm) / (jnp.abs(sixteen_pi_E) + 1e-300)),
-            "ratio_kterm_over_Hpub": float(jnp.abs(kterm) / (jnp.abs(H_pub) + 1e-300)),
-            "ratio_kterm_over_R": float(jnp.abs(kterm) / (jnp.abs(R) + 1e-300)),
-        })
+        rows.append(
+            {
+                "r": float(r),
+                "abs_kterm": float(jnp.abs(kterm)),
+                "abs_R": float(jnp.abs(R)),
+                "abs_16piE": float(jnp.abs(sixteen_pi_E)),
+                "abs_H_source": float(jnp.abs(H_source)),
+                "abs_H_pub": float(jnp.abs(H_pub)),
+                "epsilon_H_published": float(res["epsilon_H"]),
+                "K_trace": float(K_trace),
+                "K_sq": float(K_sq),
+                "beta_x": float(metric.shift(coords)[0]),
+                "ratio_kterm_over_16piE": float(jnp.abs(kterm) / (jnp.abs(sixteen_pi_E) + 1e-300)),
+                "ratio_kterm_over_Hpub": float(jnp.abs(kterm) / (jnp.abs(H_pub) + 1e-300)),
+                "ratio_kterm_over_R": float(jnp.abs(kterm) / (jnp.abs(R) + 1e-300)),
+            }
+        )
 
     def peak(key):
         return max(row[key] for row in rows)
@@ -168,8 +173,11 @@ def angular_ec_at_radius(metric, r, label, n_theta=8, n_phi=16, n_starts=24):
             coords = point_at(r, float(th), float(ph))
             res = worst_min_margin_at_point(metric, coords, n_starts=n_starts)
             rec = {
-                "theta": float(th), "phi": float(ph),
-                "x": float(coords[1]), "y": float(coords[2]), "z": float(coords[3]),
+                "theta": float(th),
+                "phi": float(ph),
+                "x": float(coords[1]),
+                "y": float(coords[2]),
+                "z": float(coords[3]),
                 **res,
             }
             samples.append(rec)
@@ -191,7 +199,8 @@ def angular_ec_at_radius(metric, r, label, n_theta=8, n_phi=16, n_starts=24):
         "worst_angular_theta_phi": worst_loc,
         "ratio_worst_angular_over_worst_radial": (
             worst_angular["min_ndw"] / radial["min_ndw"]
-            if abs(radial["min_ndw"]) > 1e-300 else float("nan")
+            if abs(radial["min_ndw"]) > 1e-300
+            else float("nan")
         ),
         "radial_captures_binding": worst_angular["min_ndw"] >= radial["min_ndw"] - 1e-9,
         "samples": samples,

@@ -39,9 +39,7 @@ def _stable_logcosh(x: Float[Array, "..."]) -> Float[Array, "..."]:
     return abs_x + jnp.log1p(jnp.exp(-2.0 * abs_x)) - jnp.log(2.0)
 
 
-def _rodal_g_paper(
-    r: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
+def _rodal_g_paper(r: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
     """Paper-convention irrotational angular profile g(r) from Rodal Eq. (42).
 
     Rewritten as:
@@ -79,9 +77,7 @@ def _rodal_g_paper(
     return g_paper
 
 
-def _rodal_G(
-    r: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
+def _rodal_G(r: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
     """Lab-frame irrotational angular profile G(r) = 1 - g_paper(r).
 
     G(0) = 1, G(inf) = 0. Matches Alcubierre far-field convention.
@@ -181,20 +177,21 @@ class RodalMetric(ADMMetric):
         r_s = sp.sqrt(dx**2 + y**2 + z**2)
 
         # Alcubierre shape function (lab-frame radial profile)
-        f_alc = (
-            sp.tanh(sigma_val * (r_s + R_val))
-            - sp.tanh(sigma_val * (r_s - R_val))
-        ) / (2 * sp.tanh(sigma_val * R_val))
+        f_alc = (sp.tanh(sigma_val * (r_s + R_val)) - sp.tanh(sigma_val * (r_s - R_val))) / (
+            2 * sp.tanh(sigma_val * R_val)
+        )
 
         # Simplified x-only shift for symbolic form
         beta_x_sym = -v_s * f_alc
 
-        g = sp.Matrix([
-            [-(1 - beta_x_sym**2), beta_x_sym, 0, 0],
-            [beta_x_sym, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-(1 - beta_x_sym**2), beta_x_sym, 0, 0],
+                [beta_x_sym, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:

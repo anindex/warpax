@@ -12,6 +12,7 @@ independent spacetimes:
   * Vaidya monopole (isotropic mass loss): energy radiated, momentum zero ->
     steering is sourced by the l=1 dipole alone.
 """
+
 from __future__ import annotations
 
 import jax
@@ -44,7 +45,7 @@ def _make_krt(G0, M0=1.0, M1=0.05, OM=0.5):
             zdot = jax.jacfwd(worldline)(u)
             D = X - z
             r = -(_ETA @ zdot) @ D
-            F = -D[0] ** 2 + D[1] ** 2 + D[2] ** 2 + D[3] ** 2
+            F = -(D[0] ** 2) + D[1] ** 2 + D[2] ** 2 + D[3] ** 2
             return u - F / (2.0 * r), None
 
         u0 = X[0] - jnp.sqrt(X[1] ** 2 + X[2] ** 2 + X[3] ** 2)
@@ -96,9 +97,9 @@ def test_krt_flux_equals_recoil_and_is_gw_silent():
     # kinematic dP_B/du = mdot v + m a, with v=(1,0,0,0), a=(0,G0,0,0) at u=0
     kin = np.array([mdot0, m0 * G0, 0.0, 0.0])
 
-    assert res.ricci_max < 1e-8                      # exact solution
+    assert res.ricci_max < 1e-8  # exact solution
     np.testing.assert_allclose(res.flux, -kin, atol=1e-3)  # F = -dP_B/du (closure)
-    assert res.psi4_rms < 1e-6                       # Damour dipole: no gravitational news
+    assert res.psi4_rms < 1e-6  # Damour dipole: no gravitational news
 
 
 def test_schwarzschild_static_no_radiated_flux():
@@ -108,17 +109,17 @@ def test_schwarzschild_static_no_radiated_flux():
     res = radiated_momentum_flux(
         schw.__call__, cone, _rest_static, n_theta=24, radii=(40.0, 80.0, 160.0)
     )
-    assert np.linalg.norm(res.flux) < 1e-3           # P_B constant => cannot self-accelerate
+    assert np.linalg.norm(res.flux) < 1e-3  # P_B constant => cannot self-accelerate
     assert res.psi4_rms < 1e-6
 
 
 def test_vaidya_monopole_radiates_energy_not_momentum():
     """Isotropic mass loss (straight worldline): energy flux = mdot, momentum = 0."""
-    metric_fn, m_of = _make_krt(G0=1e-8)             # G0 -> 0: spherical Vaidya
+    metric_fn, m_of = _make_krt(G0=1e-8)  # G0 -> 0: spherical Vaidya
     res = radiated_momentum_flux(
         metric_fn, _krt_cone, _rest_static, n_theta=24, radii=(4.0, 8.0), richardson=False
     )
     mdot0 = float(jax.jacfwd(m_of)(0.0))
     assert res.ricci_max < 1e-8
-    assert abs(res.energy_flux + mdot0) < 1e-3       # F^0 = -mdot
-    assert abs(res.momentum_flux[0]) < 1e-3          # zero radiated momentum
+    assert abs(res.energy_flux + mdot0) < 1e-3  # F^0 = -mdot
+    assert abs(res.momentum_flux[0]) < 1e-3  # zero radiated momentum

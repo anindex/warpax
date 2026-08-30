@@ -41,6 +41,7 @@ Conventions match :mod:`warpax.geometry.geometry`: ``riemann`` is
    about ``axis`` (the phi integral is done analytically, killing the
    off-axis momentum components); a full-sphere variant is a direct extension.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -101,7 +102,7 @@ def _matter_amplitude(
     """``n^2 = r^2 (u.T.u)`` and ``|Ricci|`` at one cone point."""
     res = compute_curvature_chain(metric_fn, X)
     T = res.stress_energy
-    n2 = (r_lum ** 2) * (u_rest @ T @ u_rest)
+    n2 = (r_lum**2) * (u_rest @ T @ u_rest)
     return float(n2), float(jnp.abs(res.ricci_scalar)), res
 
 
@@ -113,19 +114,19 @@ def _psi4_at(res, c: float, s: float, axis: int) -> float:
     ``m = (0, e_theta + i e_phi)/sqrt2`` transverse complex null leg.
     """
     nhat = _unit_dir(c, s, axis)
-    e_theta = _unit_dir(-s, c, axis)              # d nhat / d theta (in-plane transverse)
+    e_theta = _unit_dir(-s, c, axis)  # d nhat / d theta (in-plane transverse)
     # e_phi: the remaining spatial axis, orthogonal to both nhat and e_theta
-    perp = 1 + (axis % 3)                         # the axis carrying sin(theta)
+    perp = 1 + (axis % 3)  # the axis carrying sin(theta)
     rem = ({0, 1, 2} - {axis - 1, perp - 1}).pop()
     e_phi = np.zeros(3)
-    e_phi[rem] = 1.0                              # out-of-plane transverse unit
+    e_phi[rem] = 1.0  # out-of-plane transverse unit
 
-    nin_up = np.array([1.0, *(-nhat)]) * 0.5      # ingoing null n^a (l.n = -1)
+    nin_up = np.array([1.0, *(-nhat)]) * 0.5  # ingoing null n^a (l.n = -1)
     m_up = np.concatenate([[0.0], (e_theta + 1j * e_phi) / np.sqrt(2.0)])
     mbar = np.conj(m_up)
 
     g = np.array(res.metric)
-    Rmix = np.array(res.riemann)                  # R^a_{bcd}
+    Rmix = np.array(res.riemann)  # R^a_{bcd}
     # lower first index: R_{abcd} = g_{ae} R^e_{bcd}
     Rdown = np.einsum("ae,ebcd->abcd", g, Rmix)
     # Psi4 = C_{abcd} n^a mbar^b n^c mbar^d  (n here = ingoing null nin_up)
@@ -191,13 +192,13 @@ def radiated_momentum_flux(
         n2 = n2_by_r[-1]
 
     # oint f dOmega = 2 pi int_{-1}^{1} f dc  (axisymmetry kills the phi integral).
-    F0 = 2 * np.pi * np.sum(w * n2)                 # lhat^0 = 1
-    Faxis = 2 * np.pi * np.sum(w * n2 * c_nodes)    # lhat^axis = cos(theta)
+    F0 = 2 * np.pi * np.sum(w * n2)  # lhat^0 = 1
+    Faxis = 2 * np.pi * np.sum(w * n2 * c_nodes)  # lhat^axis = cos(theta)
     flux = np.zeros(4)
     flux[0] = F0
     flux[axis] = Faxis
 
-    psi4_rms = float(np.sqrt(np.mean(psi4_vals ** 2)))
+    psi4_rms = float(np.sqrt(np.mean(psi4_vals**2)))
     return BondiFluxResult(
         flux=flux,
         energy_flux=float(F0),

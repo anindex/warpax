@@ -9,6 +9,7 @@ If Flax or Orbax is missing, the loader raises :class:`ImportError` with
 an install hint. Tests use :func:`pytest.importorskip` when the optional
 ``einfields`` extra is not installed.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -36,9 +37,7 @@ def _sample_on_grid(
             f"sample_bounds and sample_shape must both describe 4D grids; "
             f"got {len(sample_bounds)} + {len(sample_shape)}"
         )
-    axes = [
-        np.linspace(lo, hi, n) for (lo, hi), n in zip(sample_bounds, sample_shape, strict=True)
-    ]
+    axes = [np.linspace(lo, hi, n) for (lo, hi), n in zip(sample_bounds, sample_shape, strict=True)]
     mesh = np.meshgrid(*axes, indexing="ij")
     coords = np.stack(mesh, axis=-1).reshape(-1, 4)  # (N, 4)
     out = np.zeros((coords.shape[0], 4, 4), dtype=np.float64)
@@ -118,9 +117,7 @@ def load_einfield(
     """
     checkpoint_path = Path(checkpoint_path)
     if not checkpoint_path.exists():
-        raise FileNotFoundError(
-            f"EinFields checkpoint not found: {checkpoint_path}"
-        )
+        raise FileNotFoundError(f"EinFields checkpoint not found: {checkpoint_path}")
 
     try:
         import orbax.checkpoint as ocp  # type: ignore[import-not-found]

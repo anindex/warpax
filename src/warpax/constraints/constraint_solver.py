@@ -15,6 +15,7 @@ For a static, spherically symmetric, flow-orthogonal shell:
 Metric potentials are returned as cubic spline interpolants (interpax)
 for C2-smooth evaluation through the curvature chain.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -107,10 +108,12 @@ def solve_sshell_potentials(
     # Cumulative mass: m(r) = 4pi int_0^r rho(r') r'^2 dr'
     rho_grid = jax.vmap(rho)(r_grid)
     integrand = 4.0 * jnp.pi * rho_grid * r_grid**2
-    m_grid = jnp.concatenate([
-        jnp.array([0.0]),
-        jnp.cumsum(0.5 * (integrand[:-1] + integrand[1:]) * dr),
-    ])
+    m_grid = jnp.concatenate(
+        [
+            jnp.array([0.0]),
+            jnp.cumsum(0.5 * (integrand[:-1] + integrand[1:]) * dr),
+        ]
+    )
 
     # Bug fix (total_mass static-leaf retrace): keep total_mass a jnp array
     # leaf, NOT a Python float. eqx.filter_jit partitions Python floats into
@@ -143,26 +146,37 @@ def solve_sshell_potentials(
     dPhi_dr = jnp.where(r_grid < R_1 * 0.5, 0.0, dPhi_dr)
 
     Phi_boundary = 0.5 * jnp.log(1.0 - 2.0 * total_mass / r_max)
-    forward_integral = jnp.concatenate([
-        jnp.array([0.0]),
-        jnp.cumsum(0.5 * (dPhi_dr[:-1] + dPhi_dr[1:]) * dr),
-    ])
+    forward_integral = jnp.concatenate(
+        [
+            jnp.array([0.0]),
+            jnp.cumsum(0.5 * (dPhi_dr[:-1] + dPhi_dr[1:]) * dr),
+        ]
+    )
     Phi_grid = Phi_boundary - (forward_integral[-1] - forward_integral)
 
     # Interpolated callables via interpax cubic splines
     def Phi_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(
-            jnp.clip(r, r_min, r_max), r_grid, Phi_grid, method="cubic",
+            jnp.clip(r, r_min, r_max),
+            r_grid,
+            Phi_grid,
+            method="cubic",
         )
 
     def Lambda_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(
-            jnp.clip(r, r_min, r_max), r_grid, Lambda_grid, method="cubic",
+            jnp.clip(r, r_min, r_max),
+            r_grid,
+            Lambda_grid,
+            method="cubic",
         )
 
     def m_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(
-            jnp.clip(r, r_min, r_max), r_grid, m_grid, method="cubic",
+            jnp.clip(r, r_min, r_max),
+            r_grid,
+            m_grid,
+            method="cubic",
         )
 
     return SShellPotentials(

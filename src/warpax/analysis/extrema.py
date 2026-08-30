@@ -21,6 +21,7 @@ search control, never as a discretization error.
 The field extractor is caller-supplied (e.g. wrapping
 ``certify_grid_frame_free``) so this stays generic over the diagnostic.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -105,7 +106,10 @@ def refine_extremum(
         bounds = [(float(center[i] - hw), float(center[i] + hw)) for i in range(3)]
         grid = GridSpec(bounds=bounds, shape=(n, n, n))
         curv = evaluate_curvature_grid(
-            metric, grid, batch_size=batch_size, t=t,
+            metric,
+            grid,
+            batch_size=batch_size,
+            t=t,
             compute_invariants=compute_invariants,
         )
         field = np.asarray(field_fn(curv)).reshape(n, n, n)
@@ -127,8 +131,10 @@ def refine_extremum(
     # on-wall diagnostic: shape function value at the extremum (band [0.05,0.95])
     try:
         import jax.numpy as jnp
-        f_here = float(metric.shape_function_value(
-            jnp.array([t, best_xyz[0], best_xyz[1], best_xyz[2]])))
+
+        f_here = float(
+            metric.shape_function_value(jnp.array([t, best_xyz[0], best_xyz[1], best_xyz[2]]))
+        )
     except (NotImplementedError, Exception):
         f_here = None
     return {

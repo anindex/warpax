@@ -16,6 +16,7 @@ the three coordinate *slabs* ``|x| \\approx R``, ``|y| \\approx R``,
 (the wall normal that the resolution criterion measures) this is exact; for a
 genuinely spherical refinement use a radial/angular grid instead.
 """
+
 from __future__ import annotations
 
 import jax
@@ -30,9 +31,7 @@ from ._volume_weights import compute_volume_weights
 __all__ = ["wall_clustered"]
 
 
-def _cosh_stretch(
-    u: Float[Array, "N"], u_wall: float, a: float
-) -> Float[Array, "N"]:
+def _cosh_stretch(u: Float[Array, "N"], u_wall: float, a: float) -> Float[Array, "N"]:
     """Map uniform ``u \\in [0, 1]`` to stretched ``[0, 1]`` anchored at ``u_wall``.
 
     Two-sided ``sinh`` map, each side normalized independently so that the wall
@@ -162,13 +161,10 @@ def wall_clustered(
         have different lengths.
     """
     if clustering != "cosh":
-        raise ValueError(
-            f"Only clustering='cosh' is supported; got {clustering!r}"
-        )
+        raise ValueError(f"Only clustering='cosh' is supported; got {clustering!r}")
     if len(bounds) != len(shape):
         raise ValueError(
-            f"bounds and shape must have the same length; got "
-            f"{len(bounds)} vs {len(shape)}"
+            f"bounds and shape must have the same length; got {len(bounds)} vs {len(shape)}"
         )
 
     if wall_radius is None:

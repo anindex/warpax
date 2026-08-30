@@ -2,12 +2,13 @@
 
 Shared base class for the three external-metric loaders:
 
-- :func:`warpax.io.load_warpfactory` 
-- :func:`warpax.io.load_einfield` 
-- :func:`warpax.io.load_cactus_slice` 
+- :func:`warpax.io.load_warpfactory`
+- :func:`warpax.io.load_einfield`
+- :func:`warpax.io.load_cactus_slice`
 
 Private module; consumers should import from :mod:`warpax.io`.
 """
+
 from __future__ import annotations
 
 import equinox as eqx
@@ -96,37 +97,28 @@ class InterpolatedADMMetric(ADMMetric):
             )
         if self.beta_grid.shape[-1] != 3:
             raise ValueError(
-                f"beta_grid must have trailing dim 3; got shape "
-                f"{self.beta_grid.shape}"
+                f"beta_grid must have trailing dim 3; got shape {self.beta_grid.shape}"
             )
         if self.gamma_grid.shape[-2:] != (3, 3):
             raise ValueError(
-                f"gamma_grid must have trailing dims (3, 3); got shape "
-                f"{self.gamma_grid.shape}"
+                f"gamma_grid must have trailing dims (3, 3); got shape {self.gamma_grid.shape}"
             )
         if self.interp_method not in ("linear", "cubic"):
             raise ValueError(
-                f"interp_method must be 'linear' or 'cubic'; got "
-                f"{self.interp_method!r}"
+                f"interp_method must be 'linear' or 'cubic'; got {self.interp_method!r}"
             )
 
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Lapse :math:`\\alpha(t, \\vec{x})` via grid interpolation."""
-        return _interpolate_scalar(
-            self.alpha_grid, coords, self.grid_spec, self.interp_method
-        )
+        return _interpolate_scalar(self.alpha_grid, coords, self.grid_spec, self.interp_method)
 
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         """Shift 3-vector :math:`\\beta^i(t, \\vec{x})` via grid interpolation."""
-        return _interpolate_vector(
-            self.beta_grid, coords, self.grid_spec, self.interp_method
-        )
+        return _interpolate_vector(self.beta_grid, coords, self.grid_spec, self.interp_method)
 
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
         """Spatial metric :math:`\\gamma_{ij}(t, \\vec{x})` via grid interpolation."""
-        return _interpolate_tensor(
-            self.gamma_grid, coords, self.grid_spec, self.interp_method
-        )
+        return _interpolate_tensor(self.gamma_grid, coords, self.grid_spec, self.interp_method)
 
     def symbolic(self):  # type: ignore[override]
         """Raise :class:`NotImplementedError` - no closed form for external data."""
@@ -136,9 +128,7 @@ class InterpolatedADMMetric(ADMMetric):
             "externally-loaded metrics."
         )
 
-    def shape_function_value(
-        self, coords: Float[Array, "4"]
-    ) -> Float[Array, ""]:
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Raise :class:`NotImplementedError` - shape function not inferable."""
         raise NotImplementedError(
             "Shape function for externally-loaded metric is not inferable "

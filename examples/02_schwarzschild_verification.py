@@ -23,7 +23,7 @@ print("Schwarzschild verification")
 print("=" * 40)
 print(f"Point: (t, x, y, z) = ({coords[0]}, {coords[1]}, {coords[2]}, {coords[3]})")
 
-r_iso = jnp.sqrt(coords[1]**2 + coords[2]**2 + coords[3]**2)
+r_iso = jnp.sqrt(coords[1] ** 2 + coords[2] ** 2 + coords[3] ** 2)
 print(f"Isotropic radius: {r_iso:.4f}")
 
 T_max = jnp.max(jnp.abs(result.stress_energy))

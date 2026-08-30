@@ -6,6 +6,7 @@ the Eulerian frame misses relative to a boost-optimized observer
 energy condition*, Phys. Rev. D 105, 064038 (2022),
 [arXiv:2105.03079](https://arxiv.org/abs/2105.03079)).
 """
+
 from __future__ import annotations
 
 import json
@@ -145,11 +146,7 @@ def compare_eulerian_vs_robust(
         # Statistics
         n_total = float(rob_margin.size)
         pct_m = float(jnp.sum(missed_mask.astype(jnp.float64))) / n_total * 100.0
-        pct_v = (
-            float(jnp.sum((rob_margin < -1e-10).astype(jnp.float64)))
-            / n_total
-            * 100.0
-        )
+        pct_v = float(jnp.sum((rob_margin < -1e-10).astype(jnp.float64))) / n_total * 100.0
 
         # Conditional miss rate: f_miss|viol = missed / violated
         cond_miss = pct_m / pct_v * 100.0 if pct_v > 0 else 0.0
@@ -241,12 +238,8 @@ def build_comparison_table(
 
                 row[f"{cond}_eulerian_min"] = float(np.nanmin(eul))
                 row[f"{cond}_robust_min"] = float(np.nanmin(rob))
-                row[f"{cond}_pct_violated_robust"] = float(
-                    n_violated / rob.size * 100
-                )
-                row[f"{cond}_pct_missed"] = float(
-                    n_missed / missed_mask.size * 100
-                )
+                row[f"{cond}_pct_violated_robust"] = float(n_violated / rob.size * 100)
+                row[f"{cond}_pct_missed"] = float(n_missed / missed_mask.size * 100)
                 # Conditional miss rate: f_miss|viol
                 row[f"{cond}_conditional_miss_rate"] = (
                     float(n_missed / n_violated * 100) if n_violated > 0 else 0.0

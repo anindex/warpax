@@ -23,6 +23,7 @@ Class II: has_matter and not is_shell_structured and
 shape_function_supported; Class I: no matter or pure-vacuum stationary
 metric; everything else -> 0 (unclassified).
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -56,8 +57,21 @@ class ClassifiedMetric(NamedTuple):
 # horizon. Off-axis to avoid y=z=0 degeneracies. Spans ~3 decades on
 # logarithmic scale.
 _DEFAULT_RADIAL_PROBES: tuple[float, ...] = (
-    0.3, 0.6, 1.0, 1.5, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 50.0,
-    75.0, 100.0, 120.0, 150.0,
+    0.3,
+    0.6,
+    1.0,
+    1.5,
+    2.5,
+    5.0,
+    10.0,
+    15.0,
+    20.0,
+    30.0,
+    50.0,
+    75.0,
+    100.0,
+    120.0,
+    150.0,
 )
 
 
@@ -194,13 +208,9 @@ def bobrick_martire(
     shape_function_supported = bool(jnp.any(jnp.abs(dg_dspatial) > tol_s))
 
     rho_peak = _energy_density_mixed(metric, peak_coords)
-    comoving_fluid = has_matter and bool(
-        jnp.isfinite(rho_peak) & (rho_peak > 0.0)
-    )
+    comoving_fluid = has_matter and bool(jnp.isfinite(rho_peak) & (rho_peak > 0.0))
 
-    is_shell_structured = has_matter and _scan_inner_vacuum(
-        metric, peak_mag, peak_coords
-    )
+    is_shell_structured = has_matter and _scan_inner_vacuum(metric, peak_mag, peak_coords)
 
     if not has_matter:
         # Vacuum (Minkowski, Schwarzschild): Class I when stationary,

@@ -1,4 +1,3 @@
-
 """Worst-observer alignment analysis at multiple velocities.
 
 For the Rodal metric at v_s = [0.1, 0.5, 0.9, 0.99], computes the angle
@@ -11,6 +10,7 @@ Usage
 -----
     python scripts/run_worst_observer_alignment.py
 """
+
 from __future__ import annotations
 
 import os
@@ -75,8 +75,11 @@ def _compute_alignment_angles(
     # points, so the Type-I optimization must NOT be skipped (the default
     # algebraic shortcut leaves worst_params unset at Type-I points).
     ec = verify_grid(
-        curv.stress_energy, curv.metric, curv.metric_inv,
-        n_starts=n_starts, batch_size=batch_size,
+        curv.stress_energy,
+        curv.metric,
+        curv.metric_inv,
+        n_starts=n_starts,
+        batch_size=batch_size,
         skip_type_i_optimization=False,
     )
 
@@ -116,11 +119,13 @@ def _compute_alignment_angles(
         if zeta < 1e-6:
             continue
 
-        boost_dir = np.array([
-            np.sin(theta) * np.cos(phi),
-            np.sin(theta) * np.sin(phi),
-            np.cos(theta),
-        ])
+        boost_dir = np.array(
+            [
+                np.sin(theta) * np.cos(phi),
+                np.sin(theta) * np.sin(phi),
+                np.cos(theta),
+            ]
+        )
 
         evec_spatial = evec[1:4]
         evec_norm = np.linalg.norm(evec_spatial)

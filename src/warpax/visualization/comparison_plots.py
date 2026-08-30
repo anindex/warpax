@@ -6,6 +6,7 @@ Produces figures showing:
 - Comparison summary tables
 - Velocity sweep line plots
 """
+
 from __future__ import annotations
 
 import json
@@ -52,7 +53,9 @@ def _diverging_norm(data: NDArray) -> TwoSlopeNorm | SymLogNorm:
         if vmin_nz > 0 and vmax / vmin_nz > 1e4:
             linthresh = float(np.nanmedian(nonzero))
             return SymLogNorm(
-                linthresh=linthresh, vmin=-vmax, vmax=vmax,
+                linthresh=linthresh,
+                vmin=-vmax,
+                vmax=vmax,
             )
 
     return TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
@@ -222,12 +225,17 @@ def plot_comparison_panel(
     from matplotlib.patches import Patch
 
     fig = plt.figure(figsize=figsize)
-    gs = GS(1, 7, figure=fig,
-            width_ratios=[1, 0.03, 0.18, 1, 0.03, 0.18, 1],
-            wspace=0.0,
-            left=0.06, right=0.97,
-            top=0.82 if title else 0.92,
-            bottom=0.15)
+    gs = GS(
+        1,
+        7,
+        figure=fig,
+        width_ratios=[1, 0.03, 0.18, 1, 0.03, 0.18, 1],
+        wspace=0.0,
+        left=0.06,
+        right=0.97,
+        top=0.82 if title else 0.92,
+        bottom=0.15,
+    )
     ax_eul = fig.add_subplot(gs[0, 0])
     cax_eul = fig.add_subplot(gs[0, 1])
     ax_rob = fig.add_subplot(gs[0, 3], sharey=ax_eul)
@@ -248,29 +256,51 @@ def plot_comparison_panel(
             ax.set_facecolor("#d9d9d9")
 
     im_eul = ax_eul.pcolormesh(
-        x_ax, y_ax, eul_2d.T, cmap="RdBu", norm=eul_norm, shading="gouraud",
+        x_ax,
+        y_ax,
+        eul_2d.T,
+        cmap="RdBu",
+        norm=eul_norm,
+        shading="gouraud",
     )
     ax_eul.set_title("Eulerian", fontsize=10)
     ax_eul.set_ylabel(axis_labels[remaining[1]], fontsize=9)
     ax_eul.set_xlabel(axis_labels[remaining[0]], fontsize=9)
 
     im_rob = ax_rob.pcolormesh(
-        x_ax, y_ax, rob_2d.T, cmap="RdBu", norm=rob_norm, shading="gouraud",
+        x_ax,
+        y_ax,
+        rob_2d.T,
+        cmap="RdBu",
+        norm=rob_norm,
+        shading="gouraud",
     )
     ax_rob.set_title("Robust", fontsize=10)
     ax_rob.set_xlabel(axis_labels[remaining[0]], fontsize=9)
     plt.setp(ax_rob.get_yticklabels(), visible=False)
 
     ax_miss.pcolormesh(
-        x_ax, y_ax, eul_2d.T, cmap="RdBu", norm=eul_norm, shading="gouraud",
+        x_ax,
+        y_ax,
+        eul_2d.T,
+        cmap="RdBu",
+        norm=eul_norm,
+        shading="gouraud",
         alpha=0.5,
     )
     miss_masked = np.ma.masked_where(miss_2d.T < 0.5, miss_2d.T)
     from matplotlib.colors import ListedColormap
+
     _missed_cmap = ListedColormap(["#8B0000"])  # distinct dark red
     ax_miss.pcolormesh(
-        x_ax, y_ax, miss_masked, cmap=_missed_cmap, vmin=0, vmax=1,
-        shading="gouraud", alpha=0.85,
+        x_ax,
+        y_ax,
+        miss_masked,
+        cmap=_missed_cmap,
+        vmin=0,
+        vmax=1,
+        shading="gouraud",
+        alpha=0.85,
     )
     n_missed = int(np.sum(miss_2d > 0.5))
     ax_miss.set_title(f"Missed ({n_missed} pts)", fontsize=10)
@@ -278,20 +308,27 @@ def plot_comparison_panel(
     plt.setp(ax_miss.get_yticklabels(), visible=False)
     # Legend patches
     _legend_handles = []
-    _legend_handles.append(Patch(facecolor="#8B0000", edgecolor="black",
-                                 linewidth=0.5, alpha=0.85, label="Missed"))
+    _legend_handles.append(
+        Patch(facecolor="#8B0000", edgecolor="black", linewidth=0.5, alpha=0.85, label="Missed")
+    )
     if has_nan:
-        _legend_handles.append(Patch(facecolor="#d9d9d9", edgecolor="black",
-                                     linewidth=0.5, label="Undefined"))
+        _legend_handles.append(
+            Patch(facecolor="#d9d9d9", edgecolor="black", linewidth=0.5, label="Undefined")
+        )
     ax_miss.legend(
-        handles=_legend_handles, loc="lower right", fontsize=7,
-        framealpha=0.85, edgecolor="gray", handlelength=1.0,
+        handles=_legend_handles,
+        loc="lower right",
+        fontsize=7,
+        framealpha=0.85,
+        edgecolor="gray",
+        handlelength=1.0,
     )
 
     # --- Colorbars ---
     def _fmt_cbar(cb, norm):
         """Place ticks evenly in the colorbar's *visual* space."""
         from matplotlib.ticker import FixedLocator, FuncFormatter
+
         cb.ax.tick_params(labelsize=6, pad=2)
 
         # Compute tick positions that are visually evenly spaced by
@@ -317,6 +354,7 @@ def plot_comparison_panel(
             exp = int(np.floor(np.log10(ax_val)))
             coeff = x / 10**exp
             return rf"{coeff:.1f}e{exp}"
+
         cb.ax.yaxis.set_major_formatter(FuncFormatter(_compact_fmt))
 
     cb_eul = fig.colorbar(im_eul, cax=cax_eul)
@@ -379,9 +417,15 @@ def plot_comparison_grid(
 
     # GridSpec: 3 panels with per-panel colorbars per row
     fig = plt.figure(figsize=(DOUBLE_COL, DOUBLE_COL * 0.25 * n_conds))
-    gs = fig.add_gridspec(n_conds, 7,
-                          width_ratios=[1, 0.03, 0.06, 1, 0.03, 0.06, 1],
-                          wspace=0.05, hspace=0.25, top=0.93, bottom=0.08)
+    gs = fig.add_gridspec(
+        n_conds,
+        7,
+        width_ratios=[1, 0.03, 0.06, 1, 0.03, 0.06, 1],
+        wspace=0.05,
+        hspace=0.25,
+        top=0.93,
+        bottom=0.08,
+    )
 
     for row, cond in enumerate(conditions):
         eul = data[f"{cond}_eulerian"]
@@ -402,9 +446,7 @@ def plot_comparison_grid(
         ax2 = fig.add_subplot(gs[row, 6])
 
         # Eulerian (own norm)
-        im_eul = ax0.pcolormesh(
-            x_ax, y_ax, eul_2d.T, cmap="RdBu", norm=eul_norm, shading="gouraud"
-        )
+        im_eul = ax0.pcolormesh(x_ax, y_ax, eul_2d.T, cmap="RdBu", norm=eul_norm, shading="gouraud")
         ax0.set_ylabel(f"{cond.upper()}\n{axis_labels[remaining[1]]}")
         if row == 0:
             ax0.set_title("Eulerian", fontsize=9)
@@ -412,9 +454,7 @@ def plot_comparison_grid(
         cb_eul.ax.tick_params(labelsize=6)
 
         # Robust (own norm)
-        im_rob = ax1.pcolormesh(
-            x_ax, y_ax, rob_2d.T, cmap="RdBu", norm=rob_norm, shading="gouraud"
-        )
+        im_rob = ax1.pcolormesh(x_ax, y_ax, rob_2d.T, cmap="RdBu", norm=rob_norm, shading="gouraud")
         ax1.tick_params(labelleft=False)
         if row == 0:
             ax1.set_title("Robust", fontsize=9)
@@ -423,14 +463,26 @@ def plot_comparison_grid(
 
         # Missed (uses Eulerian norm)
         ax2.pcolormesh(
-            x_ax, y_ax, eul_2d.T, cmap="RdBu", norm=eul_norm,
-            shading="gouraud", alpha=0.5,
+            x_ax,
+            y_ax,
+            eul_2d.T,
+            cmap="RdBu",
+            norm=eul_norm,
+            shading="gouraud",
+            alpha=0.5,
         )
         miss_masked = np.ma.masked_where(miss_2d.T < 0.5, miss_2d.T)
         from matplotlib.colors import ListedColormap as _LCM
+
         ax2.pcolormesh(
-            x_ax, y_ax, miss_masked, cmap=_LCM(["#8B0000"]), vmin=0, vmax=1,
-            shading="gouraud", alpha=0.85,
+            x_ax,
+            y_ax,
+            miss_masked,
+            cmap=_LCM(["#8B0000"]),
+            vmin=0,
+            vmax=1,
+            shading="gouraud",
+            alpha=0.85,
         )
         ax2.tick_params(labelleft=False)
         if row == 0:
@@ -480,11 +532,13 @@ def plot_comparison_table(
     conditions = ("nec", "wec", "dec")
     col_labels = ["Metric", r"$v_s$"]
     for cond in conditions:
-        col_labels.extend([
-            f"{cond.upper()} Eul",
-            f"{cond.upper()} Rob",
-            f"{cond.upper()} miss",
-        ])
+        col_labels.extend(
+            [
+                f"{cond.upper()} Eul",
+                f"{cond.upper()} Rob",
+                f"{cond.upper()} miss",
+            ]
+        )
 
     cell_data = []
     cell_colors = []
@@ -543,7 +597,8 @@ def plot_comparison_table(
 
     ax.set_title(
         "Energy Condition Violations: Eulerian vs Robust Analysis",
-        fontsize=9, pad=8,
+        fontsize=9,
+        pad=8,
     )
 
     fig.tight_layout(pad=0.5)
@@ -618,15 +673,25 @@ def plot_velocity_sweep(
     eul_arr = np.array(eul_mins)[order]
     rob_arr = np.array(rob_mins)[order]
 
-    fig, ax = (ax.figure, ax) if ax is not None else plt.subplots(figsize=(SINGLE_COL, SINGLE_COL * 0.8))
+    fig, ax = (
+        (ax.figure, ax) if ax is not None else plt.subplots(figsize=(SINGLE_COL, SINGLE_COL * 0.8))
+    )
     mevery = max(1, len(v_s_arr) // 8)
     ax.plot(
-        v_s_arr, eul_arr, label="Eulerian",
-        color=COLORS[0], **LINE_STYLES[0], markevery=mevery,
+        v_s_arr,
+        eul_arr,
+        label="Eulerian",
+        color=COLORS[0],
+        **LINE_STYLES[0],
+        markevery=mevery,
     )
     ax.plot(
-        v_s_arr, rob_arr, label="Robust",
-        color=COLORS[1], **LINE_STYLES[1], markevery=mevery,
+        v_s_arr,
+        rob_arr,
+        label="Robust",
+        color=COLORS[1],
+        **LINE_STYLES[1],
+        markevery=mevery,
     )
     ax.axhline(0, color="gray", linewidth=0.5, linestyle=":")
     ax.set_xlabel(r"$v_s$")

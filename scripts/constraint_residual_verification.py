@@ -14,6 +14,7 @@ Conventions:
   - T_input: covariant T_{ab} of the prescribed fluid
     (static isotropic for S-shell/Fuchs; tilted for T-shell).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -68,6 +69,7 @@ def _deep_stats(vals, frac):
 
 def _interp1d(r, r_grid, vals):
     import interpax
+
     rc = jnp.clip(r, r_grid[0], r_grid[-1])
     return interpax.interp1d(rc, r_grid, vals, method="cubic")
 
@@ -115,7 +117,8 @@ def verify_sshell():
 
         # Static flow-orthogonal: E = rho, S_i = 0
         s = normalized_residuals(
-            metric, coords,
+            metric,
+            coords,
             energy_density=jnp.float64(rho),
             momentum_density=jnp.zeros(3),
         )
@@ -127,8 +130,10 @@ def verify_sshell():
         sc.append(float(scr["relative_residual"]))
 
     return {
-        "vacuum_eps_H": _peak_mean(vac_H), "vacuum_eps_M": _peak_mean(vac_M),
-        "source_eps_H": _peak_mean(src_H), "source_eps_M": _peak_mean(src_M),
+        "vacuum_eps_H": _peak_mean(vac_H),
+        "vacuum_eps_M": _peak_mean(vac_M),
+        "source_eps_H": _peak_mean(src_H),
+        "source_eps_M": _peak_mean(src_M),
         "source_consistency_rel": _peak_mean(sc),
         "source_consistency_per_probe": [float(x) for x in sc],
         "source_consistency_deep_2pct": _deep_stats(sc, 0.02),
@@ -163,7 +168,8 @@ def verify_tshell():
         gamma_xx = float(gamma[0, 0])
         S_lower = jnp.array([gamma_xx * Sx_contra, 0.0, 0.0])
         s = normalized_residuals(
-            metric, coords,
+            metric,
+            coords,
             energy_density=jnp.float64(E),
             momentum_density=S_lower,
         )
@@ -175,8 +181,10 @@ def verify_tshell():
         sc.append(float(scr["relative_residual"]))
 
     return {
-        "vacuum_eps_H": _peak_mean(vac_H), "vacuum_eps_M": _peak_mean(vac_M),
-        "source_eps_H": _peak_mean(src_H), "source_eps_M": _peak_mean(src_M),
+        "vacuum_eps_H": _peak_mean(vac_H),
+        "vacuum_eps_M": _peak_mean(vac_M),
+        "source_eps_H": _peak_mean(src_H),
+        "source_eps_M": _peak_mean(src_M),
         "source_consistency_rel": _peak_mean(sc),
         "source_consistency_per_probe": [float(x) for x in sc],
         "source_consistency_deep_2pct": _deep_stats(sc, 0.02),
@@ -205,7 +213,8 @@ def verify_fuchs():
 
         # Fuchs: static shell, no matter tilt -> E = rho_smoothed, S_i = 0.
         s = normalized_residuals(
-            metric, coords,
+            metric,
+            coords,
             energy_density=jnp.float64(rho),
             momentum_density=jnp.zeros(3),
         )
@@ -217,8 +226,10 @@ def verify_fuchs():
         sc.append(float(scr["relative_residual"]))
 
     return {
-        "vacuum_eps_H": _peak_mean(vac_H), "vacuum_eps_M": _peak_mean(vac_M),
-        "source_eps_H": _peak_mean(src_H), "source_eps_M": _peak_mean(src_M),
+        "vacuum_eps_H": _peak_mean(vac_H),
+        "vacuum_eps_M": _peak_mean(vac_M),
+        "source_eps_H": _peak_mean(src_H),
+        "source_eps_M": _peak_mean(src_M),
         "source_consistency_rel": _peak_mean(sc),
         "source_consistency_per_probe": [float(x) for x in sc],
         "source_consistency_deep_2pct": _deep_stats(sc, 0.02),
@@ -229,16 +240,19 @@ def verify_fuchs():
 def main():
     out = {
         "config": {
-            "R_1": R_1, "R_2": R_2, "n_probes": N_PROBES,
+            "R_1": R_1,
+            "R_2": R_2,
+            "n_probes": N_PROBES,
             "r_probes": R_PROBES.tolist(),
             "sshell": "sshell_default(v_s=0), rho_0=1e-4, static flow-orthogonal (E=rho, S_i=0)",
             "tshell": "tshell_default(v_0=0.1), rho_0=1e-4, tilted (E=Eulerian, S_x lowered=gamma_xx*S^x)",
             "fuchs": "fuchs_default() canonical Gaussian-smoothed, v_s=0.02; source=rho_smoothed (static, S_i=0)",
         },
-        "note_vacuum": "Vacuum eps_H = normalized_residuals(metric, coords) with E=0 (published call in optimization/sweep.py, eval_constraint). "
-                       "For a matter shell H_vac = R+K^2-K_sq ~ 16 pi rho (matter magnitude), NOT constraint residual.",
+        "note_vacuum": "Vacuum eps_H = normalized_residuals(metric, coords) with E=0 "
+        "(published call in optimization/sweep.py, eval_constraint). "
+        "For a matter shell H_vac = R+K^2-K_sq ~ 16 pi rho (matter magnitude), NOT constraint residual.",
         "note_momentum_convention": "S_i passed to normalized_residuals is LOWERED index. T-shell solver stores "
-                                    "contravariant S^x; lowered via gamma_xx on x-axis.",
+        "contravariant S^x; lowered via gamma_xx on x-axis.",
     }
     print("Verifying S-shell...")
     out["sshell"] = verify_sshell()
@@ -247,7 +261,9 @@ def main():
     print("Verifying Fuchs (canonical)...")
     out["fuchs"] = verify_fuchs()
 
-    out_path = Path(__file__).resolve().parents[1] / "results" / "constraint_residual_verification.json"
+    out_path = (
+        Path(__file__).resolve().parents[1] / "results" / "constraint_residual_verification.json"
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     dump_json(out, out_path)
     print(f"Saved: {out_path}")
@@ -255,23 +271,37 @@ def main():
     # Compact table
     def pk(d):
         return "nan" if d["peak"] is None else f"{d['peak']:.3e}"
+
     def mn(d):
         return "nan" if d["mean"] is None else f"{d['mean']:.3e}"
+
     print("\n=== PEAK VALUES (in-shell r in [10,20]) ===")
-    print(f"{'metric':<8} {'vac_eps_H':>11} {'src_eps_H':>11} {'srcConsist':>11} "
-          f"{'vac_eps_M':>11} {'src_eps_M':>11}")
+    print(
+        f"{'metric':<8} {'vac_eps_H':>11} {'src_eps_H':>11} {'srcConsist':>11} "
+        f"{'vac_eps_M':>11} {'src_eps_M':>11}"
+    )
     for m in ("sshell", "tshell", "fuchs"):
         d = out[m]
-        print(f"{m:<8} {pk(d['vacuum_eps_H']):>11} {pk(d['source_eps_H']):>11} "
-              f"{pk(d['source_consistency_rel']):>11} {pk(d['vacuum_eps_M']):>11} "
-              f"{pk(d['source_eps_M']):>11}")
+        print(
+            f"{m:<8} {pk(d['vacuum_eps_H']):>11} {pk(d['source_eps_H']):>11} "
+            f"{pk(d['source_consistency_rel']):>11} {pk(d['vacuum_eps_M']):>11} "
+            f"{pk(d['source_eps_M']):>11}"
+        )
     print("\n=== SOURCE-CONSISTENCY: full vs deep interior (peak / mean) ===")
-    print(f"{'metric':<8} {'full_peak':>11} {'full_mean':>11} "
-          f"{'deep2%_peak':>11} {'deep2%_mean':>11} {'core_peak':>11} {'core_mean':>11}")
+    print(
+        f"{'metric':<8} {'full_peak':>11} {'full_mean':>11} "
+        f"{'deep2%_peak':>11} {'deep2%_mean':>11} {'core_peak':>11} {'core_mean':>11}"
+    )
     for m in ("sshell", "tshell", "fuchs"):
         d = out[m]
-        f_, d2, dc = d['source_consistency_rel'], d['source_consistency_deep_2pct'], d['source_consistency_deep_smoothstep']
-        print(f"{m:<8} {pk(f_):>11} {mn(f_):>11} {pk(d2):>11} {mn(d2):>11} {pk(dc):>11} {mn(dc):>11}")
+        f_, d2, dc = (
+            d["source_consistency_rel"],
+            d["source_consistency_deep_2pct"],
+            d["source_consistency_deep_smoothstep"],
+        )
+        print(
+            f"{m:<8} {pk(f_):>11} {mn(f_):>11} {pk(d2):>11} {mn(d2):>11} {pk(dc):>11} {mn(dc):>11}"
+        )
 
 
 if __name__ == "__main__":

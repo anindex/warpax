@@ -16,6 +16,7 @@ Three density families:
 
 All families use isotropic pressure (p_t = p_r) from TOV integration.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -111,10 +112,10 @@ def _integrate_tov_pressure(
     def scan_step(p_current, inputs):
         r_a, rho_a, m_a, r_b, rho_b, m_b, rho_m, m_m = inputs
         r_mid = r_a + 0.5 * h
-        k1 = tov_rhs(r_a,   p_current,                rho_a, m_a)
+        k1 = tov_rhs(r_a, p_current, rho_a, m_a)
         k2 = tov_rhs(r_mid, p_current + 0.5 * h * k1, rho_m, m_m)
         k3 = tov_rhs(r_mid, p_current + 0.5 * h * k2, rho_m, m_m)
-        k4 = tov_rhs(r_b,   p_current + h * k3,       rho_b, m_b)
+        k4 = tov_rhs(r_b, p_current + h * k3, rho_b, m_b)
         dp = (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
         p_next = jnp.maximum(p_current + dp, 0.0)
         return p_next, p_next
@@ -122,9 +123,16 @@ def _integrate_tov_pressure(
     _, p_scan = jax.lax.scan(
         scan_step,
         jnp.float64(0.0),
-        (r_grid[:-1], rho_vals[:-1], m_vals[:-1],
-         r_grid[1:],  rho_vals[1:],  m_vals[1:],
-         rho_mid,     m_mid),
+        (
+            r_grid[:-1],
+            rho_vals[:-1],
+            m_vals[:-1],
+            r_grid[1:],
+            rho_vals[1:],
+            m_vals[1:],
+            rho_mid,
+            m_mid,
+        ),
     )
     p_all = jnp.concatenate([jnp.array([0.0]), p_scan])
 
@@ -161,16 +169,21 @@ def _compute_cumulative_mass(
     rho_vals = jax.vmap(rho_fn)(r_grid)
     integrand = 4.0 * jnp.pi * rho_vals * r_grid**2
 
-    m_vals = jnp.concatenate([
-        jnp.array([0.0]),
-        jnp.cumsum(0.5 * (integrand[:-1] + integrand[1:]) * dr),
-    ])
+    m_vals = jnp.concatenate(
+        [
+            jnp.array([0.0]),
+            jnp.cumsum(0.5 * (integrand[:-1] + integrand[1:]) * dr),
+        ]
+    )
 
     total_mass = float(m_vals[-1])
 
     def m_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(
-            jnp.clip(r, 0.0, r_max), r_grid, m_vals, method="cubic",
+            jnp.clip(r, 0.0, r_max),
+            r_grid,
+            m_vals,
+            method="cubic",
         )
 
     return m_fn, total_mass
@@ -295,13 +308,9 @@ def bernstein_density_profiles(
         t = jnp.clip((r - R_1) / (R_2 - R_1), 0.0, 1.0)
         in_shell = (r >= R_1) & (r <= R_2)
 
-        log_binom = (
-            gammaln(n + 1.0)
-            - gammaln(k_idx + 1.0)
-            - gammaln(n - k_idx + 1.0)
-        )
+        log_binom = gammaln(n + 1.0) - gammaln(k_idx + 1.0) - gammaln(n - k_idx + 1.0)
         binom = jnp.exp(log_binom)
-        basis_vals = binom * (t ** k_idx) * ((1.0 - t) ** (n - k_idx))
+        basis_vals = binom * (t**k_idx) * ((1.0 - t) ** (n - k_idx))
         rho = jnp.sum(coeffs * basis_vals)
         return jnp.where(in_shell, jnp.maximum(rho, 0.0), 0.0)
 

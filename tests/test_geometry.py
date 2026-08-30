@@ -39,10 +39,14 @@ def _christoffel_symbolic(sm: SymbolicMetric) -> sp.Array:
             for nu in range(dim):
                 val = sp.Rational(0)
                 for sigma in range(dim):
-                    val += sp.Rational(1, 2) * g_inv[lam, sigma] * (
-                        sp.diff(g[sigma, mu], coords[nu])
-                        + sp.diff(g[sigma, nu], coords[mu])
-                        - sp.diff(g[mu, nu], coords[sigma])
+                    val += (
+                        sp.Rational(1, 2)
+                        * g_inv[lam, sigma]
+                        * (
+                            sp.diff(g[sigma, mu], coords[nu])
+                            + sp.diff(g[sigma, nu], coords[mu])
+                            - sp.diff(g[mu, nu], coords[sigma])
+                        )
                     )
                 result[lam, mu, nu] = val
     return sp.Array(result)
@@ -58,9 +62,8 @@ def _riemann_symbolic(sm: SymbolicMetric) -> sp.Array:
         for mu in range(dim):
             for nu in range(dim):
                 for rho in range(dim):
-                    val = (
-                        sp.diff(gamma[lam, mu, rho], coords[nu])
-                        - sp.diff(gamma[lam, mu, nu], coords[rho])
+                    val = sp.diff(gamma[lam, mu, rho], coords[nu]) - sp.diff(
+                        gamma[lam, mu, nu], coords[rho]
                     )
                     for sigma in range(dim):
                         val += (
@@ -146,9 +149,7 @@ class TestSchwarzschildChristoffel:
         M_sym = sp.Symbol("M", positive=True)
         t, x, y, z = sm.coords
         gamma_num = np.array(
-            gamma_sym.subs(M_sym, 1.0)
-            .subs({t: 0.0, x: 3.0, y: 4.0, z: 0.0})
-            .tolist(),
+            gamma_sym.subs(M_sym, 1.0).subs({t: 0.0, x: 3.0, y: 4.0, z: 0.0}).tolist(),
             dtype=np.float64,
         )
         request.cls.gamma_sympy = gamma_num
@@ -197,9 +198,7 @@ class TestSchwarzschildRiemann:
         M_sym = sp.Symbol("M", positive=True)
         t, x, y, z = sm.coords
         riemann_num = np.array(
-            riemann_sym.subs(M_sym, 1.0)
-            .subs({t: 0.0, x: 3.0, y: 4.0, z: 0.0})
-            .tolist(),
+            riemann_sym.subs(M_sym, 1.0).subs({t: 0.0, x: 3.0, y: 4.0, z: 0.0}).tolist(),
             dtype=np.float64,
         )
         request.cls.riemann_sympy = riemann_num
@@ -235,9 +234,7 @@ class TestSchwarzschildFullChain:
         M_sym = sp.Symbol("M", positive=True)
         t, x, y, z = sm.coords
         gamma_num = np.array(
-            gamma_sym.subs(M_sym, 1.0)
-            .subs({t: 0.0, x: 3.0, y: 4.0, z: 0.0})
-            .tolist(),
+            gamma_sym.subs(M_sym, 1.0).subs({t: 0.0, x: 3.0, y: 4.0, z: 0.0}).tolist(),
             dtype=np.float64,
         )
         request.cls.gamma_sympy = gamma_num
@@ -281,9 +278,7 @@ class TestAlcubierre:
         """Near the bubble wall, Christoffel symbols are non-trivial."""
         gamma = christoffel_symbols(self.metric, self.jax_coords)
         max_abs = float(jnp.max(jnp.abs(gamma)))
-        assert max_abs > 0.01, (
-            f"Alcubierre Christoffel max |gamma| = {max_abs}, expected > 0.01"
-        )
+        assert max_abs > 0.01, f"Alcubierre Christoffel max |gamma| = {max_abs}, expected > 0.01"
 
     def test_christoffel_lower_symmetry(self):
         """Gamma^l_{mn} == Gamma^l_{nm} (symmetry in lower indices)."""
@@ -312,9 +307,7 @@ class TestAlcubierre:
 
         # T must be non-zero
         T_max = float(jnp.max(jnp.abs(result.stress_energy)))
-        assert T_max > 1e-6, (
-            f"Alcubierre T_{'{mn}'} max = {T_max}, expected non-zero"
-        )
+        assert T_max > 1e-6, f"Alcubierre T_{'{mn}'} max = {T_max}, expected non-zero"
 
         # Compute analytical Eulerian energy density at the same spatial point
         _, x_val, y_val, z_val = self.jax_coords
@@ -424,9 +417,7 @@ class TestCurvatureResult:
         coords = jnp.array([0.0, 1.0, 2.0, 3.0])
         result = compute_curvature_chain(metric, coords)
         leaves = jax.tree.leaves(result)
-        assert len(leaves) == 8, (
-            f"Expected 8 pytree leaves, got {len(leaves)}"
-        )
+        assert len(leaves) == 8, f"Expected 8 pytree leaves, got {len(leaves)}"
         # All leaves should be JAX arrays
         for leaf in leaves:
             assert hasattr(leaf, "shape"), f"Leaf {type(leaf)} is not an array"
@@ -599,9 +590,7 @@ class TestSmoothstepTransitions:
         assert jnp.isclose(f2_near_0, 5.88, atol=0.01), (
             f"C1 f''(0.01) = {f2_near_0}, expected ~5.88"
         )
-        assert not jnp.isclose(f2_near_0, 0.0, atol=1.0), (
-            "C1 f''(0.01) should NOT be near zero"
-        )
+        assert not jnp.isclose(f2_near_0, 0.0, atol=1.0), "C1 f''(0.01) should NOT be near zero"
 
     # ------------------------------------------------------------------
     # Dispatch

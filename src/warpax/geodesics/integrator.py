@@ -6,6 +6,7 @@ The state vector y = [x^mu (4,), v^mu (4,)] has shape (8,):
 
 Christoffel symbols are computed at each integration step via exact JAX autodiff.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple

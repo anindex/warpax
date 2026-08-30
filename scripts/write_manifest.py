@@ -14,6 +14,7 @@ wired into ``check_paper_numbers.py`` so the two cannot drift apart again.
     python scripts/write_manifest.py            # rewrite results/MANIFEST.txt
     python scripts/write_manifest.py --check    # exit non-zero if it is stale
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,8 +44,7 @@ def _sha256(path: Path) -> str:
 def manifest_body(results_dir: Path = RESULTS) -> list[str]:
     """One ``sha256  size  name`` line per cached grid, sorted by name."""
     return [
-        f"{_sha256(p)}  {p.stat().st_size:>12}  {p.name}"
-        for p in sorted(results_dir.glob("*.npz"))
+        f"{_sha256(p)}  {p.stat().st_size:>12}  {p.name}" for p in sorted(results_dir.glob("*.npz"))
     ]
 
 
@@ -91,8 +91,9 @@ def check(results_dir: Path = RESULTS) -> list[str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--check", action="store_true",
-                    help="verify instead of rewriting; non-zero exit if stale")
+    ap.add_argument(
+        "--check", action="store_true", help="verify instead of rewriting; non-zero exit if stale"
+    )
     args = ap.parse_args()
 
     if args.check:

@@ -1,4 +1,3 @@
-
 """WarpShell smooth_width sensitivity ablation.
 
 Sweeps smooth_width in [0.03, 0.06, 0.12, 0.24] for WarpShell at v_s=0.5
@@ -12,6 +11,7 @@ Usage
     python scripts/run_smoothwidth_ablation.py
     python scripts/run_smoothwidth_ablation.py --smooth-widths 0.03 0.06 0.12
 """
+
 from __future__ import annotations
 
 import argparse
@@ -149,8 +149,12 @@ def main():
             "wec_pct_violated_robust": round(comparison.pct_violated_robust["wec"], 4),
             "sec_pct_violated_robust": round(comparison.pct_violated_robust["sec"], 4),
             "dec_pct_violated_robust": round(comparison.pct_violated_robust["dec"], 4),
-            "nec_min_robust": round(float(np.nanmin(np.asarray(comparison.robust_margins["nec"]))), 6),
-            "wec_min_robust": round(float(np.nanmin(np.asarray(comparison.robust_margins["wec"]))), 6),
+            "nec_min_robust": round(
+                float(np.nanmin(np.asarray(comparison.robust_margins["nec"]))), 6
+            ),
+            "wec_min_robust": round(
+                float(np.nanmin(np.asarray(comparison.robust_margins["wec"]))), 6
+            ),
             "n_type_i": cls_stats["n_type_i"],
             "n_type_ii": cls_stats["n_type_ii"],
             "n_type_iii": cls_stats["n_type_iii"],

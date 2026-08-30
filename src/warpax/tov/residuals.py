@@ -9,6 +9,7 @@ from the metric lapse function.
 
 Uses JAX autodiff for derivatives instead of finite differences.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -20,9 +21,24 @@ from jaxtyping import Array, Float
 
 def tov_residual(
     r: Float[Array, ""],
-    rho: Callable[[Float[Array, ""], ], Float[Array, ""]],
-    p_r: Callable[[Float[Array, ""], ], Float[Array, ""]],
-    p_t: Callable[[Float[Array, ""], ], Float[Array, ""]],
+    rho: Callable[
+        [
+            Float[Array, ""],
+        ],
+        Float[Array, ""],
+    ],
+    p_r: Callable[
+        [
+            Float[Array, ""],
+        ],
+        Float[Array, ""],
+    ],
+    p_t: Callable[
+        [
+            Float[Array, ""],
+        ],
+        Float[Array, ""],
+    ],
     Phi_prime: Float[Array, ""],
 ) -> Float[Array, ""]:
     """Anisotropic TOV equilibrium residual.
@@ -59,9 +75,24 @@ def tov_residual(
 def tov_residual_from_metric(
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
     r: Float[Array, ""],
-    rho: Callable[[Float[Array, ""], ], Float[Array, ""]],
-    p_r: Callable[[Float[Array, ""], ], Float[Array, ""]],
-    p_t: Callable[[Float[Array, ""], ], Float[Array, ""]],
+    rho: Callable[
+        [
+            Float[Array, ""],
+        ],
+        Float[Array, ""],
+    ],
+    p_r: Callable[
+        [
+            Float[Array, ""],
+        ],
+        Float[Array, ""],
+    ],
+    p_t: Callable[
+        [
+            Float[Array, ""],
+        ],
+        Float[Array, ""],
+    ],
 ) -> Float[Array, ""]:
     """Anisotropic TOV residual with Phi' extracted from the metric.
 

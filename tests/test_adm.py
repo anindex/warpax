@@ -54,6 +54,7 @@ jax.config.update("jax_enable_x64", True)
 
 # 3+1 ADM decomposition
 
+
 class TestADMSplit:
     """Verify (alpha, beta, gamma, K) extraction from full spacetime metrics."""
 
@@ -84,11 +85,13 @@ class TestADMSplit:
         ratio = 1.0 / (2.0 * r_iso)
         expected_lapse = (1.0 - ratio) / (1.0 + ratio)
 
-        assert jnp.allclose(adm.lapse, expected_lapse, rtol=1e-12), \
+        assert jnp.allclose(adm.lapse, expected_lapse, rtol=1e-12), (
             f"Lapse: got {adm.lapse}, expected {expected_lapse}"
+        )
         assert jnp.allclose(adm.shift_upper, 0.0, atol=1e-14)
-        assert jnp.allclose(adm.extrinsic_curvature, 0.0, atol=1e-8), \
+        assert jnp.allclose(adm.extrinsic_curvature, 0.0, atol=1e-8), (
             f"Static K must vanish, got max|K|={jnp.max(jnp.abs(adm.extrinsic_curvature))}"
+        )
 
     def test_warpshell_nonzero_shift(self):
         """WarpShell interior has beta^x = -v_s."""
@@ -99,8 +102,9 @@ class TestADMSplit:
         coords = jnp.array([0.0, 1.0, 0.0, 0.0])
         adm = adm_split(metric, coords)
 
-        assert jnp.abs(adm.shift_upper[0] - (-0.02)) < 1e-6, \
+        assert jnp.abs(adm.shift_upper[0] - (-0.02)) < 1e-6, (
             f"Interior shift should be -v_s=-0.02, got {adm.shift_upper[0]}"
+        )
         assert jnp.allclose(adm.shift_upper[1:], 0.0, atol=1e-10)
 
     def test_warpshell_shell_region(self):
@@ -117,6 +121,7 @@ class TestADMSplit:
 
 
 # Constraint residuals
+
 
 class TestConstraints:
     """Verify Hamiltonian and momentum constraint evaluations."""
@@ -171,7 +176,11 @@ class TestConstraints:
         gamma = jnp.eye(3)
         K = jnp.zeros((3, 3))
         M_i = momentum_constraint(
-            gamma, K, jnp.zeros(3), metric_fn=metric, coords=coords,
+            gamma,
+            K,
+            jnp.zeros(3),
+            metric_fn=metric,
+            coords=coords,
         )
         assert jnp.allclose(M_i, 0.0, atol=1e-14)
 
@@ -196,11 +205,13 @@ def _eval_at(metric, v_s, x):
     # We use eqx.tree_at-style replacement by direct attribute override
     # since these are dataclass-style Equinox modules.
     import dataclasses
+
     if dataclasses.is_dataclass(metric):
         metric = dataclasses.replace(metric, v_s=v_s)
     else:
         # Equinox modules: use eqx.tree_at
         import equinox as eqx
+
         metric = eqx.tree_at(lambda m: m.v_s, metric, replace=v_s)
     coords = jnp.array([0.0, float(x), 0.01, 0.0])
     g = metric(coords)
@@ -221,7 +232,9 @@ def test_det_g_stays_negative_at_all_v_s(name, metric, v_s):
     test that det(g) stays strictly negative rather than exactly -1.
     """
     # Sample on the wall radius and a couple of nearby points
-    x_samples = [0.5, 1.0, 1.5] if name in ("alcubierre", "natario", "vdb") else [50.0, 100.0, 150.0]
+    x_samples = (
+        [0.5, 1.0, 1.5] if name in ("alcubierre", "natario", "vdb") else [50.0, 100.0, 150.0]
+    )
     for x in x_samples:
         g = _eval_at(metric, v_s, x)
         det_g = float(jnp.linalg.det(g))
@@ -265,8 +278,7 @@ def test_alcubierre_spatial_metric_is_positive_definite(v_s):
             )
         except Exception as exc:
             pytest.fail(
-                f"Alcubierre spatial metric not positive-definite at "
-                f"v_s={v_s}, x={x}: {exc}"
+                f"Alcubierre spatial metric not positive-definite at v_s={v_s}, x={x}: {exc}"
             )
 
 
@@ -285,23 +297,18 @@ def test_alcubierre_g00_can_be_non_negative_at_superluminal(v_s):
     if v_s > 1.0:
         # g_00 = -1 + v_s^2 * f(0)^2 ~ -1 + v_s^2 > 0
         assert g00 > 0.0, (
-            f"At v_s={v_s} we expect g_00 > 0 in the bubble interior "
-            f"(f ~ 1); got g_00={g00}."
+            f"At v_s={v_s} we expect g_00 > 0 in the bubble interior (f ~ 1); got g_00={g00}."
         )
     elif v_s < 1.0:
         # subluminal: g_00 stays negative, ~ v_s^2 - 1 at the center
         # (eval point sits at y=0.01 so f is slightly below 1; ~1e-8 slack)
-        assert g00 < 0.0, (
-            f"At v_s={v_s} < 1 we expect g_00 < 0 at the center; got {g00}."
-        )
+        assert g00 < 0.0, f"At v_s={v_s} < 1 we expect g_00 < 0 at the center; got {g00}."
         assert abs(g00 - (v_s**2 - 1.0)) < 1e-6, (
             f"At v_s={v_s}, g_00={g00} should be ~ v_s^2 - 1 = {v_s**2 - 1.0}."
         )
     else:
         # luminal: g_00 crosses zero exactly at v_s = 1
-        assert abs(g00) < 1e-6, (
-            f"At v_s=1 we expect g_00 ~ 0 at the center; got {g00}."
-        )
+        assert abs(g00) < 1e-6, f"At v_s=1 we expect g_00 ~ 0 at the center; got {g00}."
     # Either way, det(g) must stay at -1
     det_g = float(jnp.linalg.det(g_center))
     assert abs(det_g + 1.0) < 1e-10, (
@@ -313,6 +320,7 @@ def test_alcubierre_no_nan_in_curvature_chain_at_superluminal():
     """The curvature chain stays finite at v_s = 1.5 (no autodiff NaN
     when g_00 changes sign)."""
     from warpax.geometry import compute_curvature_chain
+
     metric = AlcubierreMetric(R=100.0, sigma=8.0, v_s=1.5)
     # Sample at a point near the wall where g_00 changes sign
     coords = jnp.array([0.0, 100.0, 0.01, 0.0])
@@ -320,6 +328,4 @@ def test_alcubierre_no_nan_in_curvature_chain_at_superluminal():
     assert not jnp.any(jnp.isnan(curv.stress_energy)), (
         "Stress-energy is NaN at v_s=1.5; the autodiff chain has a bug."
     )
-    assert not jnp.any(jnp.isnan(curv.metric)), (
-        "Metric is NaN at v_s=1.5."
-    )
+    assert not jnp.any(jnp.isnan(curv.metric)), "Metric is NaN at v_s=1.5."

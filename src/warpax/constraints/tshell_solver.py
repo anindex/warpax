@@ -10,6 +10,7 @@ symmetric shell with x-directed tilted matter flow:
 where A = 2/r + 2 Phi' - 2 Lambda', B = -2/r^2. The momentum constraint
 is solved as a tridiagonal BVP with BCs: beta'(0)=0, beta(r_max)=0.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -92,8 +93,7 @@ def solve_tshell_potentials(
     v_max = float(jnp.max(jnp.abs(v_x_grid)))
     if v_max >= 1.0:
         raise ValueError(
-            f"Velocity |v^x| reaches {v_max:.4f} >= 1. "
-            "Reduce v_0 to maintain subluminal flow."
+            f"Velocity |v^x| reaches {v_max:.4f} >= 1. Reduce v_0 to maintain subluminal flow."
         )
 
     # Eulerian projections
@@ -104,10 +104,12 @@ def solve_tshell_potentials(
 
     # Hamiltonian constraint: m(r) from Eulerian E(r)
     integrand_m = 4.0 * jnp.pi * E_grid * r_grid**2
-    m_grid = jnp.concatenate([
-        jnp.array([0.0]),
-        jnp.cumsum(0.5 * (integrand_m[:-1] + integrand_m[1:]) * dr),
-    ])
+    m_grid = jnp.concatenate(
+        [
+            jnp.array([0.0]),
+            jnp.cumsum(0.5 * (integrand_m[:-1] + integrand_m[1:]) * dr),
+        ]
+    )
     total_mass = float(m_grid[-1])
 
     compactness_max = float(jnp.max(2.0 * m_grid / jnp.maximum(r_grid, 1e-30)))
@@ -136,10 +138,12 @@ def solve_tshell_potentials(
     dPhi_dr = jnp.where(r_grid < R_1 * 0.5, 0.0, dPhi_dr)
 
     Phi_boundary = 0.5 * jnp.log(1.0 - 2.0 * total_mass / r_max)
-    forward_integral = jnp.concatenate([
-        jnp.array([0.0]),
-        jnp.cumsum(0.5 * (dPhi_dr[:-1] + dPhi_dr[1:]) * dr),
-    ])
+    forward_integral = jnp.concatenate(
+        [
+            jnp.array([0.0]),
+            jnp.cumsum(0.5 * (dPhi_dr[:-1] + dPhi_dr[1:]) * dr),
+        ]
+    )
     Phi_grid = Phi_boundary - (forward_integral[-1] - forward_integral)
 
     # Momentum constraint BVP for beta^x(r)
@@ -177,22 +181,34 @@ def solve_tshell_potentials(
 
     def Phi_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(
-            jnp.clip(r, r_min, r_max), r_grid, Phi_grid, method="cubic",
+            jnp.clip(r, r_min, r_max),
+            r_grid,
+            Phi_grid,
+            method="cubic",
         )
 
     def Lambda_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(
-            jnp.clip(r, r_min, r_max), r_grid, Lambda_grid, method="cubic",
+            jnp.clip(r, r_min, r_max),
+            r_grid,
+            Lambda_grid,
+            method="cubic",
         )
 
     def m_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(
-            jnp.clip(r, r_min, r_max), r_grid, m_grid, method="cubic",
+            jnp.clip(r, r_min, r_max),
+            r_grid,
+            m_grid,
+            method="cubic",
         )
 
     def beta_x_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         return interpax.interp1d(
-            jnp.clip(r, r_min, r_max), r_grid, beta_x_grid, method="cubic",
+            jnp.clip(r, r_min, r_max),
+            r_grid,
+            beta_x_grid,
+            method="cubic",
         )
 
     return TShellPotentials(
@@ -239,10 +255,12 @@ def _solve_shift_bvp(
     dl = jnp.concatenate([jnp.array([0.0]), lower_interior, jnp.array([0.0])])
     d = jnp.concatenate([jnp.array([main_0]), main_interior, jnp.array([main_last])])
     du = jnp.concatenate([jnp.array([upper_0]), upper_interior, jnp.array([0.0])])
-    rhs = jnp.concatenate([
-        jnp.array([source[0]]),
-        source[1:-1],
-        jnp.array([0.0]),
-    ])
+    rhs = jnp.concatenate(
+        [
+            jnp.array([source[0]]),
+            source[1:-1],
+            jnp.array([0.0]),
+        ]
+    )
 
     return jax.lax.linalg.tridiagonal_solve(dl, d, du, rhs[:, None])[:, 0]

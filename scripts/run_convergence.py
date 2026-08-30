@@ -1,4 +1,3 @@
-
 """Richardson extrapolation convergence validation.
 
 Analyzes a single warp metric (default: Alcubierre at v_s=0.5) at three
@@ -20,6 +19,7 @@ uses Eulerian-only EC (skipping optimization) and computes Eulerian min
 margin for convergence. Use --full-100 to force optimization at 100^3
 (may take hours).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -195,9 +195,7 @@ def main():
 
         # Extract convergence quantities
         q_min = compute_convergence_quantity(nec_margin, "min_margin")
-        q_l2 = compute_convergence_quantity(
-            nec_margin, "l2_violation", cell_volume=cell_vol
-        )
+        q_l2 = compute_convergence_quantity(nec_margin, "l2_violation", cell_volume=cell_vol)
         q_int = compute_convergence_quantity(
             nec_margin, "integrated_violation", cell_volume=cell_vol
         )
@@ -245,8 +243,10 @@ def main():
             print(f"    N={N:>4d}: {v:.6e}")
         print(f"    Extrapolated: {result['extrapolated_value']:.6e}")
         p_obs = result["observed_order"]
-        print("    Observed order p: "
-              + (f"{p_obs:.2f}" if p_obs is not None else "-- (non-monotone triplet)"))
+        print(
+            "    Observed order p: "
+            + (f"{p_obs:.2f}" if p_obs is not None else "-- (non-monotone triplet)")
+        )
         print(f"    Error estimate: {result['error_estimate']:.6e}")
         print(f"    Converged: {result['converged']}")
 

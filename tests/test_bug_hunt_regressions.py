@@ -169,9 +169,7 @@ class TestClassifierToleranceSentinel:
         counts = []
         for tol in (1e-12, 1e-10, 1e-8):
             cls = jax.vmap(
-                lambda T, g: classify_with_solver(
-                    T, g, None, solver="standard", tol=tol
-                )
+                lambda T, g: classify_with_solver(T, g, None, solver="standard", tol=tol)
             )(t_mixed, g_flat)
             types = np.asarray(cls.he_type)
             counts.append(np.bincount(types.astype(int), minlength=5))
@@ -188,9 +186,7 @@ class TestClassifierToleranceSentinel:
                     T, g, None, solver="standard", imag_rtol=imag_rtol
                 )
             )(t_mixed, g_flat)
-            counts.append(
-                np.bincount(np.asarray(cls.he_type).astype(int), minlength=5)
-            )
+            counts.append(np.bincount(np.asarray(cls.he_type).astype(int), minlength=5))
         for c in counts[1:]:
             np.testing.assert_array_equal(c, counts[0])
 
@@ -200,13 +196,11 @@ class TestClassifierToleranceSentinel:
         # including the weak Type-IV far-field tail (|Im| ~ 1e-8) that
         # the pre-fix relative tier absorbed as Type I.
         t_mixed, g_flat = wall_slab
-        cls = jax.vmap(
-            lambda T, g: classify_with_solver(T, g, None, solver="standard")
-        )(t_mixed, g_flat)
-        types = np.asarray(cls.he_type).astype(int)
-        rep = verify_classification_at_points(
-            np.asarray(t_mixed), np.asarray(g_flat), types
+        cls = jax.vmap(lambda T, g: classify_with_solver(T, g, None, solver="standard"))(
+            t_mixed, g_flat
         )
+        types = np.asarray(cls.he_type).astype(int)
+        rep = verify_classification_at_points(np.asarray(t_mixed), np.asarray(g_flat), types)
         assert rep["n_flips"] == 0
 
     def test_mpmath_gate_agrees_at_every_scale(self):
@@ -241,16 +235,12 @@ class TestTimelikeTiebreakBoundary:
         T_b = B @ T_mixed @ jnp.linalg.inv(B)
         cls = classify_hawking_ellis(T_b, ETA)
         assert int(cls.he_type) == 1
-        rep = classify_hawking_ellis_mpmath(
-            np.asarray(T_b), np.diag([-1.0, 1.0, 1.0, 1.0])
-        )
+        rep = classify_hawking_ellis_mpmath(np.asarray(T_b), np.diag([-1.0, 1.0, 1.0, 1.0]))
         assert rep["he_type"] == 1
         assert float(cls.rho) == pytest.approx(0.7 * scale, rel=1e-8)
         # mpmath oracle: rho = -(timelike eigenvalue); here the unique
         # negative eigenvalue of the boosted diag(-0.7, 0.3, 0.5, 0.9)*s.
-        assert -min(rep["eigenvalues_real"]) == pytest.approx(
-            0.7 * scale, rel=1e-8
-        )
+        assert -min(rep["eigenvalues_real"]) == pytest.approx(0.7 * scale, rel=1e-8)
 
 
 class TestDECNecessaryOnly:
@@ -261,9 +251,9 @@ class TestDECNecessaryOnly:
     @pytest.mark.parametrize(
         "rho,p",
         [
-            (1.0, (0.5, 0.3, 0.1)),     # satisfied, margin +0.5
-            (1.0, (1.5, 0.0, 0.0)),     # violated, margin -0.5
-            (2.0, (-1.0, 0.5, 0.5)),    # satisfied, margin +1.0
+            (1.0, (0.5, 0.3, 0.1)),  # satisfied, margin +0.5
+            (1.0, (1.5, 0.0, 0.0)),  # violated, margin -0.5
+            (2.0, (-1.0, 0.5, 0.5)),  # satisfied, margin +1.0
         ],
     )
     def test_check_dec_sign_agrees_with_optimize_dec(self, rho, p):

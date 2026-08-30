@@ -13,6 +13,7 @@ Three objective flavors for the optimizer:
 :data:`OBJECTIVE_REGISTRY` dict provides string-dispatch for the
 ``design_metric(objective='nec')`` API.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -152,9 +153,7 @@ def averaged_objective(
         return anec(metric, geodesic, **kwargs).line_integral
     if kind == "awec":
         return awec(metric, geodesic, **kwargs).line_integral
-    raise ValueError(
-        f"averaged_objective: kind must be 'anec' or 'awec', got {kind!r}"
-    )
+    raise ValueError(f"averaged_objective: kind must be 'anec' or 'awec', got {kind!r}")
 
 
 def quantum_objective(

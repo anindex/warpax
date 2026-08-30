@@ -4,6 +4,7 @@ All velocity profiles use NumPy (not JAX) since they are evaluated
 outside the JAX trace boundary. The frame sequence builder uses
 ``eqx.tree_at`` to swap ``v_s`` without triggering JIT recompilation.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -242,8 +243,7 @@ def build_frame_sequence(
             t_values = [0.0] * len(v_s_values)
         elif len(t_values) != len(v_s_values):
             raise ValueError(
-                "v_s_values and t_values length mismatch: "
-                f"{len(v_s_values)} != {len(t_values)}."
+                f"v_s_values and t_values length mismatch: {len(v_s_values)} != {len(t_values)}."
             )
         schedule = list(zip(v_s_values, t_values, strict=True))
     else:
@@ -254,6 +254,7 @@ def build_frame_sequence(
     if progress:
         try:
             from tqdm.auto import tqdm
+
             iterator = tqdm(schedule, desc="Building frames", unit="frame")
         except ImportError:
             pass
@@ -264,13 +265,15 @@ def build_frame_sequence(
         # Swap v_s without recompilation
         metric_t = eqx.tree_at(lambda m: m.v_s, metric, v_s_t)
         result = evaluate_curvature_grid(
-            metric_t, grid_spec,
+            metric_t,
+            grid_spec,
             batch_size=batch_size,
             compute_invariants=compute_invariants,
             t=t,
         )
         frame = freeze_curvature(
-            result, grid_spec,
+            result,
+            grid_spec,
             metric_name=metric_name,
             v_s=v_s_t,
             t=t,
@@ -368,8 +371,7 @@ def build_ec_frame_sequence(
             t_values = [0.0] * len(v_s_values)
         elif len(t_values) != len(v_s_values):
             raise ValueError(
-                "v_s_values and t_values length mismatch: "
-                f"{len(v_s_values)} != {len(t_values)}."
+                f"v_s_values and t_values length mismatch: {len(v_s_values)} != {len(t_values)}."
             )
         schedule = list(zip(v_s_values, t_values, strict=True))
     else:
@@ -380,6 +382,7 @@ def build_ec_frame_sequence(
     if progress:
         try:
             from tqdm.auto import tqdm
+
             iterator = tqdm(schedule, desc="Building EC frames", unit="frame")
         except ImportError:
             pass
@@ -398,7 +401,8 @@ def build_ec_frame_sequence(
     for v_s_t, t in iterator:
         metric_t = eqx.tree_at(lambda m: m.v_s, metric, v_s_t)
         result = evaluate_curvature_grid(
-            metric_t, grid_spec,
+            metric_t,
+            grid_spec,
             batch_size=batch_size,
             compute_invariants=True,
             t=t,
@@ -415,9 +419,7 @@ def build_ec_frame_sequence(
 
         worst_wec = np.asarray(jnp.min(wec_margins, axis=-1).reshape(grid_spec.shape))
         worst_nec = np.asarray(jnp.min(nec_margins, axis=-1).reshape(grid_spec.shape))
-        energy_density = eulerian_energy_density_grid(
-            result.stress_energy, result.metric_inv
-        )
+        energy_density = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
         T_00_covariant = np.asarray(result.stress_energy[..., 0, 0])
         f_grid = _shape_function_grid(metric_t, grid_spec, t)
 
@@ -447,8 +449,11 @@ def build_ec_frame_sequence(
             colormaps["shape_function"] = "viridis"
 
         diverging = {
-            "ricci_scalar", "energy_density", "T_00_covariant",
-            "wec_margin_sweep", "nec_margin_sweep",
+            "ricci_scalar",
+            "energy_density",
+            "T_00_covariant",
+            "wec_margin_sweep",
+            "nec_margin_sweep",
         }
         clim = {}
         for name, arr in scalar_fields.items():

@@ -47,6 +47,7 @@ discrepancy.
 
 Run:  JAX_PLATFORMS=cpu python scripts/run_type_transition_audit.py
 """
+
 from __future__ import annotations
 
 import json
@@ -72,39 +73,47 @@ TOLS = (1e-10, 2e-6, 5e-6)
 # families
 # --------------------------------------------------------------------------- #
 
+
 def momentum_block(j, rho=1.0, s_par=1.0, p_perp=0.0):
     """Covariant ``T_ab`` whose mixed momentum block is the report's ``A``."""
-    return np.array([
-        [rho, -j, 0.0, 0.0],
-        [-j, s_par, 0.0, 0.0],
-        [0.0, 0.0, p_perp, 0.0],
-        [0.0, 0.0, 0.0, p_perp],
-    ])
+    return np.array(
+        [
+            [rho, -j, 0.0, 0.0],
+            [-j, s_par, 0.0, 0.0],
+            [0.0, 0.0, p_perp, 0.0],
+            [0.0, 0.0, 0.0, p_perp],
+        ]
+    )
 
 
 def transverse_block(m, rho=1.0, j=0.5, s_x=1.0):
     """Corollary-1 witness: Type IV opened by a transverse coupling at ``Delta > 0``."""
-    return np.array([
-        [rho, -j, 0.0, 0.0],
-        [-j, s_x, m, 0.0],
-        [0.0, m, 0.0, 0.0],
-        [0.0, 0.0, 0.0, 0.0],
-    ])
+    return np.array(
+        [
+            [rho, -j, 0.0, 0.0],
+            [-j, s_x, m, 0.0],
+            [0.0, m, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+        ]
+    )
 
 
 def segre31_block(f, r=0.7, p=0.3):
     """Genuine Segre [3,1]: a size-three Jordan chain for every ``f != 0``."""
-    return np.array([
-        [r, 0.0, -f, 0.0],
-        [0.0, -r, f, 0.0],
-        [-f, f, -r, 0.0],
-        [0.0, 0.0, 0.0, p],
-    ])
+    return np.array(
+        [
+            [r, 0.0, -f, 0.0],
+            [0.0, -r, f, 0.0],
+            [-f, f, -r, 0.0],
+            [0.0, 0.0, 0.0, p],
+        ]
+    )
 
 
 # --------------------------------------------------------------------------- #
 # measurements
 # --------------------------------------------------------------------------- #
+
 
 def _brute_sphere_min(T_ab, directions):
     """Minimum of ``T_ab k^a k^b`` over the null cone, by direct sampling.
@@ -116,8 +125,9 @@ def _brute_sphere_min(T_ab, directions):
     rho = T_ab[0, 0]
     b = -T_ab[0, 1:]
     S = T_ab[1:, 1:]
-    return float((rho + 2.0 * directions @ b
-                  + np.einsum("ni,ij,nj->n", directions, S, directions)).min())
+    return float(
+        (rho + 2.0 * directions @ b + np.einsum("ni,ij,nj->n", directions, S, directions)).min()
+    )
 
 
 def _mixed(T_ab):
@@ -151,15 +161,17 @@ def sweep(name, builder, params, directions):
         T = builder(t)
         Tj, gj = jnp.asarray(T), jnp.asarray(ETA)
         margins = certify_point(Tj, gj)
-        rows.append({
-            "param": float(t),
-            "nec_margin": float(margins["nec"]),
-            "wec_margin": float(margins["wec"]),
-            "null_deficit": float(null_deficit(Tj, gj)),
-            "brute_sphere_min": _brute_sphere_min(T, directions),
-            "noise_floor": float(noise_floor(Tj, gj, condition="nec")),
-            "labels": _labels(T),
-        })
+        rows.append(
+            {
+                "param": float(t),
+                "nec_margin": float(margins["nec"]),
+                "wec_margin": float(margins["wec"]),
+                "null_deficit": float(null_deficit(Tj, gj)),
+                "brute_sphere_min": _brute_sphere_min(T, directions),
+                "noise_floor": float(noise_floor(Tj, gj, condition="nec")),
+                "labels": _labels(T),
+            }
+        )
 
     margins = np.array([r["nec_margin"] for r in rows])
     ps = np.array([r["param"] for r in rows])
@@ -168,8 +180,7 @@ def sweep(name, builder, params, directions):
     lip = float(np.max(np.abs(np.diff(margins)) / np.maximum(np.diff(ps), 1e-30)))
     primary = np.array([r["labels"][f"tol_{TOLS[0]:g}"] for r in rows])
     jumps = [int(i) for i in np.flatnonzero(np.diff(primary) != 0)]
-    err = float(np.max(np.abs(2.0 * margins
-                              - np.array([r["brute_sphere_min"] for r in rows]))))
+    err = float(np.max(np.abs(2.0 * margins - np.array([r["brute_sphere_min"] for r in rows]))))
     return {
         "param_name": name,
         "n": len(rows),
@@ -194,18 +205,19 @@ def type_iii_arm(fs, directions):
         Tj, gj = jnp.asarray(T), jnp.asarray(ETA)
         m = certify_point(Tj, gj)
         try:
-            exact = int(classify_hawking_ellis_mpmath(_mixed(T), ETA,
-                                                      precision=50)["he_type"])
+            exact = int(classify_hawking_ellis_mpmath(_mixed(T), ETA, precision=50)["he_type"])
         except Exception:
             exact = -1
-        rows.append({
-            "f": float(f),
-            "he_type_mpmath_50digit": exact,
-            "labels": _labels(T),
-            "nec_margin": float(m["nec"]),
-            "noise_floor": float(noise_floor(Tj, gj, condition="nec")),
-            "brute_sphere_min": _brute_sphere_min(T, directions),
-        })
+        rows.append(
+            {
+                "f": float(f),
+                "he_type_mpmath_50digit": exact,
+                "labels": _labels(T),
+                "nec_margin": float(m["nec"]),
+                "noise_floor": float(noise_floor(Tj, gj, condition="nec")),
+                "brute_sphere_min": _brute_sphere_min(T, directions),
+            }
+        )
 
     def _first(pred):
         for r in rows:
@@ -216,8 +228,7 @@ def type_iii_arm(fs, directions):
     # Smallest chain strength at which float64 still agrees with 50 digits, and the
     # smallest at which the LMI still certifies a violation. The gap between them is
     # the point: the verdict outlives the label by orders of magnitude.
-    agree = [r["f"] for r in rows
-             if r["labels"][f"tol_{TOLS[0]:g}"] == r["he_type_mpmath_50digit"]]
+    agree = [r["f"] for r in rows if r["labels"][f"tol_{TOLS[0]:g}"] == r["he_type_mpmath_50digit"]]
     certifies = [r["f"] for r in rows if r["nec_margin"] < -r["noise_floor"]]
     return {
         "n": len(rows),
@@ -231,8 +242,10 @@ def type_iii_arm(fs, directions):
 def write_table(out, path):
     def row(key, label):
         d = out["families"][key]
-        return (f"  {label} & {d['n']} & {d['n_labelled_type_ii']} & "
-                f"{d['margin_lipschitz']:.3g} & {d['max_lmi_vs_brute_abs_err']:.1e} \\\\")
+        return (
+            f"  {label} & {d['n']} & {d['n_labelled_type_ii']} & "
+            f"{d['margin_lipschitz']:.3g} & {d['max_lmi_vs_brute_abs_err']:.1e} \\\\"
+        )
 
     lines = [
         r"% Generated by scripts/run_type_transition_audit.py; do not edit.",
@@ -267,8 +280,7 @@ def main():
         "tolerances": list(TOLS),
         "families": {
             "momentum_aligned": sweep("j", lambda j: momentum_block(j), js, dirs),
-            "momentum_decoupled": sweep(
-                "j", lambda j: momentum_block(j, p_perp=-3.0), js, dirs),
+            "momentum_decoupled": sweep("j", lambda j: momentum_block(j, p_perp=-3.0), js, dirs),
             "transverse": sweep("m", transverse_block, ms, dirs),
         },
         "type_iii_chain": type_iii_arm(fs, dirs),
@@ -278,14 +290,18 @@ def main():
     print("TYPE-TRANSITION AUDIT   (LMI vs classifier across the Type-II locus)")
     print("=" * 72)
     for k, d in out["families"].items():
-        print(f"  {k:20s} n={d['n']:4d}  labelled II={d['n_labelled_type_ii']:3d}  "
-              f"margin Lipschitz={d['margin_lipschitz']:.4g}  "
-              f"max|LMI-brute|={d['max_lmi_vs_brute_abs_err']:.2e}")
+        print(
+            f"  {k:20s} n={d['n']:4d}  labelled II={d['n_labelled_type_ii']:3d}  "
+            f"margin Lipschitz={d['margin_lipschitz']:.4g}  "
+            f"max|LMI-brute|={d['max_lmi_vs_brute_abs_err']:.2e}"
+        )
     t3 = out["type_iii_chain"]
-    print(f"  type_iii_chain       n={t3['n']:4d}  "
-          f"mpmath says III at {t3['n_mpmath_type_iii']} of them; "
-          f"float64 label agrees down to f={t3['f_label_agrees_down_to']}, "
-          f"LMI certifies down to f={t3['f_lmi_certifies_down_to']}")
+    print(
+        f"  type_iii_chain       n={t3['n']:4d}  "
+        f"mpmath says III at {t3['n_mpmath_type_iii']} of them; "
+        f"float64 label agrees down to f={t3['f_label_agrees_down_to']}, "
+        f"LMI certifies down to f={t3['f_lmi_certifies_down_to']}"
+    )
 
     RESULTS.mkdir(parents=True, exist_ok=True)
     path = RESULTS / "type_transition_audit.json"

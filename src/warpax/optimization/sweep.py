@@ -8,6 +8,7 @@ Transport is characterized by two observables:
   - max|beta^x|: coordinate shift magnitude (gauge-dependent proxy)
   - delta_tau: null round-trip asymmetry (gauge-invariant)
 """
+
 from __future__ import annotations
 
 import json
@@ -192,11 +193,13 @@ def _evaluate_point(
     if ansatz == "tshell":
         profiles = coeffs_to_profiles_tshell(coeffs, R_1, R_2)
         from ..metrics.tshell import tshell_from_profiles
+
         metric = tshell_from_profiles(profiles, n_grid=n_grid)
         transport = float(jnp.max(jnp.abs(metric._beta_x_grid)))
     else:
         profiles = coeffs_to_profiles_sshell(coeffs, R_1, R_2)
         from ..metrics.sshell import sshell_from_profiles
+
         metric = sshell_from_profiles(profiles, v_s=0.0, n_grid=n_grid)
         transport = 0.0
 
@@ -208,14 +211,18 @@ def _evaluate_point(
         emitter = jnp.array([0.0, R_1 * 0.5, 0.0, 0.0], dtype=jnp.float64)
         receiver = jnp.array([0.0, R_2 * 1.5, 0.0, 0.0], dtype=jnp.float64)
         try:
-            transport_invariant = float(null_round_trip_asymmetry(
-                metric, emitter, receiver,
-                tau_max=R_2 * 5.0, num_points=200,
-            ))
+            transport_invariant = float(
+                null_round_trip_asymmetry(
+                    metric,
+                    emitter,
+                    receiver,
+                    tau_max=R_2 * 5.0,
+                    num_points=200,
+                )
+            )
         except (ValueError, RuntimeError, FloatingPointError) as exc:
             warnings.warn(
-                f"null_round_trip_asymmetry failed at "
-                f"(R_1={R_1:.2f}, R_2={R_2:.2f}): {exc}",
+                f"null_round_trip_asymmetry failed at (R_1={R_1:.2f}, R_2={R_2:.2f}): {exc}",
                 RuntimeWarning,
                 stacklevel=2,
             )
@@ -225,22 +232,27 @@ def _evaluate_point(
 
     # Constraint residuals
     from ..constraints.residuals import normalized_residuals
+
     margin = 0.02 * (R_2 - R_1)
     r_probes = jnp.linspace(R_1 + margin, R_2 - margin, max(n_probes, 3))
 
     def eval_constraint(r_val):
         coords = jnp.array([0.0, r_val, 0.0, 0.0])
         res = normalized_residuals(metric, coords)
-        return res["epsilon_H"]**2 + res["epsilon_M"]**2
+        return res["epsilon_H"] ** 2 + res["epsilon_M"] ** 2
 
     constraint_vals = jax.vmap(eval_constraint)(r_probes)
     constraint_residual = float(jnp.mean(constraint_vals))
 
     # Tidal force at passenger cabin
     from ..transport.diagnostics import geodesic_deviation_diagnostic
-    tidal = float(geodesic_deviation_diagnostic(
-        metric, jnp.array([0.0, R_1 * 0.5, 0.0, 0.0]),
-    ))
+
+    tidal = float(
+        geodesic_deviation_diagnostic(
+            metric,
+            jnp.array([0.0, R_1 * 0.5, 0.0, 0.0]),
+        )
+    )
 
     # EC certification: frame-free Hawking--Ellis verdict (cap-free Type-I
     # slacks + Type-IV detection), no observer search. Probes span the full
@@ -352,8 +364,7 @@ def sweep_transport(
             )
         except Exception as exc:
             warnings.warn(
-                f"Grid point ({compactness:.4f}, {thickness_ratio:.3f}) "
-                f"failed: {exc!r}",
+                f"Grid point ({compactness:.4f}, {thickness_ratio:.3f}) failed: {exc!r}",
                 stacklevel=1,
             )
             return SweepPoint(
@@ -374,6 +385,7 @@ def sweep_transport(
     if progress:
         try:
             from tqdm import tqdm
+
             pbar = tqdm(total=total, desc="Sweep", unit="pt")
         except ImportError:
             pbar = None
@@ -421,5 +433,3 @@ def sweep_transport(
         result.save(save_path)
 
     return result
-
-

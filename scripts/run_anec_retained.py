@@ -20,6 +20,7 @@ is retained as a sentinel.
 Outputs:
 - ../results/anec/retained.json
 """
+
 from __future__ import annotations
 
 import os
@@ -57,8 +58,6 @@ B_SCAN = np.linspace(1.0e-3, 2.5, 80)
 SENTINEL_TOL = 1.0e-8
 
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
-
-
 
 
 def _axial_ray(b: float):
@@ -125,12 +124,12 @@ def main() -> None:
     Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 
     sentinel = _minkowski_sentinel()
-    print(f"Minkowski sentinel |ANEC|_max = {sentinel:.2e} "
-          f"({'PASS' if sentinel < SENTINEL_TOL else 'FAIL'})")
+    print(
+        f"Minkowski sentinel |ANEC|_max = {sentinel:.2e} "
+        f"({'PASS' if sentinel < SENTINEL_TOL else 'FAIL'})"
+    )
     if sentinel >= SENTINEL_TOL:
-        raise RuntimeError(
-            f"Minkowski ANEC sentinel {sentinel:.2e} exceeds tol {SENTINEL_TOL}"
-        )
+        raise RuntimeError(f"Minkowski ANEC sentinel {sentinel:.2e} exceeds tol {SENTINEL_TOL}")
 
     per_metric: dict[str, dict] = {}
     for name in ORDER:
@@ -150,16 +149,21 @@ def main() -> None:
             "b_scan": B_SCAN.tolist(),
             "line_integral_scan": scan.tolist(),
         }
-        print(f"  {name:16s} on-axis={on_axis:+.4e}  "
-              f"min={scan[j]:+.4e} @ b={B_SCAN[j]:.3f}  max={scan.max():+.3e}  "
-              f"span={span:.1f}{'' if span_converged else ' [RAY DID NOT LEAVE]'}"
-              f"{'' if 0 < j < len(B_SCAN) - 1 else ' [argmin on endpoint]'}",
-              flush=True)
+        print(
+            f"  {name:16s} on-axis={on_axis:+.4e}  "
+            f"min={scan[j]:+.4e} @ b={B_SCAN[j]:.3f}  max={scan.max():+.3e}  "
+            f"span={span:.1f}{'' if span_converged else ' [RAY DID NOT LEAVE]'}"
+            f"{'' if 0 < j < len(B_SCAN) - 1 else ' [argmin on endpoint]'}",
+            flush=True,
+        )
 
     out = {
         "params": {
-            "v_s": V_S, "R_b": R_B, "sigma": SIGMA,
-            "x_start": X_START, "affine_span_start": SPAN0,
+            "v_s": V_S,
+            "R_b": R_B,
+            "sigma": SIGMA,
+            "x_start": X_START,
+            "affine_span_start": SPAN0,
             "n_samples_at_span_start": N_SAMPLES,
             "affine_span_note": (
                 "the window is measured per metric from the ray's own trajectory: "

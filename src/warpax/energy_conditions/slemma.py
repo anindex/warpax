@@ -56,6 +56,7 @@ subdivision does not help. Global coverage over a domain stays with the
 Moore-Skelboe branch and bound in :mod:`.enclosure`, which brackets
 ``min_{|w|<=1} q`` directly. Two tools, two jobs; do not conflate them.
 """
+
 from __future__ import annotations
 
 import jax
@@ -182,9 +183,7 @@ def _tensor_scale(T_hat: Float[Array, "4 4"]) -> Float[Array, ""]:
     return jnp.max(jnp.abs(T_hat))
 
 
-def _flux_margin_linear(
-    flux: Float[Array, ""], scale: Float[Array, ""]
-) -> Float[Array, ""]:
+def _flux_margin_linear(flux: Float[Array, ""], scale: Float[Array, ""]) -> Float[Array, ""]:
     """Put the ``-T^2`` ball margin back in the units of ``T``, by ``flux / |T|``.
 
     The flux half of the DEC is the ball margin of ``-T^2``, so it is homogeneous
@@ -363,15 +362,18 @@ def witness_observer(
     def descend(w0):
         def body(_, w):
             return project(w - step * 2.0 * (S @ w - b))
+
         return jax.lax.fori_loop(0, _DESCENT_STEPS, body, project(w0))
 
     evals_S, evecs_S = jnp.linalg.eigh(S)
     b_norm = jnp.linalg.norm(b)
-    starts = jnp.stack([
-        evecs_S[:, 0],
-        -evecs_S[:, 0],
-        b / jnp.where(b_norm > 1e-30, b_norm, 1.0),
-    ])
+    starts = jnp.stack(
+        [
+            evecs_S[:, 0],
+            -evecs_S[:, 0],
+            b / jnp.where(b_norm > 1e-30, b_norm, 1.0),
+        ]
+    )
     cands = jax.vmap(descend)(starts)
     vals = jax.vmap(q)(cands)
     best = cands[jnp.argmin(vals)]

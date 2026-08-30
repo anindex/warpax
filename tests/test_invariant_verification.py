@@ -1,4 +1,5 @@
 """Tests for the invariant all-observer verification."""
+
 from __future__ import annotations
 
 import jax
@@ -43,8 +44,7 @@ def test_rodal_single_frame_miss_is_substantial():
     metric = RodalMetric(v_s=0.5, R=1.0, sigma=8.0)
     T, g, gi, vw = _curv(metric)
     mask = _wall(metric)
-    miss = single_frame_miss(T, g, gi, mask=mask,
-                             volume_weights=np.asarray(jnp.reshape(vw, (-1,))))
+    miss = single_frame_miss(T, g, gi, mask=mask, volume_weights=np.asarray(jnp.reshape(vw, (-1,))))
     # DEC/WEC: most violations are off-Eulerian (boosted observers); NEC less so.
     assert 0.4 < miss["dec"]["miss_rate"] < 0.95
     assert 0.4 < miss["wec"]["miss_rate"] < 0.95
@@ -75,6 +75,7 @@ def test_exotic_content_signs_and_manual_match():
 
     # Manual cross-check against the frame-free rho (Rodal is ~100% Type I).
     from warpax.energy_conditions.frame_free import certify_grid_frame_free
+
     ff = certify_grid_frame_free(T, g, gi)
     rho = np.asarray(ff.rho).ravel()
     w = np.asarray(vw).ravel()

@@ -23,6 +23,7 @@ Example
 >>> r.type_fractions["frac_type_i"], r.invariant_nec_min
 (1.0, -2.75...)
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -49,10 +50,10 @@ class CertifyResult(NamedTuple):
 
     v_s: float
     frame_free: FrameFreeGridResult
-    type_fractions: dict        # wall-restricted, volume-weighted
-    invariant_nec_min: float    # min(rho+p_i) over wall Type-I points
-    invariant_dec_min: float    # min(rho-|p_i|) over wall Type-I points
-    eulerian_available: bool    # True iff v_s < 1 (Eulerian congruence timelike)
+    type_fractions: dict  # wall-restricted, volume-weighted
+    invariant_nec_min: float  # min(rho+p_i) over wall Type-I points
+    invariant_dec_min: float  # min(rho-|p_i|) over wall Type-I points
+    eulerian_available: bool  # True iff v_s < 1 (Eulerian congruence timelike)
     single_frame_miss: dict | None  # per-condition Eulerian miss rates (or None)
 
 
@@ -111,11 +112,13 @@ def certify(
     ff = certify_grid_frame_free(T, g, gi, solver=solver)
 
     coords = build_coord_batch(grid, t=0.0)
-    mask = shape_function_mask(metric, coords, shape,
-                               f_low=wall_bounds[0], f_high=wall_bounds[1])
+    mask = shape_function_mask(metric, coords, shape, f_low=wall_bounds[0], f_high=wall_bounds[1])
     mask_flat = np.asarray(jnp.reshape(mask, (-1,))).astype(bool)
-    vol_w = (None if grid.volume_weights_array is None
-             else proper_volume_weights(grid.volume_weights_array, g))
+    vol_w = (
+        None
+        if grid.volume_weights_array is None
+        else proper_volume_weights(grid.volume_weights_array, g)
+    )
 
     fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
     mm = typeI_min_margins(ff, mask=mask_flat)
@@ -123,8 +126,7 @@ def certify(
     eulerian_available = v < 1.0
     miss = None
     if eulerian_available:
-        vw_flat = (None if vol_w is None
-                   else np.asarray(jnp.reshape(vol_w, (-1,))))
+        vw_flat = None if vol_w is None else np.asarray(jnp.reshape(vol_w, (-1,)))
         miss = single_frame_miss(T, g, gi, mask=mask_flat, volume_weights=vw_flat)
 
     return CertifyResult(

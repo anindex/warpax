@@ -6,6 +6,7 @@ physics-aware fallbacks:
 - Magnitude fields: ``inferno`` sequential.
 - HE type classification: ``tab10`` categorical.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -18,9 +19,7 @@ if TYPE_CHECKING:
     from ._frame_data import FrameData
 
 
-MARGIN_FIELDS: frozenset[str] = frozenset(
-    {"nec_margin", "wec_margin", "sec_margin", "dec_margin"}
-)
+MARGIN_FIELDS: frozenset[str] = frozenset({"nec_margin", "wec_margin", "sec_margin", "dec_margin"})
 """Scalar fields representing EC violation margins (diverging colormap)."""
 
 _DIVERGING_FIELDS: frozenset[str] = MARGIN_FIELDS | frozenset(
@@ -105,8 +104,7 @@ def resolve_clim(frame: "FrameData", field: str) -> tuple[float, float]:
     # Compute from data
     if field not in frame.scalar_fields:
         raise ValueError(
-            f"Field {field!r} not in FrameData scalar_fields. "
-            f"Available: {frame.field_names}"
+            f"Field {field!r} not in FrameData scalar_fields. Available: {frame.field_names}"
         )
 
     arr = frame.scalar_fields[field]

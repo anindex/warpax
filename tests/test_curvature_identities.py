@@ -37,12 +37,14 @@ jax.config.update("jax_enable_x64", True)
 
 # Helper: lower all Riemann indices
 
+
 def lower_riemann(riemann_uddd, g):
     """Lower the first index: R_{abcd} = g_{ae} R^e_{bcd}."""
     return jnp.einsum("ae,ebcd->abcd", g, riemann_uddd)
 
 
 # Helper: compute covariant divergence of Einstein tensor
+
 
 def einstein_divergence(metric_fn, coords):
     """Compute nabla_a G^{ab} via autodiff.
@@ -51,6 +53,7 @@ def einstein_divergence(metric_fn, coords):
     + Gamma^b_{ac} V^{ac}. We compute G^{ab} = g^{ac} g^{bd} G_{cd} at
     neighboring points and differentiate.
     """
+
     def G_upper(x):
         result = compute_curvature_chain(metric_fn, x)
         g_inv = result.metric_inv
@@ -86,18 +89,18 @@ SCHWARZSCHILD_POINTS = [
 ]
 
 ALCUBIERRE_POINTS = [
-    jnp.array([0.0, 0.8, 0.5, 0.0]),   # bubble wall, off-axis
-    jnp.array([0.0, 1.0, 0.3, 0.3]),   # on wall
-    jnp.array([0.0, 0.5, 0.7, 0.0]),   # inner wall region
+    jnp.array([0.0, 0.8, 0.5, 0.0]),  # bubble wall, off-axis
+    jnp.array([0.0, 1.0, 0.3, 0.3]),  # on wall
+    jnp.array([0.0, 0.5, 0.7, 0.0]),  # inner wall region
 ]
 
-ALL_POINTS = (
-    [(SchwarzschildMetric(M=1.0), p, "schwarzschild") for p in SCHWARZSCHILD_POINTS]
-    + [(AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0), p, "alcubierre") for p in ALCUBIERRE_POINTS]
-)
+ALL_POINTS = [(SchwarzschildMetric(M=1.0), p, "schwarzschild") for p in SCHWARZSCHILD_POINTS] + [
+    (AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0), p, "alcubierre") for p in ALCUBIERRE_POINTS
+]
 
 
 # 1. Riemann antisymmetries
+
 
 class TestRiemannAntisymmetries:
     """R_{abcd} = -R_{bacd}, R_{abcd} = -R_{abdc}, R_{abcd} = R_{cdab}."""
@@ -109,7 +112,9 @@ class TestRiemannAntisymmetries:
         R = lower_riemann(result.riemann, result.metric)
         residual = R + jnp.transpose(R, (1, 0, 2, 3))
         npt.assert_allclose(
-            np.array(residual), 0.0, atol=1e-10,
+            np.array(residual),
+            0.0,
+            atol=1e-10,
             err_msg=f"R_{{abcd}} + R_{{bacd}} != 0 for {label}",
         )
 
@@ -120,7 +125,9 @@ class TestRiemannAntisymmetries:
         R = lower_riemann(result.riemann, result.metric)
         residual = R + jnp.transpose(R, (0, 1, 3, 2))
         npt.assert_allclose(
-            np.array(residual), 0.0, atol=1e-10,
+            np.array(residual),
+            0.0,
+            atol=1e-10,
             err_msg=f"R_{{abcd}} + R_{{abdc}} != 0 for {label}",
         )
 
@@ -131,12 +138,15 @@ class TestRiemannAntisymmetries:
         R = lower_riemann(result.riemann, result.metric)
         residual = R - jnp.transpose(R, (2, 3, 0, 1))
         npt.assert_allclose(
-            np.array(residual), 0.0, atol=1e-10,
+            np.array(residual),
+            0.0,
+            atol=1e-10,
             err_msg=f"R_{{abcd}} != R_{{cdab}} for {label}",
         )
 
 
 # 2. First Bianchi identity
+
 
 class TestFirstBianchiIdentity:
     """R_{abcd} + R_{acdb} + R_{adbc} = 0."""
@@ -148,30 +158,43 @@ class TestFirstBianchiIdentity:
         # R_{abcd} + R_{acdb} + R_{adbc}
         bianchi = R + jnp.transpose(R, (0, 2, 3, 1)) + jnp.transpose(R, (0, 3, 1, 2))
         npt.assert_allclose(
-            np.array(bianchi), 0.0, atol=1e-10,
+            np.array(bianchi),
+            0.0,
+            atol=1e-10,
             err_msg=f"First Bianchi identity violated for {label}",
         )
 
 
 # 3. Einstein tensor divergence (contracted Bianchi)
 
+
 class TestEinsteinDivergence:
     """nabla_a G^{ab} = 0 (contracted Bianchi identity)."""
 
-    @pytest.mark.parametrize("metric,coords,label", [
-        (SchwarzschildMetric(M=1.0), jnp.array([0.0, 5.0, 0.0, 0.0]), "schwarzschild_r5"),
-        (SchwarzschildMetric(M=1.0), jnp.array([0.0, 10.0, 0.0, 0.0]), "schwarzschild_r10"),
-        (AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0), jnp.array([0.0, 0.8, 0.5, 0.0]), "alcubierre"),
-    ])
+    @pytest.mark.parametrize(
+        "metric,coords,label",
+        [
+            (SchwarzschildMetric(M=1.0), jnp.array([0.0, 5.0, 0.0, 0.0]), "schwarzschild_r5"),
+            (SchwarzschildMetric(M=1.0), jnp.array([0.0, 10.0, 0.0, 0.0]), "schwarzschild_r10"),
+            (
+                AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0),
+                jnp.array([0.0, 0.8, 0.5, 0.0]),
+                "alcubierre",
+            ),
+        ],
+    )
     def test_divergence_free(self, metric, coords, label):
         div = einstein_divergence(metric, coords)
         npt.assert_allclose(
-            np.array(div), 0.0, atol=1e-6,
+            np.array(div),
+            0.0,
+            atol=1e-6,
             err_msg=f"nabla_a G^{{ab}} != 0 for {label}",
         )
 
 
 # Summary: count all identity checks
+
 
 class TestIdentitySummary:
     """Aggregate identity residuals for reporting in paper."""

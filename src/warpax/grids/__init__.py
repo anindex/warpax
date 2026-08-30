@@ -10,6 +10,7 @@ Provides:
 All returned grids are JIT-safe (static) and, for ``wall_clustered``,
 carry ``volume_weights`` for non-uniform stats.
 """
+
 from __future__ import annotations
 
 from warpax.geometry import GridSpec

@@ -28,6 +28,7 @@ See ``kinematic_scalars`` for the analogous decomposition of the Eulerian
 orthogonality); the shift field carries the rotation that the Eulerian normal
 cannot.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

@@ -20,6 +20,7 @@ The threshold for labeling a violation is ``margin < -atol``
 All functions are pointwise on ``(rho, pressures)`` and intended to be
 lifted to grids via ``jax.vmap``.
 """
+
 from __future__ import annotations
 
 import jax.numpy as jnp
@@ -35,9 +36,7 @@ def check_wec(
     WEC: rho >= 0 AND rho + p_i >= 0 for all i.
     Returns ``min(rho, rho+p1, rho+p2, rho+p3)``.
     """
-    candidates = jnp.concatenate(
-        [jnp.expand_dims(rho, -1), rho + pressures]
-    )
+    candidates = jnp.concatenate([jnp.expand_dims(rho, -1), rho + pressures])
     return jnp.min(candidates)
 
 
@@ -95,9 +94,7 @@ def check_sec(
     Returns ``min(rho+p1, rho+p2, rho+p3, rho+p1+p2+p3)``.
     """
     trace = rho + jnp.sum(pressures)
-    candidates = jnp.concatenate(
-        [rho + pressures, jnp.expand_dims(trace, -1)]
-    )
+    candidates = jnp.concatenate([rho + pressures, jnp.expand_dims(trace, -1)])
     return jnp.min(candidates)
 
 

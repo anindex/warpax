@@ -23,6 +23,7 @@ Regions:
     R_1..R_2: curved shell with tilted flow
     r > R_2:  Schwarzschild exterior with decaying shift
 """
+
 from __future__ import annotations
 
 import jax.numpy as jnp
@@ -65,11 +66,10 @@ class TShellMetric(ADMMetric):
     R_2: float
     total_mass: Float[Array, ""]
 
-    def _interp(
-        self, r: Float[Array, ""], grid_vals: Float[Array, "N"]
-    ) -> Float[Array, ""]:
+    def _interp(self, r: Float[Array, ""], grid_vals: Float[Array, "N"]) -> Float[Array, ""]:
         """Cubic interpolation on the stored grid."""
         import interpax
+
         r_clamped = jnp.clip(r, self._r_grid[0], self._r_grid[-1])
         return interpax.interp1d(r_clamped, self._r_grid, grid_vals, method="cubic")
 
@@ -129,12 +129,14 @@ class TShellMetric(ADMMetric):
         beta = sp.Function("beta_x")
         r = sp.sqrt(x**2 + y**2 + z**2)
 
-        g = sp.Matrix([
-            [-sp.exp(2 * Phi(r)) + beta(r)**2, beta(r), 0, 0],
-            [beta(r), sp.exp(2 * Lambda(r)), 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-sp.exp(2 * Phi(r)) + beta(r) ** 2, beta(r), 0, 0],
+                [beta(r), sp.exp(2 * Lambda(r)), 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:
@@ -187,6 +189,9 @@ def tshell_from_profiles(
 def tshell_default(v_0: float = 0.1) -> TShellMetric:
     """Default T-shell: R_1=10, R_2=20, rho_0=1e-4, v_0=0.1."""
     profiles = constant_velocity_profiles(
-        R_1=10.0, R_2=20.0, rho_0=1e-4, v_0=v_0,
+        R_1=10.0,
+        R_2=20.0,
+        rho_0=1e-4,
+        v_0=v_0,
     )
     return tshell_from_profiles(profiles)

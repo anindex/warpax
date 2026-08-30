@@ -17,10 +17,10 @@ from warpax.geometry.metric import sympy_metric_to_jax
 # Test coordinate points
 
 TEST_POINTS = [
-    jnp.array([0.0, 1.0, 2.0, 3.0]),       # standard
-    jnp.array([0.0, 0.01, 0.01, 0.01]),     # near-origin
-    jnp.array([0.0, 100.0, 0.0, 0.0]),      # far field
-    jnp.array([0.0, 1.0, 1.0, 1.0]),        # off-axis
+    jnp.array([0.0, 1.0, 2.0, 3.0]),  # standard
+    jnp.array([0.0, 0.01, 0.01, 0.01]),  # near-origin
+    jnp.array([0.0, 100.0, 0.0, 0.0]),  # far field
+    jnp.array([0.0, 1.0, 1.0, 1.0]),  # off-axis
 ]
 
 
@@ -41,8 +41,7 @@ class TestMinkowskiSympyBridge:
             g_bridge = bridge_fn(coords)
             assert g_bridge.dtype == jnp.float64
             assert jnp.allclose(g_jax, g_bridge, atol=1e-14), (
-                f"Minkowski mismatch at {coords}: max diff = "
-                f"{jnp.max(jnp.abs(g_jax - g_bridge))}"
+                f"Minkowski mismatch at {coords}: max diff = {jnp.max(jnp.abs(g_jax - g_bridge))}"
             )
 
     def test_minkowski_sympy_bridge_jit(self):
@@ -73,6 +72,7 @@ class TestSchwarzschildSympyBridge:
         M_sym = sp.Symbol("M", positive=True)
         g_concrete = sm.g.subs(M_sym, M_val)
         from warpax.geometry.metric import SymbolicMetric
+
         sm_concrete = SymbolicMetric(sm.coords, g_concrete)
         return sympy_metric_to_jax(sm_concrete)
 
@@ -110,9 +110,7 @@ class TestAlcubierreSympyBridge:
     values before comparison.
     """
 
-    def _get_bridge_fn(
-        self, v_s_val: float = 0.5, R_val: float = 1.0, sigma_val: float = 8.0
-    ):
+    def _get_bridge_fn(self, v_s_val: float = 0.5, R_val: float = 1.0, sigma_val: float = 8.0):
         """Build a bridge function with concrete parameter values."""
         m = AlcubierreMetric(v_s=v_s_val, R=R_val, sigma=sigma_val, x_s=0.0)
         sm = m.symbolic()
@@ -121,13 +119,16 @@ class TestAlcubierreSympyBridge:
         R_sym = sp.Symbol("R", positive=True)
         sigma_sym = sp.Symbol("sigma", positive=True)
         x_s_sym = sp.Symbol("x_s", real=True)
-        g_concrete = sm.g.subs({
-            v_s_sym: v_s_val,
-            R_sym: R_val,
-            sigma_sym: sigma_val,
-            x_s_sym: 0.0,
-        })
+        g_concrete = sm.g.subs(
+            {
+                v_s_sym: v_s_val,
+                R_sym: R_val,
+                sigma_sym: sigma_val,
+                x_s_sym: 0.0,
+            }
+        )
         from warpax.geometry.metric import SymbolicMetric
+
         sm_concrete = SymbolicMetric(sm.coords, g_concrete)
         return sympy_metric_to_jax(sm_concrete)
 
@@ -145,8 +146,7 @@ class TestAlcubierreSympyBridge:
             g_bridge = bridge_fn(coords)
             assert g_bridge.dtype == jnp.float64
             assert jnp.allclose(g_jax, g_bridge, atol=1e-14), (
-                f"Alcubierre mismatch at {coords}: max diff = "
-                f"{jnp.max(jnp.abs(g_jax - g_bridge))}"
+                f"Alcubierre mismatch at {coords}: max diff = {jnp.max(jnp.abs(g_jax - g_bridge))}"
             )
 
     def test_alcubierre_sympy_bridge_jit(self):

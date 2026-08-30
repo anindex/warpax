@@ -5,6 +5,7 @@ A v_0-invariant boundary DEC margin indicates the failure is geometric
 (driven by the smooth source-vacuum transition); a strongly v_0-dependent
 margin would indicate a kinematic (shift-driven) origin.
 """
+
 from __future__ import annotations
 
 import os
@@ -42,16 +43,17 @@ def _eval(metric, n_starts=8):
         if eH == eH:
             eps_H_max = max(eps_H_max, eH)
         curv = compute_curvature_chain(metric, coords)
-        ec = verify_point(curv.stress_energy, curv.metric, curv.metric_inv,
-                          n_starts=n_starts)
+        ec = verify_point(curv.stress_energy, curv.metric, curv.metric_inv, n_starts=n_starts)
         m = min(float(ec.nec_margin), float(ec.wec_margin), float(ec.dec_margin))
         if 10.2 <= r <= 19.8:
             worst_int = min(worst_int, m)
         if abs(r - 10.0) < 1e-9:
             worst_R1 = min(worst_R1, m)
-    return {"eps_H_max": eps_H_max,
-            "worst_interior_margin": worst_int,
-            "worst_R1_boundary_margin": worst_R1}
+    return {
+        "eps_H_max": eps_H_max,
+        "worst_interior_margin": worst_int,
+        "worst_R1_boundary_margin": worst_R1,
+    }
 
 
 def main():
@@ -63,9 +65,11 @@ def main():
         rec = {"v_0": v0, **_eval(tshell_default(v_0=float(v0)))}
         rec["elapsed_s"] = time.time() - t0
         out.append(rec)
-        print(f"  v_0={v0}: eps_H_max={rec['eps_H_max']:.3e}  "
-              f"interior={rec['worst_interior_margin']:+.3e}  "
-              f"r=R_1={rec['worst_R1_boundary_margin']:+.3e}  ({rec['elapsed_s']:.1f}s)")
+        print(
+            f"  v_0={v0}: eps_H_max={rec['eps_H_max']:.3e}  "
+            f"interior={rec['worst_interior_margin']:+.3e}  "
+            f"r=R_1={rec['worst_R1_boundary_margin']:+.3e}  ({rec['elapsed_s']:.1f}s)"
+        )
     dump_json({"results": out}, OUTPUT)
     print(f"\n  -> {OUTPUT}")
 

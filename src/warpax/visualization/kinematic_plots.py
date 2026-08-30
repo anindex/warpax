@@ -3,6 +3,7 @@
 Produces figures showing expansion (theta), shear-squared,
 and vorticity-squared for the Eulerian congruence across warp metrics.
 """
+
 from __future__ import annotations
 
 import os
@@ -85,13 +86,16 @@ def plot_kinematic_scalars(
     # GridSpec: 3 panel-colorbar groups
     fig = plt.figure(figsize=(DOUBLE_COL, DOUBLE_COL * 0.35))
     from matplotlib.gridspec import GridSpecFromSubplotSpec
-    outer = fig.add_gridspec(1, 3, wspace=0.2,
-                             top=0.82 if title else 0.95, bottom=0.15)
+
+    outer = fig.add_gridspec(1, 3, wspace=0.2, top=0.82 if title else 0.95, bottom=0.15)
     axes, caxes = [], []
     for i in range(3):
         inner = GridSpecFromSubplotSpec(
-            1, 2, subplot_spec=outer[0, i],
-            width_ratios=[1, 0.04], wspace=0.06,
+            1,
+            2,
+            subplot_spec=outer[0, i],
+            width_ratios=[1, 0.04],
+            wspace=0.06,
         )
         axes.append(fig.add_subplot(inner[0, 0]))
         caxes.append(fig.add_subplot(inner[0, 1]))
@@ -101,18 +105,14 @@ def plot_kinematic_scalars(
     if vmax_t < 1e-15:
         vmax_t = 1.0
     norm_t = TwoSlopeNorm(vmin=-vmax_t, vcenter=0, vmax=vmax_t)
-    im1 = axes[0].pcolormesh(
-        x_ax, y_ax, theta_2d.T, cmap="coolwarm", norm=norm_t, shading="auto"
-    )
+    im1 = axes[0].pcolormesh(x_ax, y_ax, theta_2d.T, cmap="coolwarm", norm=norm_t, shading="auto")
     axes[0].set_title(r"$\theta$", fontsize=9)
     axes[0].set_ylabel(axis_labels[remaining[1]])
     cb1 = fig.colorbar(im1, cax=caxes[0])
     cb1.ax.tick_params(labelsize=6)
 
     # Panel 2: Shear-squared (positive, inferno)
-    im2 = axes[1].pcolormesh(
-        x_ax, y_ax, sigma_2d.T, cmap="inferno", shading="auto"
-    )
+    im2 = axes[1].pcolormesh(x_ax, y_ax, sigma_2d.T, cmap="inferno", shading="auto")
     axes[1].set_title(r"$\sigma^2$", fontsize=9)
     cb2 = fig.colorbar(im2, cax=caxes[1])
     cb2.ax.tick_params(labelsize=6)
@@ -122,16 +122,31 @@ def plot_kinematic_scalars(
     if omega_max < 1e-15:
         # Identically zero (Frobenius theorem for Eulerian congruence)
         im3 = axes[2].pcolormesh(
-            x_ax, y_ax, omega_2d.T, cmap="inferno", vmin=0, vmax=1,
+            x_ax,
+            y_ax,
+            omega_2d.T,
+            cmap="inferno",
+            vmin=0,
+            vmax=1,
             shading="auto",
         )
         axes[2].text(
-            0.5, 0.5, r"$\equiv 0$", transform=axes[2].transAxes,
-            ha="center", va="center", fontsize=12, color="white",
+            0.5,
+            0.5,
+            r"$\equiv 0$",
+            transform=axes[2].transAxes,
+            ha="center",
+            va="center",
+            fontsize=12,
+            color="white",
         )
     else:
         im3 = axes[2].pcolormesh(
-            x_ax, y_ax, omega_2d.T, cmap="inferno", vmin=0,
+            x_ax,
+            y_ax,
+            omega_2d.T,
+            cmap="inferno",
+            vmin=0,
             shading="auto",
         )
     axes[2].set_title(r"$\omega^2$", fontsize=9)
@@ -193,12 +208,10 @@ def plot_kinematic_comparison(
 
     # GridSpec: 3 equal panels per row, no per-panel colorbars (for even sizing)
     fig = plt.figure(figsize=(DOUBLE_COL, 1.5 * n_metrics))
-    gs = fig.add_gridspec(n_metrics, 3, wspace=0.08, hspace=0.25,
-                          top=0.93, bottom=0.08)
+    gs = fig.add_gridspec(n_metrics, 3, wspace=0.08, hspace=0.25, top=0.93, bottom=0.08)
 
     axis_labels = ["x", "y", "z"]
-    axes_grid = [[fig.add_subplot(gs[r, c]) for c in range(3)]
-                 for r in range(n_metrics)]
+    axes_grid = [[fig.add_subplot(gs[r, c]) for c in range(3)] for r in range(n_metrics)]
 
     for row, (name, data) in enumerate(available):
         theta = data["theta"]
@@ -232,9 +245,7 @@ def plot_kinematic_comparison(
             axes_grid[row][0].set_title(r"$\theta$", fontsize=9)
 
         # Shear
-        axes_grid[row][1].pcolormesh(
-            x_ax, y_ax, sigma_2d.T, cmap="inferno", shading="auto"
-        )
+        axes_grid[row][1].pcolormesh(x_ax, y_ax, sigma_2d.T, cmap="inferno", shading="auto")
         axes_grid[row][1].tick_params(labelleft=False)
         if row == 0:
             axes_grid[row][1].set_title(r"$\sigma^2$", fontsize=9)
@@ -243,16 +254,31 @@ def plot_kinematic_comparison(
         omega_max = float(np.nanmax(np.abs(omega_2d)))
         if omega_max < 1e-15:
             axes_grid[row][2].pcolormesh(
-                x_ax, y_ax, omega_2d.T, cmap="inferno", vmin=0, vmax=1,
+                x_ax,
+                y_ax,
+                omega_2d.T,
+                cmap="inferno",
+                vmin=0,
+                vmax=1,
                 shading="auto",
             )
             axes_grid[row][2].text(
-                0.5, 0.5, r"$\equiv 0$", transform=axes_grid[row][2].transAxes,
-                ha="center", va="center", fontsize=10, color="white",
+                0.5,
+                0.5,
+                r"$\equiv 0$",
+                transform=axes_grid[row][2].transAxes,
+                ha="center",
+                va="center",
+                fontsize=10,
+                color="white",
             )
         else:
             axes_grid[row][2].pcolormesh(
-                x_ax, y_ax, omega_2d.T, cmap="inferno", vmin=0,
+                x_ax,
+                y_ax,
+                omega_2d.T,
+                cmap="inferno",
+                vmin=0,
                 shading="auto",
             )
         axes_grid[row][2].tick_params(labelleft=False)

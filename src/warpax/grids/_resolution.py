@@ -21,6 +21,7 @@ It also does not renormalise the shape function by its peak-to-peak range: that
 is meaningless for a shell profile, whose scalar is non-monotone and whose
 disconnected transitions the normalisation would merge.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -101,8 +102,9 @@ def _segments(x: np.ndarray, f: np.ndarray, lo: float, hi: float):
     return out
 
 
-def wall_cells_on_axis(metric, xs, *, f_low: float = 0.1, f_high: float = 0.9,
-                       t: float = 0.0) -> WallResolution:
+def wall_cells_on_axis(
+    metric, xs, *, f_low: float = 0.1, f_high: float = 0.9, t: float = 0.0
+) -> WallResolution:
     """Worst-case cells across the 10-90% wall on the axis sampled by ``xs``.
 
     Parameters

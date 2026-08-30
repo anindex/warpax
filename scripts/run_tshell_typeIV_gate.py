@@ -11,6 +11,7 @@ Backs two claims in the warpax_arxiv manuscript:
 Run (after `uv sync --extra design --extra solver`):
     uv run python scripts/run_tshell_typeIV_gate.py
 """
+
 from __future__ import annotations
 
 import json
@@ -35,8 +36,7 @@ R_OUTER = np.linspace(R2, 26.0, 120)
 
 def _cert(metric, r, solver="auto"):
     cur = compute_curvature_chain(metric, jnp.array([0.0, float(r), 0.0, 0.0]))
-    res = certify_point_frame_free(cur.stress_energy, cur.metric, cur.metric_inv,
-                                   solver=solver)
+    res = certify_point_frame_free(cur.stress_energy, cur.metric, cur.metric_inv, solver=solver)
     return res, cur
 
 
@@ -67,8 +67,8 @@ n = len(lv)
 yhat = slope * lv + intercept
 resid = ly - yhat
 sxx = np.sum((lv - lv.mean()) ** 2)
-s_err = float(np.sqrt(np.sum(resid ** 2) / (n - 2) / sxx)) if n > 2 else float("nan")
-r2 = 1.0 - np.sum(resid ** 2) / np.sum((ly - ly.mean()) ** 2)
+s_err = float(np.sqrt(np.sum(resid**2) / (n - 2) / sxx)) if n > 2 else float("nan")
+r2 = 1.0 - np.sum(resid**2) / np.sum((ly - ly.mean()) ** 2)
 print(f"\nlog-log fit (outer edge r>=R2): slope = {slope:.4f} +/- {s_err:.4f}  (R^2={r2:.5f})")
 
 # (ii) three-solver / 50-digit gate at the v0=0.1 outer-edge Type-IV point --------
@@ -82,8 +82,10 @@ for solver in ("standard", "generalized"):
         "he_type": int(res["he_type"]),
         "max_abs_imag": float(np.nanmax(np.abs(imag))),
     }
-    print(f"gate r={r_gate:.3f} solver={solver:<12} he_type={int(res['he_type'])} "
-          f"max|imag|={float(np.nanmax(np.abs(imag))):.6e}")
+    print(
+        f"gate r={r_gate:.3f} solver={solver:<12} he_type={int(res['he_type'])} "
+        f"max|imag|={float(np.nanmax(np.abs(imag))):.6e}"
+    )
 
 # independent mpmath 50-digit eigenvalues of T^a_b = g^{ac} T_{cb}
 _, cur = _cert(m01, r_gate)
@@ -94,27 +96,32 @@ E, _ = mp.eig(M)
 imag_parts = [abs(mp.im(e)) for e in E]
 max_imag_mp = max(float(x) for x in imag_parts)
 n_complex = sum(1 for x in imag_parts if float(x) > 1e-12)
-gate["mpmath_50digit"] = {"dps": 50, "max_abs_imag": max_imag_mp,
-                          "n_complex_eigs": int(n_complex)}
-print(f"gate r={r_gate:.3f} solver=mpmath-50dps  n_complex_eigs={n_complex} "
-      f"max|imag|={max_imag_mp:.6e}")
+gate["mpmath_50digit"] = {"dps": 50, "max_abs_imag": max_imag_mp, "n_complex_eigs": int(n_complex)}
+print(
+    f"gate r={r_gate:.3f} solver=mpmath-50dps  n_complex_eigs={n_complex} "
+    f"max|imag|={max_imag_mp:.6e}"
+)
 
-all_typeIV = (gate["solvers"]["standard"]["he_type"] == 4
-              and gate["solvers"]["generalized"]["he_type"] == 4
-              and n_complex >= 2)
+all_typeIV = (
+    gate["solvers"]["standard"]["he_type"] == 4
+    and gate["solvers"]["generalized"]["he_type"] == 4
+    and n_complex >= 2
+)
 gate["all_three_confirm_typeIV"] = bool(all_typeIV)
 print(f"\nthree-solver gate confirms Type-IV at outer edge: {all_typeIV}")
 
 out = {
-    "config": {"R1": R1, "R2": R2, "v0_grid": V0_GRID,
-               "outer_edge_range": [float(R2), 26.0], "note":
-               "max|Im eig| over r>=R2 (outer edge), inner vacuum r<R1 excluded"},
-    "linear_fit": {"slope": float(slope), "slope_stderr": s_err, "r2": float(r2),
-                   "rows": rows},
+    "config": {
+        "R1": R1,
+        "R2": R2,
+        "v0_grid": V0_GRID,
+        "outer_edge_range": [float(R2), 26.0],
+        "note": "max|Im eig| over r>=R2 (outer edge), inner vacuum r<R1 excluded",
+    },
+    "linear_fit": {"slope": float(slope), "slope_stderr": s_err, "r2": float(r2), "rows": rows},
     "three_solver_gate": gate,
 }
-dest = os.path.join(os.path.dirname(__file__), "..", "results",
-                    "tshell_typeIV_gate.json")
+dest = os.path.join(os.path.dirname(__file__), "..", "results", "tshell_typeIV_gate.json")
 with open(dest, "w") as f:
     json.dump(out, f, indent=2)
 print(f"\nsaved {os.path.normpath(dest)}")

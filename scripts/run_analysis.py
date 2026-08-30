@@ -1,4 +1,3 @@
-
 """Full metric analysis sweep: Eulerian vs robust EC comparison.
 
 Runs compare_eulerian_vs_robust for all 6 warp metrics across 4 warp
@@ -20,6 +19,7 @@ Core results (all metrics at v_s=0.5 + Schwarzschild):
 Specific metrics/velocities:
     python scripts/run_analysis.py --metrics alcubierre lentz --velocities 0.1 0.5
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,7 +56,10 @@ from warpax.metrics import (
 METRICS: dict[str, tuple[type, dict]] = {
     "alcubierre": (AlcubierreMetric, {"R": 1.0, "sigma": 8.0}),
     "rodal": (RodalMetric, {"R": 100.0, "sigma": 0.03}),
-    "vdb": (VanDenBroeckMetric, {"R": 1.0, "sigma": 8.0, "R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}),
+    "vdb": (
+        VanDenBroeckMetric,
+        {"R": 1.0, "sigma": 8.0, "R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0},
+    ),
     "natario": (NatarioMetric, {"R": 1.0, "sigma": 8.0}),
     "lentz": (LentzMetric, {"R": 100.0, "sigma": 8.0}),
     "warpshell": (WarpShellMetric, {"R_1": 0.5, "R_2": 1.0}),
@@ -189,9 +192,7 @@ def analyze_single(
     # Count of near-vacuum points (max|Re lambda| < tol). These are folded
     # into n_type_i; tracking them separately lets callers remove the
     # vacuum contribution from the Type-I count.
-    save_dict["n_vacuum"] = np.array(
-        ec_grid.n_vacuum if ec_grid.n_vacuum is not None else -1
-    )
+    save_dict["n_vacuum"] = np.array(ec_grid.n_vacuum if ec_grid.n_vacuum is not None else -1)
     save_dict["max_imag_eigenvalue"] = np.array(ec_grid.max_imag_eigenvalue)
 
     # Wall-restricted statistics: counts conditioned on the active wall
@@ -201,7 +202,11 @@ def analyze_single(
     coords_batch = build_coord_batch(grid_spec, t=0.0)
     try:
         wall_mask = shape_function_mask(
-            metric, coords_batch, grid_spec.shape, f_low=F_LOW, f_high=F_HIGH,
+            metric,
+            coords_batch,
+            grid_spec.shape,
+            f_low=F_LOW,
+            f_high=F_HIGH,
         )
         wall_stats = compute_wall_restricted_stats(ec_grid, wall_mask)
         save_dict["wall_mask"] = np.asarray(wall_mask)
@@ -226,8 +231,8 @@ def analyze_single(
                 save_dict[f"wall_{cond}_miss_rate"] = np.array(float(miss_rate))
         print(
             f"    Wall stats: n_total={int(wall_stats.n_total)}, "
-            f"%Type-I={100*float(wall_stats.frac_type_i):.1f}, "
-            f"%Type-IV={100*float(wall_stats.frac_type_iv):.1f}"
+            f"%Type-I={100 * float(wall_stats.frac_type_i):.1f}, "
+            f"%Type-IV={100 * float(wall_stats.frac_type_iv):.1f}"
         )
     except Exception as exc:
         # Some metrics have no [0,1] shape-function transition (e.g.
@@ -395,7 +400,12 @@ def main():
 
             print(f"\n--- {name} (v_s={v_s}) ---")
             analyze_single(
-                name, metric, grid_spec, n_starts, batch_size, cache_path,
+                name,
+                metric,
+                grid_spec,
+                n_starts,
+                batch_size,
+                cache_path,
                 strategy=args.strategy,
             )
 
@@ -411,7 +421,9 @@ def main():
     all_metrics_for_table = [m for m in warp_to_run if m in BENCHMARK_METRICS] + (
         ["schwarzschild"] if "schwarzschild" in run_metrics else []
     )
-    all_vs_for_table = sorted(set(run_velocities + ([0.0] if "schwarzschild" in run_metrics else [])))
+    all_vs_for_table = sorted(
+        set(run_velocities + ([0.0] if "schwarzschild" in run_metrics else []))
+    )
 
     rows = build_comparison_table(results_dir, all_metrics_for_table, all_vs_for_table)
     print(f"  Table: {len(rows)} rows written to {results_dir}/comparison_table.json")
@@ -422,7 +434,9 @@ def main():
         v_s = row["v_s"]
         nec_missed = row.get("nec_pct_missed", 0.0)
         wec_missed = row.get("wec_pct_missed", 0.0)
-        print(f"  {metric:>12s} v_s={v_s:.2f}: NEC missed={nec_missed:.2f}%, WEC missed={wec_missed:.2f}%")
+        print(
+            f"  {metric:>12s} v_s={v_s:.2f}: NEC missed={nec_missed:.2f}%, WEC missed={wec_missed:.2f}%"
+        )
 
     print("\nDone.")
 

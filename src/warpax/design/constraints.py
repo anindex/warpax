@@ -4,6 +4,7 @@ Each constraint returns a :class:`ConstraintResult` NamedTuple with a
 signed ``margin`` (positive ``=>`` satisfied). The optimizer composes
 these via string-dispatch through :data:`CONSTRAINT_REGISTRY`.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -31,14 +32,13 @@ class ConstraintResult(NamedTuple):
         Constraint-family identifier (``'bubble_size'`` / ``'velocity'`` /
         ``'boundedness'``).
     """
+
     satisfied: bool
     margin: Float[Array, ""]
     name: str
 
 
-def bubble_size_constraint(
-    sf: ShapeFunction, max_radius: float = 10.0
-) -> ConstraintResult:
+def bubble_size_constraint(sf: ShapeFunction, max_radius: float = 10.0) -> ConstraintResult:
     """Shape function must decay below ``0.01`` amplitude at ``max_radius``.
 
     ``margin = 0.01 - |sf(max_radius)|``. Positive margin ``=>`` the
@@ -67,9 +67,7 @@ def bubble_size_constraint(
     )
 
 
-def velocity_constraint(
-    v_s, max_v: float = 10.0
-) -> ConstraintResult:
+def velocity_constraint(v_s, max_v: float = 10.0) -> ConstraintResult:
     """Bubble velocity must satisfy ``|v_s| <= max_v``.
 
     ``margin = max_v - |v_s|``. Default ``max_v=10.0`` in ``c=1``

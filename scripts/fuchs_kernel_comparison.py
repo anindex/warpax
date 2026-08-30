@@ -24,6 +24,7 @@ as opposed to the pre-smoothing constant-density intermediate).
 
 Outputs: results/fuchs_kernel_comparison.json
 """
+
 from __future__ import annotations
 
 import sys
@@ -133,7 +134,7 @@ def _smoothed_T_input_builder(metric, construction):
         g = metric(coords)
         t, x, y, z = coords
         x_rel = x - metric.v_s * t
-        r = jnp.sqrt(x_rel ** 2 + y ** 2 + z ** 2 + 1e-24)
+        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-24)
 
         rho = rho_at(r)
         p = P_at(r)  # isotropic: p_r = p_t
@@ -166,11 +167,13 @@ def source_consistency_post_smoothing() -> dict:
         sc = stress_energy_residual(metric, coords, T_input=T_in)
         rel = float(sc["relative_residual"])
         mx = float(sc["max_residual"])
-        per_point.append({
-            "r": float(r),
-            "max_residual": mx,
-            "relative_residual": rel,
-        })
+        per_point.append(
+            {
+                "r": float(r),
+                "max_residual": mx,
+                "relative_residual": rel,
+            }
+        )
         if rel > peak_rel:
             peak_rel, peak_rel_r = rel, float(r)
         if R_1 <= float(r) <= R_2 and rel > peak_rel_shell:
@@ -228,8 +231,7 @@ def main():
             "ec_violation_def": "robust margin < 0 for any of NEC/WEC/DEC",
         },
         "kernel_comparison": {
-            kt: {k: v for k, v in results[kt].items() if k != "per_point"}
-            for kt in results
+            kt: {k: v for k, v in results[kt].items() if k != "per_point"} for kt in results
         },
         "per_point": {kt: results[kt]["per_point"] for kt in results},
         "post_smoothing_residual": residual,
@@ -241,21 +243,23 @@ def main():
 
     # compact console summary
     print()
-    print(f"{'kernel':<16s} {'int viol':>10s} {'tail IV':>9s} "
-          f"{'worst margin':>14s} {'@ r':>8s}")
+    print(f"{'kernel':<16s} {'int viol':>10s} {'tail IV':>9s} {'worst margin':>14s} {'@ r':>8s}")
     for kt in ("gaussian", "moving_average"):
         s = results[kt]
-        print(f"{kt:<16s} {s['interior_violations']}/{s['interior_count']:<8} "
-              f"{s['tail_type_iv']}/{s['tail_count']:<6} "
-              f"{s['worst_tail_min_wec_dec_margin']:>14.4e} "
-              f"{s['worst_tail_radius']:>8.2f}")
+        print(
+            f"{kt:<16s} {s['interior_violations']}/{s['interior_count']:<8} "
+            f"{s['tail_type_iv']}/{s['tail_count']:<6} "
+            f"{s['worst_tail_min_wec_dec_margin']:>14.4e} "
+            f"{s['worst_tail_radius']:>8.2f}"
+        )
     print()
-    print(f"Post-smoothing relative residual (in shell, representative): "
-          f"{residual['representative_relative_residual_in_shell']:.4e} "
-          f"@ r={residual['representative_relative_residual_in_shell_radius']:.2f}  "
-          f"(max|dT|={residual['max_abs_residual_in_shell']:.3e})")
-    print(f"Median in-shell relative residual: "
-          f"{residual['median_relative_residual_in_shell']:.4e}")
+    print(
+        f"Post-smoothing relative residual (in shell, representative): "
+        f"{residual['representative_relative_residual_in_shell']:.4e} "
+        f"@ r={residual['representative_relative_residual_in_shell_radius']:.2f}  "
+        f"(max|dT|={residual['max_abs_residual_in_shell']:.3e})"
+    )
+    print(f"Median in-shell relative residual: {residual['median_relative_residual_in_shell']:.4e}")
 
 
 if __name__ == "__main__":

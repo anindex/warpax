@@ -14,6 +14,7 @@ reports come from ``run_anec_symplectic.py``, which integrates the geodesic in
 extended phase space and carries the conserved Killing energy as an independent
 error witness.
 """
+
 from __future__ import annotations
 
 import os
@@ -36,24 +37,30 @@ OUTPUT_DIR = Path(__file__).resolve().parents[1] / "results" / "anec"
 
 def _axial_null_geodesic_factory(y_offset=1e-3, x_start=-30.0, c=1.0):
     """Return an axial null ray x = x_start + c*lambda with given y_offset."""
+
     def geo(affine):
-        return jnp.stack([
-            jnp.array(affine),
-            jnp.array(x_start + affine * c),
-            jnp.array(y_offset),
-            jnp.array(0.0),
-        ])
+        return jnp.stack(
+            [
+                jnp.array(affine),
+                jnp.array(x_start + affine * c),
+                jnp.array(y_offset),
+                jnp.array(0.0),
+            ]
+        )
+
     return geo
 
 
 def _axial_null_geodesic(affine, *, x_start=-30.0, c=1.0, y_offset=1e-3):
     """Coordinate null ray x = x_start + c*lambda with y_offset off-axis."""
-    return jnp.stack([
-        jnp.array(affine),
-        jnp.array(x_start + affine * c),
-        jnp.array(y_offset),
-        jnp.array(0.0),
-    ])
+    return jnp.stack(
+        [
+            jnp.array(affine),
+            jnp.array(x_start + affine * c),
+            jnp.array(y_offset),
+            jnp.array(0.0),
+        ]
+    )
 
 
 def _evaluate(name, metric, *, bounds=(-30.0, 30.0), n=512, y_offset=1e-3):
@@ -61,14 +68,15 @@ def _evaluate(name, metric, *, bounds=(-30.0, 30.0), n=512, y_offset=1e-3):
     geo = _axial_null_geodesic_factory(y_offset=y_offset, x_start=bounds[0])
     lams = jnp.linspace(*bounds, n)
     pos = jax.vmap(geo)(lams)
-    res = anec(metric, geo, tangent_norm="renormalized",
-               n_samples=n, affine_bounds=bounds)
+    res = anec(metric, geo, tangent_norm="renormalized", n_samples=n, affine_bounds=bounds)
     vel = jax.vmap(jax.jacfwd(geo))(lams)
-    integrand = jax.vmap(
-        lambda c, u: _anec_integrand_at_point(metric, c, u, "renormalized")
-    )(pos, vel)
+    integrand = jax.vmap(lambda c, u: _anec_integrand_at_point(metric, c, u, "renormalized"))(
+        pos, vel
+    )
     print(f"  ANEC = {float(res.line_integral):+.5e}")
-    print(f"  integrand [min, max] = [{float(integrand.min()):+.3e}, {float(integrand.max()):+.3e}]")
+    print(
+        f"  integrand [min, max] = [{float(integrand.min()):+.3e}, {float(integrand.max()):+.3e}]"
+    )
     return {
         "name": name,
         "line_integral": float(res.line_integral),
@@ -97,23 +105,28 @@ def main():
     R_1_high = R_2 * (1.0 - high_dR)  # = 4.0
     rho_0_high = _rho_from_compactness(high_C, R_1_high, R_2)
     high_profiles = constant_velocity_profiles(
-        R_1=R_1_high, R_2=R_2, rho_0=rho_0_high, v_0=0.1,
+        R_1=R_1_high,
+        R_2=R_2,
+        rho_0=rho_0_high,
+        v_0=0.1,
     )
     tshell_highC = tshell_from_profiles(high_profiles)
 
     metrics = [
-        ("Alcubierre",     AlcubierreMetric(v_s=0.1, R=20.0, sigma=2.0)),
-        ("Fuchs",          fuchs_default()),
-        ("S-shell",        sshell_default()),
-        ("T-shell",        tshell_default()),
-        ("T-shell-highC",  tshell_highC),
+        ("Alcubierre", AlcubierreMetric(v_s=0.1, R=20.0, sigma=2.0)),
+        ("Fuchs", fuchs_default()),
+        ("S-shell", sshell_default()),
+        ("T-shell", tshell_default()),
+        ("T-shell-highC", tshell_highC),
     ]
     summary = {}
     for name, m in metrics:
         r = _evaluate(name, m)
         np.savez(
             OUTPUT_DIR / f"anec_{name.lower().replace('-', '_')}.npz",
-            lam=r["lambda"], x=r["x"], integrand=r["integrand"],
+            lam=r["lambda"],
+            x=r["x"],
+            integrand=r["integrand"],
             line_integral=r["line_integral"],
             y_offset=r["y_offset"],
         )
@@ -132,30 +145,36 @@ def main():
         y_scan["Fuchs"].append({"y": y, "line_integral": rf["line_integral"]})
         y_scan["Alcubierre"].append({"y": y, "line_integral": ra["line_integral"]})
 
-    dump_json({
-        "anec_line_integrals": summary,
-        "y_offset_scan": y_scan,
-        "notes": {
-            "method": (
-                "Coordinate null ray with affine straight-line "
-                "parameterization in coordinates (not a "
-                "metric-integrated geodesic).  See "
-                "run_anec_symplectic.py for the geodesic-integrated "
-                "values the paper reports."
-            ),
-            "high_C_tshell": {
-                "compactness": high_C, "thickness_ratio": high_dR,
-                "R_1": R_1_high, "R_2": R_2, "rho_0": rho_0_high,
-                "v_0": 0.1,
+    dump_json(
+        {
+            "anec_line_integrals": summary,
+            "y_offset_scan": y_scan,
+            "notes": {
+                "method": (
+                    "Coordinate null ray with affine straight-line "
+                    "parameterization in coordinates (not a "
+                    "metric-integrated geodesic).  See "
+                    "run_anec_symplectic.py for the geodesic-integrated "
+                    "values the paper reports."
+                ),
+                "high_C_tshell": {
+                    "compactness": high_C,
+                    "thickness_ratio": high_dR,
+                    "R_1": R_1_high,
+                    "R_2": R_2,
+                    "rho_0": rho_0_high,
+                    "v_0": 0.1,
+                },
+                "interpretation": (
+                    "high-C T-shell tests whether pointwise binding-corner DEC "
+                    "violation flips averaged ANEC sign; y-scan tests that the "
+                    "off-axis ray choice is not a coordinate artifact for "
+                    "spherically symmetric shells."
+                ),
             },
-            "interpretation": (
-                "high-C T-shell tests whether pointwise binding-corner DEC "
-                "violation flips averaged ANEC sign; y-scan tests that the "
-                "off-axis ray choice is not a coordinate artifact for "
-                "spherically symmetric shells."
-            ),
         },
-    }, OUTPUT_DIR / "summary.json")
+        OUTPUT_DIR / "summary.json",
+    )
     print(f"\n  -> {OUTPUT_DIR}")
 
 

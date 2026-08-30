@@ -25,6 +25,7 @@ Outputs
 - ../warpax_arxiv/tables/scaling_laws.tex
 - ../warpax_arxiv/tables/exoticity_ranking.tex
 """
+
 from __future__ import annotations
 
 import json
@@ -69,8 +70,7 @@ def scaling_law_fit(rows, metric):
     ss_res = float(np.sum((ls - pred) ** 2))
     ss_tot = float(np.sum((ls - np.mean(ls)) ** 2))
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
-    return {"A": float(np.exp(logA)), "p": float(p), "r_squared": float(r2),
-            "n": len(vs)}
+    return {"A": float(np.exp(logA)), "p": float(p), "r_squared": float(r2), "n": len(vs)}
 
 
 def axis_values(rows, anec, metric, ref_v_s):
@@ -102,8 +102,7 @@ def exoticity_index(axes, baseline_axes):
     s_anec = _safe_ratio(axes["anec_min_abs"], baseline_axes["anec_min_abs"])
     subs = [s for s in (s_nec, s_iv, s_anec) if np.isfinite(s)]
     if not subs:
-        return {"index": float("nan"), "s_nec": s_nec, "s_type_iv": s_iv,
-                "s_anec": s_anec}
+        return {"index": float("nan"), "s_nec": s_nec, "s_type_iv": s_iv, "s_anec": s_anec}
     # Geometric mean with a small floor so a zero axis does not annihilate it.
     floored = [max(s, 1e-4) for s in subs]
     idx = math.exp(sum(math.log(s) for s in floored) / len(floored))
@@ -128,8 +127,7 @@ def write_scaling_table(fits, out_path):
         # Type-IV-dominated wall (e.g. VdB) has no resolved Type-I branch.
         if r2 is not None and np.isfinite(r2) and r2 >= 0.99:
             lines.append(
-                f"  {name} & {_f(fit.get('p'),2)} & {_f(fit.get('A'),3)} & "
-                f"{_f(r2,4)} \\\\"
+                f"  {name} & {_f(fit.get('p'), 2)} & {_f(fit.get('A'), 3)} & {_f(r2, 4)} \\\\"
             )
         else:
             lines.append(
@@ -138,7 +136,12 @@ def write_scaling_table(fits, out_path):
             )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_exoticity_ranking.py", sources="results/exoticity_ranking.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_exoticity_ranking.py",
+        sources="results/exoticity_ranking.json",
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -153,13 +156,17 @@ def write_ranking_table(scores, out_path):
     for name in ORDER:
         s = scores.get(name, {})
         lines.append(
-            f"  {name} & {_f(s.get('s_nec'),3)} & {_f(s.get('s_type_iv'),3)} & "
-            f"{_f(s.get('s_anec'),3)} & {_f(s.get('index'),3)} \\\\"
+            f"  {name} & {_f(s.get('s_nec'), 3)} & {_f(s.get('s_type_iv'), 3)} & "
+            f"{_f(s.get('s_anec'), 3)} & {_f(s.get('index'), 3)} \\\\"
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_exoticity_ranking.py",
-                    sources="results/exoticity_ranking.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_exoticity_ranking.py",
+        sources="results/exoticity_ranking.json",
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -177,17 +184,21 @@ def main():
     print("  NEC severity scaling  |min(rho+p_i)| = A v_s^p:")
     for name in ORDER:
         fl = fits[name]
-        print(f"    {name:16s} p={_f(fl['p'],2)}  A={_f(fl['A'],3)}  R^2={_f(fl['r_squared'],4)}")
+        print(
+            f"    {name:16s} p={_f(fl['p'], 2)}  A={_f(fl['A'], 3)}  R^2={_f(fl['r_squared'], 4)}"
+        )
 
     raw = {name: axis_values(rows, anec, name, REF_V_S) for name in ORDER}
     baseline = raw["Alcubierre"]
     scores = {name: exoticity_index(raw[name], baseline) for name in ORDER}
     print("  Exoticity index (lower = less exotic):")
     for name in ORDER:
-        print(f"    {name:16s} index={_f(scores[name]['index'],3)}  "
-              f"[NEC={_f(scores[name]['s_nec'],2)} "
-              f"IV={_f(scores[name]['s_type_iv'],2)} "
-              f"ANEC={_f(scores[name]['s_anec'],2)}]")
+        print(
+            f"    {name:16s} index={_f(scores[name]['index'], 3)}  "
+            f"[NEC={_f(scores[name]['s_nec'], 2)} "
+            f"IV={_f(scores[name]['s_type_iv'], 2)} "
+            f"ANEC={_f(scores[name]['s_anec'], 2)}]"
+        )
 
     out = {
         "reference_v_s": REF_V_S,

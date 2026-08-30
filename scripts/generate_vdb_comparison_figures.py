@@ -8,6 +8,7 @@
 Usage:
     python scripts/generate_vdb_comparison_figures.py
 """
+
 from __future__ import annotations
 
 import os
@@ -73,8 +74,10 @@ def main():
         pct_v = comparison.pct_violated_robust[cond]
         pct_m = comparison.pct_missed[cond]
         cond_miss = comparison.conditional_miss_rate[cond]
-        print(f"  {cond.upper()}: Total violated={pct_v:.1f}%, "
-              f"Missed={pct_m:.1f}%, Conditional miss={cond_miss:.1f}%")
+        print(
+            f"  {cond.upper()}: Total violated={pct_v:.1f}%, "
+            f"Missed={pct_m:.1f}%, Conditional miss={cond_miss:.1f}%"
+        )
 
     grid_bounds = GRID.bounds
 

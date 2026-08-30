@@ -7,6 +7,7 @@ pointwise Jacobian calculation.
 
 Private module; used by :func:`warpax.grids.wall_clustered`.
 """
+
 from __future__ import annotations
 
 import jax.numpy as jnp

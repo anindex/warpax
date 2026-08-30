@@ -1,4 +1,3 @@
-
 """Example 06 - Timelike geodesic through an Alcubierre warp bubble.
 
 Demonstrates the geodesic integration pipeline:
@@ -11,6 +10,7 @@ Demonstrates the geodesic integration pipeline:
 The particle starts right at the leading bubble wall (x = R = 1) and the bubble sweeps past it.
 Tidal forces should spike at the bubble wall and vanish inside and outside.
 """
+
 from __future__ import annotations
 
 import os
@@ -61,7 +61,10 @@ print(f"\nIntegrating τ ∈ {tau_span} with {num_pts} save points ...")
 
 t0 = time.perf_counter()
 sol = integrate_geodesic(
-    metric, x0, v0, tau_span,
+    metric,
+    x0,
+    v0,
+    tau_span,
     num_points=num_pts,
     dt0=0.005,
     rtol=1e-10,
@@ -84,9 +87,7 @@ assert max_drift < 1e-4, f"Norm conservation violated: max_drift = {max_drift}"
 print("\nComputing tidal eigenvalues at each saved point ...")
 t0 = time.perf_counter()
 # vmap tidal_eigenvalues over saved trajectory points
-tidal_eigs = jax.vmap(
-    lambda x, v: tidal_eigenvalues(metric, x, v)
-)(sol.positions, sol.velocities)
+tidal_eigs = jax.vmap(lambda x, v: tidal_eigenvalues(metric, x, v))(sol.positions, sol.velocities)
 tidal_time = time.perf_counter() - t0
 print(f"Tidal eigenvalues computed in {tidal_time:.2f} s  shape = {tidal_eigs.shape}")
 

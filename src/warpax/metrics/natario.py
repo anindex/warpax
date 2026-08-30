@@ -42,9 +42,7 @@ from ..geometry.metric import ADMMetric, SymbolicMetric
 from ._common import alcubierre_shape
 
 
-def _natario_n(
-    r_s: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
+def _natario_n(r_s: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
     """Natario shape function n(r_s).
 
     n(r_s) = (1/2) * (1 - f_Alc(r_s))
@@ -54,9 +52,7 @@ def _natario_n(
     return 0.5 * (1.0 - alcubierre_shape(r_s, R, sigma))
 
 
-def _natario_dn_dr(
-    r_s: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
+def _natario_dn_dr(r_s: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
     """Derivative dn/dr_s of the Natario shape function.
 
     dn/dr_s = -(1/2) * df_Alc/dr_s
@@ -68,9 +64,7 @@ def _natario_dn_dr(
     return -sigma * (sech2_plus - sech2_minus) / (4.0 * jnp.tanh(sigma * R))
 
 
-def _natario_d2n_dr2(
-    r_s: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
+def _natario_d2n_dr2(r_s: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
     """Second derivative d2n/dr_s^2 of the Natario shape function.
 
     d2n/dr2 = -(1/2) * d2f_Alc/dr^2
@@ -85,8 +79,8 @@ def _natario_d2n_dr2(
     tanh_a = jnp.tanh(a)
     tanh_b = jnp.tanh(b)
 
-    d2f_dr2 = sigma**2 * (-2.0 * tanh_a * sech2_a + 2.0 * tanh_b * sech2_b) / (
-        2.0 * jnp.tanh(sigma * R)
+    d2f_dr2 = (
+        sigma**2 * (-2.0 * tanh_a * sech2_a + 2.0 * tanh_b * sech2_b) / (2.0 * jnp.tanh(sigma * R))
     )
     return -0.5 * d2f_dr2
 
@@ -181,10 +175,9 @@ class NatarioMetric(ADMMetric):
         dx_sym = x - v_s * t
         r_s_expr = sp.sqrt(dx_sym**2 + y**2 + z**2)
 
-        f_alc_r = (
-            sp.tanh(sigma_val * (r + R_val))
-            - sp.tanh(sigma_val * (r - R_val))
-        ) / (2 * sp.tanh(sigma_val * R_val))
+        f_alc_r = (sp.tanh(sigma_val * (r + R_val)) - sp.tanh(sigma_val * (r - R_val))) / (
+            2 * sp.tanh(sigma_val * R_val)
+        )
         n_r = sp.Rational(1, 2) * (1 - f_alc_r)
         dn_dr_r = sp.diff(n_r, r)
 
@@ -196,12 +189,14 @@ class NatarioMetric(ADMMetric):
         sin2_theta = (y**2 + z**2) / r_s_expr**2
         beta_x_sym = -v_s * (2 * n_val + r_s_expr * dn_dr_val * sin2_theta)
 
-        g = sp.Matrix([
-            [-(1 - beta_x_sym**2), beta_x_sym, 0, 0],
-            [beta_x_sym, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-(1 - beta_x_sym**2), beta_x_sym, 0, 0],
+                [beta_x_sym, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:

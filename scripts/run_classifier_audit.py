@@ -20,6 +20,7 @@ certified classification error, and counting them measures the rate.
 
 Run:  JAX_PLATFORMS=cpu python scripts/run_classifier_audit.py
 """
+
 from __future__ import annotations
 
 import json
@@ -85,25 +86,24 @@ def jordan_split_scale():
         return slope, float(med[-1])
 
     j2 = lambda mu, f, p: np.array(
-        [[mu + f, f, 0, 0], [f, -mu + f, 0, 0], [0, 0, p, 0], [0, 0, 0, p]])
+        [[mu + f, f, 0, 0], [f, -mu + f, 0, 0], [0, 0, p, 0], [0, 0, 0, p]]
+    )
     j3 = lambda rho, f, p: np.array(
-        [[rho, 0, -f, 0], [0, -rho, f, 0], [-f, f, -rho, 0], [0, 0, 0, p + 2.0]])
+        [[rho, 0, -f, 0], [0, -rho, f, 0], [-f, f, -rho, 0], [0, 0, 0, p + 2.0]]
+    )
 
     # unperturbed repeated eigenvalues: J_2 block has (lam + mu)^2, J_3 has (lam + rho)^3
-    out["J2_exponent"], out["J2_split_at_1e-8"] = exponent(
-        j2, lambda mu, f, p: -mu, 2)
-    out["J3_exponent"], out["J3_split_at_1e-8"] = exponent(
-        j3, lambda rho, f, p: -rho, 3)
+    out["J2_exponent"], out["J2_split_at_1e-8"] = exponent(j2, lambda mu, f, p: -mu, 2)
+    out["J3_exponent"], out["J3_split_at_1e-8"] = exponent(j3, lambda rho, f, p: -rho, 3)
 
     # a fixed generic Type III, for the label check below
     rho, f3, p = 1.0, 1.0, 3.0
-    T3 = np.array([[rho, 0, -f3, 0], [0, -rho, f3, 0],
-                   [-f3, f3, -rho, 0], [0, 0, 0, p]])
+    T3 = np.array([[rho, 0, -f3, 0], [0, -rho, f3, 0], [-f3, f3, -rho, 0], [0, 0, 0, p]])
     A3 = eta @ T3
     out["J3_split_rounding_only"] = float(np.max(np.abs(np.linalg.eigvals(A3).imag)))
     eps = float(np.finfo(np.float64).eps)
     out["eps"] = eps
-    out["eps_sqrt"] = eps ** 0.5
+    out["eps_sqrt"] = eps**0.5
     out["eps_cbrt"] = eps ** (1.0 / 3.0)
     # what the classifier returns for the generic Type III, at default tolerance
     r = classify_hawking_ellis(jnp.asarray(A3), ETA, T_ab=jnp.asarray(T3))
@@ -160,15 +160,21 @@ def main():
     print("  log max|lambda - lambda_rep| vs log delta  (theory: 1/m for a J_m block)")
     print(f"    J_2 (Type II):   {split['J2_exponent']:.3f}   (expect 0.500)")
     print(f"    J_3 (Type III):  {split['J3_exponent']:.3f}   (expect 0.333)")
-    print(f"  J_3 split from rounding alone      {split['J3_split_rounding_only']:.3e}"
-          f"   (cf. eps^(1/3) = {split['eps_cbrt']:.3e})")
-    print(f"  generic Type III is labelled Type  {split['generic_type_iii_label']}"
-          "   <- must read 3; 4 means unresolvable")
+    print(
+        f"  J_3 split from rounding alone      {split['J3_split_rounding_only']:.3e}"
+        f"   (cf. eps^(1/3) = {split['eps_cbrt']:.3e})"
+    )
+    print(
+        f"  generic Type III is labelled Type  {split['generic_type_iii_label']}"
+        "   <- must read 3; 4 means unresolvable"
+    )
     print()
 
     counts, audit = audit_grid()
-    print(f"WarpShell v_s={V_S}, grid {SHAPE}, bounds {BOUNDS[0]} (recorded, "
-          "so the census is reproducible):")
+    print(
+        f"WarpShell v_s={V_S}, grid {SHAPE}, bounds {BOUNDS[0]} (recorded, "
+        "so the census is reproducible):"
+    )
     for k, v in counts.items():
         print(f"  {k:>10s}: {v}")
     print()
@@ -179,16 +185,22 @@ def main():
         if v.get("n", 0) == 0:
             print(f"  {k}: none present")
             continue
-        print(f"  {k}: n={v['n']}, NEC certified satisfied at "
-              f"{v['nec_certified_satisfied']} points "
-              f"({v['error_rate_percent']:.1f}%), WEC violated at "
-              f"{v['wec_violated_percent']:.1f}%")
+        print(
+            f"  {k}: n={v['n']}, NEC certified satisfied at "
+            f"{v['nec_certified_satisfied']} points "
+            f"({v['error_rate_percent']:.1f}%), WEC violated at "
+            f"{v['wec_violated_percent']:.1f}%"
+        )
 
     out = pathlib.Path(__file__).resolve().parents[1] / "results" / "classifier_audit.json"
     out.parent.mkdir(exist_ok=True)
     payload = {
-        "v_s": V_S, "shape": list(SHAPE), "bounds": BOUNDS[0],
-        "resolution_limit": split, "counts": counts, "lmi_audit": audit,
+        "v_s": V_S,
+        "shape": list(SHAPE),
+        "bounds": BOUNDS[0],
+        "resolution_limit": split,
+        "counts": counts,
+        "lmi_audit": audit,
     }
     out.write_text(json.dumps(payload, indent=2))
     print(f"\nwrote {out}")

@@ -1,4 +1,5 @@
 """Tests for transport diagnostics."""
+
 from __future__ import annotations
 
 import jax
@@ -110,8 +111,14 @@ def test_alcubierre_round_trip_future_directed_elapsed_times():
     _, k0_fwd = null_ic(metric, emitter, jnp.array([1.0, 0.0, 0.0]))
     assert float(k0_fwd[0]) > 0.0, "forward null leg must be future-directed"
     sol_fwd = integrate_geodesic(
-        metric, emitter, k0_fwd, tau_span=(0.0, 50.0), num_points=500,
-        dt0=0.01, rtol=1e-8, atol=1e-8,
+        metric,
+        emitter,
+        k0_fwd,
+        tau_span=(0.0, 50.0),
+        num_points=500,
+        dt0=0.01,
+        rtol=1e-8,
+        atol=1e-8,
     )
     d_fwd = jnp.linalg.norm(sol_fwd.positions[:, 1:] - receiver[1:], axis=1)
     idx_fwd = _first_local_min_idx(d_fwd)
@@ -122,8 +129,14 @@ def test_alcubierre_round_trip_future_directed_elapsed_times():
     dx_back = emitter[1:] - arrival[1:]
     _, k0_bwd = null_ic(metric, arrival, dx_back / jnp.linalg.norm(dx_back))
     sol_bwd = integrate_geodesic(
-        metric, arrival, k0_bwd, tau_span=(0.0, 50.0), num_points=500,
-        dt0=0.01, rtol=1e-8, atol=1e-8,
+        metric,
+        arrival,
+        k0_bwd,
+        tau_span=(0.0, 50.0),
+        num_points=500,
+        dt0=0.01,
+        rtol=1e-8,
+        atol=1e-8,
     )
     d_bwd = jnp.linalg.norm(sol_bwd.positions[:, 1:] - emitter[1:], axis=1)
     idx_bwd = _first_local_min_idx(d_bwd)

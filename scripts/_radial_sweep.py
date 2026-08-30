@@ -4,6 +4,7 @@ Provides a single per-point evaluator (HE classification, robust + Eulerian
 energy conditions, constraint residuals) and an aggregator (HE census,
 violation counts, worst margins) used by ``run_*.py`` callers.
 """
+
 from __future__ import annotations
 
 import sys
@@ -40,8 +41,7 @@ def evaluate_point(metric, coords, *, n_starts: int = 16) -> dict:
         "r": float(coords[1]),
         "he_type": int(cls.he_type),
         "T_norm": float(jnp.max(jnp.abs(T))),
-        "ec_robust": {k: float(getattr(ec, f"{k}_margin"))
-                      for k in ("nec", "wec", "sec", "dec")},
+        "ec_robust": {k: float(getattr(ec, f"{k}_margin")) for k in ("nec", "wec", "sec", "dec")},
         "ec_eulerian": {k: float(eul[k]) for k in ("nec", "wec", "sec", "dec")},
         "constraints": {"epsilon_H": eps_H, "epsilon_M": eps_M},
     }

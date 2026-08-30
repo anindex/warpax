@@ -40,9 +40,7 @@ class TestMinkowskiInvariants:
 
     def test_kretschmann_minkowski_zero(self):
         """Minkowski: Kretschmann scalar K = 0 to machine precision."""
-        K = kretschmann_scalar(
-            self.result.riemann, self.result.metric, self.result.metric_inv
-        )
+        K = kretschmann_scalar(self.result.riemann, self.result.metric, self.result.metric_inv)
         assert_allclose(float(K), 0.0, atol=1e-14)
 
     def test_ricci_squared_minkowski_zero(self):
@@ -52,9 +50,7 @@ class TestMinkowskiInvariants:
 
     def test_weyl_squared_minkowski_zero(self):
         """Minkowski: C_{abcd} C^{abcd} = 0 to machine precision."""
-        K = kretschmann_scalar(
-            self.result.riemann, self.result.metric, self.result.metric_inv
-        )
+        K = kretschmann_scalar(self.result.riemann, self.result.metric, self.result.metric_inv)
         R2 = ricci_squared(self.result.ricci, self.result.metric_inv)
         W2 = weyl_squared(K, R2, self.result.ricci_scalar)
         assert_allclose(float(W2), 0.0, atol=1e-14)
@@ -82,16 +78,12 @@ class TestSchwarzschildInvariants:
 
     def test_kretschmann_schwarzschild_analytical(self):
         """Kretschmann scalar matches K = 48*M^2/r_s^6 for Schwarzschild."""
-        K = kretschmann_scalar(
-            self.result.riemann, self.result.metric, self.result.metric_inv
-        )
+        K = kretschmann_scalar(self.result.riemann, self.result.metric, self.result.metric_inv)
         assert_allclose(float(K), self.expected_K, rtol=1e-10)
 
     def test_schwarzschild_ricci_flat(self):
         """Schwarzschild is vacuum: Ricci-flat => ricci_squared=0, weyl_squared=K."""
-        K = kretschmann_scalar(
-            self.result.riemann, self.result.metric, self.result.metric_inv
-        )
+        K = kretschmann_scalar(self.result.riemann, self.result.metric, self.result.metric_inv)
         R2 = ricci_squared(self.result.ricci, self.result.metric_inv)
         W2 = weyl_squared(K, R2, self.result.ricci_scalar)
 
@@ -166,7 +158,8 @@ class TestRegularityDiagnostics:
 
         report = regularity_report(
             SchwarzschildMetric(M=1.0),
-            r_min=5.0, r_max=25.0,
+            r_min=5.0,
+            r_max=25.0,
         )
         assert report.is_c2
 
@@ -183,20 +176,26 @@ class TestRegularityDiagnostics:
         r_vals = jnp.linspace(5.0, 25.0, 200)
 
         m_c1 = WarpShellPhysical(
-            v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0,
+            v_s=0.02,
+            R_1=10.0,
+            R_2=20.0,
+            r_s_param=5.0,
             transition_order=1,
         )
         m_c2 = WarpShellPhysical(
-            v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0,
+            v_s=0.02,
+            R_1=10.0,
+            R_2=20.0,
+            r_s_param=5.0,
             transition_order=2,
         )
 
         diag_c1 = metric_c2_diagnostic(m_c1, r_vals, component=(0, 0))
         diag_c2 = metric_c2_diagnostic(m_c2, r_vals, component=(0, 0))
 
-        assert diag_c1.c2_max_jump > diag_c2.c2_max_jump, \
-            f"C1 jump ({diag_c1.c2_max_jump:.1f}) should exceed " \
-            f"C2 jump ({diag_c2.c2_max_jump:.1f})"
+        assert diag_c1.c2_max_jump > diag_c2.c2_max_jump, (
+            f"C1 jump ({diag_c1.c2_max_jump:.1f}) should exceed C2 jump ({diag_c2.c2_max_jump:.1f})"
+        )
 
 
 # Coordinate batch construction
@@ -252,9 +251,7 @@ class TestGridCurvatureShapes:
 
     def test_grid_without_invariants(self):
         """compute_invariants=False returns CurvatureResult without invariant fields."""
-        result = evaluate_curvature_grid(
-            self.metric, self.grid, compute_invariants=False
-        )
+        result = evaluate_curvature_grid(self.metric, self.grid, compute_invariants=False)
         assert isinstance(result, CurvatureResult)
         assert not hasattr(result, "kretschmann")
         assert not hasattr(result, "weyl_squared")
@@ -469,15 +466,7 @@ class TestClassifierNearDegenerateInputs:
         lam = 1.0
         eps = 0.002 * lam
         block = jnp.array([[lam, -eps], [eps, lam]])
-        T = (
-            jnp.zeros((4, 4))
-            .at[:2, :2]
-            .set(block)
-            .at[2, 2]
-            .set(lam)
-            .at[3, 3]
-            .set(lam)
-        )
+        T = jnp.zeros((4, 4)).at[:2, :2].set(block).at[2, 2].set(lam).at[3, 3].set(lam)
         result = classify_hawking_ellis(T, ETA)
         assert int(result.he_type) == 4
 
@@ -489,15 +478,7 @@ class TestClassifierNearDegenerateInputs:
         lam = 1.0
         eps = 0.005 * lam
         block = jnp.array([[lam, -eps], [eps, lam]])
-        T = (
-            jnp.zeros((4, 4))
-            .at[:2, :2]
-            .set(block)
-            .at[2, 2]
-            .set(lam)
-            .at[3, 3]
-            .set(lam)
-        )
+        T = jnp.zeros((4, 4)).at[:2, :2].set(block).at[2, 2].set(lam).at[3, 3].set(lam)
         result = classify_hawking_ellis(T, ETA)
         assert int(result.he_type) == 4
 
@@ -518,15 +499,7 @@ class TestClassifierNearDegenerateInputs:
         lam = 1e9
         eps = 0.001 * lam
         block = jnp.array([[lam, -eps], [eps, lam]])
-        T = (
-            jnp.zeros((4, 4))
-            .at[:2, :2]
-            .set(block)
-            .at[2, 2]
-            .set(lam)
-            .at[3, 3]
-            .set(lam)
-        )
+        T = jnp.zeros((4, 4)).at[:2, :2].set(block).at[2, 2].set(lam).at[3, 3].set(lam)
         result = classify_hawking_ellis(T, ETA)
         assert int(result.he_type) == 4
         assert int(classify_hawking_ellis(T / lam, ETA).he_type) == 4
@@ -715,8 +688,7 @@ class TestDeterminantGuardBoundary:
         # det(g) = 0.5 (healthy magnitude), so guard should pass
         mask = determinant_guard_mask(g_field, threshold=1e-10)
         assert bool(mask[0, 0, 0]), (
-            "Determinant guard does NOT detect g_00 sign flip "
-            "(it checks |det(g)|, not signature)."
+            "Determinant guard does NOT detect g_00 sign flip (it checks |det(g)|, not signature)."
         )
 
         # Classifier must not crash on such a tensor either

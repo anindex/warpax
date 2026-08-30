@@ -2,6 +2,7 @@
 
 Covers Bernstein basis, multi-objective loss, EC constraints, and optimizer.
 """
+
 from __future__ import annotations
 
 import jax
@@ -38,7 +39,9 @@ class TestBernsteinBasis:
 
         coeffs = jnp.array([0.0, 0.5, 1.0, 0.5, 0.0])
         t = jnp.asarray(0.3)
-        assert abs(float(jnp.sum(coeffs * bernstein_basis(4, t)) - bernstein_eval(coeffs, t))) < 1e-14
+        assert (
+            abs(float(jnp.sum(coeffs * bernstein_basis(4, t)) - bernstein_eval(coeffs, t))) < 1e-14
+        )
         # Independent pin: 0.5*4t(1-t)^3 + 6t^2(1-t)^2 + 0.5*4t^3(1-t) at t=0.3
         # is exactly 2541/5000 = 0.5082.
         assert abs(float(bernstein_eval(coeffs, t)) - 0.5082) < 1e-14
@@ -93,7 +96,8 @@ class TestPackUnpack:
         packed = pack_theta(
             jnp.array([0.1, 0.5, 0.3, 0.2]),
             jnp.array([0.2, 0.8, 0.5, 0.1]),
-            0.1, 1e-4,
+            0.1,
+            1e-4,
         )
         assert packed.shape == (10,)
 
@@ -114,7 +118,8 @@ class TestPackUnpack:
         assert coeffs.v_0 == pytest.approx(0.1)
         # rho(r) = softplus(rho_scale_raw) * softplus(theta) reparameterization.
         assert float(coeffs.density_coeffs[1]) == pytest.approx(
-            float(jax.nn.softplus(1e-4) * jax.nn.softplus(0.1)), rel=1e-12,
+            float(jax.nn.softplus(1e-4) * jax.nn.softplus(0.1)),
+            rel=1e-12,
         )
 
     def test_default_theta_valid(self):
@@ -157,7 +162,11 @@ class TestLoss:
         from warpax.optimization import default_theta, evaluate_loss
 
         loss, components = evaluate_loss(
-            default_theta(), ansatz="sshell", n_probes=5, n_grid=256, n_ec_starts=2,
+            default_theta(),
+            ansatz="sshell",
+            n_probes=5,
+            n_grid=256,
+            n_ec_starts=2,
         )
         assert jnp.isfinite(loss)
         assert jnp.isfinite(components.constraint)
@@ -172,11 +181,19 @@ class TestLoss:
 
         theta = default_theta()
         l1, c1 = evaluate_loss(
-            theta, ansatz="sshell", n_probes=3, n_grid=256, n_ec_starts=2,
+            theta,
+            ansatz="sshell",
+            n_probes=3,
+            n_grid=256,
+            n_ec_starts=2,
             weights=LossWeights(w_ec=1.0),
         )
         l2, _ = evaluate_loss(
-            theta, ansatz="sshell", n_probes=3, n_grid=256, n_ec_starts=2,
+            theta,
+            ansatz="sshell",
+            n_probes=3,
+            n_grid=256,
+            n_ec_starts=2,
             weights=LossWeights(w_ec=100.0),
         )
         if c1.ec_penalty > 1e-10:
@@ -247,9 +264,13 @@ class TestOptimizerIntegration:
 
         result = optimize_shell(
             ansatz="sshell",
-            n_density=3, n_velocity=3,
-            n_grid=256, n_probes=3, n_ec_starts=2,
-            maxiter=3, certify_ec=False,
+            n_density=3,
+            n_velocity=3,
+            n_grid=256,
+            n_probes=3,
+            n_ec_starts=2,
+            maxiter=3,
+            certify_ec=False,
         )
         assert result.theta_opt is not None
         assert jnp.isfinite(result.loss_final)

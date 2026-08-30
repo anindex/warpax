@@ -7,6 +7,7 @@ multi-observer BFGS certification.
 Reuses ``evaluate_rodal()`` from ``verify_proposals.py`` (RodalMetric v_s=0.1,
 R=100, sigma=0.03; 50-point radial sweep; n_starts=16).
 """
+
 from __future__ import annotations
 
 import time
@@ -37,8 +38,7 @@ def main() -> None:
 
     v = ec["violated"]
     print(f"\nRodal verification persisted: {out_path}")
-    print(f"  probes={n_probes}  NEC={v['nec']}  WEC={v['wec']}  "
-          f"DEC={v['dec']}  SEC={v['sec']}")
+    print(f"  probes={n_probes}  NEC={v['nec']}  WEC={v['wec']}  DEC={v['dec']}  SEC={v['sec']}")
 
 
 if __name__ == "__main__":

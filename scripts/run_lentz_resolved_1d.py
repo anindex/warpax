@@ -10,6 +10,7 @@ walls and consistent with Celmaster-Rubin.
 Outputs
 - results/lentz_resolved_1d.json
 """
+
 from __future__ import annotations
 
 import os
@@ -44,14 +45,21 @@ def main():
         dec.append(float(out["dec"]))
     tot = sum(types.values())
     result = {
-        "v_s": 0.5, "R": 100.0, "sigma": 8.0, "n_wall_points": tot,
+        "v_s": 0.5,
+        "R": 100.0,
+        "sigma": 8.0,
+        "n_wall_points": tot,
         "dr": float(xs[1] - xs[0]),
         "type_iv_frac": types[4] / tot,
-        "nec_min": min(nec), "nec_violated_frac": sum(v < -1e-10 for v in nec) / tot,
-        "dec_min": min(dec), "dec_violated_frac": sum(v < -1e-10 for v in dec) / tot,
+        "nec_min": min(nec),
+        "nec_violated_frac": sum(v < -1e-10 for v in nec) / tot,
+        "dec_min": min(dec),
+        "dec_violated_frac": sum(v < -1e-10 for v in dec) / tot,
     }
-    print(f"  resolved 1D wall points: {tot}, Type-IV frac={result['type_iv_frac']:.2f}, "
-          f"NEC min={result['nec_min']:.3f} (violated {result['nec_violated_frac']:.0%})")
+    print(
+        f"  resolved 1D wall points: {tot}, Type-IV frac={result['type_iv_frac']:.2f}, "
+        f"NEC min={result['nec_min']:.3f} (violated {result['nec_violated_frac']:.0%})"
+    )
     dump_json(result, os.path.join(RESULTS_DIR, "lentz_resolved_1d.json"))
 
 

@@ -16,6 +16,7 @@ Definitions (massless scalar field, 4D, flat-space form):
 with ``C = 3 / (32 pi^2)`` and the normalized Lorentzian sampling kernel
 ``f(\\tau) = (\\tau_0 / \\pi) / (\\tau^2 + \\tau_0^2)``.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -31,7 +32,7 @@ from ..geometry.metric import MetricSpecification
 
 # Ford-Roman constant for the massless scalar field, 4D
 # (Ford & Roman 1995; Pfenning & Ford 1997 eq. 9).
-FORD_ROMAN_CONSTANT_C: float = 3.0 / (32.0 * jnp.pi ** 2)
+FORD_ROMAN_CONSTANT_C: float = 3.0 / (32.0 * jnp.pi**2)
 
 
 class QIResult(NamedTuple):
@@ -55,14 +56,12 @@ class QIResult(NamedTuple):
     C: Float[Array, ""]
 
 
-def _lorentzian_kernel(
-    tau: Float[Array, "N"], tau0: float
-) -> Float[Array, "N"]:
+def _lorentzian_kernel(tau: Float[Array, "N"], tau0: float) -> Float[Array, "N"]:
     """Normalized Lorentzian temporal sampling kernel.
 
     :math:`f(\\tau) = (\\tau_0 / \\pi) / (\\tau^2 + \\tau_0^2)`.
     """
-    return (tau0 / jnp.pi) / (tau ** 2 + tau0 ** 2)
+    return (tau0 / jnp.pi) / (tau**2 + tau0**2)
 
 
 def _rho_and_rate(
@@ -132,9 +131,7 @@ def ford_roman(
         If ``sampling`` is not ``'lorentzian'``.
     """
     if sampling != "lorentzian":
-        raise ValueError(
-            f"sampling must be 'lorentzian' (only supported kernel), got {sampling!r}"
-        )
+        raise ValueError(f"sampling must be 'lorentzian' (only supported kernel), got {sampling!r}")
 
     # The kernel width, the measure and the sampling span are PROPER time; the
     # caller's worldline is parameterized by whatever it likes. Integrate in the
@@ -148,9 +145,7 @@ def ford_roman(
         lam = jnp.linspace(-half, half, n_samples)
         rho_vals, rate = jax.vmap(lambda t: _rho_and_rate(metric, worldline, t))(lam)
         dlam = lam[1] - lam[0]
-        tau = jnp.concatenate(
-            [jnp.zeros(1), jnp.cumsum(0.5 * (rate[1:] + rate[:-1]) * dlam)]
-        )
+        tau = jnp.concatenate([jnp.zeros(1), jnp.cumsum(0.5 * (rate[1:] + rate[:-1]) * dlam)])
         tau = tau - tau[n_samples // 2]
         reach = float(jnp.minimum(-tau[0], tau[-1]))
         if reach >= span * (1.0 - 1e-6):
@@ -160,7 +155,7 @@ def ford_roman(
     integral = jnp.trapezoid(integrand, dx=dlam)
 
     C = jnp.asarray(FORD_ROMAN_CONSTANT_C)
-    bound = -C / tau0 ** 4
+    bound = -C / tau0**4
     margin = integral - bound
 
     return QIResult(

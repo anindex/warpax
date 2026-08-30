@@ -71,19 +71,27 @@ class TestSchwarzschildMultiRadius:
         coords = jnp.array([0.0, r_iso, 0.0, 0.0])
         result = compute_curvature_chain(self.metric, coords)
         npt.assert_allclose(
-            np.array(result.ricci), 0.0, atol=1e-10,
+            np.array(result.ricci),
+            0.0,
+            atol=1e-10,
             err_msg=f"Ricci tensor nonzero at r_iso={r_iso}",
         )
         npt.assert_allclose(
-            float(result.ricci_scalar), 0.0, atol=1e-10,
+            float(result.ricci_scalar),
+            0.0,
+            atol=1e-10,
             err_msg=f"Ricci scalar nonzero at r_iso={r_iso}",
         )
         npt.assert_allclose(
-            np.array(result.einstein), 0.0, atol=1e-10,
+            np.array(result.einstein),
+            0.0,
+            atol=1e-10,
             err_msg=f"Einstein tensor nonzero at r_iso={r_iso}",
         )
         npt.assert_allclose(
-            np.array(result.stress_energy), 0.0, atol=1e-10,
+            np.array(result.stress_energy),
+            0.0,
+            atol=1e-10,
             err_msg=f"Stress-energy tensor nonzero at r_iso={r_iso}",
         )
 
@@ -98,7 +106,9 @@ class TestSchwarzschildMultiRadius:
         K_expected = 48.0 * self.M**2 / r_schw**6
 
         npt.assert_allclose(
-            float(K), K_expected, rtol=1e-8,
+            float(K),
+            K_expected,
+            rtol=1e-8,
             err_msg=f"Kretschmann mismatch at r_iso={r_iso} (r_schw={r_schw:.6f})",
         )
 
@@ -106,11 +116,11 @@ class TestSchwarzschildMultiRadius:
 # Minkowski exact zero
 
 MINKOWSKI_COORDS = [
-    jnp.array([1.1, 2.3, -0.7, 3.14]),     # fully asymmetric
-    jnp.array([0.0, 0.0, 0.0, 0.0]),        # origin
-    jnp.array([-5.0, 7.1, -2.2, 0.9]),      # negative coords
-    jnp.array([0.0, 100.0, -50.0, 25.0]),    # large values
-    jnp.array([3.0, 0.01, -0.01, 0.001]),    # near-zero spatial
+    jnp.array([1.1, 2.3, -0.7, 3.14]),  # fully asymmetric
+    jnp.array([0.0, 0.0, 0.0, 0.0]),  # origin
+    jnp.array([-5.0, 7.1, -2.2, 0.9]),  # negative coords
+    jnp.array([0.0, 100.0, -50.0, 25.0]),  # large values
+    jnp.array([3.0, 0.01, -0.01, 0.001]),  # near-zero spatial
 ]
 
 
@@ -131,27 +141,39 @@ class TestMinkowskiExactZero:
         result = compute_curvature_chain(self.metric, coords)
 
         npt.assert_allclose(
-            np.array(result.christoffel), 0.0, atol=1e-14,
+            np.array(result.christoffel),
+            0.0,
+            atol=1e-14,
             err_msg="Christoffel symbols nonzero in Minkowski",
         )
         npt.assert_allclose(
-            np.array(result.riemann), 0.0, atol=1e-14,
+            np.array(result.riemann),
+            0.0,
+            atol=1e-14,
             err_msg="Riemann tensor nonzero in Minkowski",
         )
         npt.assert_allclose(
-            np.array(result.ricci), 0.0, atol=1e-14,
+            np.array(result.ricci),
+            0.0,
+            atol=1e-14,
             err_msg="Ricci tensor nonzero in Minkowski",
         )
         npt.assert_allclose(
-            float(result.ricci_scalar), 0.0, atol=1e-14,
+            float(result.ricci_scalar),
+            0.0,
+            atol=1e-14,
             err_msg="Ricci scalar nonzero in Minkowski",
         )
         npt.assert_allclose(
-            np.array(result.einstein), 0.0, atol=1e-14,
+            np.array(result.einstein),
+            0.0,
+            atol=1e-14,
             err_msg="Einstein tensor nonzero in Minkowski",
         )
         npt.assert_allclose(
-            np.array(result.stress_energy), 0.0, atol=1e-14,
+            np.array(result.stress_energy),
+            0.0,
+            atol=1e-14,
             err_msg="Stress-energy tensor nonzero in Minkowski",
         )
 
@@ -162,11 +184,15 @@ class TestMinkowskiExactZero:
         eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
         npt.assert_allclose(
-            np.array(result.metric), np.array(eta), atol=1e-15,
+            np.array(result.metric),
+            np.array(eta),
+            atol=1e-15,
             err_msg="Metric is not Minkowski",
         )
         npt.assert_allclose(
-            np.array(result.metric_inv), np.array(eta), atol=1e-15,
+            np.array(result.metric_inv),
+            np.array(eta),
+            atol=1e-15,
             err_msg="Inverse metric is not Minkowski",
         )
 
@@ -174,11 +200,11 @@ class TestMinkowskiExactZero:
 # Alcubierre Eulerian energy density
 
 BUBBLE_WALL_POINTS = [
-    (0.8, 0.5, 0.0),   # bubble wall, y-offset
-    (0.8, 0.0, 0.5),   # bubble wall, z-offset
-    (1.0, 0.3, 0.3),   # on-wall, both y and z
-    (0.5, 0.7, 0.0),   # inner wall region
-    (1.2, 0.4, 0.0),   # outer wall region
+    (0.8, 0.5, 0.0),  # bubble wall, y-offset
+    (0.8, 0.0, 0.5),  # bubble wall, z-offset
+    (1.0, 0.3, 0.3),  # on-wall, both y and z
+    (0.5, 0.7, 0.0),  # inner wall region
+    (1.2, 0.4, 0.0),  # outer wall region
 ]
 
 
@@ -209,14 +235,24 @@ class TestAlcubierreEulerianEnergyDensity:
 
     def _compute_rho_analytical(self, x: float, y: float, z: float) -> float:
         """Compute Eulerian energy density via analytical formula."""
-        return float(eulerian_energy_density(
-            jnp.array(x), jnp.array(y), jnp.array(z),
-            v_s=self.v_s, R=self.R, sigma=self.sigma, x_s=0.0,
-        ))
+        return float(
+            eulerian_energy_density(
+                jnp.array(x),
+                jnp.array(y),
+                jnp.array(z),
+                v_s=self.v_s,
+                R=self.R,
+                sigma=self.sigma,
+                x_s=0.0,
+            )
+        )
 
     @pytest.mark.parametrize("x,y,z", BUBBLE_WALL_POINTS)
     def test_energy_density_at_bubble_wall_points(
-        self, x: float, y: float, z: float,
+        self,
+        x: float,
+        y: float,
+        z: float,
     ) -> None:
         """Cross-validates autodiff T_ab against Alcubierre (1994) Eq. 11:
         rho = -(v_s^2/32pi)(df/dr_s)^2(y^2+z^2)/r_s^2."""
@@ -224,7 +260,9 @@ class TestAlcubierreEulerianEnergyDensity:
         rho_analytical = self._compute_rho_analytical(x, y, z)
 
         npt.assert_allclose(
-            rho_autodiff, rho_analytical, rtol=1e-6,
+            rho_autodiff,
+            rho_analytical,
+            rtol=1e-6,
             err_msg=(
                 f"Eulerian energy density mismatch at ({x}, {y}, {z}): "
                 f"autodiff={rho_autodiff:.10e}, analytical={rho_analytical:.10e}"
@@ -233,7 +271,10 @@ class TestAlcubierreEulerianEnergyDensity:
 
     @pytest.mark.parametrize("x,y,z", BUBBLE_WALL_POINTS)
     def test_energy_density_always_nonpositive(
-        self, x: float, y: float, z: float,
+        self,
+        x: float,
+        y: float,
+        z: float,
     ) -> None:
         """Alcubierre WEC violation: energy density is always <= 0."""
         rho_autodiff = self._compute_rho_autodiff(x, y, z)
@@ -246,23 +287,33 @@ class TestAlcubierreEulerianEnergyDensity:
             f"Autodiff rho should be <= 0 at ({x}, {y}, {z}), got {rho_autodiff}"
         )
 
-    @pytest.mark.parametrize("x,y,z", [
-        (0.8, 0.0, 0.0),   # on x-axis near wall
-        (1.0, 0.0, 0.0),   # on x-axis at wall
-    ])
+    @pytest.mark.parametrize(
+        "x,y,z",
+        [
+            (0.8, 0.0, 0.0),  # on x-axis near wall
+            (1.0, 0.0, 0.0),  # on x-axis at wall
+        ],
+    )
     def test_energy_density_zero_on_axis(
-        self, x: float, y: float, z: float,
+        self,
+        x: float,
+        y: float,
+        z: float,
     ) -> None:
         """Energy density is zero on the bubble axis (y=z=0) because rho ~ y^2+z^2."""
         rho_autodiff = self._compute_rho_autodiff(x, y, z)
         rho_analytical = self._compute_rho_analytical(x, y, z)
 
         npt.assert_allclose(
-            rho_analytical, 0.0, atol=1e-12,
+            rho_analytical,
+            0.0,
+            atol=1e-12,
             err_msg=f"Analytical rho should be zero on axis at ({x}, {y}, {z})",
         )
         npt.assert_allclose(
-            rho_autodiff, 0.0, atol=1e-12,
+            rho_autodiff,
+            0.0,
+            atol=1e-12,
             err_msg=f"Autodiff rho should be zero on axis at ({x}, {y}, {z})",
         )
 
@@ -273,11 +324,15 @@ class TestAlcubierreEulerianEnergyDensity:
         rho_analytical = self._compute_rho_analytical(x, y, z)
 
         npt.assert_allclose(
-            rho_analytical, 0.0, atol=1e-12,
+            rho_analytical,
+            0.0,
+            atol=1e-12,
             err_msg=f"Analytical rho should be zero far from bubble at ({x}, {y}, {z})",
         )
         npt.assert_allclose(
-            rho_autodiff, 0.0, atol=1e-12,
+            rho_autodiff,
+            0.0,
+            atol=1e-12,
             err_msg=f"Autodiff rho should be zero far from bubble at ({x}, {y}, {z})",
         )
 
@@ -311,20 +366,31 @@ class TestNatarioEulerianEnergyDensity:
         return float(ec["wec"])
 
     def _compute_rho_analytical(self, x: float, y: float, z: float) -> float:
-        return float(natario_eulerian_energy_density(
-            jnp.array(x), jnp.array(y), jnp.array(z),
-            v_s=self.v_s, R=self.R, sigma=self.sigma,
-        ))
+        return float(
+            natario_eulerian_energy_density(
+                jnp.array(x),
+                jnp.array(y),
+                jnp.array(z),
+                v_s=self.v_s,
+                R=self.R,
+                sigma=self.sigma,
+            )
+        )
 
     @pytest.mark.parametrize("x,y,z", NATARIO_WALL_POINTS)
     def test_energy_density_matches_analytical(
-        self, x: float, y: float, z: float,
+        self,
+        x: float,
+        y: float,
+        z: float,
     ) -> None:
         rho_autodiff = self._compute_rho_autodiff(x, y, z)
         rho_analytical = self._compute_rho_analytical(x, y, z)
 
         npt.assert_allclose(
-            rho_autodiff, rho_analytical, rtol=1e-5,
+            rho_autodiff,
+            rho_analytical,
+            rtol=1e-5,
             err_msg=(
                 f"Natario Eulerian rho mismatch at ({x}, {y}, {z}): "
                 f"autodiff={rho_autodiff:.10e}, analytical={rho_analytical:.10e}"
@@ -333,7 +399,10 @@ class TestNatarioEulerianEnergyDensity:
 
     @pytest.mark.parametrize("x,y,z", NATARIO_WALL_POINTS)
     def test_energy_density_always_nonpositive(
-        self, x: float, y: float, z: float,
+        self,
+        x: float,
+        y: float,
+        z: float,
     ) -> None:
         rho_autodiff = self._compute_rho_autodiff(x, y, z)
         assert rho_autodiff <= 1e-12, (
@@ -346,13 +415,23 @@ class TestNatarioEulerianEnergyDensity:
         y, z = 1.0, 0.5
         coords = jnp.array([t, x, y, z])
         result = compute_curvature_chain(self.metric, coords)
-        rho_autodiff = float(compute_eulerian_ec(
-            result.stress_energy, result.metric,
-        )["wec"])
-        rho_analytical = float(natario_eulerian_energy_density(
-            jnp.array(x), jnp.array(y), jnp.array(z),
-            v_s=self.v_s, R=self.R, sigma=self.sigma, t=t,
-        ))
+        rho_autodiff = float(
+            compute_eulerian_ec(
+                result.stress_energy,
+                result.metric,
+            )["wec"]
+        )
+        rho_analytical = float(
+            natario_eulerian_energy_density(
+                jnp.array(x),
+                jnp.array(y),
+                jnp.array(z),
+                v_s=self.v_s,
+                R=self.R,
+                sigma=self.sigma,
+                t=t,
+            )
+        )
         npt.assert_allclose(rho_autodiff, rho_analytical, rtol=1e-4)
 
 
@@ -420,9 +499,7 @@ class TestStressEnergySymmetry:
     def test_rodal_stress_energy_symmetric(self):
         from warpax.metrics import RodalMetric
 
-        self._assert_symmetric_over_slab(
-            RodalMetric(v_s=0.5, R=1.0, sigma=0.1), bounds=(-2.0, 2.0)
-        )
+        self._assert_symmetric_over_slab(RodalMetric(v_s=0.5, R=1.0, sigma=0.1), bounds=(-2.0, 2.0))
 
     def test_natario_stress_energy_symmetric(self):
         from warpax.metrics import NatarioMetric
@@ -626,9 +703,7 @@ class TestRodalEnergyDeficit:
 
         # Both should be negative (energy condition violations)
         assert peak_rho_rodal < 0, f"Rodal peak rho = {peak_rho_rodal}, expected < 0"
-        assert peak_rho_alcubierre < 0, (
-            f"Alcubierre peak rho = {peak_rho_alcubierre}, expected < 0"
-        )
+        assert peak_rho_alcubierre < 0, f"Alcubierre peak rho = {peak_rho_alcubierre}, expected < 0"
 
         # Ratio: both negative, so ratio > 1 means Rodal has smaller violation
         reduction_factor = peak_rho_alcubierre / peak_rho_rodal
@@ -656,19 +731,16 @@ class TestLentzWECViolation:
         metric = LentzMetric(v_s=0.1, R=100.0, sigma=8.0)
 
         wall_points = [
-            jnp.array([0.0, 50.0, 50.0, 0.0]),   # wall diagonal (from regression)
-            jnp.array([0.0, 80.0, 20.0, 0.0]),    # wall off-diagonal
-            jnp.array([0.0, 30.0, 70.0, 0.0]),    # wall off-diagonal
+            jnp.array([0.0, 50.0, 50.0, 0.0]),  # wall diagonal (from regression)
+            jnp.array([0.0, 80.0, 20.0, 0.0]),  # wall off-diagonal
+            jnp.array([0.0, 30.0, 70.0, 0.0]),  # wall off-diagonal
         ]
 
         for coords in wall_points:
             result = compute_curvature_chain(metric, coords)
-            rho_euler = compute_eulerian_ec(
-                result.stress_energy, result.metric
-            )["wec"]
+            rho_euler = compute_eulerian_ec(result.stress_energy, result.metric)["wec"]
             assert float(rho_euler) < 0, (
-                f"Lentz WEC should be violated at {coords}: "
-                f"rho_euler = {float(rho_euler):.6e}"
+                f"Lentz WEC should be violated at {coords}: rho_euler = {float(rho_euler):.6e}"
             )
 
     def test_lentz_wec_satisfied_interior_and_exterior(self):
@@ -680,18 +752,15 @@ class TestLentzWECViolation:
         metric = LentzMetric(v_s=0.1, R=100.0, sigma=8.0)
 
         trivial_points = [
-            jnp.array([0.0, 5.0, 5.0, 0.0]),       # deep inside bubble
-            jnp.array([0.0, 200.0, 200.0, 0.0]),    # far outside bubble
+            jnp.array([0.0, 5.0, 5.0, 0.0]),  # deep inside bubble
+            jnp.array([0.0, 200.0, 200.0, 0.0]),  # far outside bubble
         ]
 
         for coords in trivial_points:
             result = compute_curvature_chain(metric, coords)
-            rho_euler = compute_eulerian_ec(
-                result.stress_energy, result.metric
-            )["wec"]
+            rho_euler = compute_eulerian_ec(result.stress_energy, result.metric)["wec"]
             assert abs(float(rho_euler)) < 1e-8, (
-                f"Lentz rho_euler should be ~0 at {coords}: "
-                f"rho_euler = {float(rho_euler):.6e}"
+                f"Lentz rho_euler should be ~0 at {coords}: rho_euler = {float(rho_euler):.6e}"
             )
 
 
@@ -719,16 +788,15 @@ class TestSantiagoObserverDependence:
         n_points = 20
         angles = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
         # Points on a ring in the x-y plane at distance ~R from center
-        wall_points = [
-            jnp.array([0.0, 1.0 * np.cos(a), 1.0 * np.sin(a), 0.0])
-            for a in angles
-        ]
+        wall_points = [jnp.array([0.0, 1.0 * np.cos(a), 1.0 * np.sin(a), 0.0]) for a in angles]
 
         n_violated = 0
         for coords in wall_points:
             result = compute_curvature_chain(metric, coords)
             ec_result = verify_point(
-                result.stress_energy, result.metric, n_starts=16,
+                result.stress_energy,
+                result.metric,
+                n_starts=16,
             )
             if float(ec_result.nec_margin) < 0:
                 n_violated += 1
@@ -751,16 +819,15 @@ class TestSantiagoObserverDependence:
         angles = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
         # Points on equatorial ring at r ~ R, avoiding on-axis (sin(a)!=0)
         # Offset z=0.1 to stay off the coordinate axis
-        wall_points = [
-            jnp.array([0.0, 1.0 * np.cos(a), 1.0 * np.sin(a), 0.1])
-            for a in angles
-        ]
+        wall_points = [jnp.array([0.0, 1.0 * np.cos(a), 1.0 * np.sin(a), 0.1]) for a in angles]
 
         n_violated = 0
         for coords in wall_points:
             result = compute_curvature_chain(metric, coords)
             ec_result = verify_point(
-                result.stress_energy, result.metric, n_starts=16,
+                result.stress_energy,
+                result.metric,
+                n_starts=16,
             )
             if float(ec_result.nec_margin) < 0:
                 n_violated += 1
@@ -782,10 +849,7 @@ class TestSantiagoObserverDependence:
 
         # Use 5 wall points (subset of the 20-point ring)
         angles = np.linspace(0, 2 * np.pi, 5, endpoint=False)
-        wall_points = [
-            jnp.array([0.0, 1.0 * np.cos(a), 1.0 * np.sin(a), 0.0])
-            for a in angles
-        ]
+        wall_points = [jnp.array([0.0, 1.0 * np.cos(a), 1.0 * np.sin(a), 0.0]) for a in angles]
 
         n_robust_worse = 0
         for coords in wall_points:
@@ -793,7 +857,9 @@ class TestSantiagoObserverDependence:
 
             # Observer-robust NEC margin
             ec_result = verify_point(
-                result.stress_energy, result.metric, n_starts=16,
+                result.stress_energy,
+                result.metric,
+                n_starts=16,
             )
             robust_nec = float(ec_result.nec_margin)
 
@@ -842,9 +908,7 @@ class TestSchwarzschildCircularOrbitBenchmark:
     def setup_orbit(self):
         """Integrate one full circular orbit (shared across tests)."""
         self.metric = SchwarzschildMetric(M=self.M)
-        self.x0, self.v0 = circular_orbit_ic(
-            self.metric, r_schw=self.r_schw, M=self.M
-        )
+        self.x0, self.v0 = circular_orbit_ic(self.metric, r_schw=self.r_schw, M=self.M)
 
         # Analytical proper period: T = 2*pi*r^(3/2) M^(-1/2) sqrt(1 - 3M/r)
         # Wald GR Ch. 6.3
@@ -860,9 +924,7 @@ class TestSchwarzschildCircularOrbitBenchmark:
             max_steps=65536,
         )
 
-        self.r_iso_start = float(
-            jnp.sqrt(self.x0[1] ** 2 + self.x0[2] ** 2 + self.x0[3] ** 2)
-        )
+        self.r_iso_start = float(jnp.sqrt(self.x0[1] ** 2 + self.x0[2] ** 2 + self.x0[3] ** 2))
 
     def test_circular_orbit_period_matches_analytical(self):
         """Circular orbit should return to starting angular position after one proper period.
@@ -949,9 +1011,7 @@ class TestSchwarzschildRadialInfallBenchmark:
     def setup_infall(self):
         """Integrate radial infall trajectory (shared across tests)."""
         self.metric = SchwarzschildMetric(M=self.M)
-        self.x0, self.v0 = radial_infall_ic(
-            self.metric, r_start_schw=self.r_start_schw, M=self.M
-        )
+        self.x0, self.v0 = radial_infall_ic(self.metric, r_start_schw=self.r_start_schw, M=self.M)
 
         event = make_event(horizon_event)
         self.sol = integrate_geodesic(
@@ -996,9 +1056,7 @@ class TestSchwarzschildRadialInfallBenchmark:
 
         # Check conservation: max(|E_i - E_start|) / |E_start| < 1e-4
         E_start = float(E_traj[0])
-        max_energy_drift = float(
-            jnp.max(jnp.abs(E_traj - E_start)) / jnp.abs(E_start)
-        )
+        max_energy_drift = float(jnp.max(jnp.abs(E_traj - E_start)) / jnp.abs(E_start))
         assert max_energy_drift < 1e-4, (
             f"Killing energy drift {max_energy_drift:.2e} exceeds 1e-4 threshold. "
             f"E_start={E_start:.6f}, E_analytical={E_analytical:.6f}"
@@ -1019,9 +1077,7 @@ class TestSchwarzschildRadialInfallBenchmark:
 
         # Allow small positive bumps up to 1e-10 (numerical noise)
         n_increasing = int(jnp.sum(dr > 1e-10))
-        assert n_increasing == 0, (
-            f"Radius increased at {n_increasing} points during radial infall"
-        )
+        assert n_increasing == 0, f"Radius increased at {n_increasing} points during radial infall"
 
     def test_radial_infall_norm_conservation(self):
         """4-velocity norm should be conserved to 1e-6 during radial infall.
@@ -1032,8 +1088,7 @@ class TestSchwarzschildRadialInfallBenchmark:
         norms_valid = norms[:500]
         max_norm_error = float(jnp.max(jnp.abs(norms_valid + 1.0)))
         assert max_norm_error < 1e-6, (
-            f"4-velocity norm drift {max_norm_error:.2e} exceeds 1e-6 "
-            f"during radial infall"
+            f"4-velocity norm drift {max_norm_error:.2e} exceeds 1e-6 during radial infall"
         )
 
 
@@ -1097,12 +1152,9 @@ class TestTidalEigenvaluesMultiRadius:
         )
 
         # Two most positive should match transverse_eig
-        positive_eigs = sorted(
-            [e for e in eigs_np if e > abs(radial_eig) * 0.1]
-        )
+        positive_eigs = sorted([e for e in eigs_np if e > abs(radial_eig) * 0.1])
         assert len(positive_eigs) >= 2, (
-            f"Expected at least 2 positive eigenvalues, got {len(positive_eigs)} "
-            f"at r_iso={r_iso}"
+            f"Expected at least 2 positive eigenvalues, got {len(positive_eigs)} at r_iso={r_iso}"
         )
         for pe in positive_eigs[:2]:
             npt.assert_allclose(
@@ -1161,9 +1213,7 @@ class TestSyntheticECVerification:
         r = verify_point(T, ETA, n_starts=8)
 
         # WEC must be violated
-        assert float(r.wec_margin) < 0, (
-            f"WEC margin {float(r.wec_margin):.6f} should be negative"
-        )
+        assert float(r.wec_margin) < 0, f"WEC margin {float(r.wec_margin):.6f} should be negative"
 
         # Eigenvalue-based check should give exactly -0.5
         rho = r.rho
@@ -1188,17 +1238,18 @@ class TestSyntheticECVerification:
         T with large off-diagonal T_{01} = T_{10} = 2.0.
         The energy-momentum current j^a = -T^a_b n^b may become spacelike.
         """
-        T = jnp.array([
-            [1.0, 2.0, 0.0, 0.0],
-            [2.0, 0.5, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0],
-        ])
+        T = jnp.array(
+            [
+                [1.0, 2.0, 0.0, 0.0],
+                [2.0, 0.5, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+            ]
+        )
         r = verify_point(T, ETA, n_starts=8)
 
         assert float(r.dec_margin) < 0, (
-            f"DEC margin {float(r.dec_margin):.6f} should be negative "
-            f"for large momentum flux"
+            f"DEC margin {float(r.dec_margin):.6f} should be negative for large momentum flux"
         )
 
     def test_eigenvalue_check_consistency(self):
@@ -1224,22 +1275,17 @@ class TestAlcubierreVsZeroIsMinkowski:
         eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
         np.testing.assert_allclose(np.asarray(chain.metric), np.asarray(eta), atol=1e-14)
         np.testing.assert_allclose(np.asarray(chain.ricci), np.zeros((4, 4)), atol=5e-12)
-        np.testing.assert_allclose(
-            np.asarray(chain.einstein), np.zeros((4, 4)), atol=5e-12
-        )
-        np.testing.assert_allclose(
-            np.asarray(chain.stress_energy), np.zeros((4, 4)), atol=5e-12
-        )
+        np.testing.assert_allclose(np.asarray(chain.einstein), np.zeros((4, 4)), atol=5e-12)
+        np.testing.assert_allclose(np.asarray(chain.stress_energy), np.zeros((4, 4)), atol=5e-12)
 
     def test_einstein_constraint_on_grid(self):
         from warpax.geometry import evaluate_curvature_grid
+
         m = AlcubierreMetric(v_s=0.0, R=2.0, sigma=8.0)
         grid = GridSpec(bounds=[(-1.5, 1.5)] * 3, shape=(5, 5, 5))
         chain = evaluate_curvature_grid(m, grid, batch_size=32)
         max_T = float(jnp.max(jnp.abs(chain.stress_energy)))
-        assert max_T < 5e-12, (
-            f"v_s=0 Alcubierre still has non-zero stress-energy: {max_T:.3e}"
-        )
+        assert max_T < 5e-12, f"v_s=0 Alcubierre still has non-zero stress-energy: {max_T:.3e}"
 
 
 class TestSchwarzschildADMMassFuchs:
@@ -1261,10 +1307,7 @@ class TestSchwarzschildADMMassFuchs:
 
         metric = fuchs_default()
         radii = [50.0, 100.0, 200.0, 400.0]
-        masses = [
-            float(adm_mass(metric, r_surface=r, n_theta=10, n_phi=18))
-            for r in radii
-        ]
+        masses = [float(adm_mass(metric, r_surface=r, n_theta=10, n_phi=18)) for r in radii]
         assert all(np.isfinite(m) and m > 0 for m in masses), masses
 
         # Monotone approach from above to the volume mass, not a drift away.
@@ -1290,13 +1333,9 @@ class TestInterpolationOrderRegression:
         x = jnp.linspace(-1.0, 1.0, N)
         # alpha(x) = 1 + 0.1 * sin(pi x); smooth, has nontrivial 2nd derivative.
         alpha_1d = 1.0 + 0.1 * jnp.sin(jnp.pi * x)
-        alpha = jnp.broadcast_to(
-            alpha_1d[None, :, None, None], (Nt, N, N, N)
-        ).copy()
+        alpha = jnp.broadcast_to(alpha_1d[None, :, None, None], (Nt, N, N, N)).copy()
         beta = jnp.zeros((Nt, N, N, N, 3))
-        gamma = jnp.broadcast_to(
-            jnp.eye(3)[None, None, None, None, :, :], (Nt, N, N, N, 3, 3)
-        )
+        gamma = jnp.broadcast_to(jnp.eye(3)[None, None, None, None, :, :], (Nt, N, N, N, 3, 3))
         spec = GridSpec(bounds=[(-1.0, 1.0)] * 4, shape=(Nt, N, N, N))
         return alpha, beta, gamma, spec
 
@@ -1352,7 +1391,8 @@ class TestWarpShellBoundaryDEC:
                         continue
                     idx = i * shape[1] * shape[2] + j * shape[2] + k
                     r = verify_point(
-                        flat_T[idx], flat_g[idx],
+                        flat_T[idx],
+                        flat_g[idx],
                         n_starts=8,
                         solver="auto",
                     )
@@ -1390,15 +1430,14 @@ class TestOnAxisCurvatureFinite:
         _check_finite_curvature(LentzMetric(v_s=0.1), on_axis_coords)
 
     def test_natario_origin_curvature_finite(self, on_axis_coords):
-        _check_finite_curvature(
-            NatarioMetric(v_s=0.1, R=1.0, sigma=8.0), on_axis_coords
-        )
+        _check_finite_curvature(NatarioMetric(v_s=0.1, R=1.0, sigma=8.0), on_axis_coords)
 
     def test_van_den_broeck_origin_curvature_finite(self, on_axis_coords):
         _check_finite_curvature(VanDenBroeckMetric(v_s=0.1), on_axis_coords)
 
     def test_sshell_origin_curvature_finite(self, on_axis_coords):
         from warpax.metrics.sshell import sshell_default
+
         _check_finite_curvature(sshell_default(v_s=0.02), on_axis_coords)
 
 
@@ -1412,6 +1451,7 @@ class TestOnAxisShiftJacobian:
 
     def test_sshell_shift_jacobian_finite(self, on_axis_coords):
         from warpax.metrics.sshell import sshell_default
+
         m = sshell_default(v_s=0.02)
         jac = jax.jacfwd(m.shift)(on_axis_coords)
         assert jnp.all(jnp.isfinite(jac))

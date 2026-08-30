@@ -6,6 +6,7 @@ literals (RFC 8259 forbids them); strict parsers reject those files.
 ``dump_json`` converts non-finite floats to ``null`` and dumps with
 ``allow_nan=False``.
 """
+
 from __future__ import annotations
 
 import json

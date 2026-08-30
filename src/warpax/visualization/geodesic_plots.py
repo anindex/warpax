@@ -7,6 +7,7 @@ Produces figures for:
 Both functions accept an optional ``ax`` parameter for subplot embedding and an
 optional ``save_path`` for direct PDF export.
 """
+
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
@@ -78,7 +79,7 @@ def plot_tidal_evolution(
         fig = ax.get_figure()
 
     n_eigs = eigs.shape[1] if eigs.ndim == 2 else 1
-    labels = [f"$\\lambda_{{{i+1}}}$" for i in range(n_eigs)]
+    labels = [f"$\\lambda_{{{i + 1}}}$" for i in range(n_eigs)]
 
     if eigs.ndim == 1:
         ax.plot(tau, eigs, color=COLORS[0], label=labels[0], linewidth=1.2)
@@ -87,13 +88,15 @@ def plot_tidal_evolution(
         for i in range(n_eigs):
             ls = LINE_STYLES[i % len(LINE_STYLES)]
             ax.plot(
-                tau, eigs[:, i],
+                tau,
+                eigs[:, i],
                 color=COLORS[i % len(COLORS)],
                 linestyle=ls["linestyle"],
                 marker=ls["marker"],
                 markersize=ls["markersize"],
                 markevery=mevery,
-                label=labels[i], linewidth=1.2,
+                label=labels[i],
+                linewidth=1.2,
             )
 
     # Detect bubble wall crossing: peak of total tidal magnitude
@@ -103,8 +106,7 @@ def plot_tidal_evolution(
         total_tidal = np.abs(eigs)
     peak_idx = np.argmax(total_tidal)
     if total_tidal[peak_idx] > 1e-10:  # Only mark if there is a real signal
-        ax.axvline(tau[peak_idx], color="gray", linestyle="--", alpha=0.7,
-                   label="Bubble wall")
+        ax.axvline(tau[peak_idx], color="gray", linestyle="--", alpha=0.7, label="Bubble wall")
 
     ax.set_xlabel(r"Proper time $\tau$")
     ax.set_ylabel("Tidal eigenvalue")

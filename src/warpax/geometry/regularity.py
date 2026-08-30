@@ -21,6 +21,7 @@ A metric passes C^k if the (k+1)-th derivative proxy (finite differences
 of the k-th derivative) is bounded. Large jumps indicate a seam where the
 k-th derivative is discontinuous.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

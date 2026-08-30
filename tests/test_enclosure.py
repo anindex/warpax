@@ -73,6 +73,7 @@ def _jax_reference(metric):
 # other and said nothing about the certified bracket in tables/enclosures.tex.
 _VDB = dict(v_s=0.5, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
 
+
 # Each entry pairs an interval-algebra transcription with the JAX metric it must
 # reproduce. Natario exercises a three-component vortical shift; Van den Broeck
 # exercises the conformal branch of ``_assemble`` (gamma_ij = B^2 delta_ij), which
@@ -80,14 +81,22 @@ _VDB = dict(v_s=0.5, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
 @pytest.mark.parametrize(
     "name,builder,reference",
     [
-        ("Alcubierre", lambda: alcubierre_metric(0.5, 1.0, 8.0),
-         lambda: AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)),
-        ("Rodal", lambda: rodal_metric(0.5, 1.0, 8.0),
-         lambda: RodalMetric(v_s=0.5, R=1.0, sigma=8.0)),
-        ("Natario", lambda: natario_metric(0.5, 1.0, 8.0),
-         lambda: NatarioMetric(v_s=0.5, R=1.0, sigma=8.0)),
-        ("VanDenBroeck", lambda: van_den_broeck_metric(**_VDB),
-         lambda: VanDenBroeckMetric(**_VDB)),
+        (
+            "Alcubierre",
+            lambda: alcubierre_metric(0.5, 1.0, 8.0),
+            lambda: AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0),
+        ),
+        (
+            "Rodal",
+            lambda: rodal_metric(0.5, 1.0, 8.0),
+            lambda: RodalMetric(v_s=0.5, R=1.0, sigma=8.0),
+        ),
+        (
+            "Natario",
+            lambda: natario_metric(0.5, 1.0, 8.0),
+            lambda: NatarioMetric(v_s=0.5, R=1.0, sigma=8.0),
+        ),
+        ("VanDenBroeck", lambda: van_den_broeck_metric(**_VDB), lambda: VanDenBroeckMetric(**_VDB)),
     ],
 )
 def test_interval_chain_matches_jax_at_a_point(name, builder, reference):
@@ -133,8 +142,12 @@ def test_rodal_momentum_vanishes():
 @pytest.mark.slow
 def test_enclosure_brackets_are_ordered():
     enc = certify_nec_deficit(
-        alcubierre_metric(0.5, 1.0, 8.0), shape_interval(1.0, 8.0),
-        x_range=(-3.0, 3.0), s_range=(0.0, 3.0), tol=5e-2, max_boxes=1500,
+        alcubierre_metric(0.5, 1.0, 8.0),
+        shape_interval(1.0, 8.0),
+        x_range=(-3.0, 3.0),
+        s_range=(0.0, 3.0),
+        tol=5e-2,
+        max_boxes=1500,
     )
     assert enc.lower <= enc.upper
 
@@ -172,7 +185,7 @@ def test_conformal_slice_null_deficit_uses_the_physical_sphere():
 # built from jet gradients. That form is the difference between a branch and bound
 # that closes and one that exhausts its budget, and it is also the one place where a
 # sign or index error would silently produce a bound that is tighter than the truth
-#, which would make every "certified" number in the paper wrong in the dangerous
+# , which would make every "certified" number in the paper wrong in the dangerous
 # direction. These tests check containment directly rather than trusting the algebra.
 # ---------------------------------------------------------------------------
 
@@ -186,16 +199,17 @@ _ENCLOSURE_METRICS = [
 
 def _centered_fields(metric, cx, cy, h):
     """``(rho, b, S)`` over the box by the mean-value form, as enclosure.py builds it."""
-    box = [iv.mpf([0, 0]), iv.mpf([cx - h, cx + h]), iv.mpf([cy - h, cy + h]),
-           iv.mpf([0, 0])]
+    box = [iv.mpf([0, 0]), iv.mpf([cx - h, cx + h]), iv.mpf([cy - h, cy + h]), iv.mpf([0, 0])]
     ctr = [iv.mpf([0, 0]), iv.mpf([cx, cx]), iv.mpf([cy, cy]), iv.mpf([0, 0])]
     jf = eulerian_fields_interval(metric, box, jet=True)
     cf = eulerian_fields_interval(metric, ctr)
     dx, dy = box[1] - ctr[1], box[2] - ctr[2]
     cen = lambda j, c: c + j.d[1] * dx + j.d[2] * dy
-    return (cen(jf[0], cf[0]),
-            [cen(jf[1][i], cf[1][i]) for i in range(3)],
-            [[cen(jf[2][i][j], cf[2][i][j]) for j in range(3)] for i in range(3)])
+    return (
+        cen(jf[0], cf[0]),
+        [cen(jf[1][i], cf[1][i]) for i in range(3)],
+        [[cen(jf[2][i][j], cf[2][i][j]) for j in range(3)] for i in range(3)],
+    )
 
 
 @pytest.mark.parametrize("name,builder,centre", _ENCLOSURE_METRICS)
@@ -223,16 +237,23 @@ def test_centered_form_encloses_every_interior_point(name, builder, centre):
     for h in (1e-2, 1e-3, 1e-4):
         rho_k, b_k, S_k = _centered_fields(metric, cx, cy, h)
         for px, py in rng.uniform(-h, h, size=(6, 2)):
-            pt = [iv.mpf([0, 0]), iv.mpf([cx + px, cx + px]),
-                  iv.mpf([cy + py, cy + py]), iv.mpf([0, 0])]
+            pt = [
+                iv.mpf([0, 0]),
+                iv.mpf([cx + px, cx + px]),
+                iv.mpf([cy + py, cy + py]),
+                iv.mpf([0, 0]),
+            ]
             rho_p, b_p, S_p = eulerian_fields_interval(metric, pt)
             assert lo(rho_k) - pad <= lo(rho_p) and hi(rho_p) <= hi(rho_k) + pad, (
-                f"{name} h={h}: rho {rho_p} escapes centered {rho_k}")
+                f"{name} h={h}: rho {rho_p} escapes centered {rho_k}"
+            )
             for i in range(3):
                 assert lo(b_k[i]) - pad <= lo(b_p[i]) and hi(b_p[i]) <= hi(b_k[i]) + pad
                 for j in range(3):
-                    assert (lo(S_k[i][j]) - pad <= lo(S_p[i][j])
-                            and hi(S_p[i][j]) <= hi(S_k[i][j]) + pad)
+                    assert (
+                        lo(S_k[i][j]) - pad <= lo(S_p[i][j])
+                        and hi(S_p[i][j]) <= hi(S_k[i][j]) + pad
+                    )
 
 
 @pytest.mark.parametrize("name,builder,centre", _ENCLOSURE_METRICS)
@@ -248,8 +269,7 @@ def test_jet_ring_reproduces_the_plain_interval_values(name, builder, centre):
     mpmath.mp.prec = 80
     cx, cy = centre
     h = 1e-3
-    box = [iv.mpf([0, 0]), iv.mpf([cx - h, cx + h]), iv.mpf([cy - h, cy + h]),
-           iv.mpf([0, 0])]
+    box = [iv.mpf([0, 0]), iv.mpf([cx - h, cx + h]), iv.mpf([cy - h, cy + h]), iv.mpf([0, 0])]
     metric = builder()
     r0, b0, S0 = eulerian_fields_interval(metric, box)
     r1, b1, S1 = eulerian_fields_interval(metric, box, jet=True)
@@ -291,10 +311,8 @@ def test_jet_gradient_matches_autodiff():
         return n_up @ (curv.stress_energy @ n_up)
 
     gx, gy = jax.grad(rho_jax, argnums=(0, 1))(pt[0], pt[1])
-    box = [iv.mpf([0, 0]), iv.mpf([pt[0], pt[0]]), iv.mpf([pt[1], pt[1]]),
-           iv.mpf([0, 0])]
-    rho_j, _, _ = eulerian_fields_interval(
-        alcubierre_metric(0.5, 1.0, 8.0), box, jet=True)
+    box = [iv.mpf([0, 0]), iv.mpf([pt[0], pt[0]]), iv.mpf([pt[1], pt[1]]), iv.mpf([0, 0])]
+    rho_j, _, _ = eulerian_fields_interval(alcubierre_metric(0.5, 1.0, 8.0), box, jet=True)
     mid = lambda c: 0.5 * (float(mpmath.mpf(c.a)) + float(mpmath.mpf(c.b)))
     assert np.isclose(mid(rho_j.d[1]), float(gx), rtol=1e-7, atol=1e-9)
     assert np.isclose(mid(rho_j.d[2]), float(gy), rtol=1e-7, atol=1e-9)
@@ -313,8 +331,12 @@ def test_certified_lower_never_exceeds_a_brute_force_minimum():
 
     mpmath.mp.prec = 80
     enc = certify_nec_deficit(
-        alcubierre_metric(0.5, 1.0, 8.0), shape_interval(1.0, 8.0),
-        x_range=(-3.0, 3.0), s_range=(0.0, 3.0), tol=5e-2, max_boxes=4000,
+        alcubierre_metric(0.5, 1.0, 8.0),
+        shape_interval(1.0, 8.0),
+        x_range=(-3.0, 3.0),
+        s_range=(0.0, 3.0),
+        tol=5e-2,
+        max_boxes=4000,
     )
     rng = np.random.default_rng(7)
     metric = alcubierre_metric(0.5, 1.0, 8.0)
@@ -329,7 +351,8 @@ def test_certified_lower_never_exceeds_a_brute_force_minimum():
             continue
         try:
             rho_iv, b_iv, S_iv = eulerian_fields_interval(
-                metric, [iv.mpf([0, 0]), iv.mpf([x, x]), iv.mpf([s, s]), iv.mpf([0, 0])])
+                metric, [iv.mpf([0, 0]), iv.mpf([x, x]), iv.mpf([s, s]), iv.mpf([0, 0])]
+            )
         except (ZeroDivisionError, ValueError, OverflowError):
             continue
         rho = mid(rho_iv)
@@ -338,7 +361,8 @@ def test_certified_lower_never_exceeds_a_brute_force_minimum():
         n_min = (rho + 2 * v @ b + np.einsum("ni,ij,nj->n", v, S, v)).min()
         assert enc.lower <= n_min + 1e-9, (
             f"certified lower {enc.lower} exceeds a sampled value {n_min} "
-            f"at (x, s) = ({x}, {s}), the bound is NOT an enclosure")
+            f"at (x, s) = ({x}, {s}), the bound is NOT an enclosure"
+        )
         checked += 1
     assert checked > 20, "the sampler found too few wall points to be a real check"
 
@@ -353,6 +377,7 @@ def test_certified_lower_never_exceeds_a_brute_force_minimum():
 # outward padding happened to absorb the error. A bound that is only accidentally
 # sound is not certified, so the counterexamples are pinned here.
 # ---------------------------------------------------------------------------
+
 
 def _set_prec(bits=60):
     """Set BOTH precisions.
@@ -380,10 +405,10 @@ def test_shape_interval_encloses_the_true_shape_value():
 
     mpmath.mp.prec = 300
     r = mpmath.sqrt(mpmath.mpf(x) ** 2 + mpmath.mpf(s) ** 2)
-    truth = ((mpmath.tanh(8 * (r + 1)) - mpmath.tanh(8 * (r - 1)))
-             / (2 * mpmath.tanh(mpmath.mpf(8))))
+    truth = (mpmath.tanh(8 * (r + 1)) - mpmath.tanh(8 * (r - 1))) / (2 * mpmath.tanh(mpmath.mpf(8)))
     assert mpmath.mpf(got.a) <= truth <= mpmath.mpf(got.b), (
-        f"shape_interval {got} does not contain {truth}")
+        f"shape_interval {got} does not contain {truth}"
+    )
 
 
 def test_inv4_keeps_a_derivative_through_a_zero_valued_pivot_factor():
@@ -400,13 +425,16 @@ def test_inv4_keeps_a_derivative_through_a_zero_valued_pivot_factor():
     t = _jet.seed(iv.mpf([0, 0]), 1)
     one, zero = _jet.constant(1), _jet.constant(0)
     # M(t) = [[1, t], [t, 1]] (+) I_2, so d(M^-1)_01/dt = -1 at t = 0.
-    M = [[one, t, zero, zero],
-         [t, one, zero, zero],
-         [zero, zero, one, zero],
-         [zero, zero, zero, one]]
+    M = [
+        [one, t, zero, zero],
+        [t, one, zero, zero],
+        [zero, zero, one, zero],
+        [zero, zero, zero, one],
+    ]
     d01 = _inv4(M)[0][1].d[1]
     assert mpmath.mpf(d01.a) <= -1 <= mpmath.mpf(d01.b), (
-        f"d(M^-1)_01/dt enclosure {d01} lost the true value -1")
+        f"d(M^-1)_01/dt enclosure {d01} lost the true value -1"
+    )
 
 
 def test_decoupled_bound_stays_below_the_truth_under_heavy_cancellation():
@@ -426,11 +454,13 @@ def test_decoupled_bound_stays_below_the_truth_under_heavy_cancellation():
     _set_prec()
     scale = 1e100
     rho_f = 1.6131529359720847e100
-    S_f = np.array([
-        [-0.10626933759389247, 0.8805710554015718, 0.1753514443711059],
-        [0.8805710554015718, -0.4760328068765869, -1.02175725466781],
-        [0.1753514443711059, -1.02175725466781, 0.4374447732538044],
-    ])
+    S_f = np.array(
+        [
+            [-0.10626933759389247, 0.8805710554015718, 0.1753514443711059],
+            [0.8805710554015718, -0.4760328068765869, -1.02175725466781],
+            [0.1753514443711059, -1.02175725466781, 0.4374447732538044],
+        ]
+    )
     # b = 0, so the true deficit is exactly rho + lambda_min(S).
     truth = rho_f + float(np.linalg.eigvalsh(S_f)[0]) * scale
 
@@ -442,12 +472,18 @@ def test_decoupled_bound_stays_below_the_truth_under_heavy_cancellation():
             if j != i:
                 row = row + abs(S[i][j])
         cand = S[i][i] - row
-        lam = cand if lam is None else iv.mpf(
-            [min(mpmath.mpf(lam.a), mpmath.mpf(cand.a)),
-             min(mpmath.mpf(lam.b), mpmath.mpf(cand.b))])
+        lam = (
+            cand
+            if lam is None
+            else iv.mpf(
+                [
+                    min(mpmath.mpf(lam.a), mpmath.mpf(cand.a)),
+                    min(mpmath.mpf(lam.b), mpmath.mpf(cand.b)),
+                ]
+            )
+        )
     bound = _lo(iv.mpf([rho_f, rho_f]) + lam)
-    assert bound <= truth, (
-        f"decoupled bound {bound:.6e} exceeds the true deficit {truth:.6e}")
+    assert bound <= truth, f"decoupled bound {bound:.6e} exceeds the true deficit {truth:.6e}"
 
 
 def test_exterior_holds_no_wall_point_in_any_direction():
@@ -464,9 +500,11 @@ def test_exterior_holds_no_wall_point_in_any_direction():
     iv.prec = 60
     metric = METRICS["Alcubierre"](0.5, 1.0, 8.0)
     shape = shape_interval(1.0, 8.0)
-    for x_box, s_box in (((3.0, 30.0), (0.0, 30.0)),
-                         ((-30.0, -3.0), (0.0, 30.0)),
-                         ((-30.0, 30.0), (3.0, 30.0))):
+    for x_box, s_box in (
+        ((3.0, 30.0), (0.0, 30.0)),
+        ((-30.0, -3.0), (0.0, 30.0)),
+        ((-30.0, 30.0), (3.0, 30.0)),
+    ):
         f_lo, f_hi, excluded = tail_bound(metric, shape, x_box, s_box)
         assert excluded, (x_box, s_box, f_lo, f_hi)
         assert f_hi < 0.1, f_hi

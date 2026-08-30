@@ -45,6 +45,7 @@ discretization error in ``T``, that is the job of the interval branch and bound 
 :mod:`.enclosure`, and everything about the decision made from it. Those are the two
 separate questions a "tolerance-dependent" verdict conflates.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -137,8 +138,10 @@ def is_psd_exact(M: Mat) -> bool:
 
 def _is_symmetric(M: Mat) -> bool:
     n = len(M)
-    return len(M) > 0 and all(len(row) == n for row in M) and all(
-        M[i][j] == M[j][i] for i in range(n) for j in range(i + 1, n)
+    return (
+        len(M) > 0
+        and all(len(row) == n for row in M)
+        and all(M[i][j] == M[j][i] for i in range(n) for j in range(i + 1, n))
     )
 
 
@@ -209,8 +212,13 @@ def condition_matrix(T: Mat, g: Mat, condition: str) -> Mat:
         tr = sum(ginv[a][b] * T[a][b] for a in range(4) for b in range(4))
         return _add(T, g, -tr / 2)
     if condition == "dec":
-        TgT = [[sum(T[a][c] * ginv[c][d] * T[d][b] for c in range(4) for d in range(4))
-                for b in range(4)] for a in range(4)]
+        TgT = [
+            [
+                sum(T[a][c] * ginv[c][d] * T[d][b] for c in range(4) for d in range(4))
+                for b in range(4)
+            ]
+            for a in range(4)
+        ]
         return [[-x for x in row] for row in TgT]
     raise ValueError(f"unknown condition {condition!r}")
 
@@ -234,9 +242,7 @@ def _admissible_bindings(condition: str) -> frozenset[str]:
     return frozenset(_required_lmis(condition))
 
 
-def find_multiplier(
-    T: Mat, g: Mat, condition: str, sigma_hint: float
-) -> Fraction | None:
+def find_multiplier(T: Mat, g: Mat, condition: str, sigma_hint: float) -> Fraction | None:
     """A rational ``sigma`` proving ``condition`` holds, or ``None`` if none is found.
 
     The float search supplies the hint; this rounds it down the denominator ladder and
@@ -424,10 +430,14 @@ def certify(
                     "condition": condition,
                     "kind": "violated",
                     "binding": c,
-                    "witness_pair": [[[x.numerator, x.denominator] for x in k],
-                                     [[x.numerator, x.denominator] for x in l]],
-                    "weights": [[alpha.numerator, alpha.denominator],
-                                [beta.numerator, beta.denominator]],
+                    "witness_pair": [
+                        [[x.numerator, x.denominator] for x in k],
+                        [[x.numerator, x.denominator] for x in l],
+                    ],
+                    "weights": [
+                        [alpha.numerator, alpha.denominator],
+                        [beta.numerator, beta.denominator],
+                    ],
                 }
             return {
                 "condition": condition,

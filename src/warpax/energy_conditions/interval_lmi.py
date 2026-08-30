@@ -46,6 +46,7 @@ invariant, and satisfies ``J(-That eta That)J = -(J That J) eta (J That J)``. So
 the formulas below hold verbatim in whichever convention they are fed. Do not
 "fix" a sign here.
 """
+
 from __future__ import annotations
 
 import math
@@ -57,6 +58,7 @@ from ._intervalcurv import eulerian_fields_interval
 from .enclosure import _hi, _lmi_dual_lower, _lo, _mid_iv, _objective_interval, _trs_argmin
 
 __all__ = ["certify_point_from_metric"]
+
 
 def _point_box(point):
     """Degenerate interval box at ``point``, or a rigorous enclosure of it.
@@ -98,22 +100,27 @@ def _minus_t_squared(rho_iv, b_iv, S_iv):
     ``That eta That`` has blocks ``-rho^2 + |b|^2``, ``(S - rho I) b`` and
     ``S^2 - b b^T``; negating gives what is returned.
     """
+
     def _dot3(u, v):
         return u[0] * v[0] + u[1] * v[1] + u[2] * v[2]
 
     rho_f = rho_iv * rho_iv - _dot3(b_iv, b_iv)
     Sb = [_dot3(S_iv[i], b_iv) for i in range(3)]
     b_f = [rho_iv * b_iv[i] - Sb[i] for i in range(3)]
-    S_f = [[b_iv[i] * b_iv[j] - _dot3(S_iv[i], [S_iv[0][j], S_iv[1][j], S_iv[2][j]])
-            for j in range(3)] for i in range(3)]
+    S_f = [
+        [b_iv[i] * b_iv[j] - _dot3(S_iv[i], [S_iv[0][j], S_iv[1][j], S_iv[2][j]]) for j in range(3)]
+        for i in range(3)
+    ]
     return rho_f, b_f, S_f
 
 
 def _mid_fields(rho_iv, b_iv, S_iv):
     """Float midpoints, used only to PROPOSE a direction to the interval evaluator."""
-    return (_mid_iv(rho_iv),
-            [_mid_iv(c) for c in b_iv],
-            [[_mid_iv(S_iv[i][j]) for j in range(3)] for i in range(3)])
+    return (
+        _mid_iv(rho_iv),
+        [_mid_iv(c) for c in b_iv],
+        [[_mid_iv(S_iv[i][j]) for j in range(3)] for i in range(3)],
+    )
 
 
 def _clamp_to_ball(w, pad: float = 1e-12):
@@ -150,8 +157,7 @@ def _q_at(rho_iv, b_iv, S_iv, w):
     if not (_hi(n2) <= 1.0):
         return None
     bdotw = b_iv[0] * wi[0] + b_iv[1] * wi[1] + b_iv[2] * wi[2]
-    quad = sum(((S_iv[i][j] * wi[i]) * wi[j] for i in range(3) for j in range(3)),
-               iv.mpf([0, 0]))
+    quad = sum(((S_iv[i][j] * wi[i]) * wi[j] for i in range(3) for j in range(3)), iv.mpf([0, 0]))
     return rho_iv + 2 * bdotw + quad
 
 
@@ -248,8 +254,7 @@ def certify_point_from_metric(metric_dual_fn, point, *, prec: int = 80) -> dict:
     # re-evaluated in interval arithmetic, so a poor direction weakens the bound
     # and cannot invalidate it.
     nec_lower = _lmi_dual_lower(rho_iv, b_iv, S_iv)
-    q_iv = _objective_interval(rho_iv, b_iv, S_iv, _trs_argmin(*_mid_fields(
-        rho_iv, b_iv, S_iv)))
+    q_iv = _objective_interval(rho_iv, b_iv, S_iv, _trs_argmin(*_mid_fields(rho_iv, b_iv, S_iv)))
     nec_upper = _hi(q_iv) if q_iv is not None else math.inf
 
     # Timelike (ball): the multiplier is restricted to sigma >= 0, and the witness

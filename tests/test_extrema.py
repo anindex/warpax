@@ -1,4 +1,5 @@
 """Continuous extremum polishing off a grid seed."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -33,8 +34,7 @@ def test_polished_imaginary_peak_beats_the_grid_and_sits_on_the_wall():
         f = certify_grid_frame_free(c.stress_energy, c.metric, c.metric_inv)
         return np.max(np.abs(np.asarray(f.eigenvalues_imag)), axis=-1)
 
-    res = refine_extremum(metric, seed, field_max_imag, mode="max",
-                          half_width=0.15, n=9, levels=7)
+    res = refine_extremum(metric, seed, field_max_imag, mode="max", half_width=0.15, n=9, levels=7)
 
     assert res["value"] >= coarse - 1e-9, "polished max must not fall below sampled max"
     shape = res["shape_at_extremum"]

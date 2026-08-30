@@ -13,6 +13,7 @@ The `darmois` function pattern-matches an input metric and level-set
 boundary function against these two conditions, returning raw discontinuity
 magnitudes plus a physicality verdict.
 """
+
 from __future__ import annotations
 
 from .darmois import DarmoisResult, darmois, surface_stress_energy

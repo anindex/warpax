@@ -9,6 +9,7 @@ Submodules:
 - **shift_kinematics**: Expansion, shear, vorticity of the ADM shift vector field
 - **vorticity_type_analytic**: f = kappa*omega fit of the Type-IV imaginary part
 """
+
 from __future__ import annotations
 
 from .comparison import ComparisonResult, build_comparison_table, compare_eulerian_vs_robust

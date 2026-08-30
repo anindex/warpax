@@ -207,9 +207,7 @@ class WarpShellMetric(ADMMetric):
         t, x, y, z = coords
         x_rel = x - self.v_s * t
         r = _safe_radial_norm(x_rel, y, z)
-        return _warpshell_transition(
-            r, self.R_1, self.R_2, self.R_b, order=self.transition_order
-        )
+        return _warpshell_transition(r, self.R_1, self.R_2, self.R_b, order=self.transition_order)
 
     def symbolic(self) -> SymbolicMetric:
         """Return SymPy symbolic form for inspection and cross-validation.
@@ -238,12 +236,14 @@ class WarpShellMetric(ADMMetric):
         # g_{00} = -(alpha^2 - gamma_xx (beta^x)^2). Dropping gamma_xx made this
         # a different spacetime from the numeric __call__ wherever gamma_rr != 1.
         beta_x_low = gamma_rr * beta_x
-        g = sp.Matrix([
-            [-(alpha**2 - gamma_rr * beta_x**2), beta_x_low, 0, 0],
-            [beta_x_low, gamma_rr, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-(alpha**2 - gamma_rr * beta_x**2), beta_x_low, 0, 0],
+                [beta_x_low, gamma_rr, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:
@@ -315,9 +315,7 @@ class WarpShellPhysical(ADMMetric):
         t, x, y, z = coords
         x_rel = x - self.v_s * t
         r = _safe_radial_norm(x_rel, y, z)
-        S_warp = _warpshell_transition(
-            r, self.R_1, self.R_2, self.R_b, order=self.transition_order
-        )
+        S_warp = _warpshell_transition(r, self.R_1, self.R_2, self.R_b, order=self.transition_order)
         return jnp.array([-S_warp * self.v_s, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)
@@ -350,16 +348,18 @@ class WarpShellPhysical(ADMMetric):
         t, x, y, z = coords
         x_rel = x - self.v_s * t
         r = _safe_radial_norm(x_rel, y, z)
-        return _warpshell_transition(
-            r, self.R_1, self.R_2, self.R_b, order=self.transition_order
-        )
+        return _warpshell_transition(r, self.R_1, self.R_2, self.R_b, order=self.transition_order)
 
     def symbolic(self) -> SymbolicMetric:
         """Same symbolic form as ``WarpShellMetric``; the floors are
         numeric-only."""
         return WarpShellMetric(
-            v_s=self.v_s, R_1=self.R_1, R_2=self.R_2, R_b=self.R_b,
-            r_s_param=self.r_s_param, smooth_width=self.smooth_width,
+            v_s=self.v_s,
+            R_1=self.R_1,
+            R_2=self.R_2,
+            R_b=self.R_b,
+            r_s_param=self.r_s_param,
+            smooth_width=self.smooth_width,
             transition_order=self.transition_order,
         ).symbolic()
 

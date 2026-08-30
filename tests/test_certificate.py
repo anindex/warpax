@@ -1,4 +1,5 @@
 """The exact certificates must agree with the float LMI wherever the LMI is decisive."""
+
 from __future__ import annotations
 
 from fractions import Fraction
@@ -102,8 +103,7 @@ def test_a_forged_certificate_is_rejected():
     # still shows T is negative somewhere, but only on the causal cone, which is the
     # WEC and not the NEC.
     bad = dict(good)
-    bad["witness_pair"] = [[[2, 1], [1, 1], [0, 1], [0, 1]],
-                           [[0, 1], [0, 1], [0, 1], [0, 1]]]
+    bad["witness_pair"] = [[[2, 1], [1, 1], [0, 1], [0, 1]], [[0, 1], [0, 1], [0, 1], [0, 1]]]
     assert not verify(bad, T, ETA)
 
 
@@ -116,10 +116,9 @@ def test_the_tensor_is_checked_too_not_only_the_certificate():
     sigma = 0 and carried a "satisfied" NEC certificate, while the null vector
     k = (1,-1,0,0) gives T(k,k) = -7.
     """
-    T_forged = np.array([[1.0, 10.0, 0.0, 0.0],
-                         [-1.0, 1.0, 0.0, 0.0],
-                         [0.0, 0.0, 1.0, 0.0],
-                         [0.0, 0.0, 0.0, 1.0]])
+    T_forged = np.array(
+        [[1.0, 10.0, 0.0, 0.0], [-1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
     k = np.array([1.0, -1.0, 0.0, 0.0])
     assert k @ ETA @ k == 0.0 and k @ T_forged @ k < 0.0
     stamp = {"condition": "nec", "kind": "satisfied", "sigma": {"nec": [0, 1]}}
@@ -143,10 +142,9 @@ def test_referee_item_b1_type_ii_locus_is_certified_exactly():
     exhaustive. The certificate never forms an eigendecomposition and never asks what
     the algebraic type is, so the locus is not special to it.
     """
-    T = np.array([[1.0, -1.0, 0.0, 0.0],
-                  [-1.0, 1.0, 0.0, 0.0],
-                  [0.0, 0.0, 0.2, 0.0],
-                  [0.0, 0.0, 0.0, 0.2]])
+    T = np.array(
+        [[1.0, -1.0, 0.0, 0.0], [-1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.2, 0.0], [0.0, 0.0, 0.0, 0.2]]
+    )
     kinds = {}
     for c in CONDITIONS:
         cert = certify(T, ETA, c)
@@ -159,10 +157,9 @@ def test_referee_item_b1_type_ii_locus_is_certified_exactly():
 
 def test_referee_item_b2_type_iv_counterexample_is_certified_violating():
     """B2's Lorentz-self-adjoint Type-IV tensor with vanishing quartic discriminant."""
-    A = np.array([[0.0, 1.0, 0.0, 0.0],
-                  [-1.0, 0.0, 0.0, 0.0],
-                  [0.0, 0.0, 0.3, 0.0],
-                  [0.0, 0.0, 0.0, 0.3]])
+    A = np.array(
+        [[0.0, 1.0, 0.0, 0.0], [-1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.3, 0.0], [0.0, 0.0, 0.0, 0.3]]
+    )
     T = ETA @ A
     assert np.allclose(T, T.T)
     for c in CONDITIONS:
@@ -177,9 +174,12 @@ def test_multiplier_is_rational_and_small_where_it_can_be():
     s = find_multiplier(to_exact(T), to_exact(ETA), "wec", 0.0)
     assert s is not None and s.denominator <= 10**6
     assert is_psd_exact(
-        [[a + s * b for a, b in zip(r1, r2, strict=True)]
-         for r1, r2 in zip(condition_matrix(to_exact(T), to_exact(ETA), "wec"),
-                           to_exact(ETA), strict=True)]
+        [
+            [a + s * b for a, b in zip(r1, r2, strict=True)]
+            for r1, r2 in zip(
+                condition_matrix(to_exact(T), to_exact(ETA), "wec"), to_exact(ETA), strict=True
+            )
+        ]
     )
 
 
@@ -227,15 +227,24 @@ def test_every_canonical_form_certifies_and_reverifies():
         "DEC fails (rho < |p|)": np.diag([1.0, 2.0, 0.0, 0.0]),
         "NEC fails": np.diag([1.0, -3.0, 0.0, 0.0]),
         # Lorentz-self-adjoint, Type IV, vanishing quartic discriminant.
-        "Type IV (D4=0)": eta @ np.array([[0.0, 1.0, 0.0, 0.0],
-                                          [-1.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0, 0.3, 0.0],
-                                          [0.0, 0.0, 0.0, 0.3]]),
+        "Type IV (D4=0)": eta
+        @ np.array(
+            [
+                [0.0, 1.0, 0.0, 0.0],
+                [-1.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.3, 0.0],
+                [0.0, 0.0, 0.0, 0.3],
+            ]
+        ),
         # The Type-II locus, Delta = 0 with j != 0.
-        "Type II (locus)": np.array([[1.0, -1.0, 0.0, 0.0],
-                                     [-1.0, 1.0, 0.0, 0.0],
-                                     [0.0, 0.0, 0.2, 0.0],
-                                     [0.0, 0.0, 0.0, 0.2]]),
+        "Type II (locus)": np.array(
+            [
+                [1.0, -1.0, 0.0, 0.0],
+                [-1.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.2, 0.0],
+                [0.0, 0.0, 0.0, 0.2],
+            ]
+        ),
         "vacuum": np.zeros((4, 4)),
     }
     for name, T in cases.items():

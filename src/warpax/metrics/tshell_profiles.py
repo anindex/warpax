@@ -14,6 +14,7 @@ Three velocity profile families:
 2. Parabolic velocity vanishing at boundaries
 3. Bernstein-polynomial velocity with fixed endpoint coefficients
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -119,7 +120,9 @@ def _tshell_from_sshell(
     Recomputes cumulative mass using Eulerian E(r) instead of comoving rho(r).
     """
     lorentz_fn, E_fn, S_x_fn = _build_eulerian_projections(
-        sshell.density, sshell.radial_pressure, v_x_fn,
+        sshell.density,
+        sshell.radial_pressure,
+        v_x_fn,
     )
     m_fn, total_mass = _compute_cumulative_mass(E_fn, sshell.R_2)
 
@@ -156,12 +159,13 @@ def constant_velocity_profiles(
     smooth_width : transition width (default: 0.05 * (R_2 - R_1)).
     """
     if abs(v_0) >= 1.0:
-        raise ValueError(
-            f"Velocity v_0={v_0} is superluminal. Must satisfy |v_0| < 1."
-        )
+        raise ValueError(f"Velocity v_0={v_0} is superluminal. Must satisfy |v_0| < 1.")
 
     sshell = constant_density_profiles(
-        R_1=R_1, R_2=R_2, rho_0=rho_0, smooth_width=smooth_width,
+        R_1=R_1,
+        R_2=R_2,
+        rho_0=rho_0,
+        smooth_width=smooth_width,
     )
     sw = smooth_width if smooth_width is not None else 0.05 * (R_2 - R_1)
 
@@ -189,9 +193,7 @@ def parabolic_velocity_profiles(
     v_0 : peak spatial velocity at shell center.
     """
     if abs(v_0) >= 1.0:
-        raise ValueError(
-            f"Velocity v_0={v_0} is superluminal. Must satisfy |v_0| < 1."
-        )
+        raise ValueError(f"Velocity v_0={v_0} is superluminal. Must satisfy |v_0| < 1.")
 
     sshell = parabolic_density_profiles(R_1=R_1, R_2=R_2, rho_max=rho_max)
     r_c = 0.5 * (R_1 + R_2)
@@ -226,9 +228,7 @@ def bernstein_velocity_profiles(
     from jax.scipy.special import gammaln
 
     if abs(v_0) >= 1.0:
-        raise ValueError(
-            f"Velocity v_0={v_0} is superluminal. Must satisfy |v_0| < 1."
-        )
+        raise ValueError(f"Velocity v_0={v_0} is superluminal. Must satisfy |v_0| < 1.")
 
     sshell = bernstein_density_profiles(R_1=R_1, R_2=R_2, coeffs=density_coeffs)
 
@@ -245,13 +245,9 @@ def bernstein_velocity_profiles(
     def velocity_x(r: Float[Array, ""]) -> Float[Array, ""]:
         t = jnp.clip((r - R_1) / (R_2 - R_1), 0.0, 1.0)
         in_shell = (r >= R_1) & (r <= R_2)
-        log_binom = (
-            gammaln(m + 1.0)
-            - gammaln(k_idx + 1.0)
-            - gammaln(m - k_idx + 1.0)
-        )
+        log_binom = gammaln(m + 1.0) - gammaln(k_idx + 1.0) - gammaln(m - k_idx + 1.0)
         binom = jnp.exp(log_binom)
-        basis_vals = binom * (t ** k_idx) * ((1.0 - t) ** (m - k_idx))
+        basis_vals = binom * (t**k_idx) * ((1.0 - t) ** (m - k_idx))
         v = v_0 * jnp.sum(velocity_coeffs * basis_vals)
         return jnp.where(in_shell, v, 0.0)
 

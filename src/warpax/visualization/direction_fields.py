@@ -58,7 +58,9 @@ def plot_worst_observer_field(
     """
     if ax is None:
         fig, ax = plt.subplots(
-            1, 1, figsize=(0.7 * DOUBLE_COL, 0.7 * DOUBLE_COL * 0.8),
+            1,
+            1,
+            figsize=(0.7 * DOUBLE_COL, 0.7 * DOUBLE_COL * 0.8),
         )
 
     if slice_index is None:
@@ -118,29 +120,33 @@ def plot_worst_observer_field(
     # If all arrows are zero (e.g., entire slice is masked), show empty field
     if max_mag < 1e-30:
         ax.text(
-            0.5, 0.5, "No significant observer dependence\nin this slice",
-            transform=ax.transAxes, ha="center", va="center", fontsize=9,
+            0.5,
+            0.5,
+            "No significant observer dependence\nin this slice",
+            transform=ax.transAxes,
+            ha="center",
+            va="center",
+            fontsize=9,
         )
     else:
         # Ensure small arrows are visible by setting a minimum magnitude
         # (at least 20% of max) while preserving direction
         min_vis = 0.2 * max_mag
-        mag_display = np.where(mag_sub > 1e-30,
-                               np.maximum(mag_sub, min_vis), 0.0)
+        mag_display = np.where(mag_sub > 1e-30, np.maximum(mag_sub, min_vis), 0.0)
         scale_factor = mag_display / np.where(mag_sub > 1e-30, mag_sub, 1.0)
         q = ax.quiver(
             X[::s, ::s],
             Y[::s, ::s],
             u_norm[::s, ::s] * scale_factor,
             v_norm[::s, ::s] * scale_factor,
-            mag_sub,           # color still reflects true magnitude
+            mag_sub,  # color still reflects true magnitude
             cmap="viridis",
             clim=(0, max_mag),
-            scale=25,          # lower scale -> bigger arrows overall
-            width=0.005,       # slightly thicker shaft
+            scale=25,  # lower scale -> bigger arrows overall
+            width=0.005,  # slightly thicker shaft
             headwidth=3.0,
             headlength=3.5,
-            pivot="mid",       # center arrows on grid points
+            pivot="mid",  # center arrows on grid points
         )
         cb = plt.colorbar(q, ax=ax, shrink=0.8, pad=0.02)
         cb.set_label(r"Boost magnitude $|\sinh\zeta|$")
@@ -154,8 +160,12 @@ def plot_worst_observer_field(
     else:
         max_zeta = float(np.nanmax(zeta))
     ax.text(
-        0.02, 0.98, rf"$\zeta_{{\max}} = {max_zeta:.2f}$",
-        transform=ax.transAxes, va="top", fontsize=8,
+        0.02,
+        0.98,
+        rf"$\zeta_{{\max}} = {max_zeta:.2f}$",
+        transform=ax.transAxes,
+        va="top",
+        fontsize=8,
         bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
     )
 

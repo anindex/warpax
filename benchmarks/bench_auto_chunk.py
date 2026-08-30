@@ -35,9 +35,7 @@ class AutoChunkMemoryEnvelope:
         self.grid = GridSpec(bounds=[(-6.0, 6.0)] * 3, shape=(64, 64, 64))
 
         def _run_full(metric: AlcubierreMetric) -> jnp.ndarray:
-            r = evaluate_curvature_grid(
-                metric, self.grid, t=0.0, compute_invariants=False
-            )
+            r = evaluate_curvature_grid(metric, self.grid, t=0.0, compute_invariants=False)
             return r.stress_energy
 
         def _run_chunked(metric: AlcubierreMetric) -> jnp.ndarray:

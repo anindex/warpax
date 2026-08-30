@@ -33,6 +33,7 @@ Outputs
 - results/integrated_negative_energy.json
 - ../warpax_arxiv/tables/integrated_volume.tex
 """
+
 from __future__ import annotations
 
 import os
@@ -88,9 +89,7 @@ _rho_grid = jax.jit(jax.vmap(_eulerian_rho))
 def _proper_dV(g_field, grid):
     """Proper volume element sqrt(det gamma_ij) * cell-volume, per grid point."""
     return np.asarray(
-        proper_volume_weights(
-            grid.volume_weights_array, g_field.reshape((*grid.shape, 4, 4))
-        )
+        proper_volume_weights(grid.volume_weights_array, g_field.reshape((*grid.shape, 4, 4)))
     ).ravel()
 
 
@@ -119,8 +118,7 @@ def _loglog_fit(vs, ys):
     ss_res = float(np.sum((ly - pred) ** 2))
     ss_tot = float(np.sum((ly - np.mean(ly)) ** 2))
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
-    return {"p": float(p), "A": float(np.exp(logA)), "r_squared": float(r2),
-            "n": len(vs)}
+    return {"p": float(p), "A": float(np.exp(logA)), "r_squared": float(r2), "n": len(vs)}
 
 
 def _f(x, nd=3):
@@ -139,9 +137,7 @@ def write_table(results, out_path):
     ]
     for name in ORDER:
         fe = results[name]["fit_E_minus"]
-        lines.append(
-            f"  {name} & {_f(fe['p'],2)} & {_f(fe['r_squared'],4)} \\\\"
-        )
+        lines.append(f"  {name} & {_f(fe['p'], 2)} & {_f(fe['r_squared'], 4)} \\\\")
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w") as f:
@@ -167,12 +163,15 @@ def main():
         print(f"\n{name}:")
         print("  v_s   : " + " ".join(f"{v:8.2f}" for v in V_S_SWEEP))
         print("  E_-   : " + " ".join(f"{e:8.3e}" for e in E_list))
-        print(f"  fit E_-   : p={_f(fit_E['p'],3)}  R^2={_f(fit_E['r_squared'],4)}")
+        print(f"  fit E_-   : p={_f(fit_E['p'], 3)}  R^2={_f(fit_E['r_squared'], 4)}")
 
     out = {
-        "params": {"N": N, "v_s_sweep": list(V_S_SWEEP),
-                   "note": "matched family R_b=1 sigma=8; Rodal native R=100 sigma=0.03; "
-                           "proper dV = sqrt(det gamma_ij)*cell_volume"},
+        "params": {
+            "N": N,
+            "v_s_sweep": list(V_S_SWEEP),
+            "note": "matched family R_b=1 sigma=8; Rodal native R=100 sigma=0.03; "
+            "proper dV = sqrt(det gamma_ij)*cell_volume",
+        },
         "order": ORDER,
         "results": results,
     }

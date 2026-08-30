@@ -5,6 +5,7 @@ reports the EC and constraint diagnostics. The on-axis NaN in
 ``rho_perp = sqrt(y**2 + z**2)`` is resolved by the safe-sqrt floor
 in ``metrics/lentz.py``.
 """
+
 from __future__ import annotations
 
 import sys

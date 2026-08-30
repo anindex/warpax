@@ -16,6 +16,7 @@ the checkpoint at ``tests/fixtures/einfields/minkowski.ckpt``.
 The generated checkpoint (~28 KB) is committed, so this only needs re-running
 if the Orbax checkpoint format drifts.
 """
+
 from __future__ import annotations
 
 import shutil

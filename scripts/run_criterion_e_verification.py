@@ -21,6 +21,7 @@ Cavity convention:
   delta_tau uses an emitter/receiver pair straddling the bubble/shell along x
   (off-axis y-offset for the bubble metrics for the same NaN-safety reason).
 """
+
 from __future__ import annotations
 
 import os
@@ -77,33 +78,43 @@ def verify_bubble(name, metric, *, R, eps_off=0.5, adm_r=None):
     # M_ADM: Natario-class has M_ADM = 0 by construction (no gravitational
     # mass; unit lapse). We also report the surface integral as a numeric check.
     if adm_r is not None:
-        m_adm_num, m_note = _safe(lambda: adm_mass(metric, r_surface=adm_r,
-                                                   n_theta=16, n_phi=32),
-                                  reason="adm surface integral")
+        m_adm_num, m_note = _safe(
+            lambda: adm_mass(metric, r_surface=adm_r, n_theta=16, n_phi=32),
+            reason="adm surface integral",
+        )
     else:
         m_adm_num, m_note = 0.0, ""
     m_phys = 0.0  # by construction
 
-    tidal, t_note = _safe(lambda: geodesic_deviation_diagnostic(metric, cavity),
-                          reason="tidal")
-    blue, b_note = _safe(lambda: blueshift_hazard(metric, cavity,
-                                                  tau_max=4.0 * R, num_points=200),
-                         reason="blueshift")
+    tidal, t_note = _safe(lambda: geodesic_deviation_diagnostic(metric, cavity), reason="tidal")
+    blue, b_note = _safe(
+        lambda: blueshift_hazard(metric, cavity, tau_max=4.0 * R, num_points=200),
+        reason="blueshift",
+    )
 
     # delta_tau: straddle the bubble along x, off-axis to avoid on-axis NaN.
     emitter = jnp.array([0.0, -2.0 * R, eps_off, 0.0], dtype=jnp.float64)
     receiver = jnp.array([0.0, 2.0 * R, eps_off, 0.0], dtype=jnp.float64)
-    dtau, d_note = _safe(lambda: null_round_trip_asymmetry(
-        metric, emitter, receiver, tau_max=10.0 * R, num_points=400),
-        reason="delta_tau")
+    dtau, d_note = _safe(
+        lambda: null_round_trip_asymmetry(
+            metric, emitter, receiver, tau_max=10.0 * R, num_points=400
+        ),
+        reason="delta_tau",
+    )
 
     return {
-        "metric": name, "class": "bubble",
-        "M_ADM": m_phys, "M_ADM_note": "0 by construction (Natario class)",
-        "M_ADM_surface_numeric": m_adm_num, "M_ADM_surface_note": m_note,
-        "tidal": tidal, "tidal_note": t_note,
-        "delta_tau": dtau, "delta_tau_note": d_note,
-        "blueshift": blue, "blueshift_note": b_note,
+        "metric": name,
+        "class": "bubble",
+        "M_ADM": m_phys,
+        "M_ADM_note": "0 by construction (Natario class)",
+        "M_ADM_surface_numeric": m_adm_num,
+        "M_ADM_surface_note": m_note,
+        "tidal": tidal,
+        "tidal_note": t_note,
+        "delta_tau": dtau,
+        "delta_tau_note": d_note,
+        "blueshift": blue,
+        "blueshift_note": b_note,
     }
 
 
@@ -114,30 +125,37 @@ def verify_shell(name, metric, *, R_1=10.0, R_2=20.0, adm_r=20.0):
     cavity = jnp.array([0.0, R_1 * 0.5, 0.0, 0.0], dtype=jnp.float64)
 
     m_phys = float(metric.total_mass)
-    m_adm_num, m_note = _safe(lambda: adm_mass(metric, r_surface=adm_r,
-                                               n_theta=16, n_phi=32),
-                              reason="adm surface integral")
+    m_adm_num, m_note = _safe(
+        lambda: adm_mass(metric, r_surface=adm_r, n_theta=16, n_phi=32),
+        reason="adm surface integral",
+    )
 
-    tidal, t_note = _safe(lambda: geodesic_deviation_diagnostic(metric, cavity),
-                          reason="tidal")
-    blue, b_note = _safe(lambda: blueshift_hazard(metric, cavity,
-                                                  tau_max=100.0, num_points=200),
-                         reason="blueshift")
+    tidal, t_note = _safe(lambda: geodesic_deviation_diagnostic(metric, cavity), reason="tidal")
+    blue, b_note = _safe(
+        lambda: blueshift_hazard(metric, cavity, tau_max=100.0, num_points=200), reason="blueshift"
+    )
 
     # delta_tau: straddle the shell along x (matches run_delta_tau_scan.py).
     emitter = jnp.array([0.0, -25.0, 0.0, 0.0], dtype=jnp.float64)
     receiver = jnp.array([0.0, 25.0, 0.0, 0.0], dtype=jnp.float64)
-    dtau, d_note = _safe(lambda: null_round_trip_asymmetry(
-        metric, emitter, receiver, tau_max=80.0, num_points=600),
-        reason="delta_tau")
+    dtau, d_note = _safe(
+        lambda: null_round_trip_asymmetry(metric, emitter, receiver, tau_max=80.0, num_points=600),
+        reason="delta_tau",
+    )
 
     return {
-        "metric": name, "class": "shell",
-        "M_ADM": m_phys, "M_ADM_note": "total_mass (conserved construction mass)",
-        "M_ADM_surface_numeric": m_adm_num, "M_ADM_surface_note": m_note,
-        "tidal": tidal, "tidal_note": t_note,
-        "delta_tau": dtau, "delta_tau_note": d_note,
-        "blueshift": blue, "blueshift_note": b_note,
+        "metric": name,
+        "class": "shell",
+        "M_ADM": m_phys,
+        "M_ADM_note": "total_mass (conserved construction mass)",
+        "M_ADM_surface_numeric": m_adm_num,
+        "M_ADM_surface_note": m_note,
+        "tidal": tidal,
+        "tidal_note": t_note,
+        "delta_tau": dtau,
+        "delta_tau_note": d_note,
+        "blueshift": blue,
+        "blueshift_note": b_note,
     }
 
 
@@ -152,18 +170,41 @@ def main():
 
     t_all = time.time()
     # Natario-class bubbles (M_ADM = 0 by construction)
-    rows.append(verify_bubble("Alcubierre", AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0),
-                              R=1.0, eps_off=0.3, adm_r=5.0))
-    rows.append(verify_bubble("Natario", NatarioMetric(v_s=0.1, R=100.0, sigma=0.03),
-                              R=100.0, eps_off=5.0, adm_r=400.0))
-    rows.append(verify_bubble("Van den Broeck",
-                              VanDenBroeckMetric(v_s=0.1, R=350.0, sigma=8.0,
-                                                 R_tilde=200.0, alpha_vdb=0.5, sigma_B=8.0),
-                              R=350.0, eps_off=10.0, adm_r=1000.0))
-    rows.append(verify_bubble("Lentz", LentzMetric(v_s=0.1, R=100.0, sigma=8.0),
-                              R=100.0, eps_off=5.0, adm_r=400.0))
-    rows.append(verify_bubble("Rodal", RodalMetric(v_s=0.1, R=100.0, sigma=0.03),
-                              R=100.0, eps_off=5.0, adm_r=400.0))
+    rows.append(
+        verify_bubble(
+            "Alcubierre", AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0), R=1.0, eps_off=0.3, adm_r=5.0
+        )
+    )
+    rows.append(
+        verify_bubble(
+            "Natario",
+            NatarioMetric(v_s=0.1, R=100.0, sigma=0.03),
+            R=100.0,
+            eps_off=5.0,
+            adm_r=400.0,
+        )
+    )
+    rows.append(
+        verify_bubble(
+            "Van den Broeck",
+            VanDenBroeckMetric(
+                v_s=0.1, R=350.0, sigma=8.0, R_tilde=200.0, alpha_vdb=0.5, sigma_B=8.0
+            ),
+            R=350.0,
+            eps_off=10.0,
+            adm_r=1000.0,
+        )
+    )
+    rows.append(
+        verify_bubble(
+            "Lentz", LentzMetric(v_s=0.1, R=100.0, sigma=8.0), R=100.0, eps_off=5.0, adm_r=400.0
+        )
+    )
+    rows.append(
+        verify_bubble(
+            "Rodal", RodalMetric(v_s=0.1, R=100.0, sigma=0.03), R=100.0, eps_off=5.0, adm_r=400.0
+        )
+    )
 
     # Source-first shells (M_ADM > 0)
     rows.append(verify_shell("Fuchs", fuchs_default(), R_1=10.0, R_2=20.0, adm_r=20.0))
@@ -178,13 +219,19 @@ def main():
 
     # Compact table to stdout
     print("\n" + "=" * 96)
-    print(f"{'metric':<16}{'M_ADM':>10}{'tidal':>14}{'delta_tau':>14}{'blueshift':>14}{'E-pass':>9}")
+    print(
+        f"{'metric':<16}{'M_ADM':>10}{'tidal':>14}{'delta_tau':>14}{'blueshift':>14}{'E-pass':>9}"
+    )
     print("-" * 96)
+
     def f(v):
         return "N/A" if v is None else f"{v:.4g}"
+
     for r in rows:
-        print(f"{r['metric']:<16}{f(r['M_ADM']):>10}{f(r['tidal']):>14}"
-              f"{f(r['delta_tau']):>14}{f(r['blueshift']):>14}{r['E_pass']!s:>9}")
+        print(
+            f"{r['metric']:<16}{f(r['M_ADM']):>10}{f(r['tidal']):>14}"
+            f"{f(r['delta_tau']):>14}{f(r['blueshift']):>14}{r['E_pass']!s:>9}"
+        )
     print(f"\n  -> {OUTPUT}  ({out['elapsed_s']:.1f}s)")
 
 

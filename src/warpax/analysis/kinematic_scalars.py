@@ -14,6 +14,7 @@ Raychaudhuri. For WarpShell (``alpha != 1`` in the shell) the congruence
 is accelerated; the focusing interpretation needs the ``-D_a a^a`` term
 not computed here (Wald, *General Relativity*, eq. 9.2.11).
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

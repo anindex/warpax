@@ -43,13 +43,9 @@ class SymbolicMetric:
 
     def __init__(self, coords: list[sp.Symbol], g_matrix: sp.Matrix) -> None:
         if len(coords) != 4:
-            raise ValueError(
-                f"Expected 4 coordinate symbols, got {len(coords)}"
-            )
+            raise ValueError(f"Expected 4 coordinate symbols, got {len(coords)}")
         if g_matrix.shape != (4, 4):
-            raise ValueError(
-                f"Expected (4, 4) metric matrix, got {g_matrix.shape}"
-            )
+            raise ValueError(f"Expected (4, 4) metric matrix, got {g_matrix.shape}")
         self.coords = list(coords)
         self.g = g_matrix
 
@@ -265,9 +261,7 @@ def sympy_metric_inverse_to_jax(
     """
     from sympy import lambdify
 
-    f_raw = lambdify(
-        symbolic_metric.coords, symbolic_metric.g_inv, modules="jax"
-    )
+    f_raw = lambdify(symbolic_metric.coords, symbolic_metric.g_inv, modules="jax")
 
     def f_wrapped(coords: Float[Array, "4"]) -> Float[Array, "4 4"]:
         return jnp.asarray(f_raw(*coords), dtype=jnp.float64)

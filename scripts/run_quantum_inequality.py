@@ -26,6 +26,7 @@ Outputs:
 - ../../warpax_arxiv/tables/averaged_quantum.tex
 - ../figures/averaged_quantum.pdf
 """
+
 from __future__ import annotations
 
 import json
@@ -71,13 +72,9 @@ ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 QI_METRICS = ["Alcubierre", "Rodal"]
 
 
-
-
 def _static_worldline(x_w: float, y_w: float):
     def wl(tau):
-        return jnp.stack(
-            [jnp.asarray(tau), jnp.asarray(x_w), jnp.asarray(y_w), jnp.asarray(0.0)]
-        )
+        return jnp.stack([jnp.asarray(tau), jnp.asarray(x_w), jnp.asarray(y_w), jnp.asarray(0.0)])
 
     return wl
 
@@ -88,6 +85,7 @@ def _worst_static_point(metric) -> tuple[float, float, float]:
     Restricted to the active wall ``f in [F_LOW, F_HIGH]`` for consistency with
     the rest of the paper. Used only for the smooth-wall drives.
     """
+
     def rho0(x, y):
         wl = _static_worldline(x, y)
         return float(_rho_at_tau(metric, wl, jnp.asarray(0.0)))
@@ -96,8 +94,7 @@ def _worst_static_point(metric) -> tuple[float, float, float]:
         best_rho, best_xy = 0.0, None
         for x in np.linspace(x0, x1, n):
             for y in np.linspace(y0, y1, n):
-                f = float(alcubierre_shape(jnp.asarray(float(np.hypot(x, y))),
-                                           R_B, SIGMA))
+                f = float(alcubierre_shape(jnp.asarray(float(np.hypot(x, y))), R_B, SIGMA))
                 if not (F_LOW <= f <= F_HIGH):
                     continue
                 rho = rho0(float(x), float(y))
@@ -123,8 +120,10 @@ def _worst_static_point(metric) -> tuple[float, float, float]:
 def _margin_curve(metric, x_w: float, y_w: float) -> np.ndarray:
     wl = _static_worldline(x_w, y_w)
     return np.array(
-        [float(ford_roman(metric, wl, tau0=float(t), n_samples=N_SAMPLES).margin)
-         for t in TAU0_GRID]
+        [
+            float(ford_roman(metric, wl, tau0=float(t), n_samples=N_SAMPLES).margin)
+            for t in TAU0_GRID
+        ]
     )
 
 
@@ -178,9 +177,12 @@ def _write_table(anec: dict, qi: dict) -> None:
         )
     lines += [r"  \bottomrule", r"\end{tabular}", ""]
     Path(TABLES_DIR).mkdir(parents=True, exist_ok=True)
-    write_tex_table(os.path.join(TABLES_DIR, "averaged_quantum.tex"), lines,
-                    script="scripts/run_quantum_inequality.py",
-                    sources="results/quantum/ford_roman.json")
+    write_tex_table(
+        os.path.join(TABLES_DIR, "averaged_quantum.tex"),
+        lines,
+        script="scripts/run_quantum_inequality.py",
+        sources="results/quantum/ford_roman.json",
+    )
 
 
 def _make_figure(anec: dict, qi: dict) -> None:
@@ -197,9 +199,7 @@ def _make_figure(anec: dict, qi: dict) -> None:
     from warpax.visualization._style import DOUBLE_COL, apply_style, metric_color
 
     apply_style()
-    fig, (ax_a, ax_b) = plt.subplots(
-        1, 2, figsize=(DOUBLE_COL, DOUBLE_COL * 0.44)
-    )
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(DOUBLE_COL, DOUBLE_COL * 0.44))
     for name in ORDER:
         c = metric_color(name)
         a = anec["metrics"][name]
@@ -243,11 +243,14 @@ def main() -> None:
 
     # Minkowski sentinel: vacuum QI margin must be strictly positive (=+C/tau0^4).
     mink_margin = float(
-        ford_roman(MinkowskiMetric(), _static_worldline(0.0, 1.0),
-                   tau0=1.0, n_samples=N_SAMPLES).margin
+        ford_roman(
+            MinkowskiMetric(), _static_worldline(0.0, 1.0), tau0=1.0, n_samples=N_SAMPLES
+        ).margin
     )
-    print(f"Minkowski QI margin (tau0=1) = {mink_margin:+.3e} "
-          f"({'PASS' if mink_margin > 0 else 'FAIL'})")
+    print(
+        f"Minkowski QI margin (tau0=1) = {mink_margin:+.3e} "
+        f"({'PASS' if mink_margin > 0 else 'FAIL'})"
+    )
 
     per_metric: dict[str, dict] = {}
     for name in QI_METRICS:
@@ -263,15 +266,21 @@ def main() -> None:
             "tau0_threshold": tau_th,
             "margin_curve": margins.tolist(),
         }
-        print(f"  {name:16s} rho_min={rho_min:+.4e} @ (x={x_w:.2f}, y={y_w:.2f})  "
-              f"tau0_th={tau_th:.3f}")
+        print(
+            f"  {name:16s} rho_min={rho_min:+.4e} @ (x={x_w:.2f}, y={y_w:.2f})  "
+            f"tau0_th={tau_th:.3f}"
+        )
     for name in ORDER:
         if name not in per_metric:
             per_metric[name] = {"robust": False}
 
     qi = {
-        "params": {"v_s": V_S, "R_b": R_B, "sigma": SIGMA,
-                   "ford_roman_C": float(3.0 / (32.0 * np.pi ** 2))},
+        "params": {
+            "v_s": V_S,
+            "R_b": R_B,
+            "sigma": SIGMA,
+            "ford_roman_C": float(3.0 / (32.0 * np.pi**2)),
+        },
         "tau0_grid": TAU0_GRID.tolist(),
         "minkowski_margin": mink_margin,
         "order": ORDER,
@@ -284,8 +293,10 @@ def main() -> None:
         anec = json.load(f)
     _write_table(anec, qi)
     _make_figure(anec, qi)
-    print(f"Wrote {os.path.join(TABLES_DIR, 'averaged_quantum.tex')} "
-          f"and {os.path.join(FIG_DIR, 'averaged_quantum.pdf')}")
+    print(
+        f"Wrote {os.path.join(TABLES_DIR, 'averaged_quantum.tex')} "
+        f"and {os.path.join(FIG_DIR, 'averaged_quantum.pdf')}"
+    )
 
 
 if __name__ == "__main__":

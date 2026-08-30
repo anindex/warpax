@@ -1,4 +1,5 @@
 """Tests for the vorticity -> Type-IV analytic mechanism (f = kappa * omega)."""
+
 from __future__ import annotations
 
 import json
@@ -82,9 +83,11 @@ class TestMechanism:
         _, _, omega_sq = compute_shift_kinematics(m, pt)
         cur = compute_curvature_chain(m, pt)
         cls = classify_hawking_ellis(cur.metric_inv @ cur.stress_energy, cur.metric)
-        return (float(np.sqrt(max(float(omega_sq), 0.0))),
-                float(jnp.max(jnp.abs(cls.eigenvalues_imag))),
-                int(cls.he_type))
+        return (
+            float(np.sqrt(max(float(omega_sq), 0.0))),
+            float(jnp.max(jnp.abs(cls.eigenvalues_imag))),
+            int(cls.he_type),
+        )
 
     def test_irrotational_is_type_i(self):
         omega, imag, he = self._omega_imag_type(0.0)
@@ -127,8 +130,7 @@ class TestExcessRatio:
             m = _RotationShift(c=c, w=1.0)
             _, _, omega_sq = compute_shift_kinematics(m, pt)
             cur = compute_curvature_chain(m, pt)
-            cls = classify_hawking_ellis(
-                cur.metric_inv @ cur.stress_energy, cur.metric)
+            cls = classify_hawking_ellis(cur.metric_inv @ cur.stress_energy, cur.metric)
             omegas.append(float(np.sqrt(max(float(omega_sq), 0.0))))
             imags.append(float(jnp.max(jnp.abs(cls.eigenvalues_imag))))
         kappa = fit_kappa(np.array(omegas), np.array(imags))["kappa"]
@@ -144,8 +146,9 @@ class TestExcessRatio:
         assert imag > 2.0 * kappa * omega
 
     def test_cached_cross_metric_excess(self):
-        path = os.path.join(os.path.dirname(__file__), "..", "results",
-                            "vorticity_type_analytic.json")
+        path = os.path.join(
+            os.path.dirname(__file__), "..", "results", "vorticity_type_analytic.json"
+        )
         if not os.path.exists(path):
             pytest.skip("results/vorticity_type_analytic.json not present")
         cross = json.load(open(path))["cross_metric"]

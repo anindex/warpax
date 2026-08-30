@@ -4,6 +4,7 @@ Bernstein polynomials on t = (r - R_1) / (R_2 - R_1), with structural
 endpoint clamping (c_0 = c_n = 0) for compact support. Density coefficients
 use softplus reparameterization for positivity; velocity is unconstrained.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -32,18 +33,12 @@ class ShellCoeffs(NamedTuple):
 def bernstein_basis(n: int, t: Float[Array, ""]) -> Float[Array, "n1"]:
     """Evaluate all n+1 Bernstein basis functions B_{n,k}(t) at t."""
     k_idx = jnp.arange(n + 1, dtype=jnp.float64)
-    log_binom = (
-        gammaln(n + 1.0)
-        - gammaln(k_idx + 1.0)
-        - gammaln(n - k_idx + 1.0)
-    )
+    log_binom = gammaln(n + 1.0) - gammaln(k_idx + 1.0) - gammaln(n - k_idx + 1.0)
     binom = jnp.exp(log_binom)
-    return binom * (t ** k_idx) * ((1.0 - t) ** (n - k_idx))
+    return binom * (t**k_idx) * ((1.0 - t) ** (n - k_idx))
 
 
-def bernstein_eval(
-    coeffs: Float[Array, "N"], t: Float[Array, ""]
-) -> Float[Array, ""]:
+def bernstein_eval(coeffs: Float[Array, "N"], t: Float[Array, ""]) -> Float[Array, ""]:
     """Evaluate sum_k c_k B_{n,k}(t)."""
     n = coeffs.shape[0] - 1
     basis = bernstein_basis(n, t)
@@ -72,11 +67,13 @@ def pack_theta(
     rho_scale: float,
 ) -> Float[Array, "D"]:
     """Pack free parameters into flat vector [density | velocity | v_0 | rho_scale]."""
-    return jnp.concatenate([
-        density_theta,
-        velocity_theta,
-        jnp.array([v_0, rho_scale]),
-    ])
+    return jnp.concatenate(
+        [
+            density_theta,
+            velocity_theta,
+            jnp.array([v_0, rho_scale]),
+        ]
+    )
 
 
 def unpack_theta(
@@ -87,7 +84,7 @@ def unpack_theta(
 ) -> ShellCoeffs:
     """Unpack flat parameter vector into ShellCoeffs with endpoint clamping."""
     density_theta = theta[:n_density]
-    velocity_theta = theta[n_density:n_density + n_velocity]
+    velocity_theta = theta[n_density : n_density + n_velocity]
     v_0 = theta[n_density + n_velocity]
     rho_scale = theta[n_density + n_velocity + 1]
 
@@ -112,8 +109,11 @@ def coeffs_to_profiles_sshell(
 ):
     """Convert ShellCoeffs to SShellSourceProfiles via bernstein_density_profiles."""
     from ..metrics.sshell_profiles import bernstein_density_profiles
+
     return bernstein_density_profiles(
-        R_1=R_1, R_2=R_2, coeffs=coeffs.density_coeffs,
+        R_1=R_1,
+        R_2=R_2,
+        coeffs=coeffs.density_coeffs,
     )
 
 
@@ -124,6 +124,7 @@ def coeffs_to_profiles_tshell(
 ):
     """Convert ShellCoeffs to TShellSourceProfiles via bernstein_velocity_profiles."""
     from ..metrics.tshell_profiles import bernstein_velocity_profiles
+
     return bernstein_velocity_profiles(
         R_1=R_1,
         R_2=R_2,

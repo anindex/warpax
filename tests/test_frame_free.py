@@ -1,4 +1,5 @@
 """Tests for frame-independent, all-velocity EC certification."""
+
 from __future__ import annotations
 
 import jax
@@ -94,8 +95,12 @@ def test_conformal_type_iv_positive_witness_uses_lmi():
     he = jnp.float64(4.0)
     witness = jnp.float64(0.5)  # momentum plane is not the source
     nan = jnp.float64(jnp.nan)
-    lmi = {"nec": jnp.float64(-0.7), "wec": jnp.float64(-0.8),
-           "sec": jnp.float64(-0.9), "dec": jnp.float64(-1.1)}
+    lmi = {
+        "nec": jnp.float64(-0.7),
+        "wec": jnp.float64(-0.8),
+        "sec": jnp.float64(-0.9),
+        "dec": jnp.float64(-1.1),
+    }
     nec, wec, sec, dec = _exact_margins(he, nan, nan, nan, nan, witness, lmi)
     # The NEC slot carries the full null deficit, which is twice the LMI margin.
     assert float(nec) == pytest.approx(-1.4)
@@ -135,10 +140,9 @@ def test_type_ii_nec_is_not_read_off_the_momentum_witness():
     from warpax.energy_conditions.frame_free import eulerian_null_witness
     from warpax.energy_conditions.slemma import null_deficit
 
-    T = jnp.array([[1.0, 1.0, 0.0, 0.0],
-                   [1.0, 1.0, 0.0, 0.0],
-                   [0.0, 0.0, -2.0, 0.0],
-                   [0.0, 0.0, 0.0, 0.0]])
+    T = jnp.array(
+        [[1.0, 1.0, 0.0, 0.0], [1.0, 1.0, 0.0, 0.0], [0.0, 0.0, -2.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
+    )
     witness = eulerian_null_witness(T, MINKOWSKI, jnp.linalg.inv(MINKOWSKI))
     assert float(witness) == pytest.approx(0.0, abs=1e-12)
 
@@ -201,12 +205,14 @@ class TestTypeIIMarginsAreDecidedNotOverclaimed:
     @staticmethod
     def _canonical_type_ii(mu=-2.0, f=1.0, p2=3.0, p3=3.0):
         eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        T = jnp.array([
-            [mu + f, f, 0.0, 0.0],
-            [f, -mu + f, 0.0, 0.0],
-            [0.0, 0.0, p2, 0.0],
-            [0.0, 0.0, 0.0, p3],
-        ])
+        T = jnp.array(
+            [
+                [mu + f, f, 0.0, 0.0],
+                [f, -mu + f, 0.0, 0.0],
+                [0.0, 0.0, p2, 0.0],
+                [0.0, 0.0, 0.0, p3],
+            ]
+        )
         return T, eta
 
     def test_block_classifies_as_type_ii(self):
@@ -291,8 +297,7 @@ def test_lmi_is_evaluated_only_where_it_is_read():
     full = jax.vmap(slemma.certify_point)(flat_T, flat_g)
 
     is_I = he == 1
-    for cond, got in (("wec", ff.wec_margins), ("sec", ff.sec_margins),
-                      ("dec", ff.dec_margins)):
+    for cond, got in (("wec", ff.wec_margins), ("sec", ff.sec_margins), ("dec", ff.dec_margins)):
         got = np.asarray(got).reshape(-1)[~is_I]
         want = np.asarray(full[cond])[~is_I]
         np.testing.assert_array_equal(got, want, err_msg=cond)

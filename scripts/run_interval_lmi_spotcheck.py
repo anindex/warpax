@@ -15,6 +15,7 @@ Outputs
 - results/interval_lmi_spotcheck.json
 - ../warpax_arxiv/tables/interval_lmi_spotcheck.tex
 """
+
 from __future__ import annotations
 
 import argparse
@@ -50,8 +51,7 @@ ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 # band at these parameters. The axis point and the deep off-axis one are chosen so
 # that both verdicts are exercised: Van den Broeck's Type-I remainder reaches the
 # axis, and its Type-IV region does not.
-POINTS = [("on axis", 1.0, 0.0), ("wall, $s=0.35$", 0.9, 0.35),
-          ("wall, $s=0.5$", 0.95, 0.5)]
+POINTS = [("on axis", 1.0, 0.0), ("wall, $s=0.35$", 0.9, 0.35), ("wall, $s=0.5$", 0.95, 0.5)]
 
 
 def main():
@@ -62,8 +62,7 @@ def main():
 
     rows = []
     print("=" * 72)
-    print(f"INTERVAL LMI SPOT CHECK (v_s={V_S}, R_b={R_B}, sigma={SIGMA}, "
-          f"prec={args.prec} bits)")
+    print(f"INTERVAL LMI SPOT CHECK (v_s={V_S}, R_b={R_B}, sigma={SIGMA}, prec={args.prec} bits)")
     print("=" * 72)
     for name in args.metrics:
         metric = BUILDERS[name]()
@@ -73,14 +72,22 @@ def main():
             r["label"] = label
             rows.append(r)
             width = r["nec_upper"] - r["nec_lower"]
-            print(f"  {name:>15s} {label:>9s}  NEC in "
-                  f"[{r['nec_lower']:+.6f}, {r['nec_upper']:+.6f}]  "
-                  f"width {width:.1e}  -> {r['nec']}", flush=True)
+            print(
+                f"  {name:>15s} {label:>9s}  NEC in "
+                f"[{r['nec_lower']:+.6f}, {r['nec_upper']:+.6f}]  "
+                f"width {width:.1e}  -> {r['nec']}",
+                flush=True,
+            )
 
-    dump_json({"config": vars(args), "params": {"v_s": V_S, "R_b": R_B,
-                                                "sigma": SIGMA},
-               "points": POINTS, "rows": rows},
-              os.path.join(RESULTS_DIR, "interval_lmi_spotcheck.json"))
+    dump_json(
+        {
+            "config": vars(args),
+            "params": {"v_s": V_S, "R_b": R_B, "sigma": SIGMA},
+            "points": POINTS,
+            "rows": rows,
+        },
+        os.path.join(RESULTS_DIR, "interval_lmi_spotcheck.json"),
+    )
     write_table(rows, os.path.join(TABLES_DIR, "interval_lmi_spotcheck.tex"))
 
 
@@ -105,8 +112,12 @@ def write_table(rows, out_path):
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_interval_lmi_spotcheck.py",
-                    sources="results/interval_lmi_spotcheck.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_interval_lmi_spotcheck.py",
+        sources="results/interval_lmi_spotcheck.json",
+    )
     print(f"  Wrote {out_path}")
 
 

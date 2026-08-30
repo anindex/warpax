@@ -8,6 +8,7 @@ These pin the two defects fixed in the second revision:
    spherical wall was measurably coarser and fell below the four-cell criterion
    at the coarsest ladder level.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -28,9 +29,7 @@ def metric():
 
 
 def _axis(metric, n):
-    return np.asarray(
-        wall_clustered(metric, BOUNDS, (n, n, n), a=CLUSTER_A).axes[0], dtype=float
-    )
+    return np.asarray(wall_clustered(metric, BOUNDS, (n, n, n), a=CLUSTER_A).axes[0], dtype=float)
 
 
 @pytest.mark.parametrize("n", LADDER)
@@ -59,9 +58,7 @@ def test_both_wall_crossings_equally_resolved(metric, n):
     res = wall_cells_on_axis(metric, _axis(metric, n))
     assert res.n_crossings == 2, f"expected 2 axial crossings, got {res.n_crossings}"
     cells = [c[3] for c in res.per_crossing]
-    assert cells[0] == pytest.approx(cells[1], rel=1e-6), (
-        f"asymmetric wall resolution: {cells}"
-    )
+    assert cells[0] == pytest.approx(cells[1], rel=1e-6), f"asymmetric wall resolution: {cells}"
 
 
 @pytest.mark.parametrize("n", LADDER)

@@ -1,4 +1,3 @@
-
 """Warp drive metric comparison with Hawking–Ellis classification.
 
 Surveys six warp drive metrics at representative bubble-wall points,
@@ -31,11 +30,11 @@ from warpax.metrics import (
 # Build metrics at v_s = 0.5
 metrics = {
     "Alcubierre": None,  # filled below (from benchmarks for analytical comparison)
-    "Lentz":      LentzMetric(v_s=0.5, R=100.0, sigma=8.0),
-    "Natário":    NatarioMetric(v_s=0.5, R=1.0, sigma=8.0),
-    "Rodal":      RodalMetric(v_s=0.5, R=1.0, sigma=8.0),
-    "VDB":        VanDenBroeckMetric(v_s=0.5, R=1.0, sigma=8.0),
-    "WarpShell":  WarpShellMetric(v_s=0.5),
+    "Lentz": LentzMetric(v_s=0.5, R=100.0, sigma=8.0),
+    "Natário": NatarioMetric(v_s=0.5, R=1.0, sigma=8.0),
+    "Rodal": RodalMetric(v_s=0.5, R=1.0, sigma=8.0),
+    "VDB": VanDenBroeckMetric(v_s=0.5, R=1.0, sigma=8.0),
+    "WarpShell": WarpShellMetric(v_s=0.5),
 }
 
 # Include Alcubierre from benchmarks for a complete picture
@@ -46,8 +45,10 @@ metrics["Alcubierre"] = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
 # Probe each metric at a bubble-wall point
 print("Warp Drive Metric Comparison (v_s = 0.5)")
 print("=" * 72)
-print(f"{'Metric':<12s} {'HE Type':>8s} {'Euler NEC':>12s} {'Robust NEC':>12s} "
-      f"{'Robust WEC':>12s} {'Kretschmann':>12s}")
+print(
+    f"{'Metric':<12s} {'HE Type':>8s} {'Euler NEC':>12s} {'Robust NEC':>12s} "
+    f"{'Robust WEC':>12s} {'Kretschmann':>12s}"
+)
 print("-" * 72)
 
 for name, metric in metrics.items():
@@ -80,8 +81,10 @@ for name, metric in metrics.items():
     # Eulerian-frame EC for comparison
     eul = compute_eulerian_ec(result.stress_energy, result.metric, g_inv)
 
-    print(f"{name:<12s} {'Type ' + str(int(he.he_type)):>8s} {eul['nec']:>12.4e} "
-          f"{ec.nec_margin:>12.4e} {ec.wec_margin:>12.4e} {float(K):>12.4e}")
+    print(
+        f"{name:<12s} {'Type ' + str(int(he.he_type)):>8s} {eul['nec']:>12.4e} "
+        f"{ec.nec_margin:>12.4e} {ec.wec_margin:>12.4e} {float(K):>12.4e}"
+    )
 
 # Velocity scaling for Alcubierre metric
 print("\n")
@@ -100,9 +103,9 @@ for v_s in [0.1, 0.3, 0.5, 0.7, 0.9]:
     ec = verify_point(result.stress_energy, result.metric, g_inv)
     eul = compute_eulerian_ec(result.stress_energy, result.metric, g_inv)
 
-    eul_nec = eul['nec']
+    eul_nec = eul["nec"]
     rob_nec = ec.nec_margin
-    ratio = rob_nec / eul_nec if abs(eul_nec) > 1e-20 else float('nan')
+    ratio = rob_nec / eul_nec if abs(eul_nec) > 1e-20 else float("nan")
 
     print(f"{v_s:>6.1f} {eul_nec:>14.6e} {rob_nec:>14.6e} {ratio:>8.2f}")
 

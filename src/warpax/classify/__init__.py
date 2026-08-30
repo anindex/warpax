@@ -15,6 +15,7 @@ The `bobrick_martire` function pattern-matches an input metric against
 these three classes using a three-test cascade: stationarity, comoving-fluid
 sign, and shape-function support.
 """
+
 from __future__ import annotations
 
 from .bobrick_martire import ClassifiedMetric, bobrick_martire

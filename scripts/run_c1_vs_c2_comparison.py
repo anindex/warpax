@@ -1,4 +1,3 @@
-
 """C1-vs-C2 WarpShell transition comparison.
 
 Computes Eulerian vs robust EC analysis for WarpShell at both transition
@@ -16,6 +15,7 @@ Usage
 -----
     python scripts/run_c1_vs_c2_comparison.py
 """
+
 from __future__ import annotations
 
 import os
@@ -80,7 +80,9 @@ def measure_seam_continuity(
         Maximum |d^3 alpha / dx^3| across both boundaries.
     """
     # Compute smooth_width (same default as WarpShellMetric)
-    sw = metric.smooth_width if metric.smooth_width is not None else 0.12 * (metric.R_2 - metric.R_1)
+    sw = (
+        metric.smooth_width if metric.smooth_width is not None else 0.12 * (metric.R_2 - metric.R_1)
+    )
 
     # Boundary locations: inner seam at R_1 - sw, outer seam at R_2 + sw
     boundaries = [metric.R_1 - sw, metric.R_2 + sw]
@@ -197,9 +199,7 @@ def generate_latex_table(rows: list[dict]) -> str:
         r"\multicolumn{2}{c}{$\min\;m_{\mathrm{NEC}}$} & "
         r"\multicolumn{2}{c}{$\max|d^3\alpha/dx^3|$} \\"
     )
-    lines.append(
-        r" & C1 & C2 & C1 & C2 & C1 & C2 & C1 & C2 \\"
-    )
+    lines.append(r" & C1 & C2 & C1 & C2 & C1 & C2 & C1 & C2 \\")
     lines.append(r"\hline")
 
     for row in rows:
@@ -211,14 +211,14 @@ def generate_latex_table(rows: list[dict]) -> str:
         def fmt_sci(val):
             if abs(val) < 1e-3 or abs(val) > 1e3:
                 exp = int(np.floor(np.log10(abs(val)))) if val != 0 else 0
-                mantissa = val / (10 ** exp)
+                mantissa = val / (10**exp)
                 return f"${mantissa:.2f} \\times 10^{{{exp}}}$"
             return f"${val:.4f}$"
 
         def fmt_d3(val):
             if val < 1e-3:
                 exp = int(np.floor(np.log10(abs(val)))) if val != 0 else 0
-                mantissa = val / (10 ** exp)
+                mantissa = val / (10**exp)
                 return f"${mantissa:.1f} \\times 10^{{{exp}}}$"
             return f"${val:.2f}$"
 
@@ -255,10 +255,12 @@ def generate_plot(rows: list[dict]) -> None:
     # Left panel: grouped bar chart of Type I percentage
     x = np.arange(len(velocities))
     width = 0.35
-    bars1 = ax1.bar(x - width / 2, c1_type_i, width, label="C1 (cubic)",
-            color=COLORS[0], alpha=0.85)
-    bars2 = ax1.bar(x + width / 2, c2_type_i, width, label="C2 (quintic)",
-            color=COLORS[1], alpha=0.85)
+    bars1 = ax1.bar(
+        x - width / 2, c1_type_i, width, label="C1 (cubic)", color=COLORS[0], alpha=0.85
+    )
+    bars2 = ax1.bar(
+        x + width / 2, c2_type_i, width, label="C2 (quintic)", color=COLORS[1], alpha=0.85
+    )
     ax1.bar_label(bars1, fmt="%.2f", fontsize=6, padding=1)
     ax1.bar_label(bars2, fmt="%.2f", fontsize=6, padding=1)
     ax1.set_xticks(x)
@@ -273,10 +275,8 @@ def generate_plot(rows: list[dict]) -> None:
     ax1.set_title("(a) Hawking--Ellis Type I", fontsize=10)
 
     # Right panel: min NEC margin (log scale)
-    ax2.plot(velocities, c1_nec, "o--", color=COLORS[0], label="C1 (cubic)",
-             markersize=5)
-    ax2.plot(velocities, c2_nec, "s-", color=COLORS[1], label="C2 (quintic)",
-             markersize=5)
+    ax2.plot(velocities, c1_nec, "o--", color=COLORS[0], label="C1 (cubic)", markersize=5)
+    ax2.plot(velocities, c2_nec, "s-", color=COLORS[1], label="C2 (quintic)", markersize=5)
     ax2.set_yscale("log")
     ax2.set_xlabel(r"$v_s$")
     ax2.set_ylabel(r"$|\min\;m_{\mathrm{NEC}}|$")
@@ -317,11 +317,13 @@ def main():
             t0 = time.time()
             result = run_comparison_at_velocity(v_s, order)
             dt = time.time() - t0
-            print(f"    Done in {dt:.1f}s | "
-                  f"Type I: {result['pct_type_i']:.1f}% | "
-                  f"Type IV: {result['pct_type_iv']:.1f}% | "
-                  f"min NEC: {result['min_nec_robust']:.4e} | "
-                  f"max |d^3 alpha|: {result['max_d3_lapse']:.4e}")
+            print(
+                f"    Done in {dt:.1f}s | "
+                f"Type I: {result['pct_type_i']:.1f}% | "
+                f"Type IV: {result['pct_type_iv']:.1f}% | "
+                f"min NEC: {result['min_nec_robust']:.4e} | "
+                f"max |d^3 alpha|: {result['max_d3_lapse']:.4e}"
+            )
             row[label] = result
 
         # Prefix keys for JSON compatibility

@@ -1,4 +1,5 @@
 """Verdicts certified from the metric, and the closing-speed field."""
+
 from __future__ import annotations
 
 import os
@@ -33,9 +34,12 @@ class TestCertifyFromMetric:
         pt = (0.0, 1.0, 0.35, 0.0)
         r = certify_point_from_metric(m, pt)
         enc = certify_nec_deficit(
-            m, shape_interval(1.0, 8.0),
-            x_range=(pt[1], pt[1]), s_range=(pt[2], pt[2]),
-            tol=1e-6, max_boxes=8,
+            m,
+            shape_interval(1.0, 8.0),
+            x_range=(pt[1], pt[1]),
+            s_range=(pt[2], pt[2]),
+            tol=1e-6,
+            max_boxes=8,
         )
         assert r["nec_lower"] <= enc.upper + 1e-9
         assert enc.lower <= r["nec_upper"] + 1e-9

@@ -36,9 +36,7 @@ from jaxtyping import Array, Float, jaxtyped
 from ..geometry.metric import ADMMetric, SymbolicMetric
 
 
-def _diamond_shape(
-    d: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
+def _diamond_shape(d: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
     """Diamond-pattern shape function using L1 (Manhattan) distance.
 
     f(d) = [tanh(sigma*(d + R)) - tanh(sigma*(d - R))] / [2*tanh(sigma*R)]
@@ -54,9 +52,7 @@ def _diamond_shape(
     sigma : float
         Smoothing parameter (larger = sharper transitions).
     """
-    return (jnp.tanh(sigma * (d + R)) - jnp.tanh(sigma * (d - R))) / (
-        2.0 * jnp.tanh(sigma * R)
-    )
+    return (jnp.tanh(sigma * (d + R)) - jnp.tanh(sigma * (d - R))) / (2.0 * jnp.tanh(sigma * R))
 
 
 class LentzMetric(ADMMetric):
@@ -145,18 +141,19 @@ class LentzMetric(ADMMetric):
         rho_perp = sp.sqrt(y**2 + z**2)
         d = sp.Abs(x_rel) + rho_perp
 
-        f = (
-            sp.tanh(sigma_val * (d + R_val))
-            - sp.tanh(sigma_val * (d - R_val))
-        ) / (2 * sp.tanh(sigma_val * R_val))
+        f = (sp.tanh(sigma_val * (d + R_val)) - sp.tanh(sigma_val * (d - R_val))) / (
+            2 * sp.tanh(sigma_val * R_val)
+        )
 
         # g_00 = -(1 - v_s^2 f^2); g_0x = -v_s f (gamma = delta); g_ij = delta_ij
-        g = sp.Matrix([
-            [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
-            [-v_s * f, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ])
+        g = sp.Matrix(
+            [
+                [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
+                [-v_s * f, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:
@@ -169,8 +166,5 @@ GROUND_TRUTH = {
         "WEC": "contested",
         "NEC": "contested",
     },
-    "note": (
-        "Celmaster-Rubin (2025) contests original Lentz WEC "
-        "satisfaction claim"
-    ),
+    "note": ("Celmaster-Rubin (2025) contests original Lentz WEC satisfaction claim"),
 }

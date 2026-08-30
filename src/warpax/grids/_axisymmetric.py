@@ -25,6 +25,7 @@ these coordinates is
 so the weights are ``w_ij = 2 pi r_i^2 w^r_i w^mu_j``. The ``2 pi`` cancels in
 any volume *fraction* but is kept so that integrated quantities are absolute.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -127,6 +128,4 @@ def axisymmetric_grid(
         axis=1,
     )
     weights = (2.0 * np.pi * R**2 * WR * WMU).ravel()
-    return AxisymmetricGrid(
-        coords=coords, weights=weights, r=r, mu=mu, shape=(n_r, n_mu)
-    )
+    return AxisymmetricGrid(coords=coords, weights=weights, r=r, mu=mu, shape=(n_r, n_mu))

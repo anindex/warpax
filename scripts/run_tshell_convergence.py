@@ -5,6 +5,7 @@ Evaluates a small set of representative phase-diagram points across
 each resolution so the *sign* (feasibility verdict) can be checked
 for grid stability.
 """
+
 from __future__ import annotations
 
 import os
@@ -24,7 +25,7 @@ from warpax.optimization.sweep import _evaluate_point, _rho_from_compactness
 OUTPUT = Path(__file__).resolve().parents[1] / "results" / "convergence_tshell.json"
 
 POINTS = [
-    {"label": "low-C near-feasible",  "compactness": 0.01, "thickness_ratio": 0.336},
+    {"label": "low-C near-feasible", "compactness": 0.01, "thickness_ratio": 0.336},
     {"label": "high-C bulk violation", "compactness": 0.20, "thickness_ratio": 0.80},
 ]
 RESOLUTIONS = [256, 512, 1024]
@@ -36,9 +37,14 @@ def _evaluate(pt, n_grid, R_2=20.0):
     t0 = time.time()
     out = _evaluate_point(
         ansatz="tshell",
-        R_1=R_1, R_2=R_2, rho_0=rho_0,
-        n_density=4, n_velocity=4,
-        n_grid=n_grid, n_probes=15, n_ec_starts=8,
+        R_1=R_1,
+        R_2=R_2,
+        rho_0=rho_0,
+        n_density=4,
+        n_velocity=4,
+        n_grid=n_grid,
+        n_probes=15,
+        n_ec_starts=8,
     )
     return {
         "n_grid": n_grid,
@@ -58,11 +64,12 @@ def main():
         for N in RESOLUTIONS:
             print(f"  n_grid={N} ...", flush=True)
             r = _evaluate(pt, n_grid=N)
-            print(f"    worst margin = {r['worst_ec_margin']:+.4e}  feasible={r['ec_feasible']}  ({r['elapsed_s']:.1f}s)")
+            print(
+                f"    worst margin = {r['worst_ec_margin']:+.4e}  feasible={r['ec_feasible']}  ({r['elapsed_s']:.1f}s)"
+            )
             runs.append(r)
         signs = ["neg" if r["worst_ec_margin"] < 0 else "pos" for r in runs]
-        out.append({**pt, "by_resolution": runs,
-                    "sign_stable": all(s == signs[0] for s in signs)})
+        out.append({**pt, "by_resolution": runs, "sign_stable": all(s == signs[0] for s in signs)})
 
     dump_json(out, OUTPUT)
     print(f"\n  -> {OUTPUT}")

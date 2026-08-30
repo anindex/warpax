@@ -14,6 +14,7 @@ instead of extrapolating them.
 Uses plain Python/numpy math (not JAX) since these are post-processing
 summary statistics.
 """
+
 from __future__ import annotations
 
 import math
@@ -69,8 +70,7 @@ def richardson_extrapolation(
     """
     if len(values) < 3 or len(grid_sizes) < 3:
         raise ValueError(
-            "Richardson extrapolation requires at least 3 resolutions, "
-            f"got {len(values)}"
+            f"Richardson extrapolation requires at least 3 resolutions, got {len(values)}"
         )
 
     # Use the last 3 resolutions (coarsest -> finest)

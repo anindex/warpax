@@ -17,6 +17,7 @@ Outputs
 - ../warpax_arxiv/tables/shift_vorticity.tex
 - ../warpax_arxiv/figures/shift_vorticity.pdf
 """
+
 from __future__ import annotations
 
 import argparse
@@ -55,26 +56,18 @@ F_LOW, F_HIGH = 0.1, 0.9
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 
 
-
-
 def wall_decomposition(name, v_s, N):
     """Wall proper-volume-weighted (<theta^2/3>, <sigma^2>, <omega^2>)."""
     metric = instantiate(name, v_s)
     shape = (N, N, N)
     grid = benchmark_grid(metric, N)
-    theta, sigma_sq, omega_sq = compute_shift_kinematics_grid(
-        metric, grid, t=0.0, batch_size=512
-    )
+    theta, sigma_sq, omega_sq = compute_shift_kinematics_grid(metric, grid, t=0.0, batch_size=512)
     coords = build_coord_batch(grid, t=0.0)
-    mask = np.asarray(jnp.reshape(
-        shape_function_mask(metric, coords, shape, f_low=F_LOW, f_high=F_HIGH),
-        (-1,))).astype(bool)
+    mask = np.asarray(
+        jnp.reshape(shape_function_mask(metric, coords, shape, f_low=F_LOW, f_high=F_HIGH), (-1,))
+    ).astype(bool)
     g_field = jax.vmap(metric)(coords)
-    w = np.asarray(
-        proper_volume_weights(
-            jnp.reshape(grid.volume_weights_array, (-1,)), g_field
-        )
-    )
+    w = np.asarray(proper_volume_weights(jnp.reshape(grid.volume_weights_array, (-1,)), g_field))
     w = np.where(mask, w, 0.0)
     wsum = float(w.sum())
     if wsum == 0.0:
@@ -107,14 +100,20 @@ def write_table(fingerprint, type_iv_range, out_path):
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_shift_vorticity.py", sources="results/shift_vorticity.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_shift_vorticity.py",
+        sources="results/shift_vorticity.json",
+    )
     print(f"  Wrote {out_path}")
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--fingerprint-velocities", type=float, nargs="+",
-                   default=[0.1, 0.5, 0.9, 1.5, 2.5])
+    p.add_argument(
+        "--fingerprint-velocities", type=float, nargs="+", default=[0.1, 0.5, 0.9, 1.5, 2.5]
+    )
     p.add_argument("--N", type=int, default=60)
     p.add_argument("--smoke", action="store_true")
     args = p.parse_args()
@@ -127,8 +126,7 @@ def main():
         sweep = json.load(f)
     type_iv = {}
     for r in sweep["rows"]:
-        type_iv.setdefault(r["metric"], []).append(
-            (r["v_s"], r["wall_frac_type_iv"] * 100.0))
+        type_iv.setdefault(r["metric"], []).append((r["v_s"], r["wall_frac_type_iv"] * 100.0))
     for m in type_iv:
         type_iv[m].sort()
     missing = [m for m in ORDER if m not in type_iv]
@@ -153,23 +151,31 @@ def main():
             exp, she, vor = wall_decomposition(name, v_s, args.N)
             tot = exp + she + vor + 1e-300
             r_omega_avg = vor / tot
-            raw[name].append({"v_s": v_s, "expansion": exp / tot,
-                              "shear": she / tot, "vorticity": vor / tot,
-                              "rotationality": r_omega_avg})
-            print(f"  {name:>15} v_s={v_s:.2f}  "
-                  f"exp={exp/tot:.3f} shear={she/tot:.3f} vort={vor/tot:.3f}  "
-                  f"R_omega={r_omega_avg:.4f}")
+            raw[name].append(
+                {
+                    "v_s": v_s,
+                    "expansion": exp / tot,
+                    "shear": she / tot,
+                    "vorticity": vor / tot,
+                    "rotationality": r_omega_avg,
+                }
+            )
+            print(
+                f"  {name:>15} v_s={v_s:.2f}  "
+                f"exp={exp / tot:.3f} shear={she / tot:.3f} vort={vor / tot:.3f}  "
+                f"R_omega={r_omega_avg:.4f}"
+            )
 
     # Velocity-averaged fingerprint (R_omega is v_s-independent to numerics).
     fingerprint = {}
     for m in ORDER:
         rows = raw[m]
         fingerprint[m] = {
-            k: float(np.mean([r[k] for r in rows]))
-            for k in ("expansion", "shear", "vorticity")
+            k: float(np.mean([r[k] for r in rows])) for k in ("expansion", "shear", "vorticity")
         }
-    type_iv_range = {m: (min(t for _, t in type_iv[m]),
-                         max(t for _, t in type_iv[m])) for m in ORDER}
+    type_iv_range = {
+        m: (min(t for _, t in type_iv[m]), max(t for _, t in type_iv[m])) for m in ORDER
+    }
 
     # Figure sweep data: pair each metric's mean R_omega with all cached Type-IV.
     fig_sweep = {}
@@ -178,14 +184,19 @@ def main():
         fig_sweep[m] = [(v, r_mean, t) for v, t in type_iv[m]]
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    dump_json({"config": vars(args), "raw": raw, "fingerprint": fingerprint,
-               "type_iv_range": type_iv_range},
-              os.path.join(RESULTS_DIR, "shift_vorticity.json"))
+    dump_json(
+        {
+            "config": vars(args),
+            "raw": raw,
+            "fingerprint": fingerprint,
+            "type_iv_range": type_iv_range,
+        },
+        os.path.join(RESULTS_DIR, "shift_vorticity.json"),
+    )
     print(f"\nWrote {os.path.join(RESULTS_DIR, 'shift_vorticity.json')}")
 
     if not args.smoke:
-        write_table(fingerprint, type_iv_range,
-                    os.path.join(TABLES_DIR, "shift_vorticity.tex"))
+        write_table(fingerprint, type_iv_range, os.path.join(TABLES_DIR, "shift_vorticity.tex"))
         os.makedirs(FIG_DIR, exist_ok=True)
         out = os.path.join(FIG_DIR, "shift_vorticity.pdf")
         plot_shift_vorticity(fingerprint, fig_sweep, ORDER, save_path=out)

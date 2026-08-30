@@ -107,11 +107,13 @@ def pytest_collection_modifyitems(config, items) -> None:
     # subset runs (e.g. a single test file) from spuriously flagging entries
     # for files that simply were not part of this run.
     unmatched = sorted(
-        e for e in EXPECTED_GPU_FAILURES
+        e
+        for e in EXPECTED_GPU_FAILURES
         if e.split("::", 1)[0] in collected_files and e not in collected_ids
     )
     if unmatched:
         import warnings
+
         warnings.warn(
             "GPU xfail registry has "
             f"{len(unmatched)} entr{'y' if len(unmatched) == 1 else 'ies'} "
@@ -174,10 +176,7 @@ def pytest_sessionfinish(session, exitstatus) -> None:
         "",
         "=== GPU baseline summary ===",
         f"Expected xfails: {expected_xfail_count}/{len(EXPECTED_GPU_FAILURES)}",
-        (
-            f"Resolved xfails (now passing - investigate): "
-            f"{resolved_xfail_count}"
-        ),
+        (f"Resolved xfails (now passing - investigate): {resolved_xfail_count}"),
         f"New regressions (not in registry, failing): {new_regression_count}",
         "=== End summary ===",
     ]

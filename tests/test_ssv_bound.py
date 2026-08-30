@@ -1,4 +1,5 @@
 """SSV lower-bound saturation: fit recovery and subluminal filtering."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -76,8 +77,7 @@ class TestFitBound:
         ratios = [
             abs(r["typeI_nec_min"]) / r["v_s"] ** 2
             for r in sweep["rows"]
-            if r["metric"] == "Rodal" and r["v_s"] < 1.0
-            and r.get("typeI_nec_min") is not None
+            if r["metric"] == "Rodal" and r["v_s"] < 1.0 and r.get("typeI_nec_min") is not None
         ]
         assert ratios, "no subluminal Rodal rows in the sweep"
         # Exact law => every speed gives the same ratio, to machine precision.

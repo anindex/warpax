@@ -1,4 +1,3 @@
-
 """Geodesic analysis: tidal forces and blueshift through warp bubbles.
 
 Computes timelike geodesic deviation (tidal eigenvalues) and null geodesic
@@ -28,6 +27,7 @@ Show help::
 
     python scripts/run_geodesics.py --help
 """
+
 from __future__ import annotations
 
 import argparse
@@ -74,9 +74,7 @@ def _ensure_dir(path: str) -> None:
 # Tidal force analysis (timelike geodesic with deviation)
 
 
-def compute_tidal_analysis(
-    results_dir: str, v_s: float = 0.5, force: bool = False
-) -> str:
+def compute_tidal_analysis(results_dir: str, v_s: float = 0.5, force: bool = False) -> str:
     """Compute tidal eigenvalues along a timelike geodesic through Alcubierre bubble.
 
     Sets up a timelike geodesic starting at (t=0, x=5.0, y=0.1, z=0)
@@ -127,7 +125,11 @@ def compute_tidal_analysis(
     print(f"    tau_span = {TAU_SPAN_TIMELIKE}, max_steps = {max_steps}")
     t0 = time.time()
     dev_result = integrate_geodesic_with_deviation(
-        metric, x0, v0, xi0, w0,
+        metric,
+        x0,
+        v0,
+        xi0,
+        w0,
         tau_span=TAU_SPAN_TIMELIKE,
         num_points=NUM_POINTS,
         max_steps=max_steps,
@@ -170,8 +172,10 @@ def compute_tidal_analysis(
     # Summary
     peak_tidal = float(np.nanmax(np.abs(tidal_eigs)))
     print(f"  Peak tidal eigenvalue magnitude: {peak_tidal:.6e}")
-    print(f"  Trajectory x-range: [{np.min(np.asarray(dev_result.positions[:, 1])):.2f}, "
-          f"{np.max(np.asarray(dev_result.positions[:, 1])):.2f}]")
+    print(
+        f"  Trajectory x-range: [{np.min(np.asarray(dev_result.positions[:, 1])):.2f}, "
+        f"{np.max(np.asarray(dev_result.positions[:, 1])):.2f}]"
+    )
 
     return cache_path
 
@@ -179,9 +183,7 @@ def compute_tidal_analysis(
 # Blueshift analysis (null geodesic)
 
 
-def compute_blueshift_analysis(
-    results_dir: str, v_s: float = 0.5, force: bool = False
-) -> str:
+def compute_blueshift_analysis(results_dir: str, v_s: float = 0.5, force: bool = False) -> str:
     """Compute blueshift along a null geodesic through Alcubierre bubble.
 
     Sets up a null geodesic (photon) starting at (t=0, x=5.0, y=0.0, z=0)
@@ -227,7 +229,9 @@ def compute_blueshift_analysis(
     print(f"    tau_span = {TAU_SPAN_NULL}, max_steps = {max_steps}")
     t0 = time.time()
     null_result = integrate_geodesic(
-        metric, x0, k0,
+        metric,
+        x0,
+        k0,
         tau_span=TAU_SPAN_NULL,
         num_points=NUM_POINTS,
         max_steps=max_steps,
@@ -276,8 +280,7 @@ def compute_blueshift_analysis(
     # Summary
     max_bs = float(np.nanmax(np.abs(np.asarray(blueshift))))
     print(f"  Max blueshift factor: {max_bs:.6e}")
-    print(f"  Trajectory x-range: [{np.min(positions_x):.2f}, "
-          f"{np.max(positions_x):.2f}]")
+    print(f"  Trajectory x-range: [{np.min(positions_x):.2f}, {np.max(positions_x):.2f}]")
 
     return cache_path
 

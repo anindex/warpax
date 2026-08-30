@@ -68,7 +68,7 @@ class Dual2:
         self.g = _ZERO_G if g is None else g
         self.h = _ZERO_H if h is None else h
 
-    #, arithmetic ---------------------------------------------------------
+    # , arithmetic ---------------------------------------------------------
 
     def __add__(self, o):
         o = _lift(o)
@@ -173,8 +173,7 @@ def _chain(d: Dual2, f0, f1, f2) -> Dual2:
     """
     g = [_mul(f1, d.g[i]) for i in range(_N)]
     h = [
-        [_add(_mul(_mul(f2, d.g[i]), d.g[j]), _mul(f1, d.h[i][j]))
-         for j in range(_N)]
+        [_add(_mul(_mul(f2, d.g[i]), d.g[j]), _mul(f1, d.h[i][j])) for j in range(_N)]
         for i in range(_N)
     ]
     return Dual2(f0, g, h)

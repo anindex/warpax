@@ -12,16 +12,16 @@ import pytest
 from warpax.io import InterpolatedADMMetric, load_einfield, load_warpfactory
 
 _h5py_available = find_spec("h5py") is not None
-requires_h5py = pytest.mark.skipif(not _h5py_available, reason="h5py not installed (warpax[interop])")
+requires_h5py = pytest.mark.skipif(
+    not _h5py_available, reason="h5py not installed (warpax[interop])"
+)
 
 
 if _h5py_available:
     from warpax.io import load_cactus_slice
 
 
-FIXTURE_PATH = (
-    Path(__file__).parent / "fixtures" / "cactus" / "minkowski_slice.h5"
-)
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "cactus" / "minkowski_slice.h5"
 
 
 @requires_h5py
@@ -123,9 +123,7 @@ class TestCactusShiftConvention:
         np.testing.assert_allclose(g[1, 1], 4.0, atol=1e-12)
 
 
-FIXTURE_DIR = (
-    Path(__file__).parent / "fixtures" / "einfields" / "minkowski.ckpt"
-)
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "einfields" / "minkowski.ckpt"
 
 
 class TestLoadEinField:
@@ -164,6 +162,7 @@ class TestLoadEinField:
 
         # Sample at origin: should be Minkowski eta_ab.
         import jax.numpy as jnp
+
         coords = jnp.array([0.0, 0.0, 0.0, 0.0])
         g = np.asarray(m(coords))
         expected = np.diag([-1.0, 1.0, 1.0, 1.0])
@@ -173,9 +172,7 @@ class TestLoadEinField:
 # NOTE: distinct name from the cactus FIXTURE_PATH above; a bare ``FIXTURE_PATH``
 # here shadowed the cactus one at module load, so the cactus tests requiring h5py
 # silently tried to open this .mat file ("file signature not found").
-WARPFACTORY_FIXTURE_PATH = (
-    Path(__file__).parent / "fixtures" / "warpfactory" / "alcubierre.mat"
-)
+WARPFACTORY_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "warpfactory" / "alcubierre.mat"
 
 
 class TestLoadWarpFactory:

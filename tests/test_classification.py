@@ -66,9 +66,7 @@ class TestTypeIClassification:
         assert int(result.he_type) == 1
         np.testing.assert_allclose(float(result.rho), rho, atol=1e-12)
         # Pressures are sorted
-        np.testing.assert_allclose(
-            result.pressures, jnp.array([p1, p2, p3]), atol=1e-12
-        )
+        np.testing.assert_allclose(result.pressures, jnp.array([p1, p2, p3]), atol=1e-12)
 
     def test_near_degenerate(self):
         """Near-degenerate Type I: pressures differ by ~1e-12."""
@@ -104,12 +102,14 @@ class TestTypeIVClassification:
         """T^a_b with a 2x2 rotation block producing complex conjugate eigenvalues."""
         # Build T^a_b with a rotation subblock in the (1,2) plane
         # Eigenvalues of [[0, -1], [1, 0]] are +/- i
-        T_mixed = jnp.array([
-            [-1.0,  0.0,  0.0, 0.0],
-            [ 0.0,  0.0, -1.0, 0.0],
-            [ 0.0,  1.0,  0.0, 0.0],
-            [ 0.0,  0.0,  0.0, 0.5],
-        ])
+        T_mixed = jnp.array(
+            [
+                [-1.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, -1.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.5],
+            ]
+        )
 
         result = classify_hawking_ellis(T_mixed, ETA)
 
@@ -147,22 +147,26 @@ class TestTypeIIClassification:
         # of the basis vectors.
         # Basis: e0=(1,1,0,0)/sqrt(2), e1=(1,-1,0,0)/sqrt(2), e2=(0,0,1,0), e3=(0,0,0,1)
         # In this basis, set T to have a Jordan block for the first eigenvalue.
-        P = jnp.array([
-            [1.0,  1.0, 0.0, 0.0],
-            [1.0, -1.0, 0.0, 0.0],
-            [0.0,  0.0, 1.0, 0.0],
-            [0.0,  0.0, 0.0, 1.0],
-        ]) / jnp.sqrt(2.0)
+        P = jnp.array(
+            [
+                [1.0, 1.0, 0.0, 0.0],
+                [1.0, -1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        ) / jnp.sqrt(2.0)
         P = P.at[2, 2].set(1.0)
         P = P.at[3, 3].set(1.0)
 
         # Jordan form: eigenvalue 0 with 2x2 block, plus 1 and 2
-        J = jnp.array([
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 2.0],
-        ])
+        J = jnp.array(
+            [
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 2.0],
+            ]
+        )
 
         T_mixed = P @ J @ jnp.linalg.inv(P)
         result = classify_hawking_ellis(T_mixed, ETA)
@@ -201,22 +205,26 @@ class TestTypeIIIClassification:
         a ``J_3``; see ``test_type_iii_3x3_block`` for the real thing.
         """
         lam = 1.0
-        P = jnp.array([
-            [1.0,  1.0, 0.0, 0.0],
-            [1.0, -1.0, 0.0, 0.0],
-            [0.0,  0.0, 1.0, 0.0],
-            [0.0,  0.0, 0.0, 1.0],
-        ]) / jnp.sqrt(2.0)
+        P = jnp.array(
+            [
+                [1.0, 1.0, 0.0, 0.0],
+                [1.0, -1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        ) / jnp.sqrt(2.0)
         P = P.at[2, 2].set(1.0)
         P = P.at[3, 3].set(1.0)
 
         # Jordan form: eigenvalue lam with 2x2 block, plus two more lam
-        J = jnp.array([
-            [lam, 1.0, 0.0, 0.0],
-            [0.0, lam, 0.0, 0.0],
-            [0.0, 0.0, lam, 0.0],
-            [0.0, 0.0, 0.0, lam],
-        ])
+        J = jnp.array(
+            [
+                [lam, 1.0, 0.0, 0.0],
+                [0.0, lam, 0.0, 0.0],
+                [0.0, 0.0, lam, 0.0],
+                [0.0, 0.0, 0.0, lam],
+            ]
+        )
 
         T_mixed = P @ J @ jnp.linalg.inv(P)
 
@@ -238,21 +246,25 @@ class TestTypeIIIClassification:
         tensor IS Type I to the precision we can measure.
         """
         lam = 1.0
-        P = jnp.array([
-            [1.0,  1.0, 0.0, 0.0],
-            [1.0, -1.0, 0.0, 0.0],
-            [0.0,  0.0, 1.0, 0.0],
-            [0.0,  0.0, 0.0, 1.0],
-        ]) / jnp.sqrt(2.0)
+        P = jnp.array(
+            [
+                [1.0, 1.0, 0.0, 0.0],
+                [1.0, -1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        ) / jnp.sqrt(2.0)
         P = P.at[2, 2].set(1.0)
         P = P.at[3, 3].set(1.0)
 
-        J = jnp.array([
-            [lam, 1.0, 0.0, 0.0],
-            [0.0, lam, 0.0, 0.0],
-            [0.0, 0.0, lam, 0.0],
-            [0.0, 0.0, 0.0, lam],
-        ])
+        J = jnp.array(
+            [
+                [lam, 1.0, 0.0, 0.0],
+                [0.0, lam, 0.0, 0.0],
+                [0.0, 0.0, lam, 0.0],
+                [0.0, 0.0, 0.0, lam],
+            ]
+        )
 
         T_mixed = P @ J @ jnp.linalg.inv(P)
         result = classify_hawking_ellis(T_mixed, ETA)  # default tol=1e-10
@@ -272,7 +284,7 @@ class TestStandardSolverBitExact:
         """solver kwarg absent vs solver='standard': identical output."""
         T = jnp.diag(jnp.array([-1.5, 0.3, 0.3, 0.3]))
         r_default = classify_hawking_ellis(T, ETA)
-        r_standard = classify_hawking_ellis(T, ETA, solver='standard')
+        r_standard = classify_hawking_ellis(T, ETA, solver="standard")
         # Identical outputs: use array_equal, not allclose
         assert jnp.array_equal(r_default.he_type, r_standard.he_type)
         assert jnp.array_equal(r_default.eigenvalues, r_standard.eigenvalues)
@@ -292,17 +304,13 @@ class TestStandardSolverBitExact:
             shape=(10, 10, 10),
         )
         chain = evaluate_curvature_grid(metric, grid)
-        T_mixed_flat = np.asarray(
-            (chain.metric_inv @ chain.stress_energy).reshape(-1, 4, 4)
-        )
+        T_mixed_flat = np.asarray((chain.metric_inv @ chain.stress_energy).reshape(-1, 4, 4))
         g_flat = np.asarray(chain.metric.reshape(-1, 4, 4))
 
         classify_v = jax.vmap(classify_hawking_ellis, in_axes=(0, 0))
         r_std = classify_v(jnp.asarray(T_mixed_flat), jnp.asarray(g_flat))
 
-        fixture_path = (
-            pathlib.Path(__file__).parent / "fixtures" / "warpshell_classify.npz"
-        )
+        fixture_path = pathlib.Path(__file__).parent / "fixtures" / "warpshell_classify.npz"
         if not fixture_path.exists():
             pytest.skip(
                 "warpshell_classify.npz not generated; "
@@ -311,7 +319,7 @@ class TestStandardSolverBitExact:
         fixture = np.load(fixture_path)
         np.testing.assert_array_equal(
             np.asarray(r_std.he_type),
-            fixture['he_type'],
+            fixture["he_type"],
             err_msg="solver='standard' drifted from pinned fixture",
         )
 
@@ -320,17 +328,19 @@ class TestGeneralizedSolver:
     """solver='generalized' dispatch via scipy.linalg.eig + pure_callback."""
 
     # Non-Minkowski g (WarpShell-style) - verbatim from
-    NON_MINK_G = jnp.array([
-        [-0.12, 0.05, 0.05, 0.0],
-        [ 0.05, 1.5,  0.3,  0.2],
-        [ 0.05, 0.3,  1.5,  0.1],
-        [ 0.0,  0.2,  0.1,  1.5],
-    ])
+    NON_MINK_G = jnp.array(
+        [
+            [-0.12, 0.05, 0.05, 0.0],
+            [0.05, 1.5, 0.3, 0.2],
+            [0.05, 0.3, 1.5, 0.1],
+            [0.0, 0.2, 0.1, 1.5],
+        ]
+    )
 
     def test_minkowski_perfect_fluid(self):
         T_mixed = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
         T_ab = ETA @ T_mixed
-        r = classify_hawking_ellis(T_mixed, ETA, solver='generalized', T_ab=T_ab)
+        r = classify_hawking_ellis(T_mixed, ETA, solver="generalized", T_ab=T_ab)
         assert isinstance(r, ClassificationResult)
         assert int(r.he_type) == 1
 
@@ -338,50 +348,63 @@ class TestGeneralizedSolver:
         T_mixed = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
         T_ab = self.NON_MINK_G @ T_mixed
         r = classify_hawking_ellis(
-            T_mixed, self.NON_MINK_G, solver='generalized', T_ab=T_ab,
+            T_mixed,
+            self.NON_MINK_G,
+            solver="generalized",
+            T_ab=T_ab,
         )
         assert int(r.he_type) == 1
 
     def test_genuine_type_iv(self):
-        T = jnp.array([
-            [0.0, 1.0, 0.0, 0.0],
-            [-1.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.5, 0.0],
-            [0.0, 0.0, 0.0, 0.5],
-        ])
+        T = jnp.array(
+            [
+                [0.0, 1.0, 0.0, 0.0],
+                [-1.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.5, 0.0],
+                [0.0, 0.0, 0.0, 0.5],
+            ]
+        )
         T_ab = ETA @ T
         r_std = classify_hawking_ellis(T, ETA)
-        r_gen = classify_hawking_ellis(T, ETA, solver='generalized', T_ab=T_ab)
+        r_gen = classify_hawking_ellis(T, ETA, solver="generalized", T_ab=T_ab)
         assert int(r_std.he_type) == 4
         assert int(r_gen.he_type) == 4
 
     def test_invalid_solver_raises(self):
         T = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
         with pytest.raises(ValueError, match=r"standard.*generalized|generalized.*standard"):
-            classify_hawking_ellis(T, ETA, solver='foo')
+            classify_hawking_ellis(T, ETA, solver="foo")
 
     def test_jit_compatible(self):
         T = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
         T_ab = ETA @ T
         fn = jax.jit(
             lambda t, g, tab: classify_hawking_ellis(
-                t, g, solver='generalized', T_ab=tab,
+                t,
+                g,
+                solver="generalized",
+                T_ab=tab,
             )
         )
         r = fn(T, ETA, T_ab)
         assert int(r.he_type) == 1
 
     def test_vmap_compatible(self):
-        T_batch = jnp.stack([
-            jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3])),
-            jnp.diag(jnp.array([-2.0, 0.4, 0.4, 0.4])),
-            jnp.diag(jnp.array([-0.5, 0.1, 0.1, 0.1])),
-        ])
+        T_batch = jnp.stack(
+            [
+                jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3])),
+                jnp.diag(jnp.array([-2.0, 0.4, 0.4, 0.4])),
+                jnp.diag(jnp.array([-0.5, 0.1, 0.1, 0.1])),
+            ]
+        )
         g_batch = jnp.stack([ETA, ETA, ETA])
         T_ab_batch = jax.vmap(jnp.matmul)(g_batch, T_batch)
         fn = jax.vmap(
             lambda t, g, tab: classify_hawking_ellis(
-                t, g, solver='generalized', T_ab=tab,
+                t,
+                g,
+                solver="generalized",
+                T_ab=tab,
             )
         )
         r = fn(T_batch, g_batch, T_ab_batch)
@@ -406,11 +429,13 @@ class TestJITAndVmap:
     def test_vmap_batch(self):
         """jax.vmap(classify_hawking_ellis) works on a batch of (N, 4, 4) tensors."""
         # Build a batch of 3 Type I tensors
-        T_batch = jnp.stack([
-            jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5])),
-            jnp.diag(jnp.array([-2.0, 0.1, 0.2, 0.3])),
-            jnp.diag(jnp.array([-0.5, 1.0, 1.0, 1.0])),
-        ])
+        T_batch = jnp.stack(
+            [
+                jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5])),
+                jnp.diag(jnp.array([-2.0, 0.1, 0.2, 0.3])),
+                jnp.diag(jnp.array([-0.5, 1.0, 1.0, 1.0])),
+            ]
+        )
         g_batch = jnp.broadcast_to(ETA, (3, 4, 4))
 
         classify_vmap = jax.vmap(classify_hawking_ellis)
@@ -418,9 +443,7 @@ class TestJITAndVmap:
 
         # All should be Type I
         np.testing.assert_array_equal(np.array(results.he_type), [1, 1, 1])
-        np.testing.assert_allclose(
-            np.array(results.rho), [1.0, 2.0, 0.5], atol=1e-12
-        )
+        np.testing.assert_allclose(np.array(results.rho), [1.0, 2.0, 0.5], atol=1e-12)
 
     def test_classify_mixed_tensor(self):
         """classify_mixed_tensor raises index and then classifies."""
@@ -577,12 +600,14 @@ class TestECVmapGrid:
     def test_vmap_over_batch(self):
         """vmap(check_all) works over (N,) rho and (N, 3) pressures."""
         batch_rho = jnp.array([1.0, -1.0, 0.0, 1.0])
-        batch_p = jnp.array([
-            [0.0, 0.0, 0.0],    # dust: all satisfied
-            [0.0, 0.0, 0.0],    # negative rho: WEC violated
-            [0.0, 0.0, 0.0],    # vacuum: boundary
-            [-2.0, 0.0, 0.0],   # NEC violated
-        ])
+        batch_p = jnp.array(
+            [
+                [0.0, 0.0, 0.0],  # dust: all satisfied
+                [0.0, 0.0, 0.0],  # negative rho: WEC violated
+                [0.0, 0.0, 0.0],  # vacuum: boundary
+                [-2.0, 0.0, 0.0],  # NEC violated
+            ]
+        )
 
         vmap_all = jax.vmap(check_all)
         nec, wec, sec, dec = vmap_all(batch_rho, batch_p)
@@ -660,13 +685,16 @@ class TestScaleAwareImaginaryTolerance:
         same relative split read Type IV at unit scale and Type I at 1e11. It
         fired at zero points on every published grid and could only produce
         false Type-I labels, so it is gone and the single test is relative."""
+
         def _classify(imag, scale=1.0):
-            T_mixed = scale * jnp.array([
-                [-1.0, 0.0,   0.0,  0.0],
-                [ 0.0, 1.0, -imag,  0.0],
-                [ 0.0, imag,  1.0,  0.0],
-                [ 0.0, 0.0,   0.0,  0.5],
-            ])
+            T_mixed = scale * jnp.array(
+                [
+                    [-1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, -imag, 0.0],
+                    [0.0, imag, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.5],
+                ]
+            )
             return int(classify_hawking_ellis(T_mixed, ETA).he_type)
 
         for scale in (1e-8, 1.0, 1e11):
@@ -690,9 +718,7 @@ class TestScaleAwareImaginaryTolerance:
         T_mixed = jnp.diag(jnp.array([-2.0, 1.0, 0.5, 0.3]))
         result = classify_hawking_ellis(T_mixed, ETA)
 
-        np.testing.assert_allclose(
-            result.eigenvalues_imag, jnp.zeros(4), atol=1e-14
-        )
+        np.testing.assert_allclose(result.eigenvalues_imag, jnp.zeros(4), atol=1e-14)
 
 
 # Type II null dust benchmark (validates non-Type-I optimizer pathway)
@@ -717,9 +743,7 @@ class TestTypeIINullDustBenchmark:
         T_ab = Phi_sq * jnp.outer(k_down, k_down)
 
         # Fixture sanity: k is null, so T_ab k^a k^b = Phi^2 (k_a k^a)^2 = 0.
-        assert float(jnp.einsum("a,ab,b->", k_up, T_ab, k_up)) == pytest.approx(
-            0.0, abs=1e-12
-        )
+        assert float(jnp.einsum("a,ab,b->", k_up, T_ab, k_up)) == pytest.approx(0.0, abs=1e-12)
 
         # T^a_b = g^{ac} T_{cb}
         g_inv = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
@@ -755,9 +779,7 @@ class TestTypeIINullDustBenchmark:
         assert float(res.margin) >= 0.0, (
             f"WEC must hold for null dust; optimizer margin {float(res.margin)}"
         )
-        assert float(res.margin) == pytest.approx(
-            Phi_sq * float(jnp.exp(-10.0)), rel=1e-6
-        )
+        assert float(res.margin) == pytest.approx(Phi_sq * float(jnp.exp(-10.0)), rel=1e-6)
 
 
 class TestTypeIIISyntheticBenchmark:
@@ -779,39 +801,47 @@ class TestTypeIIISyntheticBenchmark:
     def _jordan_2x2_tensor(lam, P=None):
         """Construct a tensor with 2x2 Jordan block at eigenvalue ``lam``."""
         if P is None:
-            P = jnp.array([
-                [1.0,  1.0, 0.0, 0.0],
-                [1.0, -1.0, 0.0, 0.0],
-                [0.0,  0.0, 1.0, 0.0],
-                [0.0,  0.0, 0.0, 1.0],
-            ]) / jnp.sqrt(2.0)
+            P = jnp.array(
+                [
+                    [1.0, 1.0, 0.0, 0.0],
+                    [1.0, -1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ) / jnp.sqrt(2.0)
             P = P.at[2, 2].set(1.0)
             P = P.at[3, 3].set(1.0)
-        J = jnp.array([
-            [lam, 1.0, 0.0, 0.0],
-            [0.0, lam, 0.0, 0.0],
-            [0.0, 0.0, lam, 0.0],
-            [0.0, 0.0, 0.0, lam],
-        ])
+        J = jnp.array(
+            [
+                [lam, 1.0, 0.0, 0.0],
+                [0.0, lam, 0.0, 0.0],
+                [0.0, 0.0, lam, 0.0],
+                [0.0, 0.0, 0.0, lam],
+            ]
+        )
         return P @ J @ jnp.linalg.inv(P)
 
     @staticmethod
     def _jordan_3x3_tensor(lam):
         """3x3 Jordan block at ``lam`` plus an ordinary eigenvalue ``lam``."""
-        P = jnp.array([
-            [1.0,  1.0, 0.5, 0.0],
-            [1.0, -1.0, 0.5, 0.0],
-            [0.0,  0.5, 1.0, 0.0],
-            [0.0,  0.0, 0.0, 1.0],
-        ]) / jnp.sqrt(2.0)
+        P = jnp.array(
+            [
+                [1.0, 1.0, 0.5, 0.0],
+                [1.0, -1.0, 0.5, 0.0],
+                [0.0, 0.5, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        ) / jnp.sqrt(2.0)
         # Renormalize the last row so P stays invertible at float64 precision.
         P = P.at[3, 3].set(1.0)
-        J = jnp.array([
-            [lam, 1.0, 0.0, 0.0],
-            [0.0, lam, 1.0, 0.0],
-            [0.0, 0.0, lam, 0.0],
-            [0.0, 0.0, 0.0, lam],
-        ])
+        J = jnp.array(
+            [
+                [lam, 1.0, 0.0, 0.0],
+                [0.0, lam, 1.0, 0.0],
+                [0.0, 0.0, lam, 0.0],
+                [0.0, 0.0, 0.0, lam],
+            ]
+        )
         return P @ J @ jnp.linalg.inv(P)
 
     def test_jordan_2x2_at_small_scale_is_type_ii(self):
@@ -872,12 +902,14 @@ class TestTypeIIISyntheticBenchmark:
         not four, so it is exactly the family the old ``n_unique == 1`` gate
         excluded by construction.
         """
-        T_ab = jnp.array([
-            [rho, 0.0, -f, 0.0],
-            [0.0, -rho, f, 0.0],
-            [-f, f, -rho, 0.0],
-            [0.0, 0.0, 0.0, p],
-        ])
+        T_ab = jnp.array(
+            [
+                [rho, 0.0, -f, 0.0],
+                [0.0, -rho, f, 0.0],
+                [-f, f, -rho, 0.0],
+                [0.0, 0.0, 0.0, p],
+            ]
+        )
         return ETA @ T_ab, T_ab
 
     @pytest.mark.parametrize("rho,f,p", [(1.0, 1.0, 3.0), (1.0, 1.0, -1.0), (2.0, 0.5, 5.0)])
@@ -972,12 +1004,14 @@ class TestCausalBasisFix:
         T_mixed = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
 
         # Non-Minkowski g with |g_{ij}|/|g_{00}| ~ 10 (RESEARCH.md Code Example 1).
-        g_ab = jnp.array([
-            [-0.12, 0.05, 0.05, 0.0],
-            [0.05,   1.5, 0.3,  0.2],
-            [0.05,   0.3, 1.5,  0.1],
-            [0.0,    0.2, 0.1,  1.5],
-        ])
+        g_ab = jnp.array(
+            [
+                [-0.12, 0.05, 0.05, 0.0],
+                [0.05, 1.5, 0.3, 0.2],
+                [0.05, 0.3, 1.5, 0.1],
+                [0.0, 0.2, 0.1, 1.5],
+            ]
+        )
 
         result = classify_hawking_ellis(T_mixed, g_ab)
         assert int(result.he_type) == 1, (
@@ -1040,11 +1074,7 @@ class TestBobrickMartire:
     )
     def test_determinism(self, metric_cls, expected_class):
         """Classifier returns identical class across repeated calls on each metric."""
-        metric = (
-            metric_cls(M=1.0)
-            if metric_cls is SchwarzschildMetric
-            else metric_cls()
-        )
+        metric = metric_cls(M=1.0) if metric_cls is SchwarzschildMetric else metric_cls()
         r1 = bobrick_martire(metric)
         r2 = bobrick_martire(metric)
         assert r1.bobrick_class == r2.bobrick_class == expected_class
@@ -1141,14 +1171,18 @@ def test_grid_vacuum_count_matches_n_vacuum():
     grid = GridSpec(bounds=[(-5, 5)] * 3, shape=(20, 20, 20))
     curv = evaluate_curvature_grid(metric, grid, batch_size=256)
     ec = verify_grid(
-        curv.stress_energy, curv.metric, curv.metric_inv,
-        n_starts=2, batch_size=64, compute_eulerian=False,
+        curv.stress_energy,
+        curv.metric,
+        curv.metric_inv,
+        n_starts=2,
+        batch_size=64,
+        compute_eulerian=False,
     )
     assert ec.n_vacuum is not None, "n_vacuum should be populated on ECGridResult"
     # On a (±5)^3 box for R=1, sigma=8 Alcubierre, the wall occupies
     # ~0.35% of the volume, so the vast majority of points should be
     # near-vacuum (T ~ 0 outside the wall).
-    total = 20 ** 3
+    total = 20**3
     vacuum_frac = ec.n_vacuum / total
     assert vacuum_frac > 0.5, (
         f"Expected > 50% vacuum for Alcubierre on (±5)^3; got {vacuum_frac:.3f}"

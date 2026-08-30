@@ -1,7 +1,8 @@
 """Feasibility GATE: is Hawking-Ellis classification of T^a_b
 trustworthy across the luminal transition (v_s -> 1 and beyond)?
 
-This is the required prerequisite for the velocity-resolved type/EC map. The frame-independent classifier (``classify_hawking_ellis``,
+This is the required prerequisite for the velocity-resolved type/EC map. The
+frame-independent classifier (``classify_hawking_ellis``,
 operating on the mixed tensor ``T^a_b``) never uses the Eulerian normal, so it
 *runs* at v_s >= 1 where the ADM lapse ``alpha = 1/sqrt(-g^{00})`` becomes
 ill-defined. The open question is whether the Type-IV labels it returns near
@@ -37,6 +38,7 @@ Usage
     python scripts/validate_superluminal_classification.py
     python scripts/validate_superluminal_classification.py --smoke
 """
+
 from __future__ import annotations
 
 import argparse
@@ -123,9 +125,7 @@ def _vw_type_fraction(he_flat, sel_flat, w_flat, t: int) -> float:
 
 
 def _classify_types_tol(flat_Tmixed, flat_g, tol: float) -> np.ndarray:
-    res = jax.vmap(
-        lambda Tm, g: classify_hawking_ellis(Tm, g, tol=tol)
-    )(flat_Tmixed, flat_g)
+    res = jax.vmap(lambda Tm, g: classify_hawking_ellis(Tm, g, tol=tol))(flat_Tmixed, flat_g)
     return np.asarray(res.he_type)
 
 
@@ -134,9 +134,7 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
     out: dict = {"metric": name, "v_s": v_s, "N_main": N_main}
 
     metric = _instantiate(name, v_s)
-    flat_T, flat_g, flat_ginv, flat_Tmixed, wall_flat, vol_w = _flat_curv(
-        metric, N_main
-    )
+    flat_T, flat_g, flat_ginv, flat_Tmixed, wall_flat, vol_w = _flat_curv(metric, N_main)
 
     # --- finiteness / signature sanity ----------------------------------
     dets = np.asarray(jnp.linalg.det(flat_g))
@@ -158,9 +156,7 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
     # |Im|/|Re| scaling on wall Type-IV-flagged points
     wall_iv = wall_flat & (he_std == 4.0)
     if wall_iv.any():
-        ratio = imag_std[wall_iv].max(axis=-1) / np.maximum(
-            real_std[wall_iv].max(axis=-1), 1e-30
-        )
+        ratio = imag_std[wall_iv].max(axis=-1) / np.maximum(real_std[wall_iv].max(axis=-1), 1e-30)
         out["wall_iv_imag_re_ratio_median"] = float(np.median(ratio))
     else:
         out["wall_iv_imag_re_ratio_median"] = None
@@ -192,9 +188,7 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
         )
         he_gen = np.asarray(cls_gen.he_type)
         out["std_gen_agreement"] = float(np.mean(he_std[sub] == he_gen))
-        out["std_gen_iv_agreement"] = (
-            float(np.mean((he_std[sub] == 4.0) == (he_gen == 4.0)))
-        )
+        out["std_gen_iv_agreement"] = float(np.mean((he_std[sub] == 4.0) == (he_gen == 4.0)))
     else:
         out["std_gen_agreement"] = None
         out["std_gen_iv_agreement"] = None
@@ -224,9 +218,7 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
                 fracs.append(out["wall_frac_type_IV"] * 100.0)
                 continue
             fT, fg, fgi, fTm, wmask, vw = _flat_curv(metric, N)
-            he = np.asarray(
-                _classify_grid_batch(fTm, fg, fT, solver="standard").he_type
-            )
+            he = np.asarray(_classify_grid_batch(fTm, fg, fT, solver="standard").he_type)
             fracs.append(_vw_type_fraction(he, wmask, vw, 4) * 100.0)
         stab = f_miss_stability(fracs, abs_tol_pp=0.5, rel_tol=0.05)
         out["refine_Ns"] = list(refine_Ns)
@@ -261,13 +253,14 @@ def write_report(cells, out_path):
         "Type-IV is trustworthy iff: mpmath flip-rate <= 1% AND refinement-stable "
         "AND tolerance-insensitive (<=0.5pp).\n",
         "",
-        "| Metric | v_s | wall TypeIV % | tol spread pp | std/gen agree | mpmath flip | refine stable | Im/Re | TRUSTWORTHY |",
+        "| Metric | v_s | wall TypeIV % | tol spread pp | std/gen agree | "
+        "mpmath flip | refine stable | Im/Re | TRUSTWORTHY |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for c in cells:
         lines.append(
             f"| {c['metric']} | {c['v_s']:.2f} | "
-            f"{_fmt(c['wall_frac_type_IV']*100,2)} | {_fmt(c['tol_spread_pp'],2)} | "
+            f"{_fmt(c['wall_frac_type_IV'] * 100, 2)} | {_fmt(c['tol_spread_pp'], 2)} | "
             f"{_fmt(c['std_gen_agreement'])} | {_fmt(c['mpmath_flip_rate'])} | "
             f"{_fmt(c['refine_stable'])} | {_fmt(c['wall_iv_imag_re_ratio_median'])} | "
             f"{_fmt(c['type_iv_trustworthy'])} |"
@@ -278,7 +271,7 @@ def write_report(cells, out_path):
         mc = [c for c in cells if c["metric"] == name]
         good = [c["v_s"] for c in mc if c["type_iv_trustworthy"]]
         ceiling = max(good) if good else None
-        lines.append(f"- {name}: classification trustworthy up to v_s = {_fmt(ceiling,2)}")
+        lines.append(f"- {name}: classification trustworthy up to v_s = {_fmt(ceiling, 2)}")
     with open(out_path, "w") as f:
         f.write("\n".join(lines) + "\n")
     print(f"Wrote {out_path}")
@@ -286,17 +279,16 @@ def write_report(cells, out_path):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--velocities", type=float, nargs="+",
-                   default=[0.5, 0.9, 0.99, 1.0, 1.1, 1.5, 2.0, 2.5])
+    p.add_argument(
+        "--velocities", type=float, nargs="+", default=[0.5, 0.9, 0.99, 1.0, 1.1, 1.5, 2.0, 2.5]
+    )
     p.add_argument("--n-main", type=int, default=50)
     p.add_argument("--refine-ns", type=int, nargs="+", default=[30, 50, 70])
-    p.add_argument("--refine-velocities", type=float, nargs="+",
-                   default=[0.99, 1.0, 1.5])
+    p.add_argument("--refine-velocities", type=float, nargs="+", default=[0.99, 1.0, 1.5])
     p.add_argument("--mpmath-cap", type=int, default=120)
     p.add_argument("--gen-cap", type=int, default=2000)
     p.add_argument("--metrics", type=str, nargs="+", default=METRIC_ORDER)
-    p.add_argument("--smoke", action="store_true",
-                   help="fast tiny config to check the script runs")
+    p.add_argument("--smoke", action="store_true", help="fast tiny config to check the script runs")
     args = p.parse_args()
 
     if args.smoke:
@@ -320,19 +312,24 @@ def main():
             t0 = time.time()
             do_refine = v_s in args.refine_velocities
             c = run_cell(
-                name, v_s, args.n_main, args.refine_ns,
-                args.mpmath_cap, args.gen_cap, do_refine,
+                name,
+                v_s,
+                args.n_main,
+                args.refine_ns,
+                args.mpmath_cap,
+                args.gen_cap,
+                do_refine,
             )
             cells.append(c)
             print(
                 f"  {name:>14s} v_s={v_s:.2f}  "
-                f"TypeIV(wall)={c['wall_frac_type_IV']*100:6.2f}%  "
+                f"TypeIV(wall)={c['wall_frac_type_IV'] * 100:6.2f}%  "
                 f"tol_spread={c['tol_spread_pp']:.2f}pp  "
                 f"std/gen={_fmt(c['std_gen_agreement'])}  "
                 f"mpflip={_fmt(c['mpmath_flip_rate'])}  "
                 f"refine={_fmt(c['refine_stable'])}  "
                 f"trust={_fmt(c['type_iv_trustworthy'])}  "
-                f"({time.time()-t0:.0f}s)"
+                f"({time.time() - t0:.0f}s)"
             )
 
     out_json = os.path.join(RESULTS_DIR, "superluminal_gate.json")

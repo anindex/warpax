@@ -31,6 +31,7 @@ to ``(nx, ny, nz)`` for the warpax ``(t, x, y, z)`` ordering, Nt=1.
 Scope: single iteration / single timelevel; AMR-component groups are
 out of scope.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -45,23 +46,18 @@ from ._interpolated import InterpolatedADMMetric
 __all__ = ["load_cactus_slice"]
 
 
-def _read_slice_arrays(
-    f, iteration: int, timelevel: int
-) -> dict[str, np.ndarray]:
+def _read_slice_arrays(f, iteration: int, timelevel: int) -> dict[str, np.ndarray]:
     """Read the ET-canonical keys from the specified group."""
     group_path = f"ITERATION={iteration}/TIMELEVEL={timelevel}"
     if group_path not in f:
         raise ValueError(
-            f"HDF5 group '{group_path}' not found. Available top-level groups: "
-            f"{list(f.keys())}."
+            f"HDF5 group '{group_path}' not found. Available top-level groups: {list(f.keys())}."
         )
     grp = f[group_path]
     keys = ("alp", "betax", "betay", "betaz", "gxx", "gxy", "gxz", "gyy", "gyz", "gzz")
     missing = [k for k in keys if k not in grp]
     if missing:
-        raise ValueError(
-            f"HDF5 group '{group_path}' missing ET-canonical datasets: {missing}"
-        )
+        raise ValueError(f"HDF5 group '{group_path}' missing ET-canonical datasets: {missing}")
     data = {k: np.asarray(grp[k][()], dtype=np.float64) for k in keys}
 
     attrs = {}
@@ -73,7 +69,9 @@ def _read_slice_arrays(
 
 def _assemble_adm_from_zyx(
     data: dict[str, np.ndarray], attrs: dict[str, float]
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, tuple[tuple[float, float], ...], tuple[int, int, int, int]]:
+) -> tuple[
+    np.ndarray, np.ndarray, np.ndarray, tuple[tuple[float, float], ...], tuple[int, int, int, int]
+]:
     """Transpose ET ``(nz, ny, nx)`` layout to warpax ``(nx, ny, nz)`` + wrap Nt=1."""
     # Each ET array is (nz, ny, nx); transpose to (nx, ny, nz).
     perm = (2, 1, 0)

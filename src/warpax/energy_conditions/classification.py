@@ -43,6 +43,7 @@ Because Type III and Type IV violate every standard energy condition
 III or IV whose LMI margin certifies satisfaction is a classification error, and
 counting them measures the rate rather than assuming it away.
 """
+
 from __future__ import annotations
 
 import jax
@@ -112,11 +113,7 @@ def _is_unreliable_single(
     max_abs = jnp.max(jnp.abs(eigenvalues))
     max_imag = jnp.max(jnp.abs(eigenvalues_imag))
     scale = jnp.maximum(max_abs, 1.0)
-    return (
-        (he_type == 4.0)
-        | (max_abs > max_eigenvalue)
-        | (max_imag > imag_rtol * scale)
-    )
+    return (he_type == 4.0) | (max_abs > max_eigenvalue) | (max_imag > imag_rtol * scale)
 
 
 def classify_with_solver(
@@ -136,35 +133,51 @@ def classify_with_solver(
     :func:`_is_unreliable_single`.
     """
     if solver not in _VALID_SOLVERS:
-        raise ValueError(
-            f"solver must be one of {_VALID_SOLVERS}; got {solver!r}"
-        )
+        raise ValueError(f"solver must be one of {_VALID_SOLVERS}; got {solver!r}")
     if solver == "standard":
         return classify_hawking_ellis(
-            T_mixed, g_ab, solver="standard", tol=tol, imag_rtol=imag_rtol,
+            T_mixed,
+            g_ab,
+            solver="standard",
+            tol=tol,
+            imag_rtol=imag_rtol,
         )
     if solver == "generalized":
         if T_ab is None:
             T_ab = g_ab @ T_mixed
         return classify_hawking_ellis(
-            T_mixed, g_ab, solver="generalized", T_ab=T_ab,
-            tol=tol, imag_rtol=imag_rtol,
+            T_mixed,
+            g_ab,
+            solver="generalized",
+            T_ab=T_ab,
+            tol=tol,
+            imag_rtol=imag_rtol,
         )
 
     cls_std = classify_hawking_ellis(
-        T_mixed, g_ab, solver="standard", tol=tol, imag_rtol=imag_rtol,
+        T_mixed,
+        g_ab,
+        solver="standard",
+        tol=tol,
+        imag_rtol=imag_rtol,
     )
     T_ab_local = g_ab @ T_mixed if T_ab is None else T_ab
 
     needs_fallback = _is_unreliable_single(
-        cls_std.he_type, cls_std.eigenvalues, cls_std.eigenvalues_imag,
+        cls_std.he_type,
+        cls_std.eigenvalues,
+        cls_std.eigenvalues_imag,
         imag_rtol=imag_rtol,
     )
 
     def _gen_branch(_):
         return classify_hawking_ellis(
-            T_mixed, g_ab, solver="generalized", T_ab=T_ab_local,
-            tol=tol, imag_rtol=imag_rtol,
+            T_mixed,
+            g_ab,
+            solver="generalized",
+            T_ab=T_ab_local,
+            tol=tol,
+            imag_rtol=imag_rtol,
         )
 
     def _std_branch(_):
@@ -177,7 +190,7 @@ def classify_hawking_ellis(
     T_mixed: Float[Array, "4 4"],
     g_ab: Float[Array, "4 4"],
     *,
-    solver: str = 'standard',
+    solver: str = "standard",
     T_ab: Float[Array, "4 4"] | None = None,
     tol: float = 1e-10,
     imag_rtol: float = 3e-3,
@@ -236,10 +249,8 @@ def classify_hawking_ellis(
         if ``solver='generalized'`` is requested without scipy installed
         (``pip install warpax[solver]`` to enable the path).
     """
-    if solver not in ('standard', 'generalized'):
-        raise ValueError(
-            f"solver must be 'standard' or 'generalized'; got {solver!r}"
-        )
+    if solver not in ("standard", "generalized"):
+        raise ValueError(f"solver must be 'standard' or 'generalized'; got {solver!r}")
 
     # cuSolver's geev crashes on non-finite GPU inputs (CPU is graceful). Zero
     # them so the solver survives, but remember: a zeroed point used to come out
@@ -248,7 +259,7 @@ def classify_hawking_ellis(
     has_nan = jnp.any(~jnp.isfinite(T_mixed))
     T_safe = jnp.where(jnp.isfinite(T_mixed), T_mixed, 0.0)
 
-    if solver == 'standard':
+    if solver == "standard":
         eigenvalues, eigenvectors = jnp.linalg.eig(T_safe)
     else:
         if T_ab is None:
@@ -259,8 +270,7 @@ def classify_hawking_ellis(
             from warpax.energy_conditions._gen_eig_callback import _gen_eig_pencil
         except ImportError as e:
             raise ValueError(
-                "scipy is required for solver='generalized'; "
-                "install warpax[solver]"
+                "scipy is required for solver='generalized'; install warpax[solver]"
             ) from e
         eigenvalues, eigenvectors = _gen_eig_pencil(T_ab_safe, g_ab_safe)
 
@@ -276,9 +286,7 @@ def classify_hawking_ellis(
     # T -> cT and costs nothing: measured, it flips 0 of 704 wall points on all
     # four constructions and only far-tail points outside the band. Exact vacuum
     # takes the near_vacuum branch below, so a zero scale is never reached.
-    scale = jnp.maximum(
-        jnp.maximum(jnp.max(jnp.abs(evals_real)), jnp.max(jnp.abs(T_safe))), 1e-300
-    )
+    scale = jnp.maximum(jnp.maximum(jnp.max(jnp.abs(evals_real)), jnp.max(jnp.abs(T_safe))), 1e-300)
 
     # Real spectrum: |Im| < tol * scale.
     #
@@ -309,9 +317,7 @@ def classify_hawking_ellis(
     # of -4.5e-13 against a noise floor of 1e-18, and was published as +0.0
     # because Type-I points never reach the LMI. Every point the published grids
     # actually gate has max|T| identically zero, so this changes no number.
-    near_vacuum = (jnp.max(jnp.abs(eigenvalues)) < tol) & (
-        jnp.max(jnp.abs(T_safe)) == 0.0
-    )
+    near_vacuum = (jnp.max(jnp.abs(eigenvalues)) < tol) & (jnp.max(jnp.abs(T_safe)) == 0.0)
 
     # Causal character g_{ab} v^a v^b per eigenvector, on a relative sign
     # threshold. Clamping the scale at 1.0 made it absolute below unit scale:
@@ -331,16 +337,23 @@ def classify_hawking_ellis(
     # of consecutive small gaps, plus the index of the cluster's first member.
     close = gaps <= tol * scale
     longest_run = jnp.where(
-        close[0] & close[1] & close[2], 3,
-        jnp.where((close[0] & close[1]) | (close[1] & close[2]), 2,
-                  jnp.where(close[0] | close[1] | close[2], 1, 0)),
+        close[0] & close[1] & close[2],
+        3,
+        jnp.where(
+            (close[0] & close[1]) | (close[1] & close[2]),
+            2,
+            jnp.where(close[0] | close[1] | close[2], 1, 0),
+        ),
     )
     max_multiplicity = 1 + longest_run
     run_start = jnp.where(
-        close[0] & close[1] & close[2], 0,
-        jnp.where(close[0] & close[1], 0,
-                  jnp.where(close[1] & close[2], 1,
-                            jnp.where(close[0], 0, jnp.where(close[1], 1, 2)))),
+        close[0] & close[1] & close[2],
+        0,
+        jnp.where(
+            close[0] & close[1],
+            0,
+            jnp.where(close[1] & close[2], 1, jnp.where(close[0], 0, jnp.where(close[1], 1, 2))),
+        ),
     )
     # Mean of the cluster is the stable estimate of the repeated eigenvalue: a
     # defective block splits symmetrically about it.
@@ -383,12 +396,14 @@ def classify_hawking_ellis(
     n_null_split = jnp.sum(jnp.abs(relative_g_quad) <= split_null_tol)
 
     is_type_iv = ~all_real & ~near_vacuum
-    is_type_iii = all_real & ~near_vacuum & (max_multiplicity >= 3) & (defect >= 2) & (
-        (n_null >= 1) | (evecs_collapsed & (n_null_split >= 1))
+    is_type_iii = (
+        all_real
+        & ~near_vacuum
+        & (max_multiplicity >= 3)
+        & (defect >= 2)
+        & ((n_null >= 1) | (evecs_collapsed & (n_null_split >= 1)))
     )
-    is_type_i = (
-        all_real & (n_timelike >= 1) & (n_null == 0) & ~is_type_iii
-    ) | near_vacuum
+    is_type_i = (all_real & (n_timelike >= 1) & (n_null == 0) & ~is_type_iii) | near_vacuum
 
     he_type = jnp.where(
         is_type_iv,
@@ -438,7 +453,7 @@ def classify_mixed_tensor(
     g_ab: Float[Array, "4 4"],
     g_inv: Float[Array, "4 4"],
     *,
-    solver: str = 'standard',
+    solver: str = "standard",
     tol: float = 1e-10,
 ) -> ClassificationResult:
     """Convenience wrapper: raise the FIRST index of T then classify.
@@ -467,8 +482,9 @@ def classify_mixed_tensor(
     """
     T_mixed = jnp.einsum("ac,cb->ab", g_inv, T_ab)
     return classify_hawking_ellis(
-        T_mixed, g_ab,
+        T_mixed,
+        g_ab,
         solver=solver,
-        T_ab=T_ab if solver == 'generalized' else None,
+        T_ab=T_ab if solver == "generalized" else None,
         tol=tol,
     )

@@ -4,6 +4,7 @@ Two benchmarks covering the Diffrax-driven ODE path through an Alcubierre
 warp spacetime: (7) plain timelike geodesic integration; (8) geodesic
 + Jacobi deviation co-integration.
 """
+
 from __future__ import annotations
 
 import os
@@ -41,14 +42,10 @@ class GeodesicIntegration:
         self.metric = AlcubierreMetric(v_s=0.5, R=2.0, sigma=8.0)
         self.x0, self.u0 = _alcubierre_ic(self.metric)
         # Warm up by running once.
-        _ = integrate_geodesic(
-            self.metric, self.x0, self.u0, (0.0, 10.0), num_points=200
-        )
+        _ = integrate_geodesic(self.metric, self.x0, self.u0, (0.0, 10.0), num_points=200)
 
     def time_geodesic_integration(self) -> None:
-        result = integrate_geodesic(
-            self.metric, self.x0, self.u0, (0.0, 10.0), num_points=200
-        )
+        result = integrate_geodesic(self.metric, self.x0, self.u0, (0.0, 10.0), num_points=200)
         # Access an array field to force materialization.
         result.positions.block_until_ready()
 

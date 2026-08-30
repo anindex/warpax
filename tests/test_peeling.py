@@ -17,6 +17,7 @@ deliberately non-silent linearized transverse-traceless wave, the positive
 control proving the instrument reads real radiative peeling, not a pipeline
 artifact.
 """
+
 from __future__ import annotations
 
 import jax
@@ -54,7 +55,7 @@ def _make_krt(G0, M0=1.0, M1=0.05, OM=0.5):
             zdot = jax.jacfwd(worldline)(u)
             D = X - z
             r = -(_ETA @ zdot) @ D
-            F = -D[0] ** 2 + D[1] ** 2 + D[2] ** 2 + D[3] ** 2
+            F = -(D[0] ** 2) + D[1] ** 2 + D[2] ** 2 + D[3] ** 2
             return u - F / (2.0 * r), None
 
         u0 = X[0] - jnp.sqrt(X[1] ** 2 + X[2] ** 2 + X[3] ** 2)
@@ -101,7 +102,7 @@ _WAVE_A, _WAVE_OM = 1e-3, 1.0
 
 def _wave_metric(X):
     t, x, y, z = X
-    r = jnp.sqrt(x ** 2 + y ** 2 + z ** 2)
+    r = jnp.sqrt(x**2 + y**2 + z**2)
     hp = _WAVE_A * jnp.cos(_WAVE_OM * (t - r)) / r
     g = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
     g = g.at[2, 2].add(hp)
@@ -117,8 +118,7 @@ def _wave_cone(r, theta):
 def test_schwarzschild_psi2_peels_minus3():
     """Static vacuum: Psi_2 ~ r^-3; all other scalars below the resolution floor."""
     schw = SchwarzschildMetric(M=1.0)
-    res = peeling_slopes(schw.__call__, _schw_cone,
-                         radii=(40.0, 80.0, 160.0, 320.0, 640.0))
+    res = peeling_slopes(schw.__call__, _schw_cone, radii=(40.0, 80.0, 160.0, 320.0, 640.0))
     assert abs(res.slopes[2] - (-3.0)) < 0.06
     for n in (0, 1, 3, 4):
         assert not res.above_floor[n]
@@ -127,24 +127,21 @@ def test_schwarzschild_psi2_peels_minus3():
 def test_krt_psi2_peels_and_gw_silent():
     """Kinnersley rocket: Psi_2 ~ r^-3 and Psi_4 at floor (GW-silent dipole)."""
     metric_fn, _ = _make_krt(G0=0.10)
-    res = peeling_slopes(metric_fn, _krt_cone,
-                         radii=(20.0, 40.0, 80.0, 160.0, 320.0))
+    res = peeling_slopes(metric_fn, _krt_cone, radii=(20.0, 40.0, 80.0, 160.0, 320.0))
     assert abs(res.slopes[2] - (-3.0)) < 0.02
-    assert not res.above_floor[4]          # GW-silent: no radiative Psi_4 tail
-    assert res.ricci_max < 1e-7            # exact solution
+    assert not res.above_floor[4]  # GW-silent: no radiative Psi_4 tail
+    assert res.ricci_max < 1e-7  # exact solution
 
 
 def test_vaidya_psi2_peels():
     """Vaidya monopole (isotropic mass loss): Psi_2 ~ r^-3."""
-    metric_fn, _ = _make_krt(G0=1e-8)      # G0 -> 0: spherical Vaidya
-    res = peeling_slopes(metric_fn, _krt_cone,
-                         radii=(20.0, 40.0, 80.0, 160.0, 320.0))
+    metric_fn, _ = _make_krt(G0=1e-8)  # G0 -> 0: spherical Vaidya
+    res = peeling_slopes(metric_fn, _krt_cone, radii=(20.0, 40.0, 80.0, 160.0, 320.0))
     assert abs(res.slopes[2] - (-3.0)) < 0.02
 
 
 def test_wave_psi4_peels_minus1():
     """Linearized TT wave: genuine radiative Psi_4 ~ r^-1 (the positive control)."""
-    res = peeling_slopes(_wave_metric, _wave_cone,
-                         radii=(50.0, 100.0, 200.0, 400.0, 800.0))
+    res = peeling_slopes(_wave_metric, _wave_cone, radii=(50.0, 100.0, 200.0, 400.0, 800.0))
     assert res.above_floor[4]
     assert abs(res.slopes[4] - (-1.0)) < 0.05

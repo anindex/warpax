@@ -161,9 +161,7 @@ def find_mp4(
 # stack size). The GPU OpenGL renderer projects on-device and is stable, so these
 # scenes render with ``--renderer=opengl`` under EGL (headless). 2D scenes keep
 # the Cairo renderer, whose output is already validated.
-_OPENGL_SCENES = frozenset(
-    {"WallAndVelocitySweep", "VelocitySweep", "BoostRapiditySweep"}
-)
+_OPENGL_SCENES = frozenset({"WallAndVelocitySweep", "VelocitySweep", "BoostRapiditySweep"})
 
 
 def render_scene(

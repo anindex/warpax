@@ -1,4 +1,5 @@
 """Tests for parameter space sweep and transport visualization."""
+
 from __future__ import annotations
 
 import jax
@@ -9,10 +10,10 @@ import pytest
 jax.config.update("jax_enable_x64", True)
 
 
-#, Data structure tests -----------------------------------------------------
+# , Data structure tests -----------------------------------------------------
+
 
 class TestSweepPoint:
-
     def test_fields_and_dict(self):
         from warpax.optimization.sweep import SweepPoint
 
@@ -38,25 +39,26 @@ class TestSweepPoint:
 
 
 class TestSweepResult:
-
     def _make_result(self, nc=3, nt=2):
         from warpax.optimization.sweep import SweepPoint, SweepResult
 
         points = []
         for i in range(nc):
             for j in range(nt):
-                points.append(SweepPoint(
-                    compactness=0.05 * (i + 1),
-                    thickness_ratio=0.3 + 0.1 * j,
-                    rho_max=1e-4,
-                    transport=0.001 * (i + 1) * (j + 1),
-                    transport_invariant=0.0,
-                    ec_feasible=(i + j) % 2 == 0,
-                    worst_ec_margin=0.01 if (i + j) % 2 == 0 else -0.05,
-                    constraint_residual=0.001,
-                    mass=2.0 + 0.5 * i,
-                    tidal=1e-6 * (j + 1),
-                ))
+                points.append(
+                    SweepPoint(
+                        compactness=0.05 * (i + 1),
+                        thickness_ratio=0.3 + 0.1 * j,
+                        rho_max=1e-4,
+                        transport=0.001 * (i + 1) * (j + 1),
+                        transport_invariant=0.0,
+                        ec_feasible=(i + j) % 2 == 0,
+                        worst_ec_margin=0.01 if (i + j) % 2 == 0 else -0.05,
+                        constraint_residual=0.001,
+                        mass=2.0 + 0.5 * i,
+                        tidal=1e-6 * (j + 1),
+                    )
+                )
         return SweepResult(
             points=points,
             compactness_values=jnp.linspace(0.05, 0.15, nc),
@@ -76,6 +78,7 @@ class TestSweepResult:
         result.save(save_file)
 
         from warpax.optimization.sweep import SweepResult
+
         loaded = SweepResult.load(save_file)
         assert len(loaded.points) == len(result.points)
         assert loaded.points[0].compactness == result.points[0].compactness
@@ -144,10 +147,10 @@ class TestSweepResult:
                 assert np.isnan(grids["transport"][i, j])
 
 
-#, Density scaling ----------------------------------------------------------
+# , Density scaling ----------------------------------------------------------
+
 
 class TestDensityScaling:
-
     def test_positive_density(self):
         from warpax.optimization.sweep import _rho_from_compactness
 
@@ -170,18 +173,25 @@ class TestDensityScaling:
         assert rho_thin > rho_thick
 
 
-#, Single-point evaluation --------------------------------------------------
+# , Single-point evaluation --------------------------------------------------
+
 
 class TestEvaluatePoint:
-
     def test_higher_density_higher_transport(self):
         """Transport increases with density, and a single evaluation returns
         sane fields (nonzero transport/mass, finite residual/tidal)."""
         from warpax.optimization.sweep import _evaluate_point
 
         r_low = _evaluate_point(
-            ansatz="tshell", R_1=10.0, R_2=20.0, rho_0=5e-5,
-            n_density=4, n_velocity=4, n_grid=256, n_probes=3, n_ec_starts=2,
+            ansatz="tshell",
+            R_1=10.0,
+            R_2=20.0,
+            rho_0=5e-5,
+            n_density=4,
+            n_velocity=4,
+            n_grid=256,
+            n_probes=3,
+            n_ec_starts=2,
         )
         # Sanity of a single point (folded from test_returns_nonzero_transport)
         assert r_low["transport"] > 0
@@ -191,16 +201,23 @@ class TestEvaluatePoint:
         assert isinstance(r_low["ec_feasible"], bool)
 
         r_high = _evaluate_point(
-            ansatz="tshell", R_1=10.0, R_2=20.0, rho_0=2e-4,
-            n_density=4, n_velocity=4, n_grid=256, n_probes=3, n_ec_starts=2,
+            ansatz="tshell",
+            R_1=10.0,
+            R_2=20.0,
+            rho_0=2e-4,
+            n_density=4,
+            n_velocity=4,
+            n_grid=256,
+            n_probes=3,
+            n_ec_starts=2,
         )
         assert r_high["transport"] > r_low["transport"]
 
 
-#, Sweep driver -------------------------------------------------------------
+# , Sweep driver -------------------------------------------------------------
+
 
 class TestSweepDriver:
-
     @pytest.mark.slow
     def test_minimal_sweep(self):
         """2x2 sweep completes and returns valid results."""
@@ -231,10 +248,10 @@ class TestSweepDriver:
             assert pt.transport > 0
 
 
-#, Visualization ------------------------------------------------------------
+# , Visualization ------------------------------------------------------------
+
 
 class TestPhaseDiagramPlot:
-
     def _make_sweep(self):
         from warpax.optimization.sweep import SweepPoint, SweepResult
 
@@ -246,18 +263,20 @@ class TestPhaseDiagramPlot:
                 t_ratio = 0.3 + 0.1 * j
                 transport = 0.01 * np.sin(i * 0.5) * np.cos(j * 0.5)
                 feas = (i + j) < 5
-                points.append(SweepPoint(
-                    compactness=c,
-                    thickness_ratio=t_ratio,
-                    rho_max=1e-4 * (i + 1),
-                    transport=max(transport, 0.0),
-                    transport_invariant=0.0,
-                    ec_feasible=feas,
-                    worst_ec_margin=0.01 if feas else -0.05,
-                    constraint_residual=0.001 * (i + 1),
-                    mass=2.0 + 0.3 * i,
-                    tidal=1e-6 * (j + 1),
-                ))
+                points.append(
+                    SweepPoint(
+                        compactness=c,
+                        thickness_ratio=t_ratio,
+                        rho_max=1e-4 * (i + 1),
+                        transport=max(transport, 0.0),
+                        transport_invariant=0.0,
+                        ec_feasible=feas,
+                        worst_ec_margin=0.01 if feas else -0.05,
+                        constraint_residual=0.001 * (i + 1),
+                        mass=2.0 + 0.3 * i,
+                        tidal=1e-6 * (j + 1),
+                    )
+                )
         return SweepResult(
             points=points,
             compactness_values=jnp.linspace(0.03, 0.15, nc),
@@ -266,6 +285,7 @@ class TestPhaseDiagramPlot:
 
     def test_single_panel(self):
         import matplotlib
+
         matplotlib.use("Agg")
         from warpax.visualization.phase_diagram import plot_phase_diagram
 
@@ -273,10 +293,12 @@ class TestPhaseDiagramPlot:
         fig = plot_phase_diagram(sweep)
         assert fig is not None
         import matplotlib.pyplot as plt
+
         plt.close(fig)
 
     def test_single_panel_pdf(self, tmp_path):
         import matplotlib
+
         matplotlib.use("Agg")
         from warpax.visualization.phase_diagram import plot_phase_diagram
 
@@ -287,11 +309,13 @@ class TestPhaseDiagramPlot:
         assert result is None
 
         from pathlib import Path
+
         assert Path(pdf_path).exists()
         assert Path(pdf_path).stat().st_size > 0
 
     def test_summary_panel_count(self):
         import matplotlib
+
         matplotlib.use("Agg")
         from warpax.visualization.phase_diagram import plot_phase_summary
 
@@ -300,10 +324,12 @@ class TestPhaseDiagramPlot:
         assert fig is not None
         assert len(fig.axes) >= 4
         import matplotlib.pyplot as plt
+
         plt.close(fig)
 
     def test_summary_pdf(self, tmp_path):
         import matplotlib
+
         matplotlib.use("Agg")
         from warpax.visualization.phase_diagram import plot_phase_summary
 
@@ -313,4 +339,5 @@ class TestPhaseDiagramPlot:
         assert result is None
 
         from pathlib import Path
+
         assert Path(pdf_path).exists()

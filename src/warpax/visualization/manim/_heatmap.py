@@ -193,9 +193,7 @@ def framedata_to_heatmap(
         # relief depth, which collapses to ~0 as the field flattens (e.g. the
         # rampdown tail), yielding inf coordinates that crash the Cairo renderer.
         target_z = float(axes.c2p(0.0, 0.0, z_offset)[2])
-        surface.apply_function(
-            lambda p: np.array([p[0], p[1], target_z], dtype=float)
-        )
+        surface.apply_function(lambda p: np.array([p[0], p[1], target_z], dtype=float))
     elif z_offset != 0.0:
         # Legacy value-relief: shift along the z-axis in scene coordinates.
         origin = axes.c2p(0, 0, 0)

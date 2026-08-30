@@ -15,6 +15,7 @@ A resolution gate (:func:`wall_cells`) operationalises the paper's
 ``MIN_WALL_CELLS`` grid cells is flagged ``resolved=False`` and its certification
 numbers are withheld.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -76,6 +77,7 @@ class ConstructionSpec:
     def center_of(self, metric: MetricSpecification) -> float:
         gc = self.grid_center
         return float(gc(metric)) if callable(gc) else float(gc)
+
     extra: dict = field(default_factory=dict)
 
     def metric(self, speed: float | None = None) -> MetricSpecification:
@@ -95,9 +97,7 @@ def _natario(v_s):
 
 
 def _vdb(v_s):
-    return VanDenBroeckMetric(
-        v_s=v_s, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0
-    )
+    return VanDenBroeckMetric(v_s=v_s, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
 
 
 def _garattini(v_s):
@@ -116,35 +116,63 @@ def construction_registry() -> dict[str, ConstructionSpec]:
         # 6.0 for the same grid because it summed the +x and -x crossings.)
         # N = 64 gives 4.72.
         ConstructionSpec(
-            "Alcubierre", _alcubierre, 0.5, "v_s", ((-3.0, 3.0),) * 3, 64,
+            "Alcubierre",
+            _alcubierre,
+            0.5,
+            "v_s",
+            ((-3.0, 3.0),) * 3,
+            64,
             is_comoving=True,
             claim="baseline; NEC/WEC violated for all observers",
             params={"v_s": 0.5, "R": 1.0, "sigma": 8.0},
-            wall_radius=1.0, r_max=3.0,
+            wall_radius=1.0,
+            r_max=3.0,
         ),
         ConstructionSpec(
-            "Rodal", _rodal, 0.5, "v_s", ((-3.0, 3.0),) * 3, 64,
+            "Rodal",
+            _rodal,
+            0.5,
+            "v_s",
+            ((-3.0, 3.0),) * 3,
+            64,
             is_comoving=True,
             claim="global Hawking-Ellis Type I; reduced (not eliminated) violations",
             params={"v_s": 0.5, "R": 1.0, "sigma": 8.0},
-            wall_radius=1.0, r_max=3.0,
+            wall_radius=1.0,
+            r_max=3.0,
         ),
         # Additional positive-energy / source-prescribed constructions.
         ConstructionSpec(
-            "Fuchs", lambda v: fuchs_default(v_s=v), 0.02, "v_s",
-            ((-25.0, 25.0),) * 3, 60, is_comoving=True,
-            claim="constant-velocity shell satisfying all energy conditions "
-                  "(arXiv:2405.02709)",
-            params={"v_s": 0.02, "R_1": 10.0, "R_2": 20.0, "R_b": 1.0,
-                    "r_s_param": 6.668692, "kernel": "moving_average"},
-            wall_radius=15.0, r_max=25.0,
+            "Fuchs",
+            lambda v: fuchs_default(v_s=v),
+            0.02,
+            "v_s",
+            ((-25.0, 25.0),) * 3,
+            60,
+            is_comoving=True,
+            claim="constant-velocity shell satisfying all energy conditions (arXiv:2405.02709)",
+            params={
+                "v_s": 0.02,
+                "R_1": 10.0,
+                "R_2": 20.0,
+                "R_b": 1.0,
+                "r_s_param": 6.668692,
+                "kernel": "moving_average",
+            },
+            wall_radius=15.0,
+            r_max=25.0,
         ),
         ConstructionSpec(
-            "WarpShell", lambda v: WarpShellPhysical(v_s=v), 0.02, "v_s",
-            ((-25.0, 25.0),) * 3, 60, is_comoving=True,
-            wall_radius=15.0, r_max=25.0,
-            claim="Bobrick-Martire / Fell-Heisenberg shell; WEC/NEC/SEC at wall, "
-                  "DEC violated",
+            "WarpShell",
+            lambda v: WarpShellPhysical(v_s=v),
+            0.02,
+            "v_s",
+            ((-25.0, 25.0),) * 3,
+            60,
+            is_comoving=True,
+            wall_radius=15.0,
+            r_max=25.0,
+            claim="Bobrick-Martire / Fell-Heisenberg shell; WEC/NEC/SEC at wall, DEC violated",
         ),
         ConstructionSpec(
             # N = 192, not 64: the published bubble co-moves with the Hubble flow
@@ -152,25 +180,43 @@ def construction_registry() -> dict[str, ConstructionSpec]:
             # a grid whose radial clustering is anchored on the origin spends its
             # resolution on the bubble centre instead of its wall. At N = 64 the
             # wall spans 1.42 cells; the four-cell floor needs N >= 181.
-            "Garattini", _garattini, 0.1, "v_s",
-            ((-3.0, 3.0),) * 3, 192, is_comoving=True,
+            "Garattini",
+            _garattini,
+            0.1,
+            "v_s",
+            ((-3.0, 3.0),) * 3,
+            192,
+            is_comoving=True,
             claim="de Sitter background; averaged ANEC/AWEC satisfied at the "
-                  "matched speed v_s = H R, pointwise NEC/WEC violated at the wall "
-                  "(arXiv:2502.13153)",
+            "matched speed v_s = H R, pointwise NEC/WEC violated at the wall "
+            "(arXiv:2502.13153)",
             params={"v_s": 0.1, "R": 1.0, "sigma": 8.0, "H": 0.1},
-            wall_radius=1.0, r_max=3.0,
+            wall_radius=1.0,
+            r_max=3.0,
             grid_center=lambda m: m.v_s / m.H,
         ),
         ConstructionSpec(
-            "S-shell", lambda v: sshell_default(v_s=v), 0.02, "v_s",
-            ((-25.0, 25.0),) * 3, 60, is_comoving=True,
-            wall_radius=15.0, r_max=25.0,
+            "S-shell",
+            lambda v: sshell_default(v_s=v),
+            0.02,
+            "v_s",
+            ((-25.0, 25.0),) * 3,
+            60,
+            is_comoving=True,
+            wall_radius=15.0,
+            r_max=25.0,
             claim="source-first Class-I positive-density shell",
         ),
         ConstructionSpec(
-            "T-shell", lambda v: tshell_default(v_0=v), 0.1, "v_0",
-            ((-25.0, 25.0),) * 3, 60, is_comoving=False,
-            wall_radius=15.0, r_max=25.0,
+            "T-shell",
+            lambda v: tshell_default(v_0=v),
+            0.1,
+            "v_0",
+            ((-25.0, 25.0),) * 3,
+            60,
+            is_comoving=False,
+            wall_radius=15.0,
+            r_max=25.0,
             claim="origin-static transport shell (matter tilt v_0)",
         ),
     ]
@@ -230,34 +276,45 @@ def matched_registry() -> dict[str, ConstructionSpec]:
     )
     specs = [
         ConstructionSpec(
-            "Alcubierre", lambda vv: AlcubierreMetric(v_s=vv, R=R, sigma=s), v,
-            claim="baseline; NEC/WEC violated for all observers",
-            params={"v_s": v, "R": R, "sigma": s}, **common,
-        ),
-        ConstructionSpec(
-            "Rodal", lambda vv: RodalMetric(v_s=vv, R=R, sigma=s), v,
-            claim="global Hawking-Ellis Type I; reduced (not eliminated) violations",
-            params={"v_s": v, "R": R, "sigma": s}, **common,
-        ),
-        ConstructionSpec(
-            "Fuchs", lambda vv: fuchs_default(v_s=vv, R_1=10.0, R_2=20.0,
-                                              R_b=1.0, r_s_param=6.668692),
+            "Alcubierre",
+            lambda vv: AlcubierreMetric(v_s=vv, R=R, sigma=s),
             v,
-            claim="constant-velocity shell satisfying all energy conditions "
-                  "(arXiv:2405.02709)",
-            params={"v_s": v, "R_1": 10.0, "R_2": 20.0, "R_b": 1.0,
-                    "r_s_param": 6.668692, "kernel": "moving_average",
-                    "sigmoid": "published (Fuchs Eq. 31-32)"},
+            claim="baseline; NEC/WEC violated for all observers",
+            params={"v_s": v, "R": R, "sigma": s},
+            **common,
+        ),
+        ConstructionSpec(
+            "Rodal",
+            lambda vv: RodalMetric(v_s=vv, R=R, sigma=s),
+            v,
+            claim="global Hawking-Ellis Type I; reduced (not eliminated) violations",
+            params={"v_s": v, "R": R, "sigma": s},
+            **common,
+        ),
+        ConstructionSpec(
+            "Fuchs",
+            lambda vv: fuchs_default(v_s=vv, R_1=10.0, R_2=20.0, R_b=1.0, r_s_param=6.668692),
+            v,
+            claim="constant-velocity shell satisfying all energy conditions (arXiv:2405.02709)",
+            params={
+                "v_s": v,
+                "R_1": 10.0,
+                "R_2": 20.0,
+                "R_b": 1.0,
+                "r_s_param": 6.668692,
+                "kernel": "moving_average",
+                "sigmoid": "published (Fuchs Eq. 31-32)",
+            },
             **common,
         ),
         ConstructionSpec(
             "Garattini",
-            lambda vv: GarattiniMetric(v_s=vv, R=R, sigma=s, H=vv / R), v,
+            lambda vv: GarattiniMetric(v_s=vv, R=R, sigma=s, H=vv / R),
+            v,
             claim="de Sitter background; averaged ANEC/AWEC satisfied at the "
-                  "matched speed v_s = H R, pointwise NEC/WEC violated at the "
-                  "wall (arXiv:2502.13153)",
-            params={"v_s": v, "R": R, "sigma": s, "H": v / R,
-                    "Lambda_R2": 3.0 * (v) ** 2},
+            "matched speed v_s = H R, pointwise NEC/WEC violated at the "
+            "wall (arXiv:2502.13153)",
+            params={"v_s": v, "R": R, "sigma": s, "H": v / R, "Lambda_R2": 3.0 * (v) ** 2},
             grid_center=lambda m: m.v_s / m.H,
             **common,
         ),
@@ -265,8 +322,7 @@ def matched_registry() -> dict[str, ConstructionSpec]:
     return {sp.name: sp for sp in specs}
 
 
-def wall_cells(spec: ConstructionSpec, speed: float | None = None,
-               n: int | None = None) -> float:
+def wall_cells(spec: ConstructionSpec, speed: float | None = None, n: int | None = None) -> float:
     """Worst-case cells across the 10-90% wall, on the grid actually evaluated.
 
     Delegates to the single shared witness :func:`warpax.grids.wall_cells_on_axis`.
@@ -286,7 +342,8 @@ def wall_cells(spec: ConstructionSpec, speed: float | None = None,
     return float(wall_cells_on_axis(metric, grid.axes[0]).cells)
 
 
-def is_resolved(spec: ConstructionSpec, speed: float | None = None,
-                n: int | None = None) -> tuple[bool, float]:
+def is_resolved(
+    spec: ConstructionSpec, speed: float | None = None, n: int | None = None
+) -> tuple[bool, float]:
     cells = wall_cells(spec, speed=speed, n=n)
     return cells >= MIN_WALL_CELLS, cells

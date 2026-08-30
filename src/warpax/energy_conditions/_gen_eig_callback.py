@@ -16,6 +16,7 @@ scipy is imported lazily by the caller (``classification.py`` only imports
 this module when ``solver='generalized'``), so the default
 ``solver='standard'`` path retains zero scipy dependency.
 """
+
 from __future__ import annotations
 
 import jax
@@ -106,5 +107,5 @@ def _gen_eig_pencil(
         out_shape,
         T_ab,
         g_ab,
-        vmap_method='sequential',
+        vmap_method="sequential",
     )

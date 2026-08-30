@@ -9,6 +9,7 @@ attribution to arXiv:2405.02709:
    not Schwarzschild, which is precisely what the manuscript's
    Santiago-Schuster-Visser escape argument rests on.
 """
+
 from __future__ import annotations
 
 import jax
@@ -65,9 +66,7 @@ def test_exterior_is_schwarzschild():
     for r in (r_edge + 5.0, 2 * r_edge, 4 * r_edge):
         c = jnp.array([0.0, r, 0.0, 0.0])
         assert float(m.lapse(c)) == pytest.approx(np.sqrt(1 - 2 * M / r), rel=1e-10)
-        assert float(m.spatial_metric(c)[0, 0]) == pytest.approx(
-            1.0 / (1 - 2 * M / r), rel=1e-10
-        )
+        assert float(m.spatial_metric(c)[0, 0]) == pytest.approx(1.0 / (1 - 2 * M / r), rel=1e-10)
 
 
 def test_exterior_matches_interior_at_the_grid_edge():
@@ -86,6 +85,4 @@ def test_default_kernel_is_the_published_boxcar():
     """The paper smooths with MATLAB ``smooth()``; that is the default here."""
     import inspect
 
-    assert inspect.signature(fuchs_default).parameters[
-        "kernel_type"
-    ].default == "moving_average"
+    assert inspect.signature(fuchs_default).parameters["kernel_type"].default == "moving_average"

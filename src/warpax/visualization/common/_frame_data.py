@@ -12,6 +12,7 @@ Notes:
 - No serialization; FrameData is ephemeral (recomputed each run).
 - All evaluation is eager (no lazy computation).
 """
+
 from __future__ import annotations
 
 import equinox as eqx
@@ -87,8 +88,7 @@ class FrameData(eqx.Module):
         for field_name, arr in self.scalar_fields.items():
             if arr.shape != self.grid_shape:
                 raise ValueError(
-                    f"Scalar field '{field_name}' shape {arr.shape} "
-                    f"!= grid_shape {self.grid_shape}"
+                    f"Scalar field '{field_name}' shape {arr.shape} != grid_shape {self.grid_shape}"
                 )
             if isinstance(arr, _jax.Array):
                 raise TypeError(
@@ -136,4 +136,3 @@ class FrameData(eqx.Module):
             clim=new_clim,
             isosurface_values=self.isosurface_values,
         )
-

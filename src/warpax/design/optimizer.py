@@ -4,6 +4,7 @@ Maps unconstrained ``theta`` to physical shape params via ``tanh``;
 multistart Optimistix BFGS; returns ``(ShapeFunctionMetric,
 OptimizationReport)``.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -41,6 +42,7 @@ class OptimizationReport(NamedTuple):
     n_starts
         The ``n_starts`` value used.
     """
+
     converged: bool
     final_margin: Float[Array, ""]
     n_steps: int
@@ -142,7 +144,9 @@ def design_metric(
         # records a real margin (supports catalog generation).
         try:
             margin0 = OBJECTIVE_REGISTRY[objective](
-                sfm0, grid_shape=(6, 6, 6), bounds=((-1.5, 1.5),) * 3,
+                sfm0,
+                grid_shape=(6, 6, 6),
+                bounds=((-1.5, 1.5),) * 3,
             )
         except Exception:
             margin0 = jnp.asarray(jnp.nan)
@@ -218,15 +222,17 @@ def design_metric(
         if i == 0:
             theta_start = theta_init
         else:
-            perturb = 0.1 * jax.random.normal(
-                jax.random.fold_in(keys[i], i), theta_init.shape
-            )
+            perturb = 0.1 * jax.random.normal(jax.random.fold_in(keys[i], i), theta_init.shape)
             theta_start = theta_init + perturb
 
         try:
             sol = optx.minimise(
-                _loss, solver, theta_start, args=None,
-                max_steps=max_steps, throw=False,
+                _loss,
+                solver,
+                theta_start,
+                args=None,
+                max_steps=max_steps,
+                throw=False,
             )
             sol_value = sol.value
             converged = bool(sol.result == optx.RESULTS.successful)

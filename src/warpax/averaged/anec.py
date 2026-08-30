@@ -24,6 +24,7 @@ The ``geodesic_complete`` flag and ``termination_reason`` field on
    certification use ``'null_projected'`` or the symplectic integrator
    (:func:`anec_rigorous`).
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -165,9 +166,7 @@ def _extract_trajectory(
     geodesic: GeodesicResult | Callable[[Float[Array, ""]], Float[Array, "4"]],
     n_samples: int,
     affine_bounds: tuple[float, float],
-) -> tuple[
-    Float[Array, "N"], Float[Array, "N 4"], Float[Array, "N 4"], int
-]:
+) -> tuple[Float[Array, "N"], Float[Array, "N 4"], Float[Array, "N 4"], int]:
     """Return (ts, positions, velocities, result_code) from either a
     ``GeodesicResult`` or a callable geodesic.
     """
@@ -204,7 +203,9 @@ def _extract_trajectory(
 @jaxtyped(typechecker=beartype)
 def anec(
     metric: MetricSpecification,
-    geodesic: GeodesicResult | SymplecticGeodesicResult | Callable[[Float[Array, ""]], Float[Array, "4"]],
+    geodesic: GeodesicResult
+    | SymplecticGeodesicResult
+    | Callable[[Float[Array, ""]], Float[Array, "4"]],
     tangent_norm: str = "null_projected",
     n_samples: int = 256,
     affine_bounds: tuple[float, float] = (-5.0, 5.0),
@@ -269,17 +270,16 @@ def anec(
     """
     if tangent_norm not in _VALID_TANGENT_NORM:
         raise ValueError(
-            f"tangent_norm must be one of {sorted(_VALID_TANGENT_NORM)}, "
-            f"got {tangent_norm!r}"
+            f"tangent_norm must be one of {sorted(_VALID_TANGENT_NORM)}, got {tangent_norm!r}"
         )
 
     lam, positions, velocities, result_code = _extract_trajectory(
         metric, geodesic, n_samples, affine_bounds
     )
 
-    integrand = jax.vmap(
-        lambda c, u: _anec_integrand_at_point(metric, c, u, tangent_norm)
-    )(positions, velocities)
+    integrand = jax.vmap(lambda c, u: _anec_integrand_at_point(metric, c, u, tangent_norm))(
+        positions, velocities
+    )
 
     # trapezoid over affine parameter (non-uniform lam OK)
     line_integral = jnp.trapezoid(integrand, lam)
@@ -288,15 +288,13 @@ def anec(
     # 'null_projected' it used to be measured on the projected vector, which is
     # null by construction, so a timelike path returned null_preserved=True
     # while the integral contracted T on a null field unrelated to the curve.
-    g_kk = jax.vmap(lambda c, u: velocity_norm(metric, c, u))(
-        positions, velocities
-    )
+    g_kk = jax.vmap(lambda c, u: velocity_norm(metric, c, u))(positions, velocities)
     max_abs_g_kk = jnp.max(jnp.abs(g_kk))
     # Relative verdict: g(k,k) carries the square of the tangent scale, so an
     # absolute tolerance flips on a rescaling of the affine parameter alone.
-    kk_ref = jax.vmap(
-        lambda c, u: jnp.max(jnp.abs(metric(c))) * jnp.max(u**2)
-    )(positions, velocities)
+    kk_ref = jax.vmap(lambda c, u: jnp.max(jnp.abs(metric(c))) * jnp.max(u**2))(
+        positions, velocities
+    )
     ref = jnp.max(kk_ref)
     null_preserved = bool(max_abs_g_kk < null_tol * jnp.where(ref > 0.0, ref, 1.0))
 
@@ -409,10 +407,14 @@ def anec_rigorous(
     """
     x0c, p0 = null_ic_canonical(metric, x0, n_spatial)
     geo = integrate_geodesic_symplectic(
-        metric, x0c, p0, affine_bounds,
+        metric,
+        x0c,
+        p0,
+        affine_bounds,
         num_steps=num_steps,
         num_save=num_steps + 1 if num_save is None else num_save,
-        order=order, omega=omega,
+        order=order,
+        omega=omega,
     )
     drift = None
     if killing is not None:
@@ -432,9 +434,13 @@ def anec_rigorous(
     # supposed to keep the raw tangent on the cone.
     sym = anec(metric, geo, tangent_norm="fixed", null_tol=null_tol)
     if sym.null_preserved and geo.complete:
-        return RigorousANEC(symplectic=sym, projection=None,
-                            method_used="symplectic", killing_drift=drift)
+        return RigorousANEC(
+            symplectic=sym, projection=None, method_used="symplectic", killing_drift=drift
+        )
     proj = anec(metric, geo, tangent_norm="null_projected", null_tol=null_tol)
-    return RigorousANEC(symplectic=sym, projection=proj,
-                        method_used="symplectic+projection_fallback",
-                        killing_drift=drift)
+    return RigorousANEC(
+        symplectic=sym,
+        projection=proj,
+        method_used="symplectic+projection_fallback",
+        killing_drift=drift,
+    )

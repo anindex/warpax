@@ -5,6 +5,7 @@ observer at a point, with no rapidity cap and no dependence on the Hawking-Ellis
 type. These tests check it the only way that matters: against a direct search
 over the observer ball and sphere, on all four canonical algebraic types.
 """
+
 from __future__ import annotations
 
 from itertools import pairwise
@@ -42,6 +43,7 @@ def _sym(M):
 
 # --- the four Hawking-Ellis canonical forms, satisfying and violating ---------
 
+
 def _type_i(rho, p):
     return np.diag([rho, p, p, p])
 
@@ -64,24 +66,19 @@ def _type_iii(r=0.7, f=1.0, p=0.3):
     ``diag(-r, -r, -r, p)``: a diagonal **Type I** tensor. Every "Type III" assertion
     in this file was really being made about Type I.
     """
-    return np.array([[r, 0.0, -f, 0.0],
-                     [0.0, -r, f, 0.0],
-                     [-f, f, -r, 0.0],
-                     [0.0, 0.0, 0.0, p]])
+    return np.array([[r, 0.0, -f, 0.0], [0.0, -r, f, 0.0], [-f, f, -r, 0.0], [0.0, 0.0, 0.0, p]])
 
 
 def _type_ii_canonical(mu, f, p2, p3):
     """Covariant Type II block: ``J_2`` in the (t,x) plane, ``p2``/``p3`` transverse."""
-    return np.array([[mu + f, f, 0.0, 0.0],
-                     [f, -mu + f, 0.0, 0.0],
-                     [0.0, 0.0, p2, 0.0],
-                     [0.0, 0.0, 0.0, p3]])
+    return np.array(
+        [[mu + f, f, 0.0, 0.0], [f, -mu + f, 0.0, 0.0], [0.0, 0.0, p2, 0.0], [0.0, 0.0, 0.0, p3]]
+    )
 
 
 def _type_iv_b2(f=1.3, c=0.4):
     """The referee's own B2 counterexample: eigenvalues +-i f and a double c."""
-    Tm = np.array([[0.0, f, 0.0, 0.0], [-f, 0.0, 0.0, 0.0],
-                   [0.0, 0.0, c, 0.0], [0.0, 0.0, 0.0, c]])
+    Tm = np.array([[0.0, f, 0.0, 0.0], [-f, 0.0, 0.0, 0.0], [0.0, 0.0, c, 0.0], [0.0, 0.0, 0.0, c]])
     return ETA @ Tm
 
 
@@ -97,8 +94,11 @@ CASES = {
     "II-transverse-violating": _type_ii_canonical(0.0, 1.0, -2.0, 0.0),
     "III": _type_iii(),
     "IV-B2": _type_iv_b2(),
-    "IV-momentum": _sym(np.array([[0.1, 2.0, 0.0, 0.0], [2.0, 0.1, 0.0, 0.0],
-                                  [0.0, 0.0, 0.1, 0.0], [0.0, 0.0, 0.0, 0.1]])),
+    "IV-momentum": _sym(
+        np.array(
+            [[0.1, 2.0, 0.0, 0.0], [2.0, 0.1, 0.0, 0.0], [0.0, 0.0, 0.1, 0.0], [0.0, 0.0, 0.0, 0.1]]
+        )
+    ),
 }
 
 
@@ -116,10 +116,14 @@ def test_fixtures_are_lorentz_self_adjoint(name):
 
 
 EXPECTED_TYPE = {
-    "I-satisfying": 1, "I-violating": 1, "I-nec-only": 1,
-    "II-violating": 2, "II-transverse-violating": 2,
+    "I-satisfying": 1,
+    "I-violating": 1,
+    "I-nec-only": 1,
+    "II-violating": 2,
+    "II-transverse-violating": 2,
     "III": 3,
-    "IV-B2": 4, "IV-momentum": 4,
+    "IV-B2": 4,
+    "IV-momentum": 4,
 }
 
 
@@ -140,8 +144,7 @@ def test_fixtures_have_the_algebraic_type_they_claim(name):
     """
     sp = pytest.importorskip("sympy")
 
-    T = sp.Matrix(4, 4, lambda i, j: sp.nsimplify(float(CASES[name][i][j]),
-                                                  rational=True))
+    T = sp.Matrix(4, 4, lambda i, j: sp.nsimplify(float(CASES[name][i][j]), rational=True))
     A = sp.diag(-1, 1, 1, 1) * T
     assert T == T.T, f"{name}: fixture must be symmetric"
 
@@ -154,7 +157,7 @@ def test_fixtures_have_the_algebraic_type_they_claim(name):
 
     lam = max(eigs, key=lambda e: eigs[e])
     N = A - lam * sp.eye(4)
-    ranks = [(N ** k).rank() for k in range(1, 5)]
+    ranks = [(N**k).rank() for k in range(1, 5)]
     chain = 1 + sum(1 for k in range(1, 4) if ranks[k] < ranks[k - 1])
     assert chain == EXPECTED_TYPE[name], (
         f"{name}: expected Segre chain length {EXPECTED_TYPE[name]}, got {chain} "
@@ -188,9 +191,7 @@ def test_dec_matches_brute_force(name):
     """DEC = WEC and the flux -T^a_b u^b causal, i.e. (T^2)(u,u) <= 0."""
     T = _sym(CASES[name])
     margin = float(certify_point(jnp.asarray(T), MINKOWSKI)["dec"])
-    expected = (brute_min(T, False) >= -1e-6) and (
-        brute_min(-(T @ ETA @ T), False) >= -1e-6
-    )
+    expected = (brute_min(T, False) >= -1e-6) and (brute_min(-(T @ ETA @ T), False) >= -1e-6)
     assert (margin >= -1e-8) == expected, name
 
 
@@ -234,7 +235,7 @@ def test_no_rapidity_cap_dependence():
     T = np.diag([0.5, -0.9, 2.0, 2.0])
     m = certify_point(jnp.asarray(T), MINKOWSKI)
     assert float(m["wec"]) < 0.0
-    assert float(m["nec"]) < 0.0          # rho + p_1 = -0.4 < 0
+    assert float(m["nec"]) < 0.0  # rho + p_1 = -0.4 < 0
     # a cap at |w| <= 0.5 would report it clean
     w = np.linspace(0.0, 0.5, 2001)
     q = 0.5 + (-0.9) * w**2
@@ -245,18 +246,19 @@ def test_no_rapidity_cap_dependence():
 def test_verdict_is_boost_invariant(name):
     """The verdict must survive a change of chart; the margin need not.
 
-    Boosting the coordinates tilts the ``t = const`` slices, so the slice normal
-   , and with it the Eulerian ``rho``, ``b``, ``S`` that normalize the margin,
-    genuinely changes. What cannot change is the answer, because "some observer
-    sees this fail" quantifies over all observers in any chart. This is precisely
-    the paper's claim: the Boolean is frame-independent, the magnitude is a
-    slice-normal-normalized severity.
+     Boosting the coordinates tilts the ``t = const`` slices, so the slice normal
+    , and with it the Eulerian ``rho``, ``b``, ``S`` that normalize the margin,
+     genuinely changes. What cannot change is the answer, because "some observer
+     sees this fail" quantifies over all observers in any chart. This is precisely
+     the paper's claim: the Boolean is frame-independent, the magnitude is a
+     slice-normal-normalized severity.
     """
     T = _sym(CASES[name])
     base = certify_point(jnp.asarray(T), MINKOWSKI)
     ch, sh = np.cosh(0.8), np.sinh(0.8)
-    L = np.array([[ch, sh, 0.0, 0.0], [sh, ch, 0.0, 0.0],
-                  [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
+    L = np.array(
+        [[ch, sh, 0.0, 0.0], [sh, ch, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
     T_new, g_new = L.T @ T @ L, L.T @ ETA @ L
     moved = certify_point(jnp.asarray(T_new), jnp.asarray(g_new))
     for key in ("nec", "wec", "sec", "dec"):
@@ -285,11 +287,8 @@ def test_agrees_in_sign_with_eigenvalue_margins_at_type_i():
         rho, p = rng.normal(size=1)[0] * 2.0, rng.normal(size=3) * 2.0
         T = np.diag([rho, *p])
         m = certify_point(jnp.asarray(T), MINKOWSKI)
-        nec_I, wec_I, sec_I, dec_I = check_all(
-            jnp.asarray(rho), jnp.asarray(p)
-        )
-        for key, ref in (("nec", nec_I), ("wec", wec_I),
-                         ("sec", sec_I), ("dec", dec_I)):
+        nec_I, wec_I, sec_I, dec_I = check_all(jnp.asarray(rho), jnp.asarray(p))
+        for key, ref in (("nec", nec_I), ("wec", wec_I), ("sec", sec_I), ("dec", dec_I)):
             assert (float(m[key]) >= -1e-8) == (float(ref) >= -1e-8), (
                 f"{key}: LMI {float(m[key]):.3e} vs eigenvalue {float(ref):.3e} "
                 f"at rho={rho:.3f} p={p}"
@@ -298,11 +297,15 @@ def test_agrees_in_sign_with_eigenvalue_margins_at_type_i():
 
 # --- regressions for the three defects found in the R2 audit ------------------
 
-@pytest.mark.parametrize("name,T", [
-    ("exact vacuum", np.zeros((4, 4))),
-    ("eps-dust", 1e-12 * np.diag([1.0, 0.5, 0.5, 0.5])),
-    ("unit dust", np.diag([1.0, 0.0, 0.0, 0.0])),
-])
+
+@pytest.mark.parametrize(
+    "name,T",
+    [
+        ("exact vacuum", np.zeros((4, 4))),
+        ("eps-dust", 1e-12 * np.diag([1.0, 0.5, 0.5, 0.5])),
+        ("unit dust", np.diag([1.0, 0.0, 0.0, 0.0])),
+    ],
+)
 def test_vacuum_is_not_convicted(name, T):
     """A tensor satisfying every condition must not be reported as violating.
 
@@ -409,10 +412,17 @@ def test_null_deficit_dominates_the_momentum_witness():
         ("perfect fluid", np.diag([2.0, -1.0, 0.5, 0.5])),
         # Flux binds the DEC here: rho = 1 < |p_1| = 2, but rho + p_i >= 0.
         ("flux-bound", np.diag([1.0, 2.0, 0.0, 0.0])),
-        ("momentum", np.array([[1.0, -0.9, 0.0, 0.0],
-                               [-0.9, 1.0, 0.0, 0.0],
-                               [0.0, 0.0, 0.2, 0.0],
-                               [0.0, 0.0, 0.0, 0.2]])),
+        (
+            "momentum",
+            np.array(
+                [
+                    [1.0, -0.9, 0.0, 0.0],
+                    [-0.9, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.2, 0.0],
+                    [0.0, 0.0, 0.0, 0.2],
+                ]
+            ),
+        ),
     ],
 )
 @pytest.mark.parametrize("condition", ["nec", "wec", "sec", "dec"])
@@ -525,11 +535,13 @@ def test_lmi_agrees_with_brute_force_at_every_hawking_ellis_type():
         return float(np.einsum("ni,ij,nj->n", u, T_np, u).min())
 
     k = np.array([1.0, 1.0, 0.0, 0.0])
-    Tm3 = np.array([[0.7, 0.0, 1.0, 0.0], [0.0, -0.7, 1.0, 0.0],
-                    [1.0, -1.0, -0.7, 0.0], [0.0, 0.0, 0.0, 0.3]])
+    Tm3 = np.array(
+        [[0.7, 0.0, 1.0, 0.0], [0.0, -0.7, 1.0, 0.0], [1.0, -1.0, -0.7, 0.0], [0.0, 0.0, 0.0, 0.3]]
+    )
     f, c = 1.3, 0.4
-    Tm4 = np.array([[0.0, f, 0.0, 0.0], [-f, 0.0, 0.0, 0.0],
-                    [0.0, 0.0, c, 0.0], [0.0, 0.0, 0.0, c]])
+    Tm4 = np.array(
+        [[0.0, f, 0.0, 0.0], [-f, 0.0, 0.0, 0.0], [0.0, 0.0, c, 0.0], [0.0, 0.0, 0.0, c]]
+    )
     cases = {
         "I(ok)": np.diag([2.0, 0.5, 0.5, 0.5]),
         "I(bad)": np.diag([-1.0, 0.5, 0.5, 0.5]),

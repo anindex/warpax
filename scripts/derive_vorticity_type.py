@@ -31,6 +31,7 @@ Outputs
 - results/vorticity_type_analytic.json
 - ../warpax_arxiv/figures/vorticity_type_mechanism.pdf  (best-effort)
 """
+
 from __future__ import annotations
 
 import os
@@ -197,12 +198,19 @@ def discriminant_at(metric, point):
     rho, jmag, S_par = _eulerian_decomp(res.stress_energy, res.metric, res.metric_inv)
     denom = abs(rho + S_par)
     ratio = 2.0 * jmag / denom if denom > 1e-30 else float("inf")
-    Delta = (rho + S_par) ** 2 - 4.0 * jmag ** 2
+    Delta = (rho + S_par) ** 2 - 4.0 * jmag**2
     im_pred = 0.5 * float(np.sqrt(-Delta)) if Delta < 0 else 0.0
     Tm = np.asarray(res.metric_inv @ res.stress_energy)
     im_meas = float(np.max(np.abs(np.linalg.eigvals(Tm).imag)))
-    return {"rho": rho, "jmag": jmag, "S_par": S_par, "ratio": ratio,
-            "Delta": Delta, "im_predicted_disc": im_pred, "im_measured": im_meas}
+    return {
+        "rho": rho,
+        "jmag": jmag,
+        "S_par": S_par,
+        "ratio": ratio,
+        "Delta": Delta,
+        "im_predicted_disc": im_pred,
+        "im_measured": im_meas,
+    }
 
 
 def write_table(cross, out_path):
@@ -227,13 +235,19 @@ def write_table(cross, out_path):
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/derive_vorticity_type.py", sources="results/vorticity_type_analytic.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/derive_vorticity_type.py",
+        sources="results/vorticity_type_analytic.json",
+    )
     print(f"  Wrote {out_path}")
 
 
 def _make_figure(controlled, cross, out_path):
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except Exception as e:
@@ -244,8 +258,13 @@ def _make_figure(controlled, cross, out_path):
     kappa = controlled["kappa"]
     fig, ax = plt.subplots(figsize=(5.0, 3.6))
     grid = np.linspace(0, om.max() * 1.05, 100)
-    ax.plot(grid, kappa * grid, "-", color="0.4",
-            label=fr"$f=\kappa\,\omega$, $\kappa={kappa:.3f}$ ($R^2={controlled['r_squared']:.4f}$)")
+    ax.plot(
+        grid,
+        kappa * grid,
+        "-",
+        color="0.4",
+        label=rf"$f=\kappa\,\omega$, $\kappa={kappa:.3f}$ ($R^2={controlled['r_squared']:.4f}$)",
+    )
     ax.plot(om, im, "o", color="C0", label="pure-rotation family")
     for name, d in cross.items():
         if d["he_type"] == 4:
@@ -269,18 +288,24 @@ def main():
     print("VORTICITY -> TYPE-IV MECHANISM  (f = kappa * omega)")
     print("=" * 70)
     controlled = controlled_family()
-    print(f"  Controlled pure-rotation family: kappa={controlled['kappa']:.4f}  "
-          f"R^2={controlled['r_squared']:.6f}")
-    print(f"    type at omega=0: {controlled['type_at_zero_vorticity']}  "
-          f"type at omega_max: {controlled['type_at_max_vorticity']}")
+    print(
+        f"  Controlled pure-rotation family: kappa={controlled['kappa']:.4f}  "
+        f"R^2={controlled['r_squared']:.6f}"
+    )
+    print(
+        f"    type at omega=0: {controlled['type_at_zero_vorticity']}  "
+        f"type at omega_max: {controlled['type_at_max_vorticity']}"
+    )
     cross = cross_metric(controlled["kappa"])
     print("  Cross-metric (omega, sigma, Im measured, Im predicted, ratio, type):")
     for name, d in cross.items():
         ratio = d["imag_ratio"]
-        print(f"    {name:16s} omega={d['omega']:.3e}  sigma={d['sigma']:.3e}  "
-              f"Im={d['imag_measured']:.3e}  pred={d['imag_predicted']:.3e}  "
-              f"ratio={'-' if ratio is None else f'{ratio:.1f}'}  "
-              f"type={d['he_type']}")
+        print(
+            f"    {name:16s} omega={d['omega']:.3e}  sigma={d['sigma']:.3e}  "
+            f"Im={d['imag_measured']:.3e}  pred={d['imag_predicted']:.3e}  "
+            f"ratio={'-' if ratio is None else f'{ratio:.1f}'}  "
+            f"type={d['he_type']}"
+        )
 
     out = {
         "controlled_family": controlled,
@@ -299,8 +324,7 @@ def main():
     dump_json(out, out_path)
     print(f"\nWrote {out_path}")
     write_table(cross, os.path.join(TABLES_DIR, "vorticity_mechanism.tex"))
-    _make_figure(controlled, cross,
-                 os.path.join(FIG_DIR, "vorticity_type_mechanism.pdf"))
+    _make_figure(controlled, cross, os.path.join(FIG_DIR, "vorticity_type_mechanism.pdf"))
 
 
 if __name__ == "__main__":

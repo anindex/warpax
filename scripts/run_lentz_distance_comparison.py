@@ -10,6 +10,7 @@ L1 piecewise-linear distance, not intrinsic.
 Probe setup is taken verbatim from run_lentz.py / _radial_sweep.py:
 sweep along +x at coords=[0, r, 0, 0], r in [0.5, 200], 50 points, n_starts=16.
 """
+
 from __future__ import annotations
 
 import sys
@@ -37,9 +38,7 @@ def worst_point(per_point, key):
 
 def run_one(distance):
     m = LentzMetric(distance=distance)
-    result = radial_sweep(
-        m, r_range=R_RANGE, n_sweep=N_SWEEP, n_starts=N_STARTS, progress=False
-    )
+    result = radial_sweep(m, r_range=R_RANGE, n_sweep=N_SWEEP, n_starts=N_STARTS, progress=False)
     s = result["summary"]
     pp = result["per_point"]
     summary = {
@@ -48,9 +47,7 @@ def run_one(distance):
         "violated_robust": s["violated_robust"],
         "violated_eulerian": s["violated_eulerian"],
         "min_margins_robust": s["min_margins_robust"],
-        "worst_locations": {
-            k: worst_point(pp, k) for k in ("nec", "wec", "sec", "dec")
-        },
+        "worst_locations": {k: worst_point(pp, k) for k in ("nec", "wec", "sec", "dec")},
         "elapsed_s": result["elapsed_s"],
     }
     return {"summary": summary, "per_point": pp}

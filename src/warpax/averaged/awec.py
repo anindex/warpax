@@ -13,6 +13,7 @@ Shares the ``geodesic_complete`` + ``termination_reason`` flags with
 ``anec``; tangent-norm renormalization projects ``u`` onto the
 timelike-unit hyperboloid at every saved step (``g(u,u) = -1``).
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -104,9 +105,7 @@ def _extract_trajectory(
     geodesic: GeodesicResult | Callable[[Float[Array, ""]], Float[Array, "4"]],
     n_samples: int,
     affine_bounds: tuple[float, float],
-) -> tuple[
-    Float[Array, "N"], Float[Array, "N 4"], Float[Array, "N 4"], int
-]:
+) -> tuple[Float[Array, "N"], Float[Array, "N 4"], Float[Array, "N 4"], int]:
     """Return (ts, positions, velocities, result_code)."""
     if isinstance(geodesic, GeodesicResult):
         # Robust conversion (diffrax 0.7.x EnumerationItem is not
@@ -167,8 +166,7 @@ def awec(
     """
     if tangent_norm not in _VALID_TANGENT_NORM:
         raise ValueError(
-            f"tangent_norm must be one of {sorted(_VALID_TANGENT_NORM)}, "
-            f"got {tangent_norm!r}"
+            f"tangent_norm must be one of {sorted(_VALID_TANGENT_NORM)}, got {tangent_norm!r}"
         )
 
     lam, positions, velocities, result_code = _extract_trajectory(

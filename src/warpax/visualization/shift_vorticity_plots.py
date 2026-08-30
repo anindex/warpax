@@ -10,6 +10,7 @@ Two panels:
     the velocity sweep: zero vorticity coincides with zero Type-IV (Rodal),
     nonzero vorticity with Type-IV-dominated walls.
 """
+
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
@@ -63,8 +64,13 @@ def plot_shift_vorticity(
     for comp in comps:
         vals = np.array([fingerprint[m][comp] for m in order])
         ax_a.bar(
-            xpos, vals, bottom=bottom, width=0.7,
-            color=_COMPONENT_COLORS[comp], edgecolor="0.3", linewidth=0.4,
+            xpos,
+            vals,
+            bottom=bottom,
+            width=0.7,
+            color=_COMPONENT_COLORS[comp],
+            edgecolor="0.3",
+            linewidth=0.4,
             label=comp,
         )
         bottom += vals
@@ -73,8 +79,7 @@ def plot_shift_vorticity(
     ax_a.set_ylabel("shift-gradient fraction")
     ax_a.set_ylim(0, 1.0)
     ax_a.set_title("(a) shift-gradient decomposition")
-    ax_a.legend(fontsize=8, frameon=False, loc="upper center",
-                ncol=3, bbox_to_anchor=(0.5, -0.28))
+    ax_a.legend(fontsize=8, frameon=False, loc="upper center", ncol=3, bbox_to_anchor=(0.5, -0.28))
 
     # Panel (b): rotationality vs wall Type-IV fraction.
     x_max = 0.0
@@ -83,8 +88,9 @@ def plot_shift_vorticity(
         xs = [p[1] for p in pts]
         ys = [p[2] for p in pts]
         x_max = max([x_max, *xs])
-        ax_b.scatter(xs, ys, s=22, color=metric_color(m), label=m,
-                     edgecolor="0.25", linewidth=0.3, zorder=3)
+        ax_b.scatter(
+            xs, ys, s=22, color=metric_color(m), label=m, edgecolor="0.25", linewidth=0.3, zorder=3
+        )
     ax_b.set_xlabel(r"shift vorticity fraction $\mathcal{R}_\omega$")
     ax_b.set_ylabel(f"wall Type-IV fraction ({_PCT})")
     ax_b.set_xlim(-0.04, max(0.6, x_max * 1.1))
@@ -92,8 +98,7 @@ def plot_shift_vorticity(
     ax_b.set_title("(b) wall type vs shift vorticity")
     # Data clusters sit at x >= 0.33 (plus Rodal at the origin); the
     # center-left is empty, so the legend goes there.
-    ax_b.legend(fontsize=8, frameon=False, loc="center left",
-                bbox_to_anchor=(0.02, 0.55))
+    ax_b.legend(fontsize=8, frameon=False, loc="center left", bbox_to_anchor=(0.02, 0.55))
 
     fig.tight_layout()
     if save_path is not None:

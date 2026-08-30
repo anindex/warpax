@@ -1,4 +1,3 @@
-
 """Rodal DEC ablation study: three controlled parameter sweeps.
 
 Systematically diagnoses the Rodal DEC anomaly (~28% miss rate) through
@@ -16,6 +15,7 @@ Usage
 -----
     python scripts/rodal_dec_ablation.py
 """
+
 from __future__ import annotations
 
 import os
@@ -69,6 +69,7 @@ BASELINE = {
 
 # Sweep functions
 
+
 def _run_single(metric, grid, label="", return_full=False):
     """Run curvature + comparison for a single metric/grid pair.
 
@@ -89,7 +90,9 @@ def _run_single(metric, grid, label="", return_full=False):
     """
     t0 = time.time()
     curv = evaluate_curvature_grid(
-        metric, grid, batch_size=BASELINE["batch_size_curv"],
+        metric,
+        grid,
+        batch_size=BASELINE["batch_size_curv"],
     )
     comparison = compare_eulerian_vs_robust(
         curv.stress_energy,
@@ -138,9 +141,7 @@ def _wall_restricted_stats(metric, grid, curv, comparison):
     )
     coords_batch = build_coord_batch(grid, t=0.0)
     wall_mask = shape_function_mask(metric, coords_batch, grid.shape)
-    eul = {
-        c: comparison.eulerian_margins[c] for c in ("nec", "wec", "sec", "dec")
-    }
+    eul = {c: comparison.eulerian_margins[c] for c in ("nec", "wec", "sec", "dec")}
     return compute_wall_restricted_stats(ec_grid, wall_mask, eulerian_margins=eul)
 
 
@@ -160,7 +161,8 @@ def run_resolution_sweep():
         # Rodal
         grid_r = GridSpec(bounds=[(-300, 300)] * 3, shape=(N, N, N))
         metric_r = RodalMetric(
-            v_s=BASELINE["v_s"], R=BASELINE["R_rodal"],
+            v_s=BASELINE["v_s"],
+            R=BASELINE["R_rodal"],
             sigma=BASELINE["sigma_rodal"],
         )
         dec_miss_r = _run_single(metric_r, grid_r, label="Rodal")
@@ -169,7 +171,8 @@ def run_resolution_sweep():
         # Alcubierre
         grid_a = GridSpec(bounds=[(-5, 5)] * 3, shape=(N, N, N))
         metric_a = AlcubierreMetric(
-            v_s=BASELINE["v_s"], R=BASELINE["R_alcubierre"],
+            v_s=BASELINE["v_s"],
+            R=BASELINE["R_alcubierre"],
             sigma=BASELINE["sigma_alcubierre"],
         )
         dec_miss_a = _run_single(metric_a, grid_a, label="Alcubierre")
@@ -181,9 +184,7 @@ def run_resolution_sweep():
         "values": N_values,
         "rodal_dec_miss_pct": rodal_rounded,
         "alcubierre_dec_miss_pct": [round(v, 2) for v in alcubierre_results],
-        "sensitivity": (
-            "sensitive" if _max_variation(rodal_rounded) > 5.0 else "insensitive"
-        ),
+        "sensitivity": ("sensitive" if _max_variation(rodal_rounded) > 5.0 else "insensitive"),
     }
 
 
@@ -201,7 +202,8 @@ def run_regularization_sweep():
     print("\n--- Alcubierre control (single run) ---")
     grid_a = GridSpec(bounds=[(-5, 5)] * 3, shape=(N, N, N))
     metric_a = AlcubierreMetric(
-        v_s=BASELINE["v_s"], R=BASELINE["R_alcubierre"],
+        v_s=BASELINE["v_s"],
+        R=BASELINE["R_alcubierre"],
         sigma=BASELINE["sigma_alcubierre"],
     )
     alc_dec_miss = _run_single(metric_a, grid_a, label="Alcubierre")
@@ -230,7 +232,8 @@ def run_regularization_sweep():
         try:
             grid_r = GridSpec(bounds=[(-300, 300)] * 3, shape=(N, N, N))
             metric_r = RodalMetric(
-                v_s=BASELINE["v_s"], R=BASELINE["R_rodal"],
+                v_s=BASELINE["v_s"],
+                R=BASELINE["R_rodal"],
                 sigma=BASELINE["sigma_rodal"],
             )
             dec_miss_r = _run_single(metric_r, grid_r, label="Rodal")
@@ -245,9 +248,7 @@ def run_regularization_sweep():
         "rodal_dec_miss_pct": rodal_rounded,
         "alcubierre_dec_miss_pct": [None] * len(eps_sq_values),
         "alcubierre_control_dec_miss_pct": round(alc_dec_miss, 2),
-        "sensitivity": (
-            "sensitive" if _max_variation(rodal_rounded) > 5.0 else "insensitive"
-        ),
+        "sensitivity": ("sensitive" if _max_variation(rodal_rounded) > 5.0 else "insensitive"),
     }
 
 
@@ -274,38 +275,41 @@ def run_sigma_sweep():
         # Rodal: compute DEC miss + wall-restricted stats (reusing curvature)
         grid_r = GridSpec(bounds=[(-300, 300)] * 3, shape=(N, N, N))
         metric_r = RodalMetric(
-            v_s=BASELINE["v_s"], R=BASELINE["R_rodal"], sigma=sig_r,
+            v_s=BASELINE["v_s"],
+            R=BASELINE["R_rodal"],
+            sigma=sig_r,
         )
         dec_miss_r, curv_r, cmp_r = _run_single(
-            metric_r, grid_r, label="Rodal", return_full=True,
+            metric_r,
+            grid_r,
+            label="Rodal",
+            return_full=True,
         )
         rodal_dec_miss.append(dec_miss_r)
         stats_r = _wall_restricted_stats(metric_r, grid_r, curv_r, cmp_r)
-        wall_rodal.append({
-            "sigma": sig_r,
-            "dec_miss": float(dec_miss_r),
-            "wall_dec_miss_rate": (
-                float(stats_r.dec_miss_rate)
-                if stats_r.dec_miss_rate is not None else None
-            ),
-            "wall_nec_miss_rate": (
-                float(stats_r.nec_miss_rate)
-                if stats_r.nec_miss_rate is not None else None
-            ),
-            "wall_wec_miss_rate": (
-                float(stats_r.wec_miss_rate)
-                if stats_r.wec_miss_rate is not None else None
-            ),
-            "wall_sec_miss_rate": (
-                float(stats_r.sec_miss_rate)
-                if stats_r.sec_miss_rate is not None else None
-            ),
-            "wall_type_iv_frac": float(stats_r.frac_type_iv),
-            "wall_type_i_frac": float(stats_r.frac_type_i),
-            "wall_type_ii_frac": float(stats_r.frac_type_ii),
-            "wall_type_iii_frac": float(stats_r.frac_type_iii),
-            "wall_n_total": int(stats_r.n_total),
-        })
+        wall_rodal.append(
+            {
+                "sigma": sig_r,
+                "dec_miss": float(dec_miss_r),
+                "wall_dec_miss_rate": (
+                    float(stats_r.dec_miss_rate) if stats_r.dec_miss_rate is not None else None
+                ),
+                "wall_nec_miss_rate": (
+                    float(stats_r.nec_miss_rate) if stats_r.nec_miss_rate is not None else None
+                ),
+                "wall_wec_miss_rate": (
+                    float(stats_r.wec_miss_rate) if stats_r.wec_miss_rate is not None else None
+                ),
+                "wall_sec_miss_rate": (
+                    float(stats_r.sec_miss_rate) if stats_r.sec_miss_rate is not None else None
+                ),
+                "wall_type_iv_frac": float(stats_r.frac_type_iv),
+                "wall_type_i_frac": float(stats_r.frac_type_i),
+                "wall_type_ii_frac": float(stats_r.frac_type_ii),
+                "wall_type_iii_frac": float(stats_r.frac_type_iii),
+                "wall_n_total": int(stats_r.n_total),
+            }
+        )
         print(
             f"    Wall (Rodal): n_total={stats_r.n_total}, "
             f"Type-IV={stats_r.frac_type_iv:.2%}, "
@@ -315,38 +319,41 @@ def run_sigma_sweep():
         # Alcubierre: same treatment
         grid_a = GridSpec(bounds=[(-5, 5)] * 3, shape=(N, N, N))
         metric_a = AlcubierreMetric(
-            v_s=BASELINE["v_s"], R=BASELINE["R_alcubierre"], sigma=sig_a,
+            v_s=BASELINE["v_s"],
+            R=BASELINE["R_alcubierre"],
+            sigma=sig_a,
         )
         dec_miss_a, curv_a, cmp_a = _run_single(
-            metric_a, grid_a, label="Alcubierre", return_full=True,
+            metric_a,
+            grid_a,
+            label="Alcubierre",
+            return_full=True,
         )
         alcubierre_dec_miss.append(dec_miss_a)
         stats_a = _wall_restricted_stats(metric_a, grid_a, curv_a, cmp_a)
-        wall_alcubierre.append({
-            "sigma": sig_a,
-            "dec_miss": float(dec_miss_a),
-            "wall_dec_miss_rate": (
-                float(stats_a.dec_miss_rate)
-                if stats_a.dec_miss_rate is not None else None
-            ),
-            "wall_nec_miss_rate": (
-                float(stats_a.nec_miss_rate)
-                if stats_a.nec_miss_rate is not None else None
-            ),
-            "wall_wec_miss_rate": (
-                float(stats_a.wec_miss_rate)
-                if stats_a.wec_miss_rate is not None else None
-            ),
-            "wall_sec_miss_rate": (
-                float(stats_a.sec_miss_rate)
-                if stats_a.sec_miss_rate is not None else None
-            ),
-            "wall_type_iv_frac": float(stats_a.frac_type_iv),
-            "wall_type_i_frac": float(stats_a.frac_type_i),
-            "wall_type_ii_frac": float(stats_a.frac_type_ii),
-            "wall_type_iii_frac": float(stats_a.frac_type_iii),
-            "wall_n_total": int(stats_a.n_total),
-        })
+        wall_alcubierre.append(
+            {
+                "sigma": sig_a,
+                "dec_miss": float(dec_miss_a),
+                "wall_dec_miss_rate": (
+                    float(stats_a.dec_miss_rate) if stats_a.dec_miss_rate is not None else None
+                ),
+                "wall_nec_miss_rate": (
+                    float(stats_a.nec_miss_rate) if stats_a.nec_miss_rate is not None else None
+                ),
+                "wall_wec_miss_rate": (
+                    float(stats_a.wec_miss_rate) if stats_a.wec_miss_rate is not None else None
+                ),
+                "wall_sec_miss_rate": (
+                    float(stats_a.sec_miss_rate) if stats_a.sec_miss_rate is not None else None
+                ),
+                "wall_type_iv_frac": float(stats_a.frac_type_iv),
+                "wall_type_i_frac": float(stats_a.frac_type_i),
+                "wall_type_ii_frac": float(stats_a.frac_type_ii),
+                "wall_type_iii_frac": float(stats_a.frac_type_iii),
+                "wall_n_total": int(stats_a.n_total),
+            }
+        )
         print(
             f"    Wall (Alcubierre): n_total={stats_a.n_total}, "
             f"Type-IV={stats_a.frac_type_iv:.2%}, "
@@ -363,13 +370,12 @@ def run_sigma_sweep():
         "alcubierre_dec_miss_pct": [round(v, 2) for v in alcubierre_dec_miss],
         "wall_rodal_results": wall_rodal,
         "wall_alcubierre_results": wall_alcubierre,
-        "sensitivity": (
-            "sensitive" if _max_variation(rodal_rounded) > 5.0 else "insensitive"
-        ),
+        "sensitivity": ("sensitive" if _max_variation(rodal_rounded) > 5.0 else "insensitive"),
     }
 
 
 # Diagnosis logic
+
 
 def _max_variation(values):
     """Maximum variation (range) in a list of percentages."""
@@ -445,9 +451,10 @@ def classify_diagnosis(sweeps):
     # Rodal baseline (50^3, default sigma, default eps^2)
     rodal_baseline = None
     for v in sweeps["resolution"]["rodal_dec_miss_pct"]:
-        if sweeps["resolution"]["values"][
-            sweeps["resolution"]["rodal_dec_miss_pct"].index(v)
-        ] == 50:
+        if (
+            sweeps["resolution"]["values"][sweeps["resolution"]["rodal_dec_miss_pct"].index(v)]
+            == 50
+        ):
             rodal_baseline = v
             break
     if rodal_baseline is None:
@@ -469,6 +476,7 @@ def classify_diagnosis(sweeps):
 
 
 # Output: JSON diagnosis
+
 
 def save_diagnosis(sweeps, diagnosis, start_time):
     """Save structured diagnosis to JSON."""
@@ -525,7 +533,10 @@ def save_diagnosis(sweeps, diagnosis, start_time):
     }
 
     outpath = os.path.join(
-        os.path.dirname(__file__), "..", "results", "rodal_dec_diagnosis.json",
+        os.path.dirname(__file__),
+        "..",
+        "results",
+        "rodal_dec_diagnosis.json",
     )
     os.makedirs(os.path.dirname(outpath), exist_ok=True)
     dump_json(output, outpath)
@@ -534,6 +545,7 @@ def save_diagnosis(sweeps, diagnosis, start_time):
 
 
 # Output: 3-panel ablation figure
+
 
 def plot_ablation(sweeps):
     """Generate 3-panel ablation figure."""
@@ -545,12 +557,18 @@ def plot_ablation(sweeps):
     ax = axes[0]
     x_res = sweeps["resolution"]["values"]
     ax.plot(
-        x_res, sweeps["resolution"]["rodal_dec_miss_pct"],
-        color=metric_color("Rodal"), label="Rodal", **LINE_STYLES[0],
+        x_res,
+        sweeps["resolution"]["rodal_dec_miss_pct"],
+        color=metric_color("Rodal"),
+        label="Rodal",
+        **LINE_STYLES[0],
     )
     ax.plot(
-        x_res, sweeps["resolution"]["alcubierre_dec_miss_pct"],
-        color=metric_color("Alcubierre"), label="Alcubierre", **LINE_STYLES[1],
+        x_res,
+        sweeps["resolution"]["alcubierre_dec_miss_pct"],
+        color=metric_color("Alcubierre"),
+        label="Alcubierre",
+        **LINE_STYLES[1],
     )
     ax.set_xlabel(r"$N$ (grid points per dim.)")
     ax.set_title("Resolution")
@@ -560,25 +578,41 @@ def plot_ablation(sweeps):
     ax = axes[1]
     x_reg = sweeps["regularization"]["values"]
     ax.plot(
-        x_reg, sweeps["regularization"]["rodal_dec_miss_pct"],
-        color=metric_color("Rodal"), label="Rodal", **LINE_STYLES[0],
+        x_reg,
+        sweeps["regularization"]["rodal_dec_miss_pct"],
+        color=metric_color("Rodal"),
+        label="Rodal",
+        **LINE_STYLES[0],
     )
     # Alcubierre static control as visible marker + horizontal line
     alc_ctrl = sweeps["regularization"]["alcubierre_control_dec_miss_pct"]
     ax.axhline(
-        y=alc_ctrl, color=metric_color("Alcubierre"), linestyle="--", linewidth=2.0,
-        alpha=0.7, label="Alcubierre",
+        y=alc_ctrl,
+        color=metric_color("Alcubierre"),
+        linestyle="--",
+        linewidth=2.0,
+        alpha=0.7,
+        label="Alcubierre",
     )
     # Add a visible scatter marker at the geometric center of log-scale x-range
     x_center = np.sqrt(x_reg[0] * x_reg[-1]) if x_reg[0] > 0 else x_reg[len(x_reg) // 2]
     ax.scatter(
-        [x_center], [alc_ctrl], marker="D", s=60, color=metric_color("Alcubierre"),
-        zorder=5, edgecolors="black", linewidths=0.5,
+        [x_center],
+        [alc_ctrl],
+        marker="D",
+        s=60,
+        color=metric_color("Alcubierre"),
+        zorder=5,
+        edgecolors="black",
+        linewidths=0.5,
     )
     ax.annotate(
-        f"{alc_ctrl:.1f}\\%", xy=(x_center, alc_ctrl),
-        xytext=(8, 8), textcoords="offset points",
-        fontsize=7, color=metric_color("Alcubierre"),
+        f"{alc_ctrl:.1f}\\%",
+        xy=(x_center, alc_ctrl),
+        xytext=(8, 8),
+        textcoords="offset points",
+        fontsize=7,
+        color=metric_color("Alcubierre"),
         arrowprops=dict(arrowstyle="->", color=metric_color("Alcubierre"), lw=0.8),
     )
     ax.set_xscale("log")
@@ -589,25 +623,32 @@ def plot_ablation(sweeps):
     ax = axes[2]
     x_sig_r = sweeps["sigma"]["values_rodal"]
     ax.plot(
-        x_sig_r, sweeps["sigma"]["rodal_dec_miss_pct"],
-        color=metric_color("Rodal"), label="Rodal (grid)", **LINE_STYLES[0],
+        x_sig_r,
+        sweeps["sigma"]["rodal_dec_miss_pct"],
+        color=metric_color("Rodal"),
+        label="Rodal (grid)",
+        **LINE_STYLES[0],
     )
     # Intrinsic wall-restricted conditional DEC miss rate: the fraction of wall DEC
     # violations the Eulerian frame misses (rises as the wall sharpens), the quantity
     # normalized by the active wall volume rather than the diluted grid fraction.
     wall_style = dict(linestyle="--", marker="s", markersize=5, markerfacecolor="none")
-    wall_pct = [r["wall_dec_miss_rate"] * 100.0
-                for r in sweeps["sigma"]["wall_rodal_results"]]
+    wall_pct = [r["wall_dec_miss_rate"] * 100.0 for r in sweeps["sigma"]["wall_rodal_results"]]
     ax.plot(
-        x_sig_r, wall_pct,
-        color=metric_color("Rodal"), label="Rodal (wall-restricted)", **wall_style,
+        x_sig_r,
+        wall_pct,
+        color=metric_color("Rodal"),
+        label="Rodal (wall-restricted)",
+        **wall_style,
     )
     x_sig_a = sweeps["sigma"]["values_alcubierre"]
     # Plot Alcubierre on a separate x-axis (twin) since sigma ranges differ
     ax2 = ax.twiny()
     ax2.plot(
-        x_sig_a, sweeps["sigma"]["alcubierre_dec_miss_pct"],
-        color=metric_color("Alcubierre"), **LINE_STYLES[1],
+        x_sig_a,
+        sweeps["sigma"]["alcubierre_dec_miss_pct"],
+        color=metric_color("Alcubierre"),
+        **LINE_STYLES[1],
     )
     ax.set_xlabel(r"$\sigma_\mathrm{Rodal}$")
     ax2.set_xlabel(r"$\sigma_\mathrm{Alc}$", fontsize=8)
@@ -617,6 +658,7 @@ def plot_ablation(sweeps):
     # Legend on last panel (primary axis)
     # Create proxy artists for legend since Alcubierre is on twin axis
     from matplotlib.lines import Line2D
+
     handles = [
         Line2D([0], [0], color=metric_color("Rodal"), label="Rodal (grid)", **LINE_STYLES[0]),
         Line2D([0], [0], color=metric_color("Rodal"), label="Rodal (wall-restr.)", **wall_style),
@@ -626,7 +668,10 @@ def plot_ablation(sweeps):
 
     fig.tight_layout()
     outpath = os.path.join(
-        os.path.dirname(__file__), "..", "figures", "rodal_dec_ablation.pdf",
+        os.path.dirname(__file__),
+        "..",
+        "figures",
+        "rodal_dec_ablation.pdf",
     )
     os.makedirs(os.path.dirname(outpath), exist_ok=True)
     fig.savefig(outpath)
@@ -635,6 +680,7 @@ def plot_ablation(sweeps):
 
 
 # Main
+
 
 def main():
     start_time = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

@@ -11,6 +11,7 @@ driven by the tidal tensor
 ``K^mu_rho = R^mu_{nu rho sigma} v^nu v^sigma`` and Christoffel
 transport terms.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -84,10 +85,10 @@ def geodesic_deviation_vector_field(
         Time derivative [v, a, dxi, dw] of shape (16,).
     """
     metric_fn = args
-    x = y[:4]      # position x^mu
-    v = y[4:8]     # velocity v^mu
-    xi = y[8:12]   # deviation vector xi^mu
-    w = y[12:16]   # covariant deviation velocity w^mu
+    x = y[:4]  # position x^mu
+    v = y[4:8]  # velocity v^mu
+    xi = y[8:12]  # deviation vector xi^mu
+    w = y[12:16]  # covariant deviation velocity w^mu
 
     # Christoffel symbols at current position: Gamma^lam_{mu nu} (4,4,4)
     gamma = christoffel_symbols(metric_fn, x)
@@ -200,9 +201,9 @@ def integrate_geodesic_with_deviation(
     )
 
     # Unpack the 16-component state into 4 fields
-    positions = sol.ys[:, :4]          # (N, 4)
-    velocities = sol.ys[:, 4:8]        # (N, 4)
-    deviations = sol.ys[:, 8:12]       # (N, 4)
+    positions = sol.ys[:, :4]  # (N, 4)
+    velocities = sol.ys[:, 4:8]  # (N, 4)
+    deviations = sol.ys[:, 8:12]  # (N, 4)
     deviation_velocities = sol.ys[:, 12:16]  # (N, 4)
 
     return DeviationResult(

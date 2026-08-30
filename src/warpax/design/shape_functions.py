@@ -11,6 +11,7 @@ basis families are exposed as ``ShapeFunction`` classmethods:
 - :meth:`ShapeFunction.gmm`, Gaussian mixture
   ``sum_k a_k * exp(-((r - mu_k) / sigma_k)^2)``.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -94,8 +95,7 @@ class ShapeFunction(eqx.Module):
         values = jnp.asarray(values)
         if knots.shape != values.shape:
             raise ValueError(
-                f"spline: knots.shape={knots.shape} must equal "
-                f"values.shape={values.shape}"
+                f"spline: knots.shape={knots.shape} must equal values.shape={values.shape}"
             )
         return cls(
             basis="spline",
@@ -140,8 +140,7 @@ class ShapeFunction(eqx.Module):
         coeffs = jnp.asarray(coeffs)
         if coeffs.ndim != 1 or coeffs.shape[0] < 2:
             raise ValueError(
-                f"bernstein: coeffs must be 1-D with at least 2 entries, "
-                f"got shape={coeffs.shape}"
+                f"bernstein: coeffs must be 1-D with at least 2 entries, got shape={coeffs.shape}"
             )
         return cls(
             basis="bernstein",
@@ -235,8 +234,7 @@ def _eval_spline(r, params):
         import interpax
     except ImportError as exc:  # pragma: no cover
         raise ImportError(
-            "ShapeFunction.spline requires the '[design]' extra: "
-            "`pip install \"warpax[design]\"`."
+            "ShapeFunction.spline requires the '[design]' extra: `pip install \"warpax[design]\"`."
         ) from exc
     knots = params["knots"]
     values = params["values"]
@@ -264,7 +262,7 @@ def _eval_bernstein(r, params):
     binom = jnp.exp(log_binom)
     # Safe zero-handling: 0^0 = 1; t^k * (1-t)^(n-k) vanishes at endpoints
     # except for the edge basis functions. jnp.power handles 0**0 as 1.
-    basis_vals = binom * (t ** k_idx) * ((1.0 - t) ** (n - k_idx))
+    basis_vals = binom * (t**k_idx) * ((1.0 - t) ** (n - k_idx))
     return jnp.sum(coeffs * basis_vals)
 
 
@@ -274,4 +272,4 @@ def _eval_gmm(r, params):
     widths = params["widths"]
     amps = params["amps"]
     arg = (r - means) / widths
-    return jnp.sum(amps * jnp.exp(-(arg ** 2)))
+    return jnp.sum(amps * jnp.exp(-(arg**2)))

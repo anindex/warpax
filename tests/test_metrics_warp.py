@@ -132,18 +132,14 @@ class TestLentz:
         m = LentzMetric(v_s=0.5, R=100.0, sigma=8.0)
         coords = jnp.array([0.0, 5.0, 0.0, 0.0])  # near center
         g = m(coords)
-        assert g[0, 0] < 0.0, (
-            f"g_00 = {g[0, 0]}, expected < 0 for subluminal v_s=0.5"
-        )
+        assert g[0, 0] < 0.0, f"g_00 = {g[0, 0]}, expected < 0 for subluminal v_s=0.5"
 
     def test_lentz_superluminal_g00_positive(self):
         """For v_s=2.0, verify g_00 > 0 at bubble center (signature change)."""
         m = LentzMetric(v_s=2.0, R=100.0, sigma=8.0)
         coords = jnp.array([0.0, 5.0, 0.0, 0.0])  # near center
         g = m(coords)
-        assert g[0, 0] > 0.0, (
-            f"g_00 = {g[0, 0]}, expected > 0 for superluminal v_s=2.0"
-        )
+        assert g[0, 0] > 0.0, f"g_00 = {g[0, 0]}, expected > 0 for superluminal v_s=2.0"
 
     def test_lentz_diamond_geometry(self):
         """Verify diamond (L1) geometry differs from spherical (L2) Alcubierre.
@@ -209,8 +205,7 @@ class TestLentz:
             rho_euler = jnp.einsum("a,ab,b->", n_up, T, n_up)
 
             assert jnp.allclose(rho_euler, case["rho_euler"], atol=1e-8), (
-                f"Lentz {name}: rho_euler = {rho_euler:.16e}, "
-                f"expected {case['rho_euler']:.16e}"
+                f"Lentz {name}: rho_euler = {rho_euler:.16e}, expected {case['rho_euler']:.16e}"
             )
 
 
@@ -394,9 +389,7 @@ class TestNatario:
         assert jnp.all(rho <= 1e-15), f"max rho = {jnp.max(rho)}"
         assert rho.dtype == jnp.float64
         # Check that some values are significantly negative (not all zero)
-        assert jnp.min(rho) < -1e-10, (
-            f"min rho = {jnp.min(rho)}, should be significantly negative"
-        )
+        assert jnp.min(rho) < -1e-10, f"min rho = {jnp.min(rho)}, should be significantly negative"
 
 
 class TestRodal:
@@ -632,7 +625,7 @@ class TestRodal:
             g_p = _rodal_g_paper(r, R, sigma)
             G = _rodal_G(r, R, sigma)
             assert jnp.isclose(G, 1.0 - g_p, atol=1e-12), (
-                f"Convention mismatch at r={r_val}: G={G}, 1-g_paper={1.0-g_p}"
+                f"Convention mismatch at r={r_val}: G={G}, 1-g_paper={1.0 - g_p}"
             )
 
     def test_rodal_cartesian_matches_reference(self):
@@ -645,22 +638,15 @@ class TestRodal:
         # Pre-computed reference values (from spherical-tetrad implementation)
         test_cases = [
             # (coords, expected_shift) - values from original implementation
-            (jnp.array([0.0, 50.0, 10.0, 0.0]),
-             jnp.array([-0.09557155, 0.0006476, 0.0])),
-            (jnp.array([0.0, 100.0, 1.0, 0.0]),
-             jnp.array([-0.0502442, 0.00038641, 0.0])),
-            (jnp.array([0.0, 0.0, 50.0, 50.0]),
-             jnp.array([-0.09672827, 0.0, 0.0])),
-            (jnp.array([0.0, 200.0, 0.0, 0.0]),
-             jnp.array([-0.00024849, 0.0, 0.0])),
-            (jnp.array([0.0, 30.0, 20.0, 10.0]),
-             None),  # just check no NaN
+            (jnp.array([0.0, 50.0, 10.0, 0.0]), jnp.array([-0.09557155, 0.0006476, 0.0])),
+            (jnp.array([0.0, 100.0, 1.0, 0.0]), jnp.array([-0.0502442, 0.00038641, 0.0])),
+            (jnp.array([0.0, 0.0, 50.0, 50.0]), jnp.array([-0.09672827, 0.0, 0.0])),
+            (jnp.array([0.0, 200.0, 0.0, 0.0]), jnp.array([-0.00024849, 0.0, 0.0])),
+            (jnp.array([0.0, 30.0, 20.0, 10.0]), None),  # just check no NaN
         ]
         for coords, expected in test_cases:
             shift = m.shift(coords)
-            assert not jnp.any(jnp.isnan(shift)), (
-                f"NaN at coords={coords}: shift={shift}"
-            )
+            assert not jnp.any(jnp.isnan(shift)), f"NaN at coords={coords}: shift={shift}"
             if expected is not None:
                 assert jnp.allclose(shift, expected, atol=1e-4), (
                     f"Mismatch at coords={coords}: got {shift}, expected {expected}"
@@ -693,8 +679,10 @@ class TestRodalAutodiffAtOrigin:
         finite for the curvature chain (which composes two jacfwd calls)
         to produce a finite Riemann tensor."""
         m = RodalMetric(v_s=0.5, R=1.0, sigma=0.1)
+
         def g00(c):
             return m(c)[0, 0]
+
         h = jax.hessian(g00)(jnp.array([0.0, 0.0, 0.0, 0.0]))
         assert bool(jnp.all(jnp.isfinite(h))), f"non-finite Hessian at origin: {h}"
 
@@ -705,9 +693,7 @@ class TestRodalAutodiffAtOrigin:
         for r in (1e-4, 1e-6, 1e-8, 1e-10, 1e-12, 1e-14, 0.0):
             coords = jnp.array([0.0, r, 0.0, 0.0])
             dg = jax.jacfwd(m)(coords)
-            assert bool(jnp.all(jnp.isfinite(dg))), (
-                f"non-finite grad at r={r!r}: {dg}"
-            )
+            assert bool(jnp.all(jnp.isfinite(dg))), f"non-finite grad at r={r!r}: {dg}"
 
     def test_curvature_chain_finite_at_origin(self):
         """Full curvature chain (metric -> Christoffel -> Riemann -> Ricci
@@ -716,12 +702,9 @@ class TestRodalAutodiffAtOrigin:
         grid aggregate."""
         m = RodalMetric(v_s=0.5, R=1.0, sigma=0.1)
         result = compute_curvature_chain(m, jnp.array([0.0, 0.0, 0.0, 0.0]))
-        for name in ("metric", "christoffel", "riemann", "ricci",
-                     "einstein", "stress_energy"):
+        for name in ("metric", "christoffel", "riemann", "ricci", "einstein", "stress_energy"):
             arr = getattr(result, name)
-            assert bool(jnp.all(jnp.isfinite(arr))), (
-                f"non-finite {name} at origin"
-            )
+            assert bool(jnp.all(jnp.isfinite(arr))), f"non-finite {name} at origin"
 
     def test_g_paper_analytic_limit_matches_numerical_approach(self):
         """At r -> 0 the analytic-limit branch value matches what a
@@ -822,8 +805,9 @@ class TestVanDenBroeck:
 
         Uses a point near the conformal bubble wall where curvature is nontrivial.
         """
-        m = VanDenBroeckMetric(v_s=0.1, R=350.0, sigma=8.0,
-                                R_tilde=200.0, alpha_vdb=0.5, sigma_B=8.0)
+        m = VanDenBroeckMetric(
+            v_s=0.1, R=350.0, sigma=8.0, R_tilde=200.0, alpha_vdb=0.5, sigma_B=8.0
+        )
         # Point near conformal bubble wall
         coords = jnp.array([0.0, 200.0, 1.0, 0.0])
         result = compute_curvature_chain(m, coords)
@@ -885,8 +869,9 @@ class TestVanDenBroeck:
         wall, VdB and Alcubierre should produce different stress-energy.
         """
         v_s, R, sigma = 0.1, 350.0, 8.0
-        vdb = VanDenBroeckMetric(v_s=v_s, R=R, sigma=sigma,
-                                  R_tilde=200.0, alpha_vdb=0.5, sigma_B=8.0)
+        vdb = VanDenBroeckMetric(
+            v_s=v_s, R=R, sigma=sigma, R_tilde=200.0, alpha_vdb=0.5, sigma_B=8.0
+        )
         alc = AlcubierreMetric(v_s=v_s, R=R, sigma=sigma, x_s=0.0)
 
         # Point near the conformal bubble wall where B != 1
@@ -899,8 +884,7 @@ class TestVanDenBroeck:
 
         # They should differ due to the conformal factor
         assert not jnp.allclose(T_vdb, T_alc, atol=1e-10), (
-            "Stress-energy should differ between VdB and Alcubierre "
-            "near conformal bubble wall"
+            "Stress-energy should differ between VdB and Alcubierre near conformal bubble wall"
         )
 
 
@@ -1022,9 +1006,7 @@ class TestWarpShell:
         assert jnp.allclose(gamma, jnp.eye(3), atol=1e-10), (
             f"Interior spatial metric should be identity. Got diag = {jnp.diag(gamma)}"
         )
-        assert jnp.isclose(alpha, 1.0, atol=1e-10), (
-            f"Interior lapse should be 1.0. Got {alpha}"
-        )
+        assert jnp.isclose(alpha, 1.0, atol=1e-10), f"Interior lapse should be 1.0. Got {alpha}"
 
     def test_warpshell_shell_non_flat(self):
         """At r between R_1 and R_2, spatial metric is NOT identity.
@@ -1090,8 +1072,7 @@ class TestWarpShell:
             gamma = m.spatial_metric(coords)
             eigvals = jnp.linalg.eigvalsh(gamma)
             assert jnp.all(eigvals > 0.0), (
-                f"Spatial metric not positive definite at {coords[1:]}: "
-                f"eigenvalues = {eigvals}"
+                f"Spatial metric not positive definite at {coords[1:]}: eigenvalues = {eigvals}"
             )
 
     def test_warpshell_spatial_metric_boundary_identity(self):
@@ -1114,7 +1095,8 @@ class TestWarpShell:
             gamma = m.spatial_metric(coords)
             eigvals = jnp.linalg.eigvalsh(gamma)
             assert jnp.allclose(eigvals, 1.0, atol=1e-6), (
-                f"Boundary spatial metric eigenvalues should be 1.0 at r={jnp.sqrt(coords[1]**2+coords[2]**2+coords[3]**2):.1f}. "
+                f"Boundary spatial metric eigenvalues should be 1.0 at "
+                f"r={jnp.sqrt(coords[1] ** 2 + coords[2] ** 2 + coords[3] ** 2):.1f}. "
                 f"Got {eigvals}"
             )
 
@@ -1147,12 +1129,14 @@ class TestWarpShell:
             # For WarpShell: n^a = (1/alpha, -beta^i/alpha)
             alpha = m.lapse(coords)
             beta = m.shift(coords)
-            n_up = jnp.array([
-                1.0 / alpha,
-                -beta[0] / alpha,
-                -beta[1] / alpha,
-                -beta[2] / alpha,
-            ])
+            n_up = jnp.array(
+                [
+                    1.0 / alpha,
+                    -beta[0] / alpha,
+                    -beta[1] / alpha,
+                    -beta[2] / alpha,
+                ]
+            )
             T = result.stress_energy
             rho_euler = jnp.einsum("a,ab,b->", n_up, T, n_up)
 
@@ -1173,14 +1157,10 @@ class TestWarpShell:
         coords_fn = lambda r: jnp.array([0.0, r, 0.0, 0.0])
 
         # Gradient of lapse w.r.t. radial coordinate (x-component)
-        dlapse_dr = jax.vmap(
-            lambda r: jax.grad(lambda c: m.lapse(c))(coords_fn(r))[1]
-        )(r_vals)
+        dlapse_dr = jax.vmap(lambda r: jax.grad(lambda c: m.lapse(c))(coords_fn(r))[1])(r_vals)
 
         # No NaN
-        assert not jnp.any(jnp.isnan(dlapse_dr)), (
-            "Lapse gradient contains NaN values"
-        )
+        assert not jnp.any(jnp.isnan(dlapse_dr)), "Lapse gradient contains NaN values"
 
         # C1 check: second differences should be bounded
         # (no delta-function spikes in the derivative)
@@ -1201,14 +1181,10 @@ class TestWarpShell:
         coords_fn = lambda r: jnp.array([0.0, r, 0.0, 0.0])
 
         # Gradient of shift_x w.r.t. x-coordinate
-        dshift_dr = jax.vmap(
-            lambda r: jax.grad(lambda c: m.shift(c)[0])(coords_fn(r))[1]
-        )(r_vals)
+        dshift_dr = jax.vmap(lambda r: jax.grad(lambda c: m.shift(c)[0])(coords_fn(r))[1])(r_vals)
 
         # No NaN
-        assert not jnp.any(jnp.isnan(dshift_dr)), (
-            "Shift gradient contains NaN values"
-        )
+        assert not jnp.any(jnp.isnan(dshift_dr)), "Shift gradient contains NaN values"
 
         # C1 check: bounded second differences
         d2 = jnp.diff(dshift_dr)
@@ -1291,7 +1267,11 @@ class TestWarpShell:
            O(1e-2) there (C2 lapse is 0.9319294656761363).
         """
         m = WarpShellMetric(
-            v_s=0.02, R_1=10.0, R_2=20.0, R_b=1.0, r_s_param=5.0,
+            v_s=0.02,
+            R_1=10.0,
+            R_2=20.0,
+            R_b=1.0,
+            r_s_param=5.0,
             transition_order=1,
         )
 
@@ -1301,12 +1281,14 @@ class TestWarpShell:
 
             alpha = m.lapse(coords)
             beta = m.shift(coords)
-            n_up = jnp.array([
-                1.0 / alpha,
-                -beta[0] / alpha,
-                -beta[1] / alpha,
-                -beta[2] / alpha,
-            ])
+            n_up = jnp.array(
+                [
+                    1.0 / alpha,
+                    -beta[0] / alpha,
+                    -beta[1] / alpha,
+                    -beta[2] / alpha,
+                ]
+            )
             T = result.stress_energy
             rho_euler = jnp.einsum("a,ab,b->", n_up, T, n_up)
 
@@ -1361,9 +1343,7 @@ class TestWarpShell:
         d2lapse = jax.vmap(jax.grad(jax.grad(lapse_of_x)))(r_vals)
 
         # No NaN
-        assert not jnp.any(jnp.isnan(d2lapse)), (
-            "C2 lapse second derivative contains NaN values"
-        )
+        assert not jnp.any(jnp.isnan(d2lapse)), "C2 lapse second derivative contains NaN values"
 
         # Third differences (proxy for third derivative discontinuity)
         d3 = jnp.diff(d2lapse)
@@ -1516,7 +1496,10 @@ class TestShellTotalMassArrayLeaf:
         from warpax.metrics.tshell_profiles import constant_velocity_profiles
 
         profiles = constant_velocity_profiles(
-            R_1=10.0, R_2=20.0, rho_0=1e-4, v_0=0.1,
+            R_1=10.0,
+            R_2=20.0,
+            rho_0=1e-4,
+            v_0=0.1,
         )
         m = tshell_from_profiles(profiles, n_grid=128)
         arrays, static = eqx.partition(m, eqx.is_array)

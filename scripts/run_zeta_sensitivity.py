@@ -1,4 +1,3 @@
-
 """Rapidity-cap sensitivity experiment for the Alcubierre metric.
 
 Measures how the minimum energy-condition margins (Eulerian and robust)
@@ -24,6 +23,7 @@ Usage
 -----
     python scripts/run_zeta_sensitivity.py
 """
+
 from __future__ import annotations
 
 import os
@@ -81,8 +81,8 @@ def main():
     t_curv = time.time() - t0
     print(f"  Curvature grid computed in {t_curv:.1f}s")
 
-    T_field = curv.stress_energy   # (*grid_shape, 4, 4)
-    g_field = curv.metric          # (*grid_shape, 4, 4)
+    T_field = curv.stress_energy  # (*grid_shape, 4, 4)
+    g_field = curv.metric  # (*grid_shape, 4, 4)
     g_inv_field = curv.metric_inv  # (*grid_shape, 4, 4)
 
     # --- Step 2: sweep over zeta_max values ---
@@ -134,9 +134,7 @@ def main():
         # Algebraic min: min of merged margin over Type-I points only
         # (eigenvalue margins are cap-independent at Type-I points)
         is_type_i = comparison.he_types == 1.0
-        wec_alg = float(jnp.min(jnp.where(
-            is_type_i, comparison.robust_margins["wec"], jnp.inf
-        )))
+        wec_alg = float(jnp.min(jnp.where(is_type_i, comparison.robust_margins["wec"], jnp.inf)))
 
         # Extract NEC results
         nec_eul = float(jnp.min(comparison.eulerian_margins["nec"]))
@@ -157,12 +155,17 @@ def main():
         n_type_iv_list.append(cls_stats["n_type_iv"])
         max_imag_list.append(cls_stats["max_imag_eigenvalue"])
 
-        print(f"  WEC: Eulerian min={wec_eul:.6e}, Alg.(TypeI) min={wec_alg:.6e}, "
-              f"Capped min={wec_opt:.6e}, Missed={wec_miss:.2f}%")
-        print(f"  NEC: Eulerian min={nec_eul:.6e}, Robust min={nec_rob:.6e}, "
-              f"Missed={nec_miss:.2f}%")
-        print(f"  Type I: {cls_stats['n_type_i']}, Type IV: {cls_stats['n_type_iv']}, "
-              f"max |Im λ|: {cls_stats['max_imag_eigenvalue']:.2e}")
+        print(
+            f"  WEC: Eulerian min={wec_eul:.6e}, Alg.(TypeI) min={wec_alg:.6e}, "
+            f"Capped min={wec_opt:.6e}, Missed={wec_miss:.2f}%"
+        )
+        print(
+            f"  NEC: Eulerian min={nec_eul:.6e}, Robust min={nec_rob:.6e}, Missed={nec_miss:.2f}%"
+        )
+        print(
+            f"  Type I: {cls_stats['n_type_i']}, Type IV: {cls_stats['n_type_iv']}, "
+            f"max |Im λ|: {cls_stats['max_imag_eigenvalue']:.2e}"
+        )
 
     # Convert to arrays
     wec_eul_min = np.array(wec_eul_min_list)
@@ -175,19 +178,21 @@ def main():
     nec_missed_pct = np.array(nec_missed_pct_list)
 
     # --- Step 3: save results ---
-    results.update({
-        "wec_eulerian_min": wec_eul_min,
-        "wec_robust_min": wec_rob_min,
-        "wec_algebraic_min": wec_alg_min,
-        "wec_opt_min": wec_opt_min,
-        "wec_missed_pct": wec_missed_pct,
-        "nec_eulerian_min": nec_eul_min,
-        "nec_robust_min": nec_rob_min,
-        "nec_missed_pct": nec_missed_pct,
-        "n_type_i": np.array(n_type_i_list),
-        "n_type_iv": np.array(n_type_iv_list),
-        "max_imag_eigenvalue": np.array(max_imag_list),
-    })
+    results.update(
+        {
+            "wec_eulerian_min": wec_eul_min,
+            "wec_robust_min": wec_rob_min,
+            "wec_algebraic_min": wec_alg_min,
+            "wec_opt_min": wec_opt_min,
+            "wec_missed_pct": wec_missed_pct,
+            "nec_eulerian_min": nec_eul_min,
+            "nec_robust_min": nec_rob_min,
+            "nec_missed_pct": nec_missed_pct,
+            "n_type_i": np.array(n_type_i_list),
+            "n_type_iv": np.array(n_type_iv_list),
+            "max_imag_eigenvalue": np.array(max_imag_list),
+        }
+    )
     np.savez(OUTPUT_PATH, **results)
     print(f"\nResults saved to {OUTPUT_PATH}")
 

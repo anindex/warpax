@@ -6,9 +6,7 @@ import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 
-def alcubierre_shape(
-    r: Float[Array, "..."], R: float, sigma: float
-) -> Float[Array, "..."]:
+def alcubierre_shape(r: Float[Array, "..."], R: float, sigma: float) -> Float[Array, "..."]:
     """Standard Alcubierre top-hat shape function.
 
     f(r) = [tanh(sigma*(r+R)) - tanh(sigma*(r-R))] / [2*tanh(sigma*R)]
@@ -30,6 +28,4 @@ def alcubierre_shape(
     Float[Array, "..."]
         Shape function value in [0, 1].
     """
-    return (jnp.tanh(sigma * (r + R)) - jnp.tanh(sigma * (r - R))) / (
-        2.0 * jnp.tanh(sigma * R)
-    )
+    return (jnp.tanh(sigma * (r + R)) - jnp.tanh(sigma * (r - R))) / (2.0 * jnp.tanh(sigma * R))

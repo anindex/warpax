@@ -1,4 +1,3 @@
-
 """WarpShell resolution stability sweep: 25^3, 50^3, 100^3.
 
 Evaluates WarpShell at three resolutions to check convergence of
@@ -8,6 +7,7 @@ prohibitively expensive at 1M points).
 
 Output: results/warpshell_convergence.json
 """
+
 from __future__ import annotations
 
 import math
@@ -54,10 +54,10 @@ def main():
 
     for N in RESOLUTIONS:
         grid_spec = GridSpec(bounds=BOUNDS, shape=(N, N, N))
-        n_points = N ** 3
-        print(f"\n{'='*60}")
+        n_points = N**3
+        print(f"\n{'=' * 60}")
         print(f"Resolution: {N}^3 = {n_points} points")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         # Step 1: Compute curvature grid
         print(" Computing curvature grid...")
@@ -112,7 +112,9 @@ def main():
             rob_wec = np.asarray(comparison.robust_margins["wec"])
             min_nec_rob = float(np.nanmin(rob_nec))
             min_wec_rob = float(np.nanmin(rob_wec))
-            integrated_nec_rob = float(np.nansum(np.minimum(np.nan_to_num(rob_nec.ravel(), nan=0.0), 0.0)))
+            integrated_nec_rob = float(
+                np.nansum(np.minimum(np.nan_to_num(rob_nec.ravel(), nan=0.0), 0.0))
+            )
 
             results["min_nec_margin_robust"].append(min_nec_rob)
             results["min_wec_margin_robust"].append(min_wec_rob)
@@ -155,9 +157,12 @@ def main():
     iv25, iv50, iv100 = results["integrated_nec_violation_eulerian"]
     diff1_iv = iv25 - iv50
     diff2_iv = iv50 - iv100
-    if (not any(math.isnan(v) for v in [iv25, iv50, iv100])
-            and abs(diff2_iv) > 1e-30 and abs(diff1_iv) > 1e-30
-            and diff1_iv / diff2_iv > 0):
+    if (
+        not any(math.isnan(v) for v in [iv25, iv50, iv100])
+        and abs(diff2_iv) > 1e-30
+        and abs(diff1_iv) > 1e-30
+        and diff1_iv / diff2_iv > 0
+    ):
         p_iv = math.log2(diff1_iv / diff2_iv)
         extrapolated_iv = iv100 + (iv100 - iv50) / (2**p_iv - 1)
     else:
@@ -173,9 +178,9 @@ def main():
     print(f"\nResults saved to {out_path}")
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Resolutions: {RESOLUTIONS}")
     print(f"Eulerian min NEC: {results['min_nec_margin_eulerian']}")
     print(f"Eulerian integrated NEC: {results['integrated_nec_violation_eulerian']}")

@@ -6,6 +6,7 @@ the Schwarzschild Kretschmann scalar reproduces the closed form
 coordinate used by ``SchwarzschildMetric``). The fit test pins the log-log
 power-law extraction used to report the universal exponents.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -51,9 +52,7 @@ class TestSentinels:
 
     def test_schwarzschild_kretschmann_closed_form(self):
         M, r_iso = 1.0, 5.0
-        res = compute_curvature_chain(
-            SchwarzschildMetric(M=M), jnp.array([0.0, r_iso, 0.0, 0.0])
-        )
+        res = compute_curvature_chain(SchwarzschildMetric(M=M), jnp.array([0.0, r_iso, 0.0, 0.0]))
         K = float(kretschmann_scalar(res.riemann, res.metric, res.metric_inv))
         # Isotropic -> areal radius: r = r_iso (1 + M/2 r_iso)^2.
         r_areal = r_iso * (1.0 + M / (2.0 * r_iso)) ** 2
@@ -63,19 +62,15 @@ class TestSentinels:
     def test_schwarzschild_weyl_equals_kretschmann(self):
         """Schwarzschild is Ricci-flat: Ricci^2 = 0 and C^2 = K exactly.
         Guards the sign of the Weyl term in the Gauss-Bonnet identity."""
-        res = compute_curvature_chain(
-            SchwarzschildMetric(M=1.0), jnp.array([0.0, 5.0, 0.0, 0.0])
-        )
+        res = compute_curvature_chain(SchwarzschildMetric(M=1.0), jnp.array([0.0, 5.0, 0.0, 0.0]))
         K, R2, W2, _ = compute_invariants(res)
-        assert float(jnp.abs(R2)) < 1e-8                       # Ricci-flat
-        assert abs(float(W2) - float(K)) / float(K) < 1e-6     # C^2 = K
+        assert float(jnp.abs(R2)) < 1e-8  # Ricci-flat
+        assert abs(float(W2) - float(K)) / float(K) < 1e-6  # C^2 = K
 
     def test_schwarzschild_chern_pontryagin_zero(self):
         """A static, parity-even spacetime has vanishing Chern-Pontryagin.
         Guards the Levi-Civita permutation tables / Hodge-dual contraction."""
-        res = compute_curvature_chain(
-            SchwarzschildMetric(M=1.0), jnp.array([0.0, 5.0, 0.0, 0.0])
-        )
+        res = compute_curvature_chain(SchwarzschildMetric(M=1.0), jnp.array([0.0, 5.0, 0.0, 0.0]))
         _, _, _, CP = compute_invariants(res)
         assert float(jnp.abs(CP)) < 1e-8
 
@@ -94,9 +89,9 @@ class TestSentinels:
 
         res = compute_curvature_chain(conformal, jnp.array([0.0, 1.0, 0.0, 0.0]))
         K, R2, W2, _ = compute_invariants(res)
-        assert float(jnp.abs(W2)) < 1e-8           # conformally flat -> Weyl = 0
-        assert float(jnp.abs(K)) > 1e-4            # but K nonzero ...
-        assert float(jnp.abs(R2)) > 1e-4           # ... and Ricci^2 nonzero
+        assert float(jnp.abs(W2)) < 1e-8  # conformally flat -> Weyl = 0
+        assert float(jnp.abs(K)) > 1e-4  # but K nonzero ...
+        assert float(jnp.abs(R2)) > 1e-4  # ... and Ricci^2 nonzero
 
 
 class TestFit:

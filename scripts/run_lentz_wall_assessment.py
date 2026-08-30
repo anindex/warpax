@@ -1,4 +1,3 @@
-
 """Assess Lentz wall resolution via analytical wall-width and 1D radial cut.
 
 Computes the wall-width/grid-spacing ratio analytically (from run_wall_resolution.py),
@@ -14,6 +13,7 @@ Usage
 -----
     python scripts/run_lentz_wall_assessment.py
 """
+
 from __future__ import annotations
 
 import math
@@ -130,12 +130,14 @@ def radial_cut_assessment():
         T_frobenius = float(jnp.linalg.norm(curv.stress_energy))
         f_val = float(metric.shape_function_value(coords))
 
-        results.append({
-            "r": float(r),
-            "kretschmann": K,
-            "T_frobenius": T_frobenius,
-            "f": f_val,
-        })
+        results.append(
+            {
+                "r": float(r),
+                "kretschmann": K,
+                "T_frobenius": T_frobenius,
+                "f": f_val,
+            }
+        )
 
         if (i + 1) % 100 == 0:
             print(f"  Computed {i + 1}/{N_RADIAL} points...")
@@ -148,10 +150,11 @@ def radial_cut_assessment():
     peak_k_idx = int(np.argmax(np.abs(kretschmann_vals)))
     peak_T_idx = int(np.argmax(T_vals))
 
-    print(f"  Peak |Kretschmann|: {abs(kretschmann_vals[peak_k_idx]):.6e} "
-          f"at r={results[peak_k_idx]['r']:.2f}")
-    print(f"  Peak T_Frobenius:   {T_vals[peak_T_idx]:.6e} "
-          f"at r={results[peak_T_idx]['r']:.2f}")
+    print(
+        f"  Peak |Kretschmann|: {abs(kretschmann_vals[peak_k_idx]):.6e} "
+        f"at r={results[peak_k_idx]['r']:.2f}"
+    )
+    print(f"  Peak T_Frobenius:   {T_vals[peak_T_idx]:.6e} at r={results[peak_T_idx]['r']:.2f}")
 
     return results
 
@@ -244,10 +247,7 @@ def save_report(analytical, radial_cut, start_time):
     lines.append("")
 
     # 1D radial cut summary
-    lines.append(
-        f"## 1D Radial Cut (N={N_RADIAL}, "
-        f"r=[{RADIAL_RANGE[0]}, {RADIAL_RANGE[1]}])\n"
-    )
+    lines.append(f"## 1D Radial Cut (N={N_RADIAL}, r=[{RADIAL_RANGE[0]}, {RADIAL_RANGE[1]}])\n")
     lines.append(
         f"Curvature peaks sharply at the wall (r ~ R={R_LENTZ}). "
         f"The Kretschmann scalar peaks at "

@@ -31,6 +31,7 @@ Usage
     python scripts/run_matched_benchmark.py
     python scripts/run_matched_benchmark.py --resolutions 30 50 70 --n-starts 4
 """
+
 from __future__ import annotations
 
 import argparse
@@ -64,8 +65,8 @@ RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 TABLES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "warpax_arxiv", "tables")
 
 V_S = 0.5
-BOUNDS = [(-3, 3)] * 3      # identical compact domain for every metric
-F_LOW, F_HIGH = 0.1, 0.9    # active warp-wall region
+BOUNDS = [(-3, 3)] * 3  # identical compact domain for every metric
+F_LOW, F_HIGH = 0.1, 0.9  # active warp-wall region
 
 # Matched family parameters (R = 1, sigma = 8) for every retained metric.
 # Display name -> (constructor, extra kwargs beyond v_s/R/sigma).
@@ -94,8 +95,12 @@ def run_single(name: str, metric, N: int, n_starts: int, batch_size: int) -> dic
     t0 = time.time()
     curv = evaluate_curvature_grid(metric, grid_spec, batch_size=256)
     comparison = compare_eulerian_vs_robust(
-        curv.stress_energy, curv.metric, curv.metric_inv, shape,
-        n_starts=n_starts, batch_size=batch_size,
+        curv.stress_energy,
+        curv.metric,
+        curv.metric_inv,
+        shape,
+        n_starts=n_starts,
+        batch_size=batch_size,
     )
     elapsed = time.time() - t0
 
@@ -112,7 +117,10 @@ def run_single(name: str, metric, N: int, n_starts: int, batch_size: int) -> dic
     mask = shape_function_mask(metric, coords, shape, f_low=F_LOW, f_high=F_HIGH)
     vol_w = proper_volume_weights(grid_spec.volume_weights_array, curv.metric)
     wall = compute_wall_restricted_stats(
-        ec, mask, eulerian_margins=eulerian_margins, volume_weights=vol_w,
+        ec,
+        mask,
+        eulerian_margins=eulerian_margins,
+        volume_weights=vol_w,
     )
 
     def _pct(x):
@@ -167,12 +175,18 @@ def write_summary_table(panels: dict, resolutions: list[int], out_path: str) -> 
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_matched_benchmark.py", sources="results/matched_benchmark.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_matched_benchmark.py",
+        sources="results/matched_benchmark.json",
+    )
     print(f"  Wrote {out_path}")
 
 
-def write_convergence_table(panels: dict, resolutions: list[int], out_path: str,
-                            wall_cell_map: dict | None = None) -> None:
+def write_convergence_table(
+    panels: dict, resolutions: list[int], out_path: str, wall_cell_map: dict | None = None
+) -> None:
     """Per-metric wall-resolved DEC-miss stability across the graded ladder.
 
     The wall DEC miss rate is a (non-smooth) thresholded volume fraction, so it
@@ -192,9 +206,7 @@ def write_convergence_table(panels: dict, resolutions: list[int], out_path: str,
         r"  \midrule",
     ]
     for name in METRIC_ORDER:
-        rows = sorted(
-            [r for r in panels[name] if r["N"] in resolutions], key=lambda r: r["N"]
-        )
+        rows = sorted([r for r in panels[name] if r["N"] in resolutions], key=lambda r: r["N"])
         if len(rows) < 3:
             continue
         dec_vals = [r["miss"]["dec"] for r in rows]
@@ -206,12 +218,15 @@ def write_convergence_table(panels: dict, resolutions: list[int], out_path: str,
             dec_cells = " & ".join(f"{v:.1f}" for v in dec_vals)
             stable_str = r"\checkmark" if stab["stable"] else r"$\times$"
             dev_str = f"{stab['max_dev_pp']:.2f}"
-        lines.append(
-            f"  {name} & {dec_cells} & {dev_str} & {stable_str} \\\\"
-        )
+        lines.append(f"  {name} & {dec_cells} & {dev_str} & {stable_str} \\\\")
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    write_tex_table(out_path, lines, script="scripts/run_matched_benchmark.py", sources="results/matched_benchmark.json")
+    write_tex_table(
+        out_path,
+        lines,
+        script="scripts/run_matched_benchmark.py",
+        sources="results/matched_benchmark.json",
+    )
     print(f"  Wrote {out_path}")
 
 
@@ -248,9 +263,12 @@ def main():
     dump_json(
         {
             "metadata": {
-                "v_s": V_S, "R": 1.0, "sigma": 8.0,
+                "v_s": V_S,
+                "R": 1.0,
+                "sigma": 8.0,
                 "bounds": [list(b) for b in BOUNDS],
-                "resolutions": resolutions, "n_starts": args.n_starts,
+                "resolutions": resolutions,
+                "n_starts": args.n_starts,
                 # Report the clustering strength actually used, which comes from
                 # _benchmark_grid.CLUSTER_A via benchmark_grid(). This string was
                 # hardcoded to a stale 1.2 and so claimed a second grid family
@@ -266,15 +284,15 @@ def main():
     print(f"\nWrote {out_json}")
 
     write_summary_table(panels, resolutions, os.path.join(TABLES_DIR, "missed_wall_restricted.tex"))
-    write_convergence_table(panels, resolutions, os.path.join(TABLES_DIR, "convergence_per_metric.tex"))
+    write_convergence_table(
+        panels, resolutions, os.path.join(TABLES_DIR, "convergence_per_metric.tex")
+    )
 
     print("\n" + "=" * 70)
     print("SUMMARY (wall-restricted DEC miss %, by resolution)")
     print("=" * 70)
     for name in METRIC_ORDER:
-        cells = "  ".join(
-            f"N={r['N']}:{_fmt_pct(r['miss']['dec'])}" for r in panels[name]
-        )
+        cells = "  ".join(f"N={r['N']}:{_fmt_pct(r['miss']['dec'])}" for r in panels[name])
         print(f"  {name:>16s}  {cells}")
 
 

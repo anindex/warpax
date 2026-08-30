@@ -13,6 +13,7 @@ Index conventions match ``geometry.py``: Riemann ``R^a_{bcd}``, Ricci
 ``R_{ab}``, metric ``g_{ab}``, inverse metric ``g^{ab}``. These functions
 are pointwise; use ``grid.evaluate_curvature_grid`` for batched evaluation.
 """
+
 from __future__ import annotations
 
 import jax.numpy as jnp
@@ -23,17 +24,33 @@ from .geometry import CurvatureResult
 # All 24 permutations of (0,1,2,3) with their signs.
 # Even permutations (+1):
 _EVEN_PERMS = (
-    (0, 1, 2, 3), (0, 2, 3, 1), (0, 3, 1, 2),
-    (1, 0, 3, 2), (1, 2, 0, 3), (1, 3, 2, 0),
-    (2, 0, 1, 3), (2, 1, 3, 0), (2, 3, 0, 1),
-    (3, 0, 2, 1), (3, 1, 0, 2), (3, 2, 1, 0),
+    (0, 1, 2, 3),
+    (0, 2, 3, 1),
+    (0, 3, 1, 2),
+    (1, 0, 3, 2),
+    (1, 2, 0, 3),
+    (1, 3, 2, 0),
+    (2, 0, 1, 3),
+    (2, 1, 3, 0),
+    (2, 3, 0, 1),
+    (3, 0, 2, 1),
+    (3, 1, 0, 2),
+    (3, 2, 1, 0),
 )
 # Odd permutations (-1):
 _ODD_PERMS = (
-    (0, 1, 3, 2), (0, 2, 1, 3), (0, 3, 2, 1),
-    (1, 0, 2, 3), (1, 2, 3, 0), (1, 3, 0, 2),
-    (2, 0, 3, 1), (2, 1, 0, 3), (2, 3, 1, 0),
-    (3, 0, 1, 2), (3, 1, 2, 0), (3, 2, 0, 1),
+    (0, 1, 3, 2),
+    (0, 2, 1, 3),
+    (0, 3, 2, 1),
+    (1, 0, 2, 3),
+    (1, 2, 3, 0),
+    (1, 3, 0, 2),
+    (2, 0, 3, 1),
+    (2, 1, 0, 3),
+    (2, 3, 1, 0),
+    (3, 0, 1, 2),
+    (3, 1, 2, 0),
+    (3, 2, 0, 1),
 )
 
 # Pre-build index arrays for JIT-compatible construction
@@ -68,7 +85,11 @@ def kretschmann_scalar(
     R_down = jnp.einsum("ae,ebcd->abcd", metric, riemann)
     R_up_all = jnp.einsum(
         "ae,bf,cg,dh,efgh->abcd",
-        metric_inv, metric_inv, metric_inv, metric_inv, R_down,
+        metric_inv,
+        metric_inv,
+        metric_inv,
+        metric_inv,
+        R_down,
     )
     return jnp.einsum("abcd,abcd->", R_down, R_up_all)
 
@@ -91,7 +112,7 @@ def weyl_squared(
 
     ``C^2 = K - 2 R_{ab} R^{ab} + (1/3) R^2`` in four dimensions.
     """
-    return kretschmann - 2.0 * ricci_sq + (1.0 / 3.0) * ricci_scalar ** 2
+    return kretschmann - 2.0 * ricci_sq + (1.0 / 3.0) * ricci_scalar**2
 
 
 def _levi_civita_4d(
@@ -130,16 +151,18 @@ def chern_pontryagin(
     R_dual = 0.5 * jnp.einsum("abef,efcd->abcd", epsilon, R_up_cd)
     R_up_all = jnp.einsum(
         "ae,bf,cg,dh,efgh->abcd",
-        metric_inv, metric_inv, metric_inv, metric_inv, R_down,
+        metric_inv,
+        metric_inv,
+        metric_inv,
+        metric_inv,
+        R_down,
     )
     return jnp.einsum("abcd,abcd->", R_dual, R_up_all)
 
 
 def compute_invariants(
     result: CurvatureResult,
-) -> tuple[
-    Float[Array, ""], Float[Array, ""], Float[Array, ""], Float[Array, ""]
-]:
+) -> tuple[Float[Array, ""], Float[Array, ""], Float[Array, ""], Float[Array, ""]]:
     """Compute all four curvature invariants from a ``CurvatureResult``.
 
     Returns ``(K, R2, W2, CP)``: Kretschmann, Ricci-squared, Weyl-squared,
