@@ -81,7 +81,7 @@ def _build_eulerian_frames(
     ``min`` over the six axis-aligned null rays of the Eulerian tetrad) rather
     than ``verify_grid`` (whose ``nec_margin`` is already the observer-robust
     worst-case). This makes the left panel a true Eulerian baseline, distinct
-    from the dense observer-robust worst-case in the right panel -- the gap
+    from the dense observer-robust worst-case in the right panel, the gap
     between them is exactly what observer-robust verification buys.
     """
     import equinox as eqx

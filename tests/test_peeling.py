@@ -6,14 +6,14 @@ Weyl scalars peel as ``Psi_n ~ r^{-(5-n)}``.  The robust, universal certificate 
 the Coulombic ``Psi_2 ~ r^{-3}`` (slope -3), confirmed on three independent exact
 spacetimes:
 
-  * Schwarzschild (static vacuum) -- ``Psi_2`` peels, all other scalars at floor.
-  * Kinnersley photon rocket (accelerating + radiating) -- ``Psi_2`` peels and the
+  * Schwarzschild (static vacuum), ``Psi_2`` peels, all other scalars at floor.
+  * Kinnersley photon rocket (accelerating + radiating), ``Psi_2`` peels and the
     radiative ``Psi_4`` sits at the pipeline floor (the Damour dipole is
     gravitational-wave-silent).
-  * Vaidya monopole (isotropic mass loss) -- ``Psi_2`` peels.
+  * Vaidya monopole (isotropic mass loss), ``Psi_2`` peels.
 
 The genuine radiative ``Psi_4 ~ r^{-1}`` tail (slope -1) is exhibited on a
-deliberately non-silent linearized transverse-traceless wave -- the positive
+deliberately non-silent linearized transverse-traceless wave, the positive
 control proving the instrument reads real radiative peeling, not a pipeline
 artifact.
 """

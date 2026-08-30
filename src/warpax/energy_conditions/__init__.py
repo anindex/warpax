@@ -11,7 +11,7 @@ with no eigendecomposition, no rapidity cap and no classification tolerance,
 at any Hawking-Ellis type. Its verdict is one-sided in the strict direction
 only: a margin below ``-noise_floor(...)`` certifies that some observer sees
 the condition fail, and a margin above ``+noise_floor(...)`` certifies that it
-holds. Between the two the point is saturated and neither is certified -- a
+holds. Between the two the point is saturated and neither is certified, a
 computed ``+1.1e-17`` occurs on a tensor the exact rational certificate reports
 violated. For a proof rather than a margin, use :mod:`.certificate`.
 """

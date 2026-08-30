@@ -14,7 +14,7 @@ types are unstable under perturbation while I and IV are stable).
 The manuscript's answer is that the energy-condition verdict never consults the type:
 it comes from a 4x4 linear matrix inequality. This script measures that claim on
 analytic families where the ground truth is known in closed form, rather than on a
-grid where it is not. The previous audit ran on a numerical wall and its Type-III arm
+grid where it is not. The previous audit ran on a numerical wall whose Type-III branch
 tested *zero* points, which made half of it vacuous.
 
 The families
@@ -26,7 +26,7 @@ discrepancy.
 ``momentum_aligned``
     ``rho = S_par = 1``, ``p_perp = 0``, ``j`` sweeping through 1. ``Delta = 4(1-j^2)``:
     Type I below, Type IV above, and at ``j = 1`` the momentum block is a nilpotent
-    ``J_2(0)`` -- Type II exactly. The null deficit is ``1 - j^2`` below and
+    ``J_2(0)``, Type II exactly. The null deficit is ``1 - j^2`` below and
     ``2 - 2j`` above, continuous and vanishing at the locus.
 
 ``momentum_decoupled``
@@ -164,7 +164,7 @@ def sweep(name, builder, params, directions):
     margins = np.array([r["nec_margin"] for r in rows])
     ps = np.array([r["param"] for r in rows])
     # Discrete Lipschitz constant of the margin: finite means continuous across the
-    # locus, which is the whole point -- the label is not.
+    # locus, which is the whole point, the label is not.
     lip = float(np.max(np.abs(np.diff(margins)) / np.maximum(np.diff(ps), 1e-30)))
     primary = np.array([r["labels"][f"tol_{TOLS[0]:g}"] for r in rows])
     jumps = [int(i) for i in np.flatnonzero(np.diff(primary) != 0)]
@@ -215,7 +215,7 @@ def type_iii_arm(fs, directions):
 
     # Smallest chain strength at which float64 still agrees with 50 digits, and the
     # smallest at which the LMI still certifies a violation. The gap between them is
-    # the headline: the verdict outlives the label by orders of magnitude.
+    # the point: the verdict outlives the label by orders of magnitude.
     agree = [r["f"] for r in rows
              if r["labels"][f"tol_{TOLS[0]:g}"] == r["he_type_mpmath_50digit"]]
     certifies = [r["f"] for r in rows if r["nec_margin"] < -r["noise_floor"]]
@@ -257,7 +257,7 @@ def main():
     dirs = rng.normal(size=(BRUTE_N, 3))
     dirs /= np.linalg.norm(dirs, axis=1, keepdims=True)
 
-    # 401 points, so j = 1 -- the Type-II locus -- is hit exactly.
+    # 401 points, so j = 1, the Type-II locus, is hit exactly.
     js = np.linspace(0.0, 2.0, 401)
     ms = np.linspace(0.0, 3.0, 301)
     fs = np.logspace(-6.0, 0.0, 121)

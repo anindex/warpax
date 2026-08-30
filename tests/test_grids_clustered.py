@@ -2,7 +2,7 @@
 
 These pin the two defects fixed in the second revision:
 
-1. the coordinate map was not *anchored* -- it clustered, but the densest
+1. the coordinate map was not *anchored*, it clustered, but the densest
    sampling drifted off the wall (x = 1.266 for a wall at r = 1);
 2. it clustered only toward ``+wall_radius``, so the ``-x`` crossing of the same
    spherical wall was measurably coarser and fell below the four-cell criterion

@@ -19,14 +19,14 @@ realized.
 
 What is computed
 ----------------
-* :func:`weyl_scalars` -- the five complex NP scalars at one cone point, built
+* :func:`weyl_scalars`, the five complex NP scalars at one cone point, built
   from the exact curvature chain (:func:`warpax.geometry.geometry.compute_curvature_chain`)
   by forming the Weyl tensor :math:`C_{abcd}` (Riemann minus its Ricci trace
   parts, so the matter-bearing null-dust cones of Kinnersley/Vaidya are handled
   correctly) and contracting it with the asymptotic null tetrad
   ``l`` (outgoing null), ``n`` (ingoing null), ``m`` (transverse complex null)
   reused from :mod:`~warpax.bondi.extract`.
-* :func:`peeling_slopes` -- samples :math:`|\Psi_n|` over a range of luminosity
+* :func:`peeling_slopes`, samples :math:`|\Psi_n|` over a range of luminosity
   radii along an outgoing cone and fits :math:`\log|\Psi_n|` vs :math:`\log r`,
   returning the per-scalar slope.  The peeling prediction is
   ``slope[n] == -(5-n)`` i.e. ``[-5,-4,-3,-2,-1]``.
@@ -78,7 +78,7 @@ class PeelingResult(NamedTuple):
     radii : (k,) luminosity radii sampled.
     psi_by_r : (5, k) ``|Psi_n|(r)`` table.
     theta : polar angle of the sampled cone generator.
-    above_floor : (5,) bool -- scalar resolved above the relative noise floor
+    above_floor : (5,) bool, scalar resolved above the relative noise floor
         (and therefore slope-fit).  ``Psi_2`` (Coulombic) is the reference.
     ricci_max : max ``|R|`` over the sampled radii (exact-solution sanity).
     """
@@ -180,7 +180,7 @@ def peeling_slopes(
     generator at polar angle ``theta`` and least-squares fits ``log|Psi_n|`` vs
     ``log r``.  A scalar is fit only if it is resolved above ``rel_floor`` times
     the Coulombic ``|Psi_2|`` at the same radii (else it is at the numerical
-    floor -- e.g. ``Psi_4`` for a GW-silent dipole -- and reported, not fit).
+    floor, e.g. ``Psi_4`` for a GW-silent dipole, and reported, not fit).
 
     Returns
     -------

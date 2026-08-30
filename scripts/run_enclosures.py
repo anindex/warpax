@@ -13,8 +13,8 @@ null deficit, which is defined at every point regardless of Hawking-Ellis type.
 
 The two ends are not equally sharp. ``upper`` is an *achieved* value, evaluated on a
 degenerate box with the same rigorous arithmetic, so it is a genuine wall value.
-``lower`` is a continuum bound -- valid at every point, not merely at sampled ones,
-which is the global statement local refinement cannot supply -- but it is loose,
+``lower`` is a continuum bound, valid at every point, not merely at sampled ones,
+which is the global statement local refinement cannot supply, but it is loose,
 because the interval extension of the full curvature chain overestimates. Report the
 width; do not suppress it.
 
@@ -140,7 +140,7 @@ def _load_references():
 # It was 0.6 here, so the certified bracket in tables/enclosures.tex enclosed the
 # extremum of a *different spacetime* from the one every other table reports, and
 # the regression test in tests/test_enclosure.py compared the interval and JAX
-# transcriptions of that same wrong instance -- agreeing with each other proves
+# transcriptions of that same wrong instance, agreeing with each other proves
 # nothing about the metric the paper is about.
 VDB_KW = dict(R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
 

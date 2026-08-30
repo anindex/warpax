@@ -7,14 +7,14 @@ grid used nor counted per wall normal. None of it was comparable.
 
 This script replaces it with two blocks that are each internally honest:
 
-**matched** -- common dimensionless shift kinematics. Fuchs' compliance is
+**matched**, common dimensionless shift kinematics. Fuchs' compliance is
 designed at ``v_s = 0.02`` and Garattini's averaged-condition regime pins
 ``v_s = H R``, so the match is made *to them*: every construction runs at
 ``v_s = 0.02`` with characteristic wall radius ``R_c = 15`` and 10-90% shift
 width ``W = 4.419943`` (``W/R_c = 0.2947``), the values read off the published
 Fuchs sigmoid. All four then present an identical wall at identical resolution.
 
-**native** -- each construction reproduced at its own published parameters, so
+**native**, each construction reproduced at its own published parameters, so
 the panel also states what each author actually claimed.
 
 Neither block is called "fully physically matched", because that is impossible:

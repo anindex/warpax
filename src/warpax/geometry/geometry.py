@@ -86,7 +86,7 @@ def riemann_tensor(
         coords: Spacetime coordinates as shape (4,) array.
         gamma: Optional precomputed Christoffel symbols at ``coords`` (shape
             (4,4,4)). When supplied, the quadratic connection terms reuse it
-            instead of recomputing ``christoffel_symbols`` -- the derivative
+            instead of recomputing ``christoffel_symbols``, the derivative
             term still differentiates the Christoffel function, so the result
             is bit-identical. Threading the value avoids a redundant
             ``jacfwd(metric)`` in :func:`compute_curvature_chain` and the

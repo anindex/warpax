@@ -2,10 +2,10 @@
 
 Three observables for admissibility assessment:
 
-1. delta_t_coord -- null round-trip *coordinate-time* asymmetry;
+1. delta_t_coord, null round-trip *coordinate-time* asymmetry;
    gauge-dependent (it lives in the chosen time slicing).
-2. A_geo         -- geodesic deviation diagnostic (gauge-invariant).
-3. B             -- blueshift hazard functional (gauge-invariant for
+2. A_geo        , geodesic deviation diagnostic (gauge-invariant).
+3. B            , blueshift hazard functional (gauge-invariant for
    a chosen observer worldline).
 
 Built on warpax.geodesics (Diffrax integration, Jacobi deviation,

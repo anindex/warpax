@@ -947,7 +947,7 @@ class TestInitialConditionsOnTheNullLocus:
     def test_no_real_root_still_returns_nan(self):
         """The genuine no-real-root case must remain a NaN signal.
 
-        A large spatial component is not that case -- ``v_spatial`` is the
+        A large spatial component is not that case, ``v_spatial`` is the
         coordinate component of a 4-vector, so ``(2, 0, 0)`` just means
         ``gamma = 2.236``, i.e. ``v = 0.894``. The quadratic only loses its real
         root where the slice normal direction is itself spacelike, ``g_00 > 0``.
@@ -975,7 +975,7 @@ class TestNatarioAffineNormalization:
 
     This test exists because the factor was documented as ``1 - v_s`` (equivalently
     a rescaling by ``1/(1 - v_s)``) while the number actually applied was ``3/2``.
-    At ``v_s = 1/2`` the two agree by coincidence -- ``1/(1 - 1/2) = 2`` does not,
+    At ``v_s = 1/2`` the two agree by coincidence, ``1/(1 - 1/2) = 2`` does not,
     but the quoted frequency ``2/3`` matches ``1/(1 + v_s)`` and not ``1 - v_s``.
     Pinning it across several speeds is what makes the coincidence impossible to
     hide behind.
@@ -1030,8 +1030,8 @@ class TestRodalShiftIsIrrotational:
     ``rodal.py`` regularizes the radius twice, with a tight floor for the profile
     values and a coarser one in the divisor that keeps ``d_i n_j`` finite at the
     centre. Different floors in the two places would break exact irrotationality,
-    and the ``j = 0`` claim -- which carries the Type-I result and the single-term
-    ``-C v_s^2`` deficit law -- inherits from it.
+    and the ``j = 0`` claim, which carries the Type-I result and the single-term
+    ``-C v_s^2`` deficit law, inherits from it.
     """
 
     POINTS = [(1.0, 0.0, 0.0), (0.7, 0.7, 0.0), (0.5, 0.5, 0.5), (0.3, 0.9, 0.2)]

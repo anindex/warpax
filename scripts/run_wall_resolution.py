@@ -18,7 +18,7 @@ Outputs
 - ../warpax_arxiv/tables/wall_resolution.tex
 
 The table used to be maintained by hand. That is how it came to print a wall width
-of 0.27 and a spacing of 0.20 whose quotient is 1.35 -- correct, because the true
+of 0.27 and a spacing of 0.20 whose quotient is 1.35, correct, because the true
 values are 0.2747 and 10/49 = 0.2041 and 0.2747/0.2041 = 1.3458, but not correct
 as displayed, and a reader dividing what they were shown gets 1.4. A generated
 table cannot round its inputs and keep an unrounded quotient.

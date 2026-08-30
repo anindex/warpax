@@ -1,8 +1,8 @@
 """Every wall point decided from the metric: a census, not a spot check.
 
 ``run_interval_lmi_spotcheck.py`` certifies three points per construction, which
-supports a qualitative claim -- that the type-free decision survives being taken
-back to the metric -- and nothing more. This sweeps the whole active wall band
+supports a qualitative claim, that the type-free decision survives being taken
+back to the metric, and nothing more. This sweeps the whole active wall band
 instead, so the resulting statement is a count: of the sampled wall points, how
 many had each of the null, weak, strong and dominant conditions *certified*
 violated, how many certified satisfied, and how many the interval arithmetic
@@ -12,7 +12,7 @@ Why it is worth the compute. The verdicts here consult no Hawking--Ellis type, n
 eigendecomposition, no classification tolerance and no rapidity cap; the whole
 chain ``g -> Gamma -> Riem -> Ric -> G -> T`` is enclosed in interval arithmetic
 and the acceptance test is an interval ``LDL^T``. So the count is immune to the
-two standing objections to a type-based census -- that Type IV identification is
+two standing objections to a type-based census, that Type IV identification is
 tolerance-dependent, and that a float64 eigensolver cannot separate the Type II
 and Type III strata. Whatever the algebraic type at a point is, the verdict does
 not ask.
@@ -23,7 +23,7 @@ which brackets the infimum over the whole band rather than over a finite set. Th
 two are complements: this one is broad and pointwise, that one is narrow and
 global. Do not quote a count here as a fraction of the wall.
 
-Cost. About 20 ms per point at 80 bits -- the seconds-per-point figure in this
+Cost. About 20 ms per point at 80 bits, the seconds-per-point figure in this
 codebase belongs to the branch-and-bound, which evaluates thousands of boxes per
 tree, not to a single point evaluation. The default budget is ~6 min serial and
 under a minute across the machine, so per-metric checkpointing is enough
@@ -108,7 +108,7 @@ def sample_points(n_r: int, n_theta: int) -> list[tuple[float, float]]:
 
     Radial nodes are INTERIOR to the band. At an endpoint the interval enclosure of
     ``f`` straddles the band boundary, so the point cannot be certified to be a wall
-    point at all and would have to be dropped -- which is the honest outcome, but a
+    point at all and would have to be dropped, which is the honest outcome, but a
     pointless one when moving half a step inward avoids it entirely.
     """
     import numpy as np

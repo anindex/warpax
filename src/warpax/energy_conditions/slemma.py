@@ -14,13 +14,13 @@ and ``c > 0``. Since
 
     T_ab u^a u^b = gamma^2 q(w),   q(w) = rho - 2 b.w + w^T S w,   gamma^2 > 0,
 
-the *sign* is decided by ``q`` on a compact set -- the closed unit ball for the
+the *sign* is decided by ``q`` on a compact set, the closed unit ball for the
 timelike conditions, the unit sphere for the null one. No cap is needed, and none
 is used. Here ``rho = T(n,n)``, ``b_i = -T(n,e_i)`` is the momentum density and
 ``S_ij = T(e_i,e_j)``.
 
 By the S-lemma (Yakubovich; exact for a single quadratic constraint, and the
-Slater point is ``w = 0``, where ``1 - |w|^2 = 1 > 0`` -- note this needs nothing
+Slater point is ``w = 0``, where ``1 - |w|^2 = 1 > 0``, note this needs nothing
 of ``rho``, so it holds precisely at the exotic points of interest),
 
     q(w) >= 0 on the ball  <=>  exists sigma >= 0 with  M(sigma) >= 0 (PSD),
@@ -45,7 +45,7 @@ when ``(T^2)(u,u) <= 0``. Future-directedness is then automatic, not a separate
 test: ``T(u,u) = -J.u``, so a causal ``J`` with WEC satisfied is future-directed.
 
 Because ``M`` is affine in ``sigma``, ``lambda_min(M(sigma))`` is *concave*, so
-the certificate search is a one-dimensional concave maximization -- a ternary
+the certificate search is a one-dimensional concave maximization, a ternary
 search over 4x4 symmetric eigenvalues. No SDP solver and no new dependency.
 
 Scope. This is a *pointwise* statement, ``for all x, exists sigma(x)``. It does
@@ -121,8 +121,8 @@ def _lmi_margin(
     ``> +floor`` says satisfied, ``< -floor`` says violated, in between says nothing.
 
     An earlier version of this docstring claimed ``margin >= 0`` certifies
-    satisfaction outright. It does not -- the eigensolver error alone can lift a
-    marginally violating tensor above zero -- and the exact-arithmetic escape in
+    satisfaction outright. It does not, the eigensolver error alone can lift a
+    marginally violating tensor above zero, and the exact-arithmetic escape in
     :mod:`.certificate` exists precisely for the band where no float64 search can
     decide. On the exact vacuum ``T = 0`` the true maximum is ``0``; with the bracket
     scaling to the tensor the search now returns exactly ``0`` there, but on a
@@ -178,7 +178,7 @@ def _minus_T_squared(T_hat: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
 
 
 def _tensor_scale(T_hat: Float[Array, "4 4"]) -> Float[Array, ""]:
-    """``max |That_IJ|`` -- the scale the noise floor and the flux margin share."""
+    """``max |That_IJ|``, the scale the noise floor and the flux margin share."""
     return jnp.max(jnp.abs(T_hat))
 
 
@@ -192,13 +192,13 @@ def _flux_margin_linear(
     Combining them with a bare ``min`` gave a number whose scaling changed with
     which constraint binds: on ``T = diag(1, 2, 0, 0)`` scaled by ``c``, the WEC
     margin ran 0.5, 1, 5 while the raw flux ran -1.5, -6, -150. Signs were
-    unaffected -- both vanish at the same tensors, so no verdict ever moved -- but a
+    unaffected, both vanish at the same tensors, so no verdict ever moved, but a
     reported "DEC margin" that is quadratic at some points and linear at others is
     not a margin, and a ranking or scaling fit that crosses the switch compares
     different powers of the same tensor.
 
     Dividing by the scale is monotone at fixed ``T`` and vanishes exactly where
-    ``flux`` does, so it changes neither the verdict nor the argmin -- only the
+    ``flux`` does, so it changes neither the verdict nor the argmin, only the
     units. It is preferred to ``sgn(flux) sqrt(|flux|)``, which is also degree one
     but has unbounded derivative at zero: an absolute error ``1e-12 scale^2`` in
     ``flux`` would become ``1e-6 scale`` in the margin, six orders above the floor
@@ -224,7 +224,7 @@ def noise_floor(
     ``1e-12 scale^2``; :func:`_flux_margin_linear` divides by ``scale`` before the
     ``min``, which brings that back to ``1e-12 scale`` alongside the other three.
     The floor used to carry a ``scale**2`` branch to cover the undivided flux, and
-    that branch was wrong in both directions -- too tight below unit scale, too
+    that branch was wrong in both directions, too tight below unit scale, too
     loose above it, since the DEC margin was quadratic only where the flux bound.
 
     Use as ``margin < -noise_floor(...)`` to decide violation. At saturation, where
@@ -239,7 +239,7 @@ def noise_floor(
     # breaks covariance under T -> c T: on T = 1e-7 diag(1,2,0,0) the DEC fails by
     # 100% of its own scale (margin -1.5e-14) and was reported inconclusive
     # against a 1e-12 floor. The floor is now relative, plus a small absolute term
-    # that covers the residual ternary bracket at exact vacuum -- where the true
+    # that covers the residual ternary bracket at exact vacuum, where the true
     # maximum is 0, the search returns about -6e-22, and a purely relative floor
     # would convict Minkowski of violating all four conditions.
     return _NOISE_REL * _tensor_scale(T_hat) + _NOISE_ABS
@@ -284,8 +284,8 @@ def certify_point(
     The decision it supports is *two*-sided and neither side is exact in binary64:
     ``> +noise_floor(...)`` says the condition holds for every observer,
     ``< -noise_floor(...)`` says some observer sees it fail, and in between the answer
-    is inconclusive. Thresholding the satisfied side at zero instead -- which this
-    docstring used to do -- is not sound: ``lambda_min`` from a symmetric eigensolver
+    is inconclusive. Thresholding the satisfied side at zero instead, which this
+    docstring used to do, is not sound: ``lambda_min`` from a symmetric eigensolver
     carries a backward error of order ``eps * ||M||``, so a computed margin can sit
     just above zero when the true one is just below, and "certified" would then be
     claimed for a tensor that marginally violates. The floor is what makes the claim
@@ -328,7 +328,7 @@ def witness_observer(
     breaks whenever ``lambda_min`` is repeated, because ``eigh`` then returns an
     arbitrary basis of the eigenspace: for ``That = diag(1, -3, 10, 10)`` the
     optimum is ``sigma = 2``, ``M = diag(-1, -1, 12, 12)``, the routine picked
-    ``e_0`` and returned ``w = 0`` with ``q(0) = +1`` -- presented as a violating
+    ``e_0`` and returned ``w = 0`` with ``q(0) = +1``, presented as a violating
     observer, while ``w = (-0.999, 0, 0)`` gives ``q = -1.994``.
 
     Minimize ``q`` directly instead. This does not need the minimum to be global,

@@ -7,7 +7,7 @@ in interval arithmetic, which is rigorous but loose: the same derivative of the
 shift enters many terms that largely cancel, and interval arithmetic cannot see the
 cancellation. Measured on the Alcubierre wall, the enclosure of ``rho_n`` over a box
 is about 148 times wider than the true range of ``rho_n`` on that box, and the ratio
-is constant in the box width -- pure dependency inflation, not a resolution effect.
+is constant in the box width, pure dependency inflation, not a resolution effect.
 
 The excess of the certified lower bound is ``C*h`` with ``h`` the box half-width and
 ``C`` of order 100, so a branch-and-bound at tolerance ``tol`` must retain roughly
@@ -27,7 +27,7 @@ Getting the derivative enclosures
 The centered form needs rigorous enclosures of ``d rho/dx`` over the box, i.e. one
 more derivative of the metric than :class:`~._intervalad.Dual2` carries. Rather than
 write a ``Dual3``, we nest: ``Dual2`` is generic in ``+ - * /``, so instantiating it
-over *this* ring -- interval value plus interval gradient -- makes every quantity it
+over *this* ring, interval value plus interval gradient, makes every quantity it
 produces carry one extra derivative for free. Nesting forward-mode AD is exact
 (mixed partials commute), so ``gd[i][j].h[k][l].d[m]`` encloses
 ``d^3 g_ij / dx_k dx_l dx_m``, and running the curvature chain over ``Jet`` returns

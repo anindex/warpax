@@ -2,7 +2,7 @@
 
 At a fixed spatial point in the bubble wall a coordinate-static observer
 sees the warp bubble sweep past, so the sampled energy density
-``rho(tau)`` is a temporary negative pulse -- precisely the situation the
+``rho(tau)`` is a temporary negative pulse, precisely the situation the
 Ford--Roman quantum inequality constrains. For each retained metric we locate
 the most-negative static-observer energy density in the wall, then evaluate the
 flat-space Ford--Roman inequality
@@ -186,7 +186,7 @@ def _make_figure(anec: dict, qi: dict) -> None:
     import matplotlib
 
     # Headless by default: reproduce_all.sh runs on machines with no display,
-    # and matplotlib otherwise falls back to Tk and dies here -- *after* the
+    # and matplotlib otherwise falls back to Tk and dies here, *after* the
     # results JSON has already been written, so the run looks like a physics
     # failure when it is only a missing display.
     matplotlib.use("Agg")

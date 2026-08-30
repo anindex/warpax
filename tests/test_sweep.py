@@ -9,7 +9,7 @@ import numpy as np
 jax.config.update("jax_enable_x64", True)
 
 
-# -- Data structure tests -----------------------------------------------------
+#, Data structure tests -----------------------------------------------------
 
 class TestSweepPoint:
 
@@ -144,7 +144,7 @@ class TestSweepResult:
                 assert np.isnan(grids["transport"][i, j])
 
 
-# -- Density scaling ----------------------------------------------------------
+#, Density scaling ----------------------------------------------------------
 
 class TestDensityScaling:
 
@@ -170,7 +170,7 @@ class TestDensityScaling:
         assert rho_thin > rho_thick
 
 
-# -- Single-point evaluation --------------------------------------------------
+#, Single-point evaluation --------------------------------------------------
 
 class TestEvaluatePoint:
 
@@ -197,7 +197,7 @@ class TestEvaluatePoint:
         assert r_high["transport"] > r_low["transport"]
 
 
-# -- Sweep driver -------------------------------------------------------------
+#, Sweep driver -------------------------------------------------------------
 
 class TestSweepDriver:
 
@@ -231,7 +231,7 @@ class TestSweepDriver:
             assert pt.transport > 0
 
 
-# -- Visualization ------------------------------------------------------------
+#, Visualization ------------------------------------------------------------
 
 class TestPhaseDiagramPlot:
 

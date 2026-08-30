@@ -276,7 +276,7 @@ def test_ec_frames_expose_real_shape_function() -> None:
     X, Y, Z = grid_spec.meshgrid
     r_s = np.sqrt(np.asarray(X) ** 2 + np.asarray(Y) ** 2 + np.asarray(Z) ** 2)
     f_analytic = np.asarray(alcubierre_shape(jnp.asarray(r_s), 1.0, 8.0))
-    # The field is the genuine f(r_s), so it matches the analytic form -- a
+    # The field is the genuine f(r_s), so it matches the analytic form, a
     # circular fallback (radius x_extent/4 = 1.5) would not.
     np.testing.assert_allclose(f, f_analytic, atol=1e-5)
     assert f.max() > 0.99 and f.min() < 0.01
@@ -415,7 +415,7 @@ def test_eulerian_wec_fields_bounded_and_cap_free() -> None:
 
     zt = wf["zeta_th"]
     # For Alcubierre the threshold rapidity is degenerate: 0 (rest frame already
-    # violates) or +inf (WEC holds for all boosts) -- never finite positive.
+    # violates) or +inf (WEC holds for all boosts), never finite positive.
     finite_pos = np.isfinite(zt) & (zt > 0)
     assert not finite_pos.any()
     assert wf["boost_dir"].shape == (*grid_spec.shape, 3)
@@ -425,8 +425,8 @@ def test_eulerian_wec_fields_bounded_and_cap_free() -> None:
 def test_kretschmann_invariant_is_signed_and_finite() -> None:
     """K = R_abcd R^abcd is finite, structured, and sign-indefinite (Lorentzian).
 
-    Regression guard for the Kretschmann scene: the invariant is NOT one-sided --
-    for the Alcubierre wall it dips strongly negative -- so the scene must use a
+    Regression guard for the Kretschmann scene: the invariant is NOT one-sided,
+    for the Alcubierre wall it dips strongly negative, so the scene must use a
     diverging scale, not a >= 0 ramp.
     """
     pytest.importorskip("manim")

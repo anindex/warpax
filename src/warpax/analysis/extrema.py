@@ -34,7 +34,7 @@ __all__ = ["refine_extremum", "seed_from_grid_index"]
 
 
 def seed_from_grid_index(k: int, shape, axes) -> list[float]:
-    """Coordinates of flat grid index ``k`` -- the seed :func:`refine_extremum` wants.
+    """Coordinates of flat grid index ``k``, the seed :func:`refine_extremum` wants.
 
     Every caller that polishes a grid extremum needs exactly this, so it lives
     beside the polisher rather than being re-derived per script.

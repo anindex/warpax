@@ -225,7 +225,7 @@ def main():
     # This default IS the grid the manuscript reports. reproduce_all.sh invokes this
     # script with no arguments, so a default that differs from the published grid
     # makes the paper unreproducible from its own driver even when the released
-    # velocity_sweep.json is correct -- which is exactly the state this repaired.
+    # velocity_sweep.json is correct, which is exactly the state this repaired.
     p.add_argument("--N", type=int, default=100)
     p.add_argument("--metrics", type=str, nargs="+", default=METRIC_ORDER)
     p.add_argument("--smoke", action="store_true")
@@ -259,7 +259,7 @@ def main():
             # flush: this loop is 48 points at N=100 and runs for hours. Python
             # block-buffers stdout when it is redirected to a file, so without this
             # a reproduce_all.sh log shows the banner and then nothing at all until
-            # the whole sweep finishes -- there is no way to tell a job that is
+            # the whole sweep finishes, there is no way to tell a job that is
             # nearly done from one that is wedged.
             print(f"  {len(rows):2d}/{len(args.metrics) * len(args.velocities)} "
                   f"{name:>15s} v_s={v_s:.2f}  "
@@ -271,7 +271,7 @@ def main():
     # A smoke run must not land on the production artifact. It used to: the dump was
     # unconditional while only the table write was guarded, so `--smoke` replaced
     # velocity_sweep.json with an N=24 two-metric run and left the N=100 table beside
-    # it. Nothing downstream would notice -- the table is not regenerated, the JSON has
+    # it. Nothing downstream would notice, the table is not regenerated, the JSON has
     # no Natario or Van den Broeck rows for run_ssv_bound.py to fit, and the caption
     # still says N=100. Separate filenames make that impossible instead of unlikely.
     name = "velocity_sweep_smoke.json" if args.smoke else "velocity_sweep.json"

@@ -50,7 +50,7 @@ def test_psd_is_congruence_invariant_so_no_tetrad_is_needed():
     """The whole certificate rests on this: PSD of a form is basis-free.
 
     ``M(sigma) = That + sigma eta = e (T + sigma g) e^T`` for the tetrad ``e``, so
-    certifying in coordinates certifies in every orthonormal frame -- which matters
+    certifying in coordinates certifies in every orthonormal frame, which matters
     because an orthonormal tetrad of a rational metric is not a rational object.
     """
     rng = np.random.default_rng(3)
@@ -81,7 +81,7 @@ def test_certificates_agree_with_the_float_lmi(condition):
         elif margin < -floor:
             assert cert["kind"] == "violated", (margin, cert)
             decided += 1
-    assert decided > 40, f"only {decided} decisive cases -- fixture is not exercising much"
+    assert decided > 40, f"only {decided} decisive cases, fixture is not exercising much"
 
 
 def test_a_forged_certificate_is_rejected():
@@ -113,7 +113,7 @@ def test_the_tensor_is_checked_too_not_only_the_certificate():
     A nonsymmetric T has principal minors that are not the elementary symmetric
     functions of any real spectrum, so is_psd_exact says nothing about it. This one has
     minor sums 4, 16, 24, 11, every one positive, and so passed the PSD test at
-    sigma = 0 and carried a "satisfied" NEC certificate -- while the null vector
+    sigma = 0 and carried a "satisfied" NEC certificate, while the null vector
     k = (1,-1,0,0) gives T(k,k) = -7.
     """
     T_forged = np.array([[1.0, 10.0, 0.0, 0.0],

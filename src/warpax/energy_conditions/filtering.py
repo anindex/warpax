@@ -9,17 +9,17 @@ compose via logical ``&`` (AND) and ``|`` (OR) operators.
 
 Mask builders
 -------------
-- :func:`shape_function_mask` -- selects the warp-bubble wall region where
+- :func:`shape_function_mask`, selects the warp-bubble wall region where
   the shape function is in ``[f_low, f_high]``.
-- :func:`frobenius_norm_mask` -- selects points with non-trivial
+- :func:`frobenius_norm_mask`, selects points with non-trivial
   stress-energy (``||T_ab||_F > threshold``).
-- :func:`determinant_guard_mask` -- excludes near-singular metric points
+- :func:`determinant_guard_mask`, excludes near-singular metric points
   (``|det(g)| < threshold``), emitting a warning when degenerate points
   are found.
 
 Statistics
 ----------
-- :func:`compute_wall_restricted_stats` -- computes Hawking-Ellis Type
+- :func:`compute_wall_restricted_stats`, computes Hawking-Ellis Type
   breakdown, per-condition violation counts/fractions, and conditional
   miss rates within a masked region.
 """
@@ -184,7 +184,7 @@ def compute_wall_restricted_stats(
     mask_flat = mask.ravel().astype(bool)
     n_total = int(jnp.sum(mask_flat))
 
-    # Raw integer point counts -- preserved for transparency regardless of
+    # Raw integer point counts, preserved for transparency regardless of
     # volume weighting (a count is a count).
     n_i = int(jnp.sum((he_flat == 1.0) & mask_flat))
     n_ii = int(jnp.sum((he_flat == 2.0) & mask_flat))

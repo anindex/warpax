@@ -15,12 +15,12 @@ Classifies ``T^a_b`` by its eigenvalue structure into four types:
 All control flow uses ``jnp.where`` rather than Python ``if`` on traced
 values, so the classifier is JIT- and vmap-safe.
 
-Resolution limit -- read this before trusting a Type II or Type III label
+Resolution limit, read this before trusting a Type II or Type III label
 --------------------------------------------------------------------------
 A defective Jordan block of size ``m`` is not a continuous function of the matrix
 entries: perturbing it by ``delta`` moves its eigenvalues by ``O(delta^(1/m))``.
 In float64, rounding alone supplies ``delta ~ eps``, so a ``J_2`` splits by
-``eps^(1/2) ~ 1.5e-8`` and a ``J_3`` by ``eps^(1/3) ~ 6e-6`` -- and the split is
+``eps^(1/2) ~ 1.5e-8`` and a ``J_3`` by ``eps^(1/3) ~ 6e-6``, and the split is
 generically into a *complex* pair. No choice of ``tol`` repairs this: at
 ``tol = 1e-10`` every generic Type III is returned as Type IV, because its
 eigenvalues genuinely come back complex at the ``1e-6`` level.
@@ -215,7 +215,7 @@ def classify_hawking_ellis(
         max|T^a_b|)``. Anything that sweeps a tolerance to test label stability
         must sweep this one.
     imag_rtol : float
-        Dispatch threshold for ``solver='auto'`` only -- it decides when the
+        Dispatch threshold for ``solver='auto'`` only, it decides when the
         standard eigensolver is distrusted and the generalized pencil is tried
         instead. It does **not** enter the real/complex decision. An earlier
         version of this docstring said it did, describing a second relative tier
@@ -286,8 +286,8 @@ def classify_hawking_ellis(
     # used to be OR-ed in for split-degenerate pairs at large ||T||. It fires at
     # zero points on every published grid (max|Re| = 0.045 on the WarpShell 50^3
     # census), and where it does fire it is unsound: 3e-3 is five orders above
-    # any eig rounding error, so an exactly complex spectrum -- a momentum flux
-    # +/- i b against a large transverse pressure -- was declared real, labelled
+    # any eig rounding error, so an exactly complex spectrum, a momentum flux
+    # +/- i b against a large transverse pressure, was declared real, labelled
     # Type I, and published as NEC = +0.0 against a true null deficit of -2e4.
     imag_parts = jnp.abs(evals_imag)
     all_real = jnp.all(imag_parts < tol * scale)

@@ -192,8 +192,8 @@ class TestTypeIIIClassification:
         """A 2x2 Jordan block with all-equal eigenvalues is Type **II**, not III.
 
         This test used to assert Type III, and the classifier used to agree,
-        because its Type-III gate was ``n_unique == 1`` -- all four eigenvalues
-        equal -- which a ``J_2(lam) (+) [lam] (+) [lam]`` satisfies. Equal
+        because its Type-III gate was ``n_unique == 1``, all four eigenvalues
+        equal, which a ``J_2(lam) (+) [lam] (+) [lam]`` satisfies. Equal
         eigenvalues are not the criterion. The Hawking-Ellis type is fixed by the
         Jordan *chain length*: Segre ``[2,1,1]`` is Type II, and Type III needs a
         genuine ``J_3``, Segre ``[3,1]``. The classifier now discriminates them by
@@ -764,7 +764,7 @@ class TestTypeIIISyntheticBenchmark:
     """Synthetic Type-III benchmarks across eigenvalue scales.
 
     Type III is the rarest Hawking-Ellis type and the hardest to
-    validate against -- no classical source produces it, so the only
+    validate against, no classical source produces it, so the only
     way to exercise the classifier path is to construct a defective
     Jordan-block tensor by hand.
 
@@ -883,7 +883,7 @@ class TestTypeIIISyntheticBenchmark:
     @pytest.mark.parametrize("rho,f,p", [(1.0, 1.0, 3.0), (1.0, 1.0, -1.0), (2.0, 0.5, 5.0)])
     def test_generic_type_iii_is_resolved_once_the_split_is_absorbed(self, rho, f, p):
         """Generic ``J_3(lam) (+) [p]`` is Type III when the tolerance clears the
-        defective split -- multiplicity three, not four."""
+        defective split, multiplicity three, not four."""
         T_mixed, T_ab = self._generic_type_iii(rho, f, p)
         result = classify_hawking_ellis(T_mixed, ETA, T_ab=T_ab, tol=1e-4)
         assert int(result.he_type) == 3
@@ -894,7 +894,7 @@ class TestTypeIIISyntheticBenchmark:
 
         A defective ``J_m`` block is not a continuous function of its entries: a
         perturbation ``delta`` moves the eigenvalues by ``delta^(1/m)``. Rounding
-        supplies ``delta ~ eps``, so a ``J_3`` splits by ``eps^(1/3) ~ 6e-6`` -- and
+        supplies ``delta ~ eps``, so a ``J_3`` splits by ``eps^(1/3) ~ 6e-6``, and
         generically into a *complex* triple. The spectrum genuinely comes back
         non-real at the 1e-6 level, so the point is reported Type IV however small
         ``tol`` is made.
@@ -981,7 +981,7 @@ class TestCausalBasisFix:
 
         result = classify_hawking_ellis(T_mixed, g_ab)
         assert int(result.he_type) == 1, (
-            f"Expected Type I (1) -- Type-I fluid spectrum under non-Minkowski g; "
+            f"Expected Type I (1), Type-I fluid spectrum under non-Minkowski g; "
             f"got he_type={int(result.he_type)} "
             f"(eigenvalues_real={result.eigenvalues}, "
             f"eigenvalues_imag={result.eigenvalues_imag})"

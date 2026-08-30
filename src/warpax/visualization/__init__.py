@@ -11,8 +11,8 @@ Modules
 - **shift_vorticity_plots**: Shift-vorticity control of the Hawking-Ellis type.
 
 The matplotlib-backed plot functions are imported lazily (PEP 562 ``__getattr__``)
-so that importing the sibling ``common``/``manim`` layers -- or running ``--help``
-on the CLI scripts -- does not eagerly import matplotlib. matplotlib needs a
+so that importing the sibling ``common``/``manim`` layers, or running ``--help``
+on the CLI scripts, does not eagerly import matplotlib. matplotlib needs a
 writable cache (``MPLCONFIGDIR``) at import time, which is unavailable in some
 headless/sandboxed contexts; deferring the import keeps the package usable there.
 """

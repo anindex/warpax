@@ -77,7 +77,7 @@ class ANECResult(NamedTuple):
         null cone (use the symplectic integrator or the ``null_projected``
         tangent norm). 0.0 by construction when ``tangent_norm='null_projected'``.
     null_preserved : bool
-        True iff ``max_abs_g_kk < null_tol`` -- i.e. the line integral is a
+        True iff ``max_abs_g_kk < null_tol``, i.e. the line integral is a
         defensible null-geodesic average rather than a coordinate-ray diagnostic.
     """
 
@@ -327,7 +327,7 @@ class RigorousANEC(NamedTuple):
     symplectic : ANECResult
         ANEC along the structure-preserving symplectic null geodesic, with its
         ``max_abs_g_kk`` witness. This is the rigorous, geodesic-integrated
-        value -- defensible whenever ``symplectic.null_preserved`` is True.
+        value, defensible whenever ``symplectic.null_preserved`` is True.
     projection : ANECResult or None
         Populated only when the symplectic witness exceeds ``null_tol`` (or the
         geodesic is incomplete): the same trajectory re-evaluated with the
@@ -394,7 +394,7 @@ def anec_rigorous(
         This is not a display setting. ``integrate_geodesic_symplectic``
         subsamples to ``num_save`` (512 by default), and :func:`anec` trapezoids
         over exactly the saved nodes, so leaving it fixed while refining
-        ``num_steps`` refines the *trajectory* and not the *integral* -- a
+        ``num_steps`` refines the *trajectory* and not the *integral*, a
         convergence ladder built that way reports nothing about its own
         quadrature. On a span of 43.6 with 512 nodes the spacing is 0.085
         against a wall width of 0.27, i.e. three nodes across the feature that
@@ -436,7 +436,7 @@ def anec_rigorous(
                 0.0,
             )
         )
-    # 'fixed' tangent: do not mask the witness -- the symplectic integrator is
+    # 'fixed' tangent: do not mask the witness, the symplectic integrator is
     # supposed to keep the raw tangent on the cone.
     sym = anec(metric, geo, tangent_norm="fixed", null_tol=null_tol)
     if sym.null_preserved and geo.complete:

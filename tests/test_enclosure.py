@@ -1,6 +1,6 @@
 """Interval-arithmetic certified enclosures (paper Appendix H).
 
-The load-bearing property is that the interval curvature chain reproduces the
+The property under test is that the interval curvature chain reproduces the
 JAX pipeline exactly on a degenerate (point) box. If it does not, every
 "certified" bound in the appendix is meaningless, so this is checked against the
 independent autodiff implementation for both a single-component shift
@@ -69,7 +69,7 @@ def _jax_reference(metric):
 
 # Must be the benchmark instance. R_tilde was 0.6 here and in run_enclosures.py while
 # every other script fixes 1.0, so this test compared the interval and JAX
-# transcriptions of a spacetime the paper never reports -- they agreed with each
+# transcriptions of a spacetime the paper never reports, they agreed with each
 # other and said nothing about the certified bracket in tables/enclosures.tex.
 _VDB = dict(v_s=0.5, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
 
@@ -144,7 +144,7 @@ def test_conformal_slice_null_deficit_uses_the_physical_sphere():
 
     Regression for a defect that survived the pointwise cross-check above because
     that check compared coordinate components on both sides. At this point the
-    coordinate objective returns -0.0350 -- a certified null-energy violation --
+    coordinate objective returns -0.0350, a certified null-energy violation,
     while the physical one returns +0.0706. Only the second is the null deficit.
     """
     import numpy as np
@@ -172,7 +172,7 @@ def test_conformal_slice_null_deficit_uses_the_physical_sphere():
 # built from jet gradients. That form is the difference between a branch and bound
 # that closes and one that exhausts its budget, and it is also the one place where a
 # sign or index error would silently produce a bound that is tighter than the truth
-# -- which would make every "certified" number in the paper wrong in the dangerous
+#, which would make every "certified" number in the paper wrong in the dangerous
 # direction. These tests check containment directly rather than trusting the algebra.
 # ---------------------------------------------------------------------------
 
@@ -338,7 +338,7 @@ def test_certified_lower_never_exceeds_a_brute_force_minimum():
         n_min = (rho + 2 * v @ b + np.einsum("ni,ij,nj->n", v, S, v)).min()
         assert enc.lower <= n_min + 1e-9, (
             f"certified lower {enc.lower} exceeds a sampled value {n_min} "
-            f"at (x, s) = ({x}, {s}) -- the bound is NOT an enclosure")
+            f"at (x, s) = ({x}, {s}), the bound is NOT an enclosure")
         checked += 1
     assert checked > 20, "the sampler found too few wall points to be a real check"
 
@@ -358,7 +358,7 @@ def _set_prec(bits=60):
     """Set BOTH precisions.
 
     ``mpmath.mp.prec`` and ``mpmath.iv.prec`` are independent, and
-    ``certify_nec_deficit`` sets ``iv.prec`` itself -- so a test that sets only
+    ``certify_nec_deficit`` sets ``iv.prec`` itself, so a test that sets only
     ``mp.prec`` inherits whatever the previously executed test left behind, and its
     result depends on collection order.
     """
@@ -417,7 +417,7 @@ def test_decoupled_bound_stays_below_the_truth_under_heavy_cancellation():
     carries no certified error bound. Every one of those errors moves the result
     upward, and the bound is max'd against the verified LMI value, so an upward
     error wins. At the coefficients below it returned roughly six times the true
-    deficit -- above an achieved upper bound, hence not a lower bound at all.
+    deficit, above an achieved upper bound, hence not a lower bound at all.
     """
     import numpy as np
 
@@ -457,7 +457,7 @@ def test_exterior_holds_no_wall_point_in_any_direction():
     it takes the masked branch and never computes a deficit: the old ``tail_bound``
     returned ``+inf`` and the ``tail > upper`` test that consumed it was vacuously
     true. The wall band is a condition on ``f`` alone, and ``f`` sees position only
-    through ``r``, so one interval evaluation covers every direction -- including
+    through ``r``, so one interval evaluation covers every direction, including
     ``x < -3``, which an outer annulus stated in ``x`` alone never touched.
     """
     mpmath.mp.prec = 60

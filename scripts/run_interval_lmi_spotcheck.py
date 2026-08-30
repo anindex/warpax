@@ -7,8 +7,8 @@ test at chosen points, so the verdict is about the spacetime rather than about a
 snapshot of its stress-energy.
 
 A handful of points per drive, not a grid: the interval chain costs seconds per
-point, and the claim it supports is qualitative -- that the type-free decision
-survives being taken back to the metric -- not a new census.
+point, and the claim it supports is qualitative, that the type-free decision
+survives being taken back to the metric, not a new census.
 
 Outputs
 -------

@@ -89,7 +89,7 @@ def run_fuchs_evaluation():
     metric = _fuchs_analytical_default()
 
     print("=" * 70)
-    print("Fuchs Warp Shell -- Admissibility Evaluation")
+    print("Fuchs Warp Shell: Admissibility Evaluation")
     print("=" * 70)
     print(f"Metric: {metric.name()}")
     print(f"  v_s={metric.v_s}  R_1={metric.R_1}  R_2={metric.R_2}")

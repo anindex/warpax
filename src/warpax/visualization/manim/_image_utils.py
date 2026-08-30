@@ -40,7 +40,7 @@ def bilinear_sampler(x_1d, y_1d, values):
     ``_find_indices`` crashes (SIGILL) under the hundreds of thousands of
     repeated scalar calls a 3D movie render makes on Python 3.14; this uses
     only arithmetic and array indexing. The warpax grids are uniform
-    (``linspace`` bounds), so direct index arithmetic is exact -- no search.
+    (``linspace`` bounds), so direct index arithmetic is exact, no search.
 
     Parameters
     ----------
@@ -146,7 +146,7 @@ def compute_symlog_clim(
     # Pool the finite slice data across all frames and use robust percentile
     # limits. Raw min/max let a single near-singular grid point (e.g. the
     # Eulerian NEC can blow up to ~-1e13 near the bubble centre) hijack the
-    # whole scale and wash the structure out -- the 0.5/99.5 percentiles reject
+    # whole scale and wash the structure out, the 0.5/99.5 percentiles reject
     # such blow-ups while keeping the genuine wall-region extremes.
     pooled: list = []
     for frame in frames:

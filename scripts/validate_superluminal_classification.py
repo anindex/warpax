@@ -70,7 +70,7 @@ BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
 # Sweep the real-spectrum threshold, which is `tol`. This used to sweep
 # `imag_rtol`, which only selects the auto-solver and never enters the
-# real/complex decision -- so the zero spread it reported was vacuous.
+# real/complex decision, so the zero spread it reported was vacuous.
 CLASSIFIER_TOLS = [1e-12, 1e-10, 1e-8]
 
 # Matched family parameters (R = 1, sigma = 8): the wall-resolved regime in

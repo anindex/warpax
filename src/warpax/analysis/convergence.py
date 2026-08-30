@@ -29,7 +29,7 @@ def richardson_extrapolation(
     """Richardson extrapolation from 3+ grid resolutions.
 
     Assumes ``Q(h) = Q_exact + C * h^p + O(h^{p+1})`` where
-    ``h = 1 / N`` (grid spacing proportional to ``1/N``).
+    ``h = 1 / (N - 1)``: N points over a fixed domain span N-1 cells.
 
     Parameters
     ----------
@@ -57,7 +57,7 @@ def richardson_extrapolation(
         - ``converged``: bool, True only if p was estimated AND
           ``|p - expected_order| < 1.0``.
         - ``fallback``: bool, True when the triplet was non-monotonic.
-        - ``error_basis``: ``"richardson"``, ``"spread"``, or ``"exact"`` --
+        - ``error_basis``: ``"richardson"``, ``"spread"``, or ``"exact"``,
           which of the two bounds above the error estimate is.
 
     Raises

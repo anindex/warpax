@@ -200,7 +200,7 @@ def render_scene(
     env = _render_env()
     if use_opengl:
         # Headless GPU context for the OpenGL renderer (the box has EGL). Note:
-        # do NOT raise the stack (``ulimit -s unlimited``) for OpenGL -- an
+        # do NOT raise the stack (``ulimit -s unlimited``) for OpenGL, an
         # unlimited main-thread stack destabilises the EGL/GL driver threads and
         # segfaults late in the render. The 3D scenes use OpenGL precisely to
         # avoid the Cairo recursion, so no stack raise is needed anywhere.

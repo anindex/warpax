@@ -66,8 +66,8 @@ class TestFitBound:
         fits = data["fits"]
         # Rodal's wall is Type I in its entirety at every sampled speed, so the law
         # is exact and the coefficient is a pure function of the grid. Rather than
-        # pin a hand-typed number that goes stale the moment the sweep is rerun --
-        # 0.773, then 0.719, then 0.768, each pinned and each superseded -- derive it
+        # pin a hand-typed number that goes stale the moment the sweep is rerun,
+        # 0.773, then 0.719, then 0.768, each pinned and each superseded, derive it
         # from the sweep the fit actually read.
         sweep_path = os.path.join(_SCRIPTS, "..", "results", "velocity_sweep.json")
         if not os.path.exists(sweep_path):

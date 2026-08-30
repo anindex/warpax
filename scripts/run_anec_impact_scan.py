@@ -2,7 +2,7 @@
 
 Backs the source-first ANEC claim in the warp-shell paper: the symplectic
 geodesic-integrated null energy line integral int T_ab k^a k^b dlambda is
-positive for every source-prescribed shell, and -- the invariant statement --
+positive for every source-prescribed shell, and, the invariant statement,
 its SIGN is robust across impact parameter and integration resolution. Only the
 sign is invariant under k^a -> lambda k^a; magnitudes use the "fixed" tangent
 norm (matching figures/make_fig4_anec.py) and are parametrization-dependent.

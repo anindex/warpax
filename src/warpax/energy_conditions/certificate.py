@@ -12,17 +12,17 @@ where ``M(sigma) = That + sigma eta`` must be positive semidefinite. But
 ``M(sigma) = e (T + sigma g) e^T`` is *congruent* to the coordinate-basis matrix
 ``T_ab + sigma g_ab``, and congruence preserves inertia. Positive semidefiniteness of
 a symmetric bilinear form is therefore a basis-free statement, and the certificate can
-be written directly in the coordinate components the pipeline already has -- which is
+be written directly in the coordinate components the pipeline already has, which is
 what makes it exactly checkable, since an orthonormal tetrad is not a rational object.
 
-Certificate of **satisfaction** -- a rational ``sigma``:
+Certificate of **satisfaction**, a rational ``sigma``:
 
     NEC   exists sigma in Q          with T + sigma g  PSD
     WEC   exists sigma in Q, >= 0    with T + sigma g  PSD
     SEC   exists sigma in Q, >= 0    with Theta + sigma g  PSD,  Theta = T - (1/2) tr_g(T) g
     DEC   the WEC certificate, together with one for  -T g^{-1} T
 
-Certificate of **violation** -- a rational observer, from the dual side. The dual of
+Certificate of **violation**, a rational observer, from the dual side. The dual of
 ``max_sigma lambda_min`` is a positive semidefinite ``X`` with ``<T, X> < 0``, subject
 to the sign constraint on ``<g, X>`` that the multiplier's range imposes:
 
@@ -31,7 +31,7 @@ to the sign constraint on ``<g, X>`` that the multiplier's range imposes:
                   every ``sigma >= 0`` and no admissible multiplier can work.
 
     NEC           the multiplier is free in sign, so ``<g, X>`` must vanish *exactly*
-                  and a single vector will not generally do it over Q -- a rational
+                  and a single vector will not generally do it over Q, a rational
                   Lorentzian form need not represent zero. A pair does: pick rational
                   ``k, l`` with ``g(k,k)`` and ``g(l,l)`` of opposite sign and set
                   ``alpha = |g(l,l)|``, ``beta = |g(k,k)|``. Then
@@ -41,8 +41,8 @@ to the sign constraint on ``<g, X>`` that the multiplier's range imposes:
 
 The tensor itself is taken as exact: a binary64 float *is* a rational number, and
 ``Fraction(x)`` is its exact value. The certificate therefore says nothing about
-discretization error in ``T`` -- that is the job of the interval branch and bound in
-:mod:`.enclosure` -- and everything about the decision made from it. Those are the two
+discretization error in ``T``, that is the job of the interval branch and bound in
+:mod:`.enclosure`, and everything about the decision made from it. Those are the two
 separate questions a "tolerance-dependent" verdict conflates.
 """
 from __future__ import annotations
@@ -70,7 +70,7 @@ def to_exact(M: Any) -> Mat:
     A binary64 float *is* a rational number, so ``Fraction(x)`` is its exact value and
     that conversion loses nothing. What did lose something was going through
     ``np.asarray(M, dtype=float)`` first: an input already carried as ``Fraction`` or
-    ``int`` -- or at any precision above binary64 -- was rounded to binary64 before the
+    ``int``, or at any precision above binary64, was rounded to binary64 before the
     exact arithmetic began, so every determinant and PSD test downstream was exact only
     relative to that snapshot, not to the tensor handed in. Exact inputs now pass
     through untouched.
@@ -119,7 +119,7 @@ def is_psd_exact(M: Mat) -> bool:
     """Exactly decide ``M >= 0`` for a rational symmetric matrix, with no square roots.
 
     A real symmetric matrix has real eigenvalues, and they are all non-negative exactly
-    when every elementary symmetric function of them is non-negative -- because
+    when every elementary symmetric function of them is non-negative, because
     ``p(-t) = t^n + e_1 t^(n-1) + ... + e_n`` is then strictly positive for ``t > 0``
     unless every ``e_k`` vanishes, in which case every eigenvalue is zero. Each ``e_k``
     is the sum of the ``k x k`` principal minors, so this is 15 determinants for a 4x4
@@ -241,7 +241,7 @@ def find_multiplier(
     The float search supplies the hint; this rounds it down the denominator ladder and
     also tries the midpoint of the exactly-bracketed feasible interval, which is what
     succeeds when the hint sits near an endpoint. Returning ``None`` is not a proof of
-    violation -- it means the point is saturated (the feasible set is a single, possibly
+    violation, it means the point is saturated (the feasible set is a single, possibly
     irrational, multiplier) and the violation side must be certified instead.
     """
     A = condition_matrix(T, g, condition)
@@ -253,7 +253,7 @@ def find_multiplier(
     # and no rounding of the float search will land on it: on the Type-II locus
     # rho = S_par = 1, |j| = 1, p_t = 0.2 the SEC saturates at sigma = fl(0.2) exactly,
     # while the ternary search returns 0.19999999256728812 and limit_denominator turns
-    # that into 1/5 -- a different rational, and infeasible. But fl(0.2) is right there
+    # that into 1/5, a different rational, and infeasible. But fl(0.2) is right there
     # in the tensor, as tr_g(T)/2 and as T_22, so the exact entries and the half-trace
     # are tried before any rounding. Every candidate is only a guess; is_psd_exact
     # decides.
@@ -387,7 +387,7 @@ def certify(
     a proof and :func:`verify` checks it. The third carries none: it means neither
     search found one, which is the expected outcome where the feasible multiplier set
     is a single, possibly irrational, value, but is also what a search failure looks
-    like. :func:`verify` returns ``False`` on it for exactly that reason -- it reports
+    like. :func:`verify` returns ``False`` on it for exactly that reason, it reports
     whether an object is a valid proof, and "saturated" is the absence of one.
     """
     if condition not in _CONDITIONS:
@@ -413,7 +413,7 @@ def certify(
     for c in conds:
         # The hint must come from the form that is actually being violated. Seeding the
         # DEC search with a witness minimizing T over the ball found nothing whenever
-        # the WEC held and only the flux failed -- which is the entire DEC-specific case.
+        # the WEC held and only the flux failed, which is the entire DEC-specific case.
         hint = observer_hint if observer_hint is not None else _observer_hint(T, g, c)
         w = find_violating_observer(T, g, c, hint)
         if w is not None:
@@ -448,7 +448,7 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
     the nonsymmetric ``T = [[1,10,0,0],[-1,1,0,0],[0,0,1,0],[0,0,0,1]]`` with
     ``g = diag(-1,1,1,1)`` the principal-minor sums are ``4, 16, 24, 11``, all positive,
     so ``sigma = 0`` passes :func:`is_psd_exact` and a "satisfied" NEC certificate
-    returns True -- while the null vector ``k = (1,-1,0,0)`` gives ``T(k,k) = -7``. The
+    returns True, while the null vector ``k = (1,-1,0,0)`` gives ``T(k,k) = -7``. The
     S-lemma also needs ``g`` to be the metric it claims to be: a Euclidean or degenerate
     ``g`` has no null cone for the multiplier to be free over.
     """
@@ -492,9 +492,9 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
     # verify() answers only one question: is this object a valid proof? Returning
     # True here made a forged {"kind": "saturated"} verify against a tensor with a
     # null deficit of -2, because no arithmetic was performed at all. It also let a
-    # search failure -- certify() falls through to "saturated" whenever BOTH searches
+    # search failure, certify() falls through to "saturated" whenever BOTH searches
     # come up empty, which is not the same as the feasible multiplier set being a
-    # single point -- present itself as a checked result.
+    # single point, present itself as a checked result.
     return False
 
 

@@ -84,7 +84,7 @@ def test_conformal_type_iv_positive_witness_uses_lmi():
     momentum-sourced) takes every margin from the LMI.
 
     It used to take ``-|Im lambda|`` instead. That sentinel was always negative, so
-    every such point was reported violating whatever its stress-energy -- true, by
+    every such point was reported violating whatever its stress-energy, true, by
     Martin-Moruno & Visser, but true by fiat, and at Type III (``imag = 0``) the
     reported number was a hard-coded ``-1e-30``. Deciding them on their own merits
     turns the unconditional-violation theorem into a test of the pipeline.
@@ -108,7 +108,7 @@ def test_nonI_nec_is_the_full_null_deficit_not_the_witness():
     """The NEC slot is one quantity at every type: min_{|s|=1} q(s).
 
     It used to be the momentum witness wherever that happened to be negative and
-    ``lmi["nec"]`` otherwise -- three different scales in one array, since the
+    ``lmi["nec"]`` otherwise, three different scales in one array, since the
     witness probes a single direction (an upper bound on the deficit) and
     ``lmi["nec"]`` is half of it. Now non-Type-I always reports ``2*lmi["nec"]``,
     which is ``slemma.null_deficit`` and the same quantity as the Type-I
@@ -128,7 +128,7 @@ def test_type_ii_nec_is_not_read_off_the_momentum_witness():
     """Regression: the Eulerian witness cannot decide the NEC at Type II.
 
     For the canonical block ``(mu, f, p_2, p_3) = (0, 1, -2, 0)`` the witness is
-    exactly zero -- which the old code reported as a satisfied NEC -- while
+    exactly zero, which the old code reported as a satisfied NEC, while
     ``k = (1, 0, 1, 0)`` gives ``T_ab k^a k^b = -1``. The witness only probes the
     momentum plane; this violation lives in the transverse channel.
     """
@@ -187,12 +187,12 @@ def test_runs_superluminal_no_nan_types():
 
 
 class TestTypeIIMarginsAreDecidedNotOverclaimed:
-    """One null contraction decides the NEC, and nothing else -- so use the LMI.
+    """One null contraction decides the NEC, and nothing else, so use the LMI.
 
     The frame-free certifier used to hand the same Eulerian null witness to all
     four conditions at every non-Type-I point. At a Type-II point that silently
     certified WEC/SEC/DEC as satisfied whenever the null contraction happened to
-    be non-negative -- even with a manifestly negative Eulerian energy density.
+    be non-negative, even with a manifestly negative Eulerian energy density.
     Returning NaN fixed the overclaim but left the point undecided. The S-lemma
     LMI decides it properly: this canonical block has null witness exactly zero
     and Eulerian energy density -1, and the WEC really is violated.

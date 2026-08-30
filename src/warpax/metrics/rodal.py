@@ -166,8 +166,8 @@ class RodalMetric(ADMMetric):
         uses a simplified x-only shift ``beta_x = -v_s f_Alc(r)`` with
         ``beta_y = beta_z = 0`` (Alcubierre-like), because the angular profile
         ``G(r)`` that makes the shift irrotational has no compact closed form in
-        sympy. The full irrotational shift -- and hence the globally Type-I
-        stress-energy of arXiv:2512.18008 -- is realized only by the numeric
+        sympy. The full irrotational shift, and hence the globally Type-I
+        stress-energy of arXiv:2512.18008, is realized only by the numeric
         ``__call__`` / :meth:`shift` path, which is what the verification
         pipeline uses. Do NOT compute stress-energy or energy conditions from
         this symbolic form; it will give the (different) Alcubierre-like answer.

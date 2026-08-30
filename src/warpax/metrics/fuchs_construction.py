@@ -222,8 +222,8 @@ def _compute_metric_functions(
 ) -> tuple[Float[Array, "N"], Float[Array, "N"]]:
     """Compute metric potentials a(r) and b(r) per Carroll Eqs. 5.143/5.152.
 
-    e^{2b} = 1 / (1 - 2m/r)           -- Eq. 5.143
-    da/dr = (m + 4pi r^3 P_tilde) / (r(r - 2m))  -- Eq. 5.152
+    e^{2b} = 1 / (1 - 2m/r)          , Eq. 5.143
+    da/dr = (m + 4pi r^3 P_tilde) / (r(r - 2m)) , Eq. 5.152
 
     with Schwarzschild boundary: e^{2a(r>>R_2)} = e^{-2b(r>>R_2)}.
     """
@@ -280,9 +280,9 @@ def _fuchs_shift_transition(
     default parameters.
 
     A quintic ``smoothstep`` between ``R_1 + R_b`` and ``R_2 - R_b`` stood in
-    here previously. It is a different profile -- with ``R_1 = 10, R_2 = 20`` the
+    here previously. It is a different profile, with ``R_1 = 10, R_2 = 20`` the
     published sigmoid puts the 10-90% crossings at 12.790 and 17.210, giving a
-    wall of width 4.420 centred on 15 -- so results computed with the stand-in
+    wall of width 4.420 centred on 15, so results computed with the stand-in
     could not be attributed to arXiv:2405.02709.
     """
     # Evaluate strictly inside the shell; the clamp below discards the rest, so
@@ -450,9 +450,9 @@ class FuchsMetric(ADMMetric):
 
             e^{2a} = 1 - 2M/r,      e^{2b} = (1 - 2M/r)^{-1},
 
-        which is what the construction's asymptotic flatness -- and the
+        which is what the construction's asymptotic flatness, and the
         manuscript's claim that the Fuchs shell evades the Santiago-Schuster-
-        Visser hypotheses through a Schwarzschild exterior -- actually requires.
+        Visser hypotheses through a Schwarzschild exterior, actually requires.
         """
         r_edge = self._r_grid[-1]
         a_in = self._interp(r, self._a_grid)

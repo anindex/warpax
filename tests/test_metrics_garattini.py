@@ -80,7 +80,7 @@ class TestPublishedConstruction:
     The published bubble is shift-only on FLAT slices, beta^i = -(1-f) x^i / L - f v^i
     with L = 1/H, and it co-moves with the Hubble flow, r(t) = r_0 e^{Ht}. Under that
     matching the last two terms cancel and the shift becomes a sum of two radial
-    gradients, hence irrotational -- which is the property the paper's positive-energy
+    gradients, hence irrotational, which is the property the paper's positive-energy
     claim rests on. An earlier implementation used gamma_ij = e^{2Ht} delta_ij with an
     Alcubierre shift on a constant-velocity centre; that shift has |curl beta| ~ 0.29
     at a generic wall point and reported Type-IV wall structure the real construction

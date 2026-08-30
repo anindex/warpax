@@ -1248,7 +1248,7 @@ class TestSchwarzschildADMMassFuchs:
     ``r`` (``M(2r)/M(r) = 2`` exactly) instead of converging. That pathology was
     pinned here as documented behaviour. The potentials are now continued
     analytically as Schwarzschild outside the grid, so the surface mass
-    converges to the volume mass -- which is what asymptotic flatness, and the
+    converges to the volume mass, which is what asymptotic flatness, and the
     manuscript's Santiago-Schuster-Visser escape argument, require.
     """
 

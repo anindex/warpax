@@ -17,7 +17,7 @@ single power law: a fixed-exponent fit has ``R^2`` ~ 1 and the free exponent rec
 Two deviation figures are reported, and the difference between them is the point.
 On an irrotational drive the whole wall is Type I at every speed and the law is
 exact. On a vortical drive the Type-I set is a *residual* of a Type-IV-dominated
-wall, and that residual is sparse at low speed -- tens of nodes at ``v_s = 0.1``
+wall, and that residual is sparse at low speed, tens of nodes at ``v_s = 0.1``
 against thousands at ``v_s = 1``. The worst-case deviation is therefore dominated by
 the sparsest speed and measures sampling, not physics; the deviation restricted to
 ``v_s >= 0.5``, where the residual is populated, measures the law. We print the

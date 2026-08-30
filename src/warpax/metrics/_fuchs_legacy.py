@@ -149,7 +149,7 @@ def _constant_density_shell_profiles(
     )
 
 
-# _FuchsAnalytical -- retained for backward compatibility in tests
+# _FuchsAnalytical, retained for backward compatibility in tests
 
 
 class _FuchsAnalytical(WarpShellPhysical):

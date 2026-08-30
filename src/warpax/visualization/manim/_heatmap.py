@@ -101,7 +101,7 @@ def framedata_to_heatmap(
     The surface is constructed with z = field_value so that
     ``set_fill_by_value`` can map the scalar data to colors via ``axis=2``.
     When ``flat`` is true (default) the value-relief is then collapsed to a
-    flat plane positioned at ``z_offset`` -- the colours are already
+    flat plane positioned at ``z_offset``, the colours are already
     baked, so the slab encodes the scalar by colour alone and its height carries
     no information. With ``flat=False`` the legacy value-relief is shifted to
     ``z_offset`` instead.
@@ -190,7 +190,7 @@ def framedata_to_heatmap(
     if flat:
         # Colours are baked; collapse the value-relief to a flat slab
         # so the height no longer (mis)reads as a second encoding of the field.
-        # Set the scene-z of every vertex to the target plane directly -- a
+        # Set the scene-z of every vertex to the target plane directly, a
         # division-free flatten. ``stretch_to_fit_depth`` would divide by the
         # relief depth, which collapses to ~0 as the field flattens (e.g. the
         # rampdown tail), yielding inf coordinates that crash the Cairo renderer.

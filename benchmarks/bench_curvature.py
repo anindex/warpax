@@ -13,7 +13,7 @@ os.environ.setdefault("JAX_PLATFORMS", "cpu")  # CPU canonical
 import jax
 import jax.numpy as jnp
 
-import warpax  # noqa: F401 -- triggers jax_enable_x64 flag
+import warpax  # noqa: F401, triggers jax_enable_x64 flag
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 

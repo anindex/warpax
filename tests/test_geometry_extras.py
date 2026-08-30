@@ -466,7 +466,7 @@ class TestClassifierNearDegenerateInputs:
 
         The relative imag tier only engages above the 1e6 scale floor,
         so lam=1, eps=0.002 (a real complex pair, 50-digit certified)
-        is Type IV -- the pre-floor classifier absorbed it as Type I.
+        is Type IV, the pre-floor classifier absorbed it as Type I.
         """
         lam = 1.0
         eps = 0.002 * lam
@@ -706,7 +706,7 @@ class TestDeterminantGuardBoundary:
         """Superluminal Alcubierre: det(g) = -1 but g_00 > 0 inside bubble.
 
         The superluminal failure mode is a g_00 sign flip, not a det(g)=0
-        collapse. The determinant guard alone does NOT detect this -- we
+        collapse. The determinant guard alone does NOT detect this, we
         construct a metric with g_00 > 0 manually and verify that the
         pipeline handles it without crashing and the classifier returns a
         finite type.

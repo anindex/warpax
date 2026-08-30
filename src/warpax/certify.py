@@ -2,7 +2,7 @@
 
 ``certify(metric)`` is the public entry point: an independent, reproducible
 verifier that recomputes the all-observer energy-condition truth of any
-warp-drive metric from the eigenstructure of ``T^a_b`` -- at any warp speed,
+warp-drive metric from the eigenstructure of ``T^a_b``, at any warp speed,
 including ``v_s >= 1``.
 
 It wraps the certification engine:

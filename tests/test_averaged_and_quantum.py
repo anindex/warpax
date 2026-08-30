@@ -295,7 +295,7 @@ class TestDiffraxResultCodes:
 
     Bug: ``int(getattr(raw, 'value', raw))`` raises TypeError on the
     equinox ``EnumerationItem`` (which carries ``._value``, not ``.value``),
-    and the ``except`` mapped *every* outcome -- including failures -- to
+    and the ``except`` mapped *every* outcome, including failures, to
     success. Also the old reason table did not match the installed
     ``diffrax.RESULTS`` indices.
     """

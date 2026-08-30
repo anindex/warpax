@@ -5,12 +5,12 @@ Citation: Bobrick & Martire 2021, *Classical and Quantum Gravity* 38,
 
 Class taxonomy (per §3):
 
-- **Class I** -- vacuum or trivial-fluid metric with a timelike
+- **Class I**, vacuum or trivial-fluid metric with a timelike
   Killing vector (Minkowski, Schwarzschild).
-- **Class II** -- Alcubierre-family bubble metrics whose stress-energy
+- **Class II**, Alcubierre-family bubble metrics whose stress-energy
   is supported on a smooth bubble wall (Alcubierre, Rodal, Natario,
   Van den Broeck, Lentz).
-- **Class III** -- matter-shell / junction-structured metrics with
+- **Class III**, matter-shell / junction-structured metrics with
   stress-energy localized inside a finite shell ``R_1..R_2``
   (WarpShell).
 

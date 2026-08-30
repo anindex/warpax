@@ -54,7 +54,7 @@ def jordan_split_scale():
     # a symmetric delta and watch how far the eigenvalues move. For a J_m block the
     # response is delta^(1/m), so the fitted slope of log(displacement) against
     # log(delta) is 1/m. Reading a single unperturbed split instead would understate
-    # it -- for a block-diagonal J_2 with dyadic entries LAPACK returns the pair
+    # it, for a block-diagonal J_2 with dyadic entries LAPACK returns the pair
     # exactly real, which says something about that matrix, not about the method.
     def exponent(builder, lam_of, m, n=48):
         """Fitted slope of log(eigenvalue displacement) against log(perturbation).

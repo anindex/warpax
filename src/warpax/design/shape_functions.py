@@ -4,11 +4,11 @@ A shape function ``f : R -> R`` (typically ``f(r)``) is the scalar
 profile that modulates the warp-bubble metric. Three JAX-traceable
 basis families are exposed as ``ShapeFunction`` classmethods:
 
-- :meth:`ShapeFunction.spline` -- cubic B-spline via
+- :meth:`ShapeFunction.spline`, cubic B-spline via
   ``interpax.interp1d``; requires the ``[design]`` extra.
-- :meth:`ShapeFunction.bernstein` -- Bernstein polynomial basis on
+- :meth:`ShapeFunction.bernstein`, Bernstein polynomial basis on
   ``r / r_max``; pure JAX.
-- :meth:`ShapeFunction.gmm` -- Gaussian mixture
+- :meth:`ShapeFunction.gmm`, Gaussian mixture
   ``sum_k a_k * exp(-((r - mu_k) / sigma_k)^2)``.
 """
 from __future__ import annotations

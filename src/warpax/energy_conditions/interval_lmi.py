@@ -8,11 +8,11 @@ the metric actually induces. The gap is the curvature chain.
 
 This module closes it at a point, by composing two pieces that already exist:
 
-* :func:`._intervalcurv.eulerian_fields_interval` -- a rigorous interval enclosure
+* :func:`._intervalcurv.eulerian_fields_interval`, a rigorous interval enclosure
   of the whole chain ``g -> Gamma -> Riem -> Ric -> G -> T``, evaluated with
   interval forward-mode AD and directed rounding, returning ``(rho_n, b, S)`` in
   an orthonormal spatial frame.
-* :func:`._enclosure._lmi_dual_lower` -- the multiplier search with an interval
+* :func:`._enclosure._lmi_dual_lower`, the multiplier search with an interval
   ``LDL^T`` acceptance test, which certifies ``M(sigma) >> 0`` for every member of
   the interval matrix.
 
@@ -31,11 +31,11 @@ The real obstruction was on the witness side, and it is not the same one. For a
 null ``k`` the metric term drops out, so ``Theta(k,k) = T(k,k)``: the sphere
 witness that upper-bounds the NEC carries *no* information about the SEC. The
 timelike conditions need a witness from the closed ball, which is what
-:func:`_ball_upper` supplies -- ``w = 0`` included, since ``rho < 0`` alone is a
+:func:`_ball_upper` supplies, ``w = 0`` included, since ``rho < 0`` alone is a
 weak-energy violation and no direction search is needed to see it.
 
-The verdicts stay one-sided by nature -- interval arithmetic refuses to certify
-rather than claiming the opposite -- so a point can come back ``inconclusive``,
+The verdicts stay one-sided by nature, interval arithmetic refuses to certify
+rather than claiming the opposite, so a point can come back ``inconclusive``,
 which is the honest answer at a saturated one.
 
 The sign convention for ``b`` differs from :mod:`.slemma` (there ``q = rho - 2b.w
@@ -121,8 +121,8 @@ def _clamp_to_ball(w, pad: float = 1e-12):
     """Pull a float direction just inside the unit ball so ``|w| <= 1`` certifies.
 
     A float64 unit vector has ``|w|^2 = 1 + O(ulp)``, and the interval check rounds
-    that endpoint UP, so the sphere candidate -- the one that matters at a wall
-    point, where the minimum sits at ``|w| = 1`` -- was rejected every time and the
+    that endpoint UP, so the sphere candidate, the one that matters at a wall
+    point, where the minimum sits at ``|w| = 1``, was rejected every time and the
     only surviving candidate was ``w = 0``. That is sound but useless: it turned
     every certified strong-energy violation into ``inconclusive``.
 
@@ -214,7 +214,7 @@ def certify_point_from_metric(metric_dual_fn, point, *, prec: int = 80) -> dict:
     ----------
     metric_dual_fn
         Callable of four :class:`._intervalad.Dual2` coordinates returning the
-        4x4 metric as nested ``Dual2`` -- the same interface the enclosure
+        4x4 metric as nested ``Dual2``, the same interface the enclosure
         branch-and-bound uses (see :mod:`.enclosure` for the four constructions).
     point
         ``(t, x, y, z)``.
@@ -254,7 +254,7 @@ def certify_point_from_metric(metric_dual_fn, point, *, prec: int = 80) -> dict:
     nec_upper = _hi(q_iv) if q_iv is not None else math.inf
 
     # Timelike (ball): the multiplier is restricted to sigma >= 0, and the witness
-    # must come from the ball -- on the null cone Theta(k,k) = T(k,k), so the NEC
+    # must come from the ball, on the null cone Theta(k,k) = T(k,k), so the NEC
     # witness says nothing whatever about the SEC.
     wec_lower = _lmi_dual_lower(rho_iv, b_iv, S_iv, sigma_min=0.0)
     wec_upper = _ball_upper(rho_iv, b_iv, S_iv)

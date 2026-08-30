@@ -28,8 +28,8 @@ most-violating principal pressure, and the threshold rapidity is the closed form
 above. This module returns exactly those quantities; it is validated against the
 BFGS optimizer in :mod:`.optimization` (see ``tests/test_worst_observer_analytic``).
 
-Everything here is pure-JAX, vmappable, and -- like
-:mod:`.frame_free` -- never constructs the Eulerian normal, so it is valid at all
+Everything here is pure-JAX, vmappable, and, like
+:mod:`.frame_free`, never constructs the Eulerian normal, so it is valid at all
 warp velocities including ``v_s >= 1``.
 
 Scope: the closed form gives the worst DIRECTION, the THRESHOLD rapidity, and the
@@ -170,7 +170,7 @@ def worst_observer_typeI(
         )
     else:
         # NEC: T_ab k^a k^b along a null direction is rapidity-independent, so
-        # there is no threshold -- either it is violated at every boost or none.
+        # there is no threshold, either it is violated at every boost or none.
         zeta_th = jnp.where(rho_plus_p < -atol, 0.0, jnp.inf)
     asymptotic_sign = jnp.sign(rho_plus_p)
 

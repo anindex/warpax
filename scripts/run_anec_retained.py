@@ -47,7 +47,7 @@ V_S, R_B, SIGMA = 0.5, 1.0, 8.0
 X_START, X_END = -8.0, 8.0
 # The span was X_END - X_START = 16 = 2|X_START|, which ends at the receding
 # bubble's centre: every published value here was exactly half (2.00, 2.02 for
-# Rodal). Measured now, not assumed -- see _anec_window.
+# Rodal). Measured now, not assumed, see _anec_window.
 SPAN0 = X_END - X_START
 N_SAMPLES = 1024  # at SPAN0; scaled with the span so the step density is fixed
 TANGENT_NORM = "null_projected"
@@ -92,8 +92,8 @@ def _anec_along(metric, b: float, span: float) -> float:
 
 # Same truncation radius and doubling margin as run_anec_symplectic.py. This
 # table sits beside the geodesic one in the paper, so the two must share a window
-# rule; they did not. This script used converged_window -- "double until the
-# on-axis integral is stationary" -- which is exactly the rule the geodesic run
+# rule; they did not. This script used converged_window, "double until the
+# on-axis integral is stationary", which is exactly the rule the geodesic run
 # had to abandon, because past the crossing a longer window adds no physics and
 # does add drift, so stationarity is reached before the crossing is covered.
 WALL_SUPPORT_R = 3.0
@@ -104,8 +104,8 @@ N_PROBE = 4096
 def _measure_span(metric) -> tuple[float, bool]:
     """Affine span covering the crossing, from the ray's own trajectory.
 
-    The path here is analytic -- ``x^mu(lam) = (lam, X_START + lam, b, 0)`` with
-    the bubble centre at ``x_s = v_s lam`` -- so ``r_s(lam)`` is closed form and
+    The path here is analytic, ``x^mu(lam) = (lam, X_START + lam, b, 0)`` with
+    the bubble centre at ``x_s = v_s lam``, so ``r_s(lam)`` is closed form and
     needs no integration to measure.
     """
     b0 = float(B_SCAN[0])
@@ -163,7 +163,7 @@ def main() -> None:
             "n_samples_at_span_start": N_SAMPLES,
             "affine_span_note": (
                 "the window is measured per metric from the ray's own trajectory: "
-                "out to where it leaves r_s = 3, with a factor-2 margin -- the same "
+                "out to where it leaves r_s = 3, with a factor-2 margin, the same "
                 "rule as run_anec_symplectic.py, so the two ANEC tables in the "
                 "paper share a window. This is a quantified truncation margin, not "
                 "a support theorem: no bound on T_ab k^a k^b outside r_s = 3 is "

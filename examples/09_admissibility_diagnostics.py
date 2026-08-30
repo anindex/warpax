@@ -23,13 +23,13 @@ from warpax.junction import surface_stress_energy
 from warpax.metrics import fuchs_default
 from warpax.transport import geodesic_deviation_diagnostic
 
-# -- Metric ---------------------------------------------------------------
+#, Metric ---------------------------------------------------------------
 metric = fuchs_default()
 print(f"Metric: {metric.name()}")
 print(f"  v_s = {metric.v_s},  R_1 = {metric.R_1},  R_2 = {metric.R_2}")
 print()
 
-# -- 1. ADM decomposition at three radii ----------------------------------
+#, 1. ADM decomposition at three radii ----------------------------------
 print("1. ADM decomposition")
 print("-" * 50)
 for label, r in [("interior", 1.0), ("shell", 15.0), ("exterior", 30.0)]:
@@ -40,7 +40,7 @@ for label, r in [("interior", 1.0), ("shell", 15.0), ("exterior", 30.0)]:
           f"beta^x={float(adm.shift_upper[0]):+.6f}  max|K|={K_max:.2e}")
 print()
 
-# -- 2. Constraint residuals -----------------------------------------------
+#, 2. Constraint residuals -----------------------------------------------
 print("2. Constraint residuals")
 print("-" * 50)
 for r in [1.0, 15.0, 30.0]:
@@ -51,7 +51,7 @@ for r in [1.0, 15.0, 30.0]:
           f"R={float(res['R_spatial']):+.4e}")
 print()
 
-# -- 3. ADM mass -----------------------------------------------------------
+#, 3. ADM mass -----------------------------------------------------------
 print("3. ADM mass")
 print("-" * 50)
 for r_surf in [50.0, 100.0, 200.0]:
@@ -62,7 +62,7 @@ falloff = falloff_check(metric, r_test=200.0)
 print(f"  Falloff check: {falloff}")
 print()
 
-# -- 4. Source consistency -------------------------------------------------
+#, 4. Source consistency -------------------------------------------------
 print("4. Source consistency (DeltaT = T_input - G/8pi)")
 print("-" * 50)
 for r in [1.0, 15.0, 30.0]:
@@ -71,7 +71,7 @@ for r in [1.0, 15.0, 30.0]:
     print(f"  r={r:5.1f}  max|DeltaT|={float(sc['max_residual']):.4e}")
 print()
 
-# -- 5. Junction surface stress-energy ------------------------------------
+#, 5. Junction surface stress-energy ------------------------------------
 print("5. Junction surface stress-energy at R_1 boundary")
 print("-" * 50)
 boundary_fn = lambda c: jnp.sqrt(c[1]**2 + c[2]**2 + c[3]**2) - 10.0
@@ -83,7 +83,7 @@ print(f"  S_{{xx}} = {float(S_ab[1, 1]):+.4e}")
 print(f"  max|S| = {float(jnp.max(jnp.abs(S_ab))):.4e}")
 print()
 
-# -- 6. Tidal deviation ----------------------------------------------------
+#, 6. Tidal deviation ----------------------------------------------------
 print("6. Geodesic deviation (tidal acceleration)")
 print("-" * 50)
 for r in [1.0, 15.0, 30.0]:

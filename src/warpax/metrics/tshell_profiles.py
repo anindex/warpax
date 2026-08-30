@@ -5,9 +5,9 @@ tilts the matter 4-velocity relative to the hypersurface normal.
 
 Tilted fluid decomposition (u^a = Gamma (n^a + v^a), v^a n_a = 0):
 
-    E   = Gamma^2 (rho + p v^2)                       -- Eulerian energy
-    S_i = Gamma^2 (rho + p) v_i                       -- momentum density
-    S_{ij} = Gamma^2 (rho + p) v_i v_j + p gamma_{ij} -- spatial stress
+    E   = Gamma^2 (rho + p v^2)                      , Eulerian energy
+    S_i = Gamma^2 (rho + p) v_i                      , momentum density
+    S_{ij} = Gamma^2 (rho + p) v_i v_j + p gamma_{ij}, spatial stress
 
 Three velocity profile families:
 1. Constant velocity with C2 smoothstep compact support

@@ -7,8 +7,8 @@ inequality forms no eigendecomposition, consults no tolerance and never asks wha
 algebraic type is, so it decides every point of every grid on the same footing.
 
 That makes the LMI an auditor rather than a competitor. The certification routing is
-unchanged -- Type-I points are still decided by the eigenvalue inequalities, which are
-exact there -- and this script simply runs the LMI everywhere as well and reports how
+unchanged, Type-I points are still decided by the eigenvalue inequalities, which are
+exact there, and this script simply runs the LMI everywhere as well and reports how
 often the two agree. What the agreement rate measures is the classification, not the
 energy conditions:
 
@@ -109,11 +109,11 @@ def audit_one(name, v_s, N, batch_size=2048):
     # (b) Certified misclassification. Types III and IV violate every standard energy
     #     condition, so an LMI margin that certifies satisfaction there cannot be
     #     reconciled with the label. Counting them is the classifier's measured error
-    #     rate -- the quantity that would otherwise be unquantified.
+    #     rate, the quantity that would otherwise be unquantified.
     #     Types III and IV violate *every* condition, so certifying *any one* of them is
     #     already a contradiction: the predicate is a disjunction, not a conjunction. An
     #     earlier version initialised True and ANDed, which counted a point only when all
-    #     four were certified satisfied -- strictly weaker than the claim it reports, and
+    #     four were certified satisfied, strictly weaker than the claim it reports, and
     #     an undercount by construction.
     bad_label = (he >= 3) & ~vac
     lmi_says_ok = np.zeros_like(bad_label)

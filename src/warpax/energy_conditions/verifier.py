@@ -434,7 +434,7 @@ def verify_grid(
     optimizer, so it is a severity display, not a certification: a violation
     living above ``zeta_max`` is truncated, and the returned number is a BFGS
     result where :func:`.slemma.certify_point` has an exact one. This is the
-    single-frame-search arm, kept as the comparison baseline for the
+    single-frame search, kept as the comparison baseline for the
     observer-robust result. For certification at any algebraic type use
     :func:`.frame_free.certify_grid_frame_free`, which the two APIs will
     therefore disagree with off Type I by construction.

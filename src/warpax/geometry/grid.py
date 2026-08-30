@@ -8,7 +8,7 @@ For large grids (e.g. 100^3 = 1M points), use ``batch_size`` or
 trading peak parallelism for bounded memory usage.
 
 Invariants are computed inside the vmapped function so the full Riemann
-tensor at each point does not need to persist across the batch -- only the
+tensor at each point does not need to persist across the batch, only the
 resulting scalars survive into the output.
 """
 from __future__ import annotations
@@ -110,7 +110,7 @@ def evaluate_curvature_points(
 
     :func:`evaluate_curvature_grid` requires a Cartesian-product grid, which
     cannot express a curvilinear sampling. An axisymmetric ``(r, mu)`` sweep,
-    for instance, needs ``x = r*mu`` and ``y = r*sqrt(1-mu^2)`` -- not a product
+    for instance, needs ``x = r*mu`` and ``y = r*sqrt(1-mu^2)``, not a product
     of per-axis coordinate arrays. This is the underlying primitive; the grid
     entry point flattens onto it.
 

@@ -9,11 +9,11 @@ enclosure over the box rather than a floating-point value at a point.
 The output is the Eulerian decomposition ``(rho_n, b_i, S_ij)`` used by the
 certified null-deficit objective, in an ORTHONORMAL spatial frame.
 
-The distinction is load-bearing. ``T(n, d_i)`` and ``T(d_i, d_j)`` are components
+The distinction matters. ``T(n, d_i)`` and ``T(d_i, d_j)`` are components
 in the coordinate basis, and the null deficit ``min_{|v|=1} q(v)`` means the
 minimum over vectors of unit length *in the spatial metric*. The two coincide only
 when ``gamma_ij = delta_ij``. For a conformally flat slice ``gamma_ij = B^2
-delta_ij`` -- the Van den Broeck branch -- they do not, and the difference reverses
+delta_ij``, the Van den Broeck branch, they do not, and the difference reverses
 the sign: at ``v_s=0.5, R=1, sigma=8, R_tilde=1, alpha=1`` and the point
 ``(0,1,0,0)`` the coordinate objective gives ``-0.0350`` and the orthonormal one
 ``+0.0706``, so the coordinate version certifies a null-energy violation at a point

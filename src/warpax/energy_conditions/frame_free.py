@@ -140,14 +140,14 @@ def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi,
     The NEC margin at every type is the full null deficit ``min_{|s|=1} q(s)``:
     ``min_i(rho + p_i)`` at Type I and ``2 * lmi["nec"]`` elsewhere. The momentum
     witness is kept as evidence (an explicit null vector a reader can substitute
-    by hand) but not as the margin -- it probes one direction, so it is an upper
+    by hand) but not as the margin, it probes one direction, so it is an upper
     bound on the deficit, and reporting it where it happened to be negative put
     three different scales in one array.
 
     Returning the witness as the Type-II NEC margin was wrong. It probes the
     momentum plane only, so a violation living in the transverse channel is
     invisible to it: for ``(mu, f, p_2, p_3) = (0, 1, -2, 0)`` the witness is
-    exactly ``0`` -- read as satisfied -- while ``k = (1, 0, 1, 0)`` gives ``-1``
+    exactly ``0``, read as satisfied, while ``k = (1, 0, 1, 0)`` gives ``-1``
     and the null-cone minimum is ``-4/3``. The LMI returns ``-2/3``, correctly
     negative. (An earlier bug in the same slot returned the witness for WEC/SEC/DEC
     too, certifying ``mu = -2, f = 1, p_2 = p_3 = 3`` clean at Eulerian energy
@@ -155,8 +155,8 @@ def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi,
 
     Forcing ``-max(imag, 1e-30)`` at Type III/IV was a sentinel, not a decision:
     Type III has ``imag = 0`` by construction, so every Type-III point was reported
-    violating at ``-1e-30`` whatever its stress-energy. That is true -- Type III and
-    IV violate every condition (Martin-Moruno & Visser 2017) -- but true by fiat, so
+    violating at ``-1e-30`` whatever its stress-energy. That is true, Type III and
+    IV violate every condition (Martin-Moruno & Visser 2017), but true by fiat, so
     it could neither be checked nor falsified. The LMI decides them on their own
     merits, and the theorem then becomes a *test* of the pipeline rather than an
     assumption baked into it: see ``tests/test_slemma.py``.
@@ -263,7 +263,7 @@ def certify_grid_frame_free(
         Classification tolerance.
     lmi_where : Float[Array, "..."] | None
         Boolean mask of points whose margins the caller will actually read. The
-        LMI -- the whole cost of this function -- is then evaluated only on the
+        LMI, the whole cost of this function, is then evaluated only on the
         non-Type-I points inside it, and non-Type-I points outside it get NaN
         margins rather than a number nobody asked for. Pass the wall mask when
         only wall-restricted statistics are consumed: a wall band is ~1% of a
@@ -334,7 +334,7 @@ def certify_grid_frame_free(
 
     # The LMI margin contract is one-sided: a value between -floor and +floor is
     # inconclusive, not a verdict. Carrying the floor alongside the margin is what
-    # lets a consumer honour that -- an audit that thresholds at exactly zero counts
+    # lets a consumer honour that, an audit that thresholds at exactly zero counts
     # saturated points as classification errors and reports rounding noise.
     nec_floor = jax.vmap(lambda T, g: noise_floor(T, g, condition="nec"))(
         flat_T, flat_g)

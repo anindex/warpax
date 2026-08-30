@@ -91,7 +91,7 @@ def main():
         print(f"  Saved: {path}")
 
     # No cache is written here. This script used to save results/vdb_vs{V_S}.npz,
-    # which is the same path run_analysis.py writes at the same parameters -- but
+    # which is the same path run_analysis.py writes at the same parameters, but
     # with 14 arrays against run_analysis's 53. Since reproduce_all.sh runs the core
     # stage before the figures stage, every full reproduction ended by overwriting
     # the complete artifact with a partial one. The figures below are computed from

@@ -60,7 +60,7 @@ _TABLE_ARTIFACTS = (
     "vorticity_type_analytic.json",
     "wall_resolution.json",
     # Read by a check below, or generating a shipped table, but omitted here until an
-    # audit pointed out that a missing one takes its check down with it silently --
+    # audit pointed out that a missing one takes its check down with it silently,
     # which is the failure this list exists to prevent.
     "rodal_dec_diagnosis.json",
     "comparison_table.json",
@@ -268,7 +268,7 @@ def main() -> int:
                 f"{order[0]}, but Section 3.4 names Natário"
             )
 
-    # The Rodal single-frame miss rates are the paper's headline observer-dependence
+    # The Rodal single-frame miss rates are the paper's main observer-dependence
     # number and are quoted in five places, none of them a table. Pin every one.
     inv = artifact("invariant_verification.json")
     if inv is not None:
@@ -383,7 +383,7 @@ def main() -> int:
             r"Across \$(\d+)\$ samples\s+the\s+inequality's margin is Lipschitz",
         ))
         checks.append((
-            "Appendix H Type-III arm: every point mislabelled, every point certified",
+            "Appendix H Type-III branch: every point mislabelled, every point certified",
             (str(t3["n"]), str(n_iv_at_tight), str(
                 sum(1 for r in t3["rows"]
                     if r["nec_margin"] < -r["noise_floor"]))),
@@ -502,7 +502,7 @@ def main() -> int:
                     f"cannot beat the search, so re-read Appendix H.2"
                 )
 
-    # The hand-maintained macros in paper_numbers.tex are headline numbers that no
+    # The hand-maintained macros in paper_numbers.tex are quoted numbers that no
     # table carries, and nothing read this file at all: emit_paper_numbers.py rewrites
     # the auto-sourced block and leaves these five alone, so they were the only figures
     # in the submission with no check between them and the artifact they cite.
@@ -536,9 +536,9 @@ def main() -> int:
         )
 
     # Provenance, not arithmetic: no artifact feeding a table may predate the code
-    # that produced it. Three fixes landed after most tables had been generated --
+    # that produced it. Three fixes landed after most tables had been generated,
     # the near-vacuum gate (which moves Type-I *labels*), the Type-I SEC trace
-    # inequality (which moves Type-I *margins*) and the LMI noise floor -- and the
+    # inequality (which moves Type-I *margins*) and the LMI noise floor, and the
     # resulting mixture put two fits of the same law in the manuscript with
     # different coefficients. A file mtime is a weak check, but it is the one that
     # would have caught that.
@@ -562,7 +562,7 @@ def main() -> int:
             # A MISSING artifact is a failure, not a skip. Every JSON-pinned check in
             # this file already returns early when its input is absent, so on a wiped
             # results/ the gate reported "all checks passed" while checking almost
-            # nothing -- which is how a broken pipeline survived a round of review.
+            # nothing, which is how a broken pipeline survived a round of review.
             # The gate has to be loudest exactly when there is no data.
             if not path.exists():
                 failures.append(
@@ -588,7 +588,7 @@ def main() -> int:
                 pass
 
         # The same rule for the cached grids. run_analysis.py skips any .npz that
-        # already exists -- existence only, no mtime and no hash -- so a re-run after a
+        # already exists, existence only, no mtime and no hash, so a re-run after a
         # source edit rebuilds every JSON from grids computed before it, and each JSON
         # then carries a fresh mtime and passes the loop above. The staleness was one
         # layer below where anyone was looking. reproduce_all.sh deletes the grids

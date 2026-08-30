@@ -1272,7 +1272,7 @@ def _type_iv_block_diag(imag: float = 2.0e-5) -> jnp.ndarray:
 
     The upper 2x2 block is the companion matrix ``[[1, -imag], [imag, 1]]``;
     the lower 2x2 block is ``diag(0.5, -0.3)``. The spectrum is therefore
-    ``{1 + i*imag, 1 - i*imag, 0.5, -0.3}`` -- unambiguously Type IV.
+    ``{1 + i*imag, 1 - i*imag, 0.5, -0.3}``, unambiguously Type IV.
     """
     return jnp.array(
         [
@@ -1374,7 +1374,7 @@ class TestMpmathClassifier:
 
         mp_result = classify_hawking_ellis_mpmath(T_mixed, g_ab, precision=50)
         assert mp_result["he_type"] == 1, (
-            f"Expected Type I -- Type-I fluid spectrum under non-Minkowski g; "
+            f"Expected Type I, Type-I fluid spectrum under non-Minkowski g; "
             f"got he_type={mp_result['he_type']} "
             f"(eigenvalues_real={mp_result['eigenvalues_real']}, "
             f"eigenvalues_imag={mp_result['eigenvalues_imag']})"

@@ -3,16 +3,16 @@
 Evaluates three warp drive constructions against the warpax 5-criterion
 admissibility standard:
 
-    A. Regularity      -- C^k smooth metric, no discontinuities
-    B. Constraints     -- Hamiltonian/Momentum constraint residuals
-    C. Matter model    -- Source consistency (T_input vs G_ab/8pi)
-    D. EC margins      -- Observer-robust NEC/WEC/DEC/SEC
-    E. Global          -- ADM mass, Hawking-Ellis type, asymptotic flatness
+    A. Regularity     , C^k smooth metric, no discontinuities
+    B. Constraints    , Hamiltonian/Momentum constraint residuals
+    C. Matter model   , Source consistency (T_input vs G_ab/8pi)
+    D. EC margins     , Observer-robust NEC/WEC/DEC/SEC
+    E. Global         , ADM mass, Hawking-Ellis type, asymptotic flatness
 
 Proposals evaluated:
-    1. Fuchs et al. (CQG 2024, arXiv:2405.02709) -- Gaussian-smoothed shell
-    2. Rodal (arXiv:2512.18008) -- irrotational shift
-    3. Lentz (arXiv:2006.07125) -- diamond soliton
+    1. Fuchs et al. (CQG 2024, arXiv:2405.02709), Gaussian-smoothed shell
+    2. Rodal (arXiv:2512.18008), irrotational shift
+    3. Lentz (arXiv:2006.07125), diamond soliton
 """
 from __future__ import annotations
 

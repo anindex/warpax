@@ -2,7 +2,7 @@
 
 Contains:
 
-- ``ford_roman(metric, worldline, tau0, sampling='lorentzian')`` --
+- ``ford_roman(metric, worldline, tau0, sampling='lorentzian')``,
   Ford-Roman QI per Pfenning & Ford 1997 eq. (9), with constant
   ``C = 3 / (32 pi^2)`` for the massless scalar field.
 """

@@ -6,7 +6,7 @@ attribution to arXiv:2405.02709:
 1. the shift transition used a quintic ``smoothstep`` between ``R_1 + R_b`` and
    ``R_2 - R_b`` instead of the paper's reciprocal-exponential sigmoid;
 2. the radial interpolation clamped beyond the solved grid, so the exterior was
-   not Schwarzschild -- which is precisely what the manuscript's
+   not Schwarzschild, which is precisely what the manuscript's
    Santiago-Schuster-Visser escape argument rests on.
 """
 from __future__ import annotations

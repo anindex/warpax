@@ -10,8 +10,8 @@ Geodesics are the trajectories of the Hamiltonian
 
 whose value ``H = \\tfrac12 g(k, k)`` (with ``k^a = g^{ab} p_b``) is an exact
 constant of motion. A symplectic integrator therefore keeps ``g(k,k)`` at its
-initial value to machine precision -- in particular a *null* geodesic stays on
-the null cone -- whereas the second-order geodesic-equation form integrated with
+initial value to machine precision, in particular a *null* geodesic stays on
+the null cone, whereas the second-order geodesic-equation form integrated with
 an adaptive Runge-Kutta scheme (:func:`warpax.geodesics.integrator.integrate_geodesic`)
 lets ``g(k,k)`` drift secularly by the integrator tolerance. This is what makes a
 rigorous, geodesic-integrated ANEC possible for strong-shift warp bubbles (see
@@ -67,11 +67,11 @@ class SymplecticGeodesicResult(NamedTuple):
     velocities : Float[Array, "M 4"]
         Contravariant tangents ``k^a = g^{ab} p_b`` (for ANEC reuse).
     H_values : Float[Array, "M"]
-        ``H = 1/2 g^{ab} p_a p_b = 1/2 g(k, k)`` at each saved point -- the
+        ``H = 1/2 g^{ab} p_a p_b = 1/2 g(k, k)`` at each saved point, the
         conserved quantity. For a null geodesic this is the on-cone witness;
         ``max|2 H|`` is the worst ``|g(k,k)|`` along the path.
     complete : bool
-        True iff the trajectory is finite throughout (no NaN/Inf) -- i.e. the
+        True iff the trajectory is finite throughout (no NaN/Inf), i.e. the
         initial condition was sub/luminal and integration did not blow up.
     termination_reason : str
         ``'complete'``, ``'superluminal'`` (NaN initial momentum), or ``'nan'``.
@@ -255,7 +255,7 @@ def integrate_geodesic_symplectic(
     (Alcubierre ``v_s=0.1, R=20, sigma=2`` over affine span 60) the adaptive
     Tsit5 integrator drifts off the null cone to ``max|g(k,k)| ~ 0.2``, while
     this scheme at ``num_steps=8192, omega=1, order=4`` holds it at ``~1e-10``
-    -- the difference that makes a rigorous geodesic-integrated ANEC possible.
+   , the difference that makes a rigorous geodesic-integrated ANEC possible.
 
     Parameters
     ----------

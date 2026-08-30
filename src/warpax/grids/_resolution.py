@@ -14,7 +14,7 @@ previous revision:
 - it does not sum the ``+x`` and ``-x`` crossings into a single count (that
   doubles the figure for a bubble);
 - it does not use the asymptotic ``2 atanh(0.8)/sigma`` width, which is not
-  valid at ``sigma*R ~ 1`` -- the band edges are located by interpolation on the
+  valid at ``sigma*R ~ 1``, the band edges are located by interpolation on the
   actual shape function.
 
 It also does not renormalise the shape function by its peak-to-peak range: that
@@ -109,7 +109,7 @@ def wall_cells_on_axis(metric, xs, *, f_low: float = 0.1, f_high: float = 0.9,
     ----------
     metric : exposes ``shape_function_value(coords)``.
     xs : the *actual* 1-D node positions of the axis under test. Passing the
-        grid that will be used is the whole point -- reconstructing the
+        grid that will be used is the whole point, reconstructing the
         coordinate map by hand is how the witness drifted out of sync with the
         grid generator in a previous revision.
     """

@@ -23,8 +23,8 @@ carried by the transverse (conformal) channel, which Delta does not govern. That
 gap is what this script measures; it is not otherwise quantified anywhere.
 
 The premise is the exact v_s scaling, which needs flat slices. Van den Broeck has
-gamma_ij = B^2 delta_ij and fails it -- its ``a`` moves by O(1) between speeds
-while the flat-slice drives hold theirs to 1e-15 -- so it is reported and
+gamma_ij = B^2 delta_ij and fails it, its ``a`` moves by O(1) between speeds
+while the flat-slice drives hold theirs to 1e-15, so it is reported and
 excluded, by the same hypothesis that excludes it from the integrated E_- law.
 
 Outputs

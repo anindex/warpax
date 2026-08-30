@@ -1279,7 +1279,7 @@ class TestWarpShell:
 
         Two parts:
         1. Eulerian energy density stays near zero (|rho| < 1e-14) at five
-           radial points -- a near-zero smoke test of the C1 curvature
+           radial points, a near-zero smoke test of the C1 curvature
            pipeline, not a baseline lock (shell is locally Schwarzschild
            vacuum, so rho sits at machine epsilon ~1e-20).
         2. Pins that actually distinguish C1 from C2 in the transition
@@ -1410,7 +1410,7 @@ class TestWarpShellPhysical:
     """
 
     def test_physical_accepts_r_s_less_than_R_1(self):
-        """Default r_s_param=5.0 < R_1=10.0 -- construction must succeed."""
+        """Default r_s_param=5.0 < R_1=10.0, construction must succeed."""
         m = WarpShellPhysical()
         assert m.r_s_param < m.R_1
 

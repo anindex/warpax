@@ -2,12 +2,12 @@
 
 Two physically-distinct scenes share this module:
 
-- ``WorstCaseNullDirections`` -- the Null Energy Condition. The null contraction
+- ``WorstCaseNullDirections``, the Null Energy Condition. The null contraction
   ``T_{ab} k^a k^b`` (with ``k`` normalized to the local Eulerian frame,
   ``k . n_Eul = -1``) is rapidity-independent, so there is no "boost": the arrow
   shows the worst-case null *direction* and its length encodes the depth of the
   violation ``|min(0, T_{ab} k^a k^b)|``.
-- ``WorstCaseBoostDirections`` -- the Weak Energy Condition. The worst-case over
+- ``WorstCaseBoostDirections``, the Weak Energy Condition. The worst-case over
   *unbounded* timelike boosts is -inf wherever the NEC is violated, so a
   rapidity-capped value would just report the cutoff. Instead the heatmap is the
   bounded invariant Type-I rest-frame WEC margin ``min(rho, rho+p_i)``, the arrow
@@ -178,7 +178,7 @@ def _worst_direction_field(
         # -inf wherever NEC is violated, so a rapidity-capped min carries only the
         # cutoff. The invariant Type-I rest-frame WEC margin would be ideal, but
         # the Alcubierre wall is overwhelmingly Type IV (no matter rest frame), so
-        # that margin -- and the threshold rapidity zeta_th -- are undefined there.
+        # that margin, and the threshold rapidity zeta_th, are undefined there.
         # Plot instead the always-defined Eulerian energy density rho_Eul (the WEC
         # violation seen by the natural observer); show the closed-form worst-boost
         # direction only where the matter is Type I.
@@ -604,7 +604,7 @@ class WorstCaseBoostDirections(_ArrowFieldScene):
     cap-free). Arrow direction = closed-form worst-boost direction e_{i*}, drawn
     only where matter is Type I and WEC is violated. The worst case over
     *unbounded* boosts is -inf (= NEC), so the rest-frame margin and the
-    threshold rapidity -- not a rapidity-capped value -- carry the physics.
+    threshold rapidity, not a rapidity-capped value, carry the physics.
     """
 
     quantity = "wec"

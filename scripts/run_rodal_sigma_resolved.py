@@ -9,7 +9,7 @@ widths that is
     cells  = 14.23    5.92    1.79    0.598
 
 and the last two rows sit below the four-cell criterion the manuscript enforces
-everywhere else -- while carrying the top end of the reported trend. Reaching
+everywhere else, while carrying the top end of the reported trend. Reaching
 four cells at ``sigma = 0.3`` on a uniform Cartesian grid needs ``N >= 329``,
 i.e. 3.6e7 points, which is not affordable with an observer search at every one.
 
@@ -145,7 +145,7 @@ def main() -> None:
     ladder = LADDER[:1] if args.smoke else LADDER
 
     print("=" * 78)
-    print("RODAL SIGMA SWEEP -- wall-resolved, axisymmetric reduction")
+    print("RODAL SIGMA SWEEP: wall-resolved, axisymmetric reduction")
     print("=" * 78)
     print(f"  v_s={V_S}  R_b={R_B}  r_max={R_MAX}  ladder={list(ladder)}")
 

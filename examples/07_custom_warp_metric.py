@@ -12,7 +12,7 @@ abstract method ``shape_function_value``), then runs:
        :func:`compute_wall_restricted_stats`
     4. Figure output (3-panel comparison)
 
-The example metric is a "Gaussian warp bubble" -- the shift uses a
+The example metric is a "Gaussian warp bubble", the shift uses a
 Gaussian envelope rather than the Alcubierre tanh top-hat. Runtime target:
 under 30 seconds on a laptop CPU (float64, no GPU). To scale up, increase
 ``grid_n`` from 16 to 50+ at the cost of minutes rather than seconds.
@@ -65,7 +65,7 @@ from warpax.visualization import plot_comparison_panel  # noqa: E402
 
 
 class GaussianWarpMetric(ADMMetric):
-    """Gaussian warp bubble -- a minimal custom warp metric.
+    """Gaussian warp bubble, a minimal custom warp metric.
 
     The shift uses a Gaussian profile instead of the Alcubierre top-hat:
 
@@ -151,7 +151,7 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
     coords = jnp.array([0.0, 1.0, 0.5, 0.0])
     f_at_wall = float(metric.shape_function_value(coords))
 
-    print("Custom Gaussian Warp Bubble -- EC Validation")
+    print("Custom Gaussian Warp Bubble: EC Validation")
     print("=" * 55)
     print(f"Parameters: v_s = {metric.v_s}, w = {metric.w}")
 
@@ -301,7 +301,7 @@ def run_wall_restricted(
 
     if n_wall == 0:
         print(
-            " WARNING: wall mask is empty -- grid too coarse or bubble "
+            " WARNING: wall mask is empty, grid too coarse or bubble "
             "too narrow. Increase grid_n or adjust (f_low, f_high)."
         )
         return

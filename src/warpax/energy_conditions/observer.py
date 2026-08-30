@@ -77,7 +77,7 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
 
     # e_0 is the future-pointing unit normal to the spatial slices. For a
     # spacelike foliation (positive-definite gamma) ``g^{00} = -1/alpha^2 < 0``
-    # holds at *all* warp speeds -- even superluminally, where the coordinate
+    # holds at *all* warp speeds, even superluminally, where the coordinate
     # time direction g_{00} turns spacelike, the slice normal stays timelike.
     # The tetrad is therefore well-defined for every v_s (see the superluminal
     # orthonormality sentinel in tests/test_ec_observer_and_solvers.py).

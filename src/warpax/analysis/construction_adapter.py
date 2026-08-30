@@ -69,7 +69,7 @@ class ConstructionSpec:
     # either way (the configuration is axisymmetric about the propagation axis,
     # which passes through both), but the radial clustering only lands on the wall
     # when the two agree. A callable is resolved against the built metric, which is
-    # what the Garattini-Zatrimaylov drive needs -- its bubble sits at r_0 = v_s / H
+    # what the Garattini-Zatrimaylov drive needs, its bubble sits at r_0 = v_s / H
     # by the matching condition, so the centre moves with the parameters and cannot
     # be a constant.
     grid_center: float | Callable[[MetricSpecification], float] = 0.0
@@ -276,7 +276,7 @@ def wall_cells(spec: ConstructionSpec, speed: float | None = None,
     band on a **uniform** line while the certification ran on the **graded**
     grid, summed the ``+x`` and ``-x`` crossings into one figure (so a reported
     "6" was about 3 per wall normal), and renormalised the shape function by its
-    peak-to-peak range -- which is not meaningful for a shell scalar, whose
+    peak-to-peak range, which is not meaningful for a shell scalar, whose
     disconnected transitions the normalisation merges.
     """
     from ..grids import wall_cells_on_axis, wall_clustered

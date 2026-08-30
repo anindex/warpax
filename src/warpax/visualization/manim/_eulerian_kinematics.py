@@ -307,7 +307,7 @@ class EulerianKinematics2D(Scene):
 
         param_display = always_redraw(_make_param)
 
-        # θ heatmap legend (diverging; quantitative SymLog ticks) --
+        # θ heatmap legend (diverging; quantitative SymLog ticks),
         from warpax.visualization.manim._scene_utils import make_colorbar_legend
 
         theta_legend = make_colorbar_legend(
@@ -319,7 +319,7 @@ class EulerianKinematics2D(Scene):
             bar_width=1.5,
         )
 
-        # σ² contour legend --
+        # σ² contour legend,
         shear_sample = DashedVMobject(
             VMobject(color=YELLOW, stroke_width=2.0).set_points_as_corners(
                 [np.array([-0.3, 0, 0]), np.array([0.3, 0, 0])]
@@ -366,7 +366,7 @@ class EulerianKinematics2D(Scene):
         )
         solid_row_group = VGroup(solid_row_bg, solid_row)
 
-        # ω² note - lower-right -- backed by the measured (stored) field.
+        # ω² note - lower-right, backed by the measured (stored) field.
         max_omega = max(
             (float(np.nanmax(np.abs(f.scalar_fields["omega_sq"]))) for f in frames),
             default=0.0,

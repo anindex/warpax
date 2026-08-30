@@ -17,7 +17,7 @@ with a wall-geometry coefficient ``kappa``. A localized, divergence-free rotatio
 shift (zero expansion, nonzero wall shear) realizes this limit: the wall extrinsic
 curvature (the symmetric shift gradient) sources the Eulerian momentum density
 ``|j|``, whose dominance ``2|j| > |rho + S_par|`` opens the complex pair that admits
-no rest frame -- the imaginary eigenvalue. Across the rotational drives ``|j|`` and
+no rest frame, the imaginary eigenvalue. Across the rotational drives ``|j|`` and
 the reported shift vorticity both scale with the rotation rate, so ``f`` tracks the
 vorticity empirically. ``f -> 0`` as ``omega -> 0``, recovering Type I; a spatially
 uniform (rigid) rotation has no wall gradient and is flat, ``kappa = 0``.
@@ -26,8 +26,8 @@ This is a sufficient-direction / controlled-limit mechanism, not a full converse
 for general (non-flat-slice) shells the link remains numerical. The numeric
 validation against Natario/Alcubierre/VdB (vorticity, Type IV) versus Rodal
 (irrotational, Type I) is in ``scripts/derive_vorticity_type.py``. The
-cross-metric excess of the measured ``f`` over ``kappa * omega`` -- largest for
-the high-shear, zero-expansion Natario wall -- quantifies the wall-geometry
+cross-metric excess of the measured ``f`` over ``kappa * omega``, largest for
+the high-shear, zero-expansion Natario wall, quantifies the wall-geometry
 dependence of ``kappa`` and points to a subleading shear coupling.
 """
 from __future__ import annotations

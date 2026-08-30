@@ -54,7 +54,7 @@ def single_frame_miss(
     A point counts as all-observer violating a condition if either
     (i) it is Type I with the invariant eigenvalue margin ``< -atol``, or
     (ii) it is Type IV: a complex-eigenvalue stress-energy has no rest frame and
-    violates the NEC -- hence also WEC/SEC/DEC -- for some observer (Hawking-Ellis;
+    violates the NEC, hence also WEC/SEC/DEC, for some observer (Hawking-Ellis;
     Martin-Moruno-Visser 2017). It is "missed" when the Eulerian margin is
     ``>= 0`` (the single frame reports no problem). Type II/III points (negligible
     in these metrics) are excluded from the count, conservatively.

@@ -62,8 +62,8 @@ def test_garattini_wall_resolves_when_the_reduction_is_bubble_centred():
     condition, not at the coordinate origin. An origin-centred axisymmetric reduction
     clusters its radial nodes on a sphere the wall merely *crosses*, so the wall spans
     1.5 cells at the coarsest ladder level and the panel withheld it as under-resolved.
-    The reduction is exact about either point -- the configuration is axisymmetric
-    about the propagation axis, which passes through both -- and taken about the bubble
+    The reduction is exact about either point, the configuration is axisymmetric
+    about the propagation axis, which passes through both, and taken about the bubble
     the same ladder level spans 4.5.
     """
     import numpy as np

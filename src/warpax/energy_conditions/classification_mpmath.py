@@ -151,8 +151,8 @@ def classify_hawking_ellis_mpmath(
 
         # Vacuum gate uses the modulus (matches float64): a purely imaginary
         # spectrum is Type IV, not vacuum. The tensor test the float64 path
-        # carries was missing here, so a nilpotent Segre [3,1] core -- the
-        # paper's own general Type III -- was labelled vacuum at any amplitude.
+        # carries was missing here, so a nilpotent Segre [3,1] core, the
+        # paper's own general Type III, was labelled vacuum at any amplitude.
         max_mod_abs = max(
             float(mpmath.sqrt(r * r + i * i))
             for r, i in zip(evals_real, evals_imag)
@@ -178,7 +178,7 @@ def classify_hawking_ellis_mpmath(
         # the defective eigenvalue, not by how many distinct eigenvalues there
         # are. Requiring n_unique == 1 asked the whole spectrum to be degenerate,
         # which the generic Type III, Segre [3,1] = J_3(lam) (+) [p] with
-        # p != lam, never satisfies -- so it was returned as Type II at 50, 80 and
+        # p != lam, never satisfies, so it was returned as Type II at 50, 80 and
         # 120 digits alike. The discriminator is the defect: algebraic minus
         # geometric multiplicity of the repeated eigenvalue is 1 for [2,1,1] and
         # 2 for [3,1].

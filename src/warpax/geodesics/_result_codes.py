@@ -44,7 +44,7 @@ def result_code_to_int(raw: object) -> int:
 
     Tries ``._value`` (equinox EnumerationItem on diffrax 0.7.x), then
     ``.value`` (older conventions), then ``int(raw)``. Returns
-    :data:`RESULT_UNKNOWN` -- never the success code -- when no
+    :data:`RESULT_UNKNOWN`, never the success code, when no
     conversion applies, so an unrecognized outcome is reported as an
     incomplete geodesic rather than masked as success.
     """

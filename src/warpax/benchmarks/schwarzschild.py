@@ -55,7 +55,7 @@ class SchwarzschildMetric(MetricSpecification):
 
     @jaxtyped(typechecker=beartype)
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
-        """No warp deformation -- shape function is identically zero."""
+        """No warp deformation, shape function is identically zero."""
         return jnp.array(0.0)
 
     def symbolic(self) -> SymbolicMetric:

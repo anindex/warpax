@@ -45,7 +45,7 @@ def wall_cells(metric, N: int) -> tuple[float, float]:
 
     Delegates to the single shared witness, :func:`warpax.grids.wall_cells_on_axis`,
     measured on the grid this module actually builds. Worst case over every wall
-    crossing the axis makes -- see that module for why the previous best-case,
+    crossing the axis makes, see that module for why the previous best-case,
     single-crossing, asymptotic-width variant read high.
     """
     xs = np.asarray(benchmark_grid(metric, N).axes[0], dtype=float)

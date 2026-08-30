@@ -57,7 +57,7 @@ def _type_iii(r=0.7, f=1.0, p=0.3):
     This is returned as ``T_ab`` directly, and it is symmetric, which is the whole
     point. The previous version built a mixed matrix and returned ``ETA @ Tm``; that
     product is *not* symmetric, so it was not the component matrix of any
-    Lorentz-self-adjoint tensor, and ``_sym`` -- applied to every case before use --
+    Lorentz-self-adjoint tensor, and ``_sym``, applied to every case before use,
     then cancelled the off-diagonal ``f`` entries exactly, collapsing the fixture to
     ``diag(-r, -r, -r, p)``: a diagonal **Type I** tensor. Every "Type III" assertion
     in this file was really being made about Type I.
@@ -105,7 +105,7 @@ def test_fixtures_are_lorentz_self_adjoint(name):
     """Every fixture must already be symmetric as a covariant tensor.
 
     ``_sym`` is applied to each case before use, so a non-symmetric fixture is not
-    rejected -- it is silently *replaced* by its symmetric part. That is how the
+    rejected, it is silently *replaced* by its symmetric part. That is how the
     "Type III" case degraded into a diagonal Type I without any test noticing. If a
     fixture is not symmetric to begin with, it is not the tensor it claims to be.
     """
@@ -132,8 +132,8 @@ def test_fixtures_have_the_algebraic_type_they_claim(name):
     the same limit ``test_classification.py`` pins for the production classifier, met
     here from the other side.
 
-    The type is read off the Jordan chain length -- the largest ``k`` with
-    ``rank(N^k) > rank(N^(k+1))`` for ``N = A - lam I`` at the repeated eigenvalue --
+    The type is read off the Jordan chain length, the largest ``k`` with
+    ``rank(N^k) > rank(N^(k+1))`` for ``N = A - lam I`` at the repeated eigenvalue,
     which is 1 for Type I, 2 for Type II and 3 for Type III.
     """
     sp = pytest.importorskip("sympy")
@@ -244,7 +244,7 @@ def test_verdict_is_boost_invariant(name):
     """The verdict must survive a change of chart; the margin need not.
 
     Boosting the coordinates tilts the ``t = const`` slices, so the slice normal
-    -- and with it the Eulerian ``rho``, ``b``, ``S`` that normalize the margin --
+   , and with it the Eulerian ``rho``, ``b``, ``S`` that normalize the margin,
     genuinely changes. What cannot change is the answer, because "some observer
     sees this fail" quantifies over all observers in any chart. This is precisely
     the paper's claim: the Boolean is frame-independent, the magnitude is a
@@ -304,8 +304,8 @@ def test_agrees_in_sign_with_eigenvalue_margins_at_type_i():
 def test_vacuum_is_not_convicted(name, T):
     """A tensor satisfying every condition must not be reported as violating.
 
-    Ternary search under-estimates a concave maximum, so on the exact vacuum -- whose
-    true maximum is 0 -- it returns about -6e-22, and a strict ``margin < 0`` test
+    Ternary search under-estimates a concave maximum, so on the exact vacuum, whose
+    true maximum is 0, it returns about -6e-22, and a strict ``margin < 0`` test
     convicts Minkowski of violating all four conditions. The decision is one-sided:
     only ``margin < -noise_floor`` certifies a violation. The DEC floor is looser
     because the flux test feeds ``-T^2`` to the same search and squaring doubles the
@@ -326,7 +326,7 @@ def test_witness_is_genuine_at_a_repeated_lowest_eigenvalue():
     For ``That = diag(1, -3, 10, 10)`` the optimal multiplier is 2, so
     ``M(2) = diag(-1, -1, 12, 12)`` has a *repeated* lowest eigenvalue and ``eigh``
     returns an arbitrary basis of that eigenspace. Reading the boost off the first
-    eigenvector gave ``w = 0``, i.e. ``q(0) = +1 > 0`` -- reported as a violating
+    eigenvector gave ``w = 0``, i.e. ``q(0) = +1 > 0``, reported as a violating
     observer while satisfying the condition.
     """
     T = np.diag([1.0, -3.0, 10.0, 10.0])
@@ -377,7 +377,7 @@ def test_null_deficit_dominates_the_momentum_witness():
 
     The witness probes one null direction; the deficit minimizes over all of them, so
     it must be less than or equal to it everywhere. Where the inequality is strict the
-    witness would have under-reported -- which is exactly the Type-II NEC bug.
+    witness would have under-reported, which is exactly the Type-II NEC bug.
     """
     from warpax.energy_conditions.frame_free import eulerian_null_witness
 
@@ -433,7 +433,7 @@ def test_margins_are_homogeneous_of_degree_one(name, T, condition):
         if abs(base) <= floor:
             # Saturated: the true margin is zero and no float64 search resolves its
             # sign. The contract only promises the result stays inside the floor,
-            # which must itself scale linearly -- that is the covariance being tested.
+            # which must itself scale linearly, that is the covariance being tested.
             assert abs(got) <= c * floor * 10.0, (
                 f"{name}/{condition}: saturated base {base:g} but c={c:g} gave {got:g}"
             )

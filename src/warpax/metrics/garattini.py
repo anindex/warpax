@@ -20,7 +20,7 @@ bubble switches that background flow off inside the wall and replaces it with
 An earlier implementation here used ``gamma_ij = e^{2Ht} delta_ij`` with an
 Alcubierre shift ``beta^x = -v_s f``. That is a different spacetime: it keeps the
 Hubble flow everywhere instead of switching it off inside the bubble, its slices
-are not flat, and its shift is NOT irrotational -- so it reported wall vorticity
+are not flat, and its shift is NOT irrotational, so it reported wall vorticity
 and Type-IV structure that the published construction does not have.
 
 Irrotationality is the point of the paper, and it holds under the matching condition
@@ -28,14 +28,14 @@ Irrotationality is the point of the paper, and it holds under the matching condi
 
     N = -x/L + f (x - x_s)/L,
 
-a sum of two radial gradients -- about the origin and about the bubble centre --
+a sum of two radial gradients, about the origin and about the bubble centre,
 hence curl N = 0 identically. By the momentum constraint the Eulerian momentum
 density then vanishes and the stress-energy is Hawking-Ellis Type I everywhere.
 
 This class realises the matched family and ONLY that family. ``shift`` takes
 ``x_s(t) = (v_s/H) e^{Ht}`` and ``v = H x_s``, so ``v = r_0 / L`` is an identity of the
 parametrisation rather than a condition on it, so ``curl beta`` vanishes
-*identically* at every ``v_s``, ``R``, ``sigma`` and ``H`` -- an algebraic fact
+*identically* at every ``v_s``, ``R``, ``sigma`` and ``H``, an algebraic fact
 about the shift, not a numerical result. What the autodiff pipeline returns is
 that fact through float64: the realised values are rounding noise at 1e-18 to
 1e-22, not the literal 0.0 an earlier version of this docstring claimed. No
@@ -47,7 +47,7 @@ got both wrong. First, ``v_s`` fixes the bubble's position at ``t = 0`` as well 
 speed there: ``r_0 = v_s / H`` and ``|N(x_s)| = v_s``. Second, the un-matched case is
 NOT implemented, so no claim about it is tested here; the previous text quoted a
 measurement (``|curl beta| ~ 0.29``) from a configuration this class cannot produce.
-``matched()`` is the inverse parametrisation -- specify ``r_0`` and get ``v_s = H r_0``
+``matched()`` is the inverse parametrisation, specify ``r_0`` and get ``v_s = H r_0``
 -- not a different spacetime.
 
 At ``H = 0`` with the matching relaxed this reduces to Alcubierre.
@@ -58,8 +58,8 @@ symbolic cross-checks), not a structural placeholder.
 
 Notes
 -----
-The slices are flat by construction -- ``spatial_metric`` returns the identity at
-every ``t`` -- because this is de Sitter in Painleve-Gullstrand form, where the
+The slices are flat by construction, ``spatial_metric`` returns the identity at
+every ``t``, because this is de Sitter in Painleve-Gullstrand form, where the
 expansion is carried entirely by the background shift ``-x^i/L``. An earlier version
 of this note described ``gamma_ij`` as growing like ``e^{2 H t}``; that was the
 superseded exponential-slicing implementation, not this one. The H-dependence enters
@@ -134,7 +134,7 @@ class GarattiniMetric(ADMMetric):
         # The bubble co-moves with the Hubble flow: r(t) = r_0 e^{Ht}, so its
         # velocity is v(t) = H r(t). A constant-velocity centre x_s = v_s t
         # breaks the matching at every t != 0 and the shift is then NOT
-        # irrotational -- measured |curl beta| ~ 0.29 at a generic wall point.
+        # irrotational, measured |curl beta| ~ 0.29 at a generic wall point.
         H = jnp.asarray(self.H)
         big = jnp.abs(H) > 1e-30
         H_safe = jnp.where(big, H, 1.0)

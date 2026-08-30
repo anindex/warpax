@@ -24,7 +24,7 @@ def _future_time_component(a, b, c):
     unconditionally fails on exactly the locus this paper is about: where
     ``v_s f(r) = 1`` the coordinate vector ``\partial_t`` is null, ``g_{00} = 0``
     and the equation degenerates to the *linear* ``b u^0 + c = 0``. That is not a
-    singularity -- the root ``u^0 = -c/b`` exists and is perfectly well behaved --
+    singularity, the root ``u^0 = -c/b`` exists and is perfectly well behaved,
     but ``0/0`` returned NaN there.
 
     Branchless (vmap/jit-safe): both branches are evaluated and selected. The
@@ -228,7 +228,7 @@ def eulerian_affine_scale(
     infinity, giving ``-g(k, n) = 1 / (1 + v_s)``. The rescaling factor is therefore
     ``1 + v_s``, which at ``v_s = 1/2`` is exactly ``3/2``, putting its ANEC magnitude
     on the same footing as the others.  (The factor is ``1 + v_s``, not ``1/(1 - v_s)``
-    -- both give 3/2 only by coincidence at v_s = 1/2, and the second is wrong
+   , both give 3/2 only by coincidence at v_s = 1/2, and the second is wrong
     everywhere else.  ``tests/test_geodesics.py`` pins the formula across speeds.)
 
     Use as ``k -> s * k`` with the affine window shrunk by the same factor, so the
@@ -280,8 +280,8 @@ def null_ic_eulerian_normalized(
     shift follows Natario's own bubble-at-rest convention and tends to
     ``-v_s x_hat`` at infinity. Seeding both with the same unit spatial
     direction therefore produces tangents whose Eulerian frequencies differ by a
-    finite factor -- ``1 / (1 + v_s)`` for Natario against ``1`` for the lab-frame
-    metrics -- and the resulting ANEC magnitudes are not comparable. Fixing
+    finite factor, ``1 / (1 + v_s)`` for Natario against ``1`` for the lab-frame
+    metrics, and the resulting ANEC magnitudes are not comparable. Fixing
     ``-g(k, n)`` removes that discrepancy.
     """
     x0, k0 = null_ic(metric_fn, x0, n_spatial)

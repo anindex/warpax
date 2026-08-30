@@ -68,7 +68,7 @@ class Dual2:
         self.g = _ZERO_G if g is None else g
         self.h = _ZERO_H if h is None else h
 
-    # -- arithmetic ---------------------------------------------------------
+    #, arithmetic ---------------------------------------------------------
 
     def __add__(self, o):
         o = _lift(o)
