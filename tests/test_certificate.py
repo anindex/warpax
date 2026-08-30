@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from warpax.energy_conditions.certificate import (
+    _CONDITIONS,
     certify,
     condition_matrix,
     find_multiplier,
@@ -213,3 +214,32 @@ def test_exact_arithmetic_only_no_float_leaks():
                 for num, den in pairs:
                     assert isinstance(num, int) and isinstance(den, int)
                     assert Fraction(num, den) is not None
+
+
+def test_every_canonical_form_certifies_and_reverifies():
+    """Certify and re-verify the canonical Hawking-Ellis forms exactly.
+
+    Moved here from a module __main__ block that never ran.
+    """
+    eta = np.diag([-1.0, 1.0, 1.0, 1.0])
+    cases = {
+        "perfect fluid, all hold": np.diag([2.0, 0.5, 0.5, 0.5]),
+        "DEC fails (rho < |p|)": np.diag([1.0, 2.0, 0.0, 0.0]),
+        "NEC fails": np.diag([1.0, -3.0, 0.0, 0.0]),
+        # Lorentz-self-adjoint, Type IV, vanishing quartic discriminant.
+        "Type IV (D4=0)": eta @ np.array([[0.0, 1.0, 0.0, 0.0],
+                                          [-1.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0, 0.3, 0.0],
+                                          [0.0, 0.0, 0.0, 0.3]]),
+        # The Type-II locus, Delta = 0 with j != 0.
+        "Type II (locus)": np.array([[1.0, -1.0, 0.0, 0.0],
+                                     [-1.0, 1.0, 0.0, 0.0],
+                                     [0.0, 0.0, 0.2, 0.0],
+                                     [0.0, 0.0, 0.0, 0.2]]),
+        "vacuum": np.zeros((4, 4)),
+    }
+    for name, T in cases.items():
+        assert np.allclose(T, T.T), name
+        for c in _CONDITIONS:
+            cert = certify(T, eta, c)
+            assert verify(cert, T, eta), f"{name}/{c}: certificate did not verify"

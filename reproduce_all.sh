@@ -88,7 +88,7 @@ export JAX_PLATFORMS="${JAX_PLATFORMS:-cpu}"
 # (cached artifacts are the same XLA programs). Disable with =0.
 export WARPAX_JIT_CACHE="${WARPAX_JIT_CACHE:-1}"
 # JAX's 1s default floor skips most of our kernels; 0.05s captures them.
-export WARPAX_JIT_CACHE_MIN_COMPILE_TIME_SECS="${WARPAX_JIT_CACHE_MIN_COMPILE_TIME_SECS:-0.05}"
+export JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS="${JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS:-0.05}"
 echo "[reproduce_all.sh] JAX backend pinned: JAX_PLATFORMS=${JAX_PLATFORMS}" >&2
 if [ "${JAX_PLATFORMS}" != "cpu" ]; then
     echo "[reproduce_all.sh] WARNING: non-CPU backend selected." >&2

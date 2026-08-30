@@ -94,8 +94,8 @@ def main():
         "--resolutions",
         nargs="+",
         type=int,
-        default=[25, 50, 100],
-        help="Grid resolutions (default: 25 50 100).",
+        default=[25, 49, 97],
+        help="Grid resolutions (default: 25 49 97, spacing ratio exactly 2).",
     )
     parser.add_argument(
         "--n-starts",

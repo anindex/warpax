@@ -50,6 +50,10 @@ class TestDarmois:
     def test_warpshell_matter_shell_boundary(self):
         """WarpShell at its matter-shell boundary ``R_1`` - golden snapshot
         of the actual discontinuity values (measured, regression pin).
+
+        Each side is extrapolated to Sigma. Differencing the raw probes
+        instead read 0.11036642755306081 and 0.278833872139782, which carried
+        the metric's own gradient across the gap rather than the jump.
         """
         metric = WarpShellMetric()
         R_1 = metric.R_1
@@ -63,10 +67,10 @@ class TestDarmois:
             probe_coords_outside=outer,
         )
         np.testing.assert_allclose(
-            float(result.first_form_discontinuity), 0.11036642755306081, rtol=1e-6
+            float(result.first_form_discontinuity), 0.10526042346782394, rtol=1e-6
         )
         np.testing.assert_allclose(
-            float(result.second_form_discontinuity), 0.278833872139782, rtol=1e-6
+            float(result.second_form_discontinuity), 0.07215228609795868, rtol=1e-6
         )
         # Genuine matter shell: the jump exceeds tolerance, so not physical.
         assert bool(result.physical) is False

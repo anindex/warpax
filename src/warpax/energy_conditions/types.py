@@ -148,6 +148,10 @@ class FrameFreeGridResult(NamedTuple):
     n_vacuum: int
     n_total: int
     max_imag_eigenvalue: float
+    # 1.0 where the margin came from the LMI rather than the eigenvalue
+    # inequalities. The two are different quantities: only their sign is
+    # comparable, so an invariant eigenvalue minimum must skip these.
+    lmi_substituted: Float[Array, "..."] | None = None
 
 
 class WallRestrictedStats(NamedTuple):

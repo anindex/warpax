@@ -38,8 +38,11 @@ _ODD_PERMS = (
 )
 
 # Pre-build index arrays for JIT-compatible construction
-_EVEN_IDX = tuple(zip(*_EVEN_PERMS))  # 4 tuples of 12 ints each
-_ODD_IDX = tuple(zip(*_ODD_PERMS))
+_EVEN_IDX = tuple(zip(*_EVEN_PERMS, strict=True))  # 4 tuples of 12 ints each
+_ODD_IDX = tuple(zip(*_ODD_PERMS, strict=True))
+
+# Degeneracy floor on det of the scale-normalised metric, so it is dimensionless.
+_DET_RTOL = 1e-30
 
 
 def kretschmann_scalar(
@@ -103,13 +106,11 @@ def _levi_civita_4d(
     eps = jnp.zeros((4, 4, 4, 4))
     eps = eps.at[_EVEN_IDX].set(1.0)
     eps = eps.at[_ODD_IDX].set(-1.0)
-    # The degeneracy guard must scale with the metric, or it is not a guard but a
-    # rescaling: det g goes as (scale)^4, so an absolute 1e-30 floor changes the
-    # answer for any valid coordinate choice with a small determinant. On
-    # g = diag(-1e-40, 1, 1, 1) the clamped version returned 8e5 for a scalar
-    # whose true value is 8.
-    scale4 = jnp.maximum(jnp.max(jnp.abs(metric)), 1e-300) ** 4
-    sqrt_neg_det = jnp.sqrt(jnp.maximum(-jnp.linalg.det(metric), 1e-30 * scale4))
+    # Normalise before the determinant: scale**4 underflows below |g| ~ 1e-77.
+    tiny = jnp.finfo(metric.dtype).tiny
+    scale = jnp.maximum(jnp.max(jnp.abs(metric)), tiny)
+    neg_det_hat = -jnp.linalg.det(metric / scale)
+    sqrt_neg_det = scale**2 * jnp.sqrt(jnp.maximum(neg_det_hat, _DET_RTOL))
     return sqrt_neg_det * eps
 
 

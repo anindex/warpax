@@ -24,7 +24,6 @@ from ._conversion import (
 from ._color import is_diverging, resolve_clim, resolve_clim_from_array, resolve_cmap
 
 # Rendering themes
-from ._themes import PAPER_THEME, PRESENTATION_THEME, RenderTheme, get_theme
 
 # Velocity profiles and frame sequence builders
 from ._physics import (
@@ -60,10 +59,6 @@ __all__ = [
     "resolve_clim_from_array",
     "is_diverging",
     # Themes
-    "RenderTheme",
-    "get_theme",
-    "PAPER_THEME",
-    "PRESENTATION_THEME",
     # Physics profiles
     "linear_ramp",
     "sigmoid_ramp",

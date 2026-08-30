@@ -93,7 +93,39 @@ class TestClosingSpeed:
 
 
 @pytest.mark.slow
-def test_module_demo_runs():
-    from warpax.energy_conditions import interval_lmi
+def test_wall_certified_violated_exterior_refused():
+    """Wall: certified violated. Exterior: refused, not guessed.
 
-    interval_lmi._demo()
+    Moved here from a module __main__ block that only ran via this test.
+    """
+    from warpax.energy_conditions.enclosure import van_den_broeck_metric
+
+    m = alcubierre_metric(0.5, 1.0, 8.0)
+    wall = certify_point_from_metric(m, (0.0, 1.0, 0.35, 0.0))
+    for cond in ("nec", "wec", "sec", "dec"):
+        assert wall[cond] == "violated", (cond, wall)
+        assert wall[f"{cond}_lower"] <= wall[f"{cond}_upper"] < 0.0, (cond, wall)
+
+    # The ball contains the sphere and sigma >= 0 is a restriction of sigma free,
+    # so the weak bracket can only sit at or below the null one.
+    pad = 1e-9 * max(1.0, abs(wall["nec_lower"]))
+    assert wall["wec_lower"] <= wall["nec_lower"] + pad, wall
+    assert wall["wec_upper"] <= wall["nec_upper"] + pad, wall
+
+    # Van den Broeck on the axis satisfies the null, weak and dominant
+    # conditions and violates only the strong one, which is invisible to a null
+    # witness because Theta(k,k) = T(k,k) there. If the SEC witness ever reverts
+    # to the sphere this reads "inconclusive".
+    vdb = van_den_broeck_metric(0.5, 1.0, 8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
+    axis = certify_point_from_metric(vdb, (0.0, 1.0, 0.0, 0.0))
+    assert axis["sec"] == "violated", axis
+    assert axis["sec_upper"] < 0.0, axis
+    assert axis["nec"] == "satisfied", axis
+
+    # The exterior is vacuum to 1e-24, so q == 0 there and nothing can be
+    # certified strictly positive. "inconclusive" is correct, and the bracket
+    # must show it is a saturation refusal rather than a failure. Alcubierre
+    # only: a construction with a 1/r tail is genuinely decidable here.
+    far = certify_point_from_metric(m, (0.0, 12.0, 0.0, 0.0))
+    assert far["nec"] == "inconclusive", far
+    assert abs(far["nec_lower"]) < 1e-12 and abs(far["nec_upper"]) < 1e-12, far

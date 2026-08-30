@@ -20,7 +20,7 @@ import tempfile
 import jax
 import jax.numpy as jnp
 
-import warpax  # noqa: F401 -- triggers jax_enable_x64 + _initialize_jit_cache
+import warpax  # noqa: F401 -- triggers jax_enable_x64 and the cache dir
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 

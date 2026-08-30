@@ -90,7 +90,8 @@ def adm_split(
     # Lapse: alpha^2 = beta_i beta^i - g_{00}
     beta_sq = jnp.dot(beta_lower, beta_upper)
     alpha_sq = beta_sq - g[0, 0]
-    alpha = jnp.sqrt(jnp.maximum(alpha_sq, 1e-30))
+    # Relative floor: an absolute one rescales the lapse, and K_ij with it.
+    alpha = jnp.sqrt(jnp.maximum(alpha_sq, 1e-30 * jnp.max(jnp.abs(g))))
 
     # Extrinsic curvature via K_{ij} = -(1/2alpha)(d__t gamma_{ij} - D_i beta_j - D_j beta_i)
     # We need d__t gamma_{ij} and the spatial covariant derivative of beta.

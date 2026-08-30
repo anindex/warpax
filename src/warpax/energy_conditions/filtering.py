@@ -96,7 +96,10 @@ def determinant_guard_mask(
     g_field: Float[Array, "... 4 4"],
     threshold: float = 1e-10,
 ) -> Float[Array, "..."]:
-    """Boolean mask: True where ``|det(g)| >= threshold`` (non-degenerate).
+    """Boolean mask: True where the metric is non-degenerate.
+
+    The determinant is taken on the scale-normalised metric, so the test
+    measures conditioning rather than coordinate scale.
 
     Points where this is False have near-singular metrics; EC margins
     at those points are unreliable and should be excluded from
@@ -109,7 +112,7 @@ def determinant_guard_mask(
     g_field : Float[Array, "... 4 4"]
         Metric tensor field with shape ``(*grid_shape, 4, 4)``.
     threshold : float
-        Determinant magnitude threshold (default 1e-10).
+        Dimensionless floor on ``|det(g / max|g|)|`` (default 1e-10).
 
     Returns
     -------
@@ -118,14 +121,17 @@ def determinant_guard_mask(
     """
     grid_shape = g_field.shape[:-2]
     flat_g = g_field.reshape(-1, 4, 4)
-    dets = jax.vmap(jnp.linalg.det)(flat_g)
+    tiny = jnp.finfo(flat_g.dtype).tiny
+    scale = jnp.maximum(jnp.max(jnp.abs(flat_g), axis=(-2, -1)), tiny)
+    dets = jax.vmap(jnp.linalg.det)(flat_g / scale[:, None, None])
     mask = (jnp.abs(dets) >= threshold).reshape(grid_shape)
 
     n_degenerate = int(jnp.sum(~mask))
     if n_degenerate > 0:
         n_points = int(jnp.prod(jnp.array(grid_shape)))
         warnings.warn(
-            f"{n_degenerate} of {n_points} grid points have |det(g)| < {threshold}. "
+            f"{n_degenerate} of {n_points} grid points have "
+            f"|det(g / max|g|)| < {threshold}. "
             f"EC margins at these points are unreliable.",
             stacklevel=2,
         )

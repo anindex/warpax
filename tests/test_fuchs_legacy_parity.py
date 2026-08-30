@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 from warpax.metrics import fuchs_default
 from warpax.metrics._fuchs_legacy import (
@@ -36,9 +37,17 @@ def test_legacy_analytical_total_mass_matches_paper_default():
 
 
 def test_legacy_shell_profiles_factory_agrees_with_canonical_total_mass():
-    """Legacy and canonical totals agree to ~1 % (the canonical path smooths off a sliver of mass)."""
-    profiles = fuchs_shell_profiles(R_1=10.0, R_2=20.0, r_s_param=5.0)
-    canonical = fuchs_default()
+    """Legacy and canonical totals agree to ~1 % (the canonical path smooths off a sliver of mass).
+
+    Both sides must be built at the same ``r_s_param``. Taking each factory's
+    own default compared r_s = 5.0 against r_s = 6.668692 and read as a 34 %
+    physics drift.
+    """
+    r_s_param = 6.668692  # fuchs_default's paper-matched value
+    profiles = fuchs_shell_profiles(R_1=10.0, R_2=20.0, r_s_param=r_s_param)
+    canonical = fuchs_default(R_1=10.0, R_2=20.0, r_s_param=r_s_param)
+    # The unsmoothed shell carries exactly r_s / 2.
+    assert profiles.total_mass == pytest.approx(r_s_param / 2.0)
     rel = abs(profiles.total_mass - canonical.total_mass) / profiles.total_mass
     assert rel < 1e-2, f"legacy vs canonical mass drift {rel:.4f} exceeds 1 %"
 

@@ -29,7 +29,6 @@ Usage
 """
 from __future__ import annotations
 
-import math
 import os
 
 from _json_io import dump_json, write_table as write_tex_table

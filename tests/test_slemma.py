@@ -500,3 +500,52 @@ def test_lmi_is_continuous_through_the_type_ii_locus():
     # The margin is (rho + S_par)/2 - |j| here, i.e. linear in j on both sides.
     for j, m in zip(js, margins):
         assert m == pytest.approx(0.5 * (rho + s_par) - j, abs=1e-12)
+
+
+@pytest.mark.slow
+def test_lmi_agrees_with_brute_force_at_every_hawking_ellis_type():
+    """The LMI verdict must match a brute-force observer search.
+
+    The four canonical forms plus the Type-IV tensor whose quartic
+    discriminant vanishes, in Minkowski coordinates where the tetrad is the
+    identity. Moved here from a module __main__ block that never ran.
+    """
+    eta = np.diag([-1.0, 1.0, 1.0, 1.0])
+    g = jnp.asarray(eta)
+    rng = np.random.default_rng(0)
+
+    def brute(T_np, on_sphere, n=400_000):
+        w = rng.normal(size=(n, 3))
+        w /= np.linalg.norm(w, axis=1, keepdims=True)
+        if not on_sphere:
+            w *= rng.random((n, 1)) ** (1 / 3.0)
+        u = np.concatenate([np.ones((n, 1)), w], axis=1)
+        return float(np.einsum("ni,ij,nj->n", u, T_np, u).min())
+
+    k = np.array([1.0, 1.0, 0.0, 0.0])
+    Tm3 = np.array([[0.7, 0.0, 1.0, 0.0], [0.0, -0.7, 1.0, 0.0],
+                    [1.0, -1.0, -0.7, 0.0], [0.0, 0.0, 0.0, 0.3]])
+    f, c = 1.3, 0.4
+    Tm4 = np.array([[0.0, f, 0.0, 0.0], [-f, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, c, 0.0], [0.0, 0.0, 0.0, c]])
+    cases = {
+        "I(ok)": np.diag([2.0, 0.5, 0.5, 0.5]),
+        "I(bad)": np.diag([-1.0, 0.5, 0.5, 0.5]),
+        "II": np.outer(k, k),
+        "II(bad)": np.outer(k, k) + np.diag([-1.0, 0.0, 3.0, 3.0]),
+        "III": eta @ Tm3,
+        "IV(D4=0)": eta @ Tm4,
+    }
+
+    for name, T_np in cases.items():
+        T_np = 0.5 * (T_np + T_np.T)
+        m = certify_point(jnp.asarray(T_np), g)
+        for key, sphere in (("nec", True), ("wec", False)):
+            cert = bool(m[key] >= -1e-8)
+            true = brute(T_np, sphere) >= -1e-6
+            assert cert == true, (
+                f"{name}/{key}: LMI says {cert}, brute force says {true} "
+                f"(margin {float(m[key]):.3e})"
+            )
+        # DEC and SEC must never be reported cleaner than the WEC/NEC they imply.
+        assert float(m["dec"]) <= float(m["wec"]) + 1e-9, name

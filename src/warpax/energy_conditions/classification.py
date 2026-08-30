@@ -241,19 +241,20 @@ def classify_hawking_ellis(
             f"solver must be 'standard' or 'generalized'; got {solver!r}"
         )
 
-    # cuSolver's geev crashes on NaN GPU inputs (CPU is graceful). Zero out NaN
-    # entries so the solver survives, but remember: a zeroed point used to come
-    # out as a confident he_type=1 vacuum with margins exactly 0.0.
-    has_nan = jnp.any(jnp.isnan(T_mixed))
-    T_safe = jnp.where(jnp.isnan(T_mixed), 0.0, T_mixed)
+    # cuSolver's geev crashes on non-finite GPU inputs (CPU is graceful). Zero
+    # them so the solver survives, but remember: a zeroed point used to come out
+    # as a confident he_type=1 vacuum with margins exactly 0.0. Infinities count
+    # as invalid too; only NaN did, so diag(inf,0,0,0) returned he_type=4.
+    has_nan = jnp.any(~jnp.isfinite(T_mixed))
+    T_safe = jnp.where(jnp.isfinite(T_mixed), T_mixed, 0.0)
 
     if solver == 'standard':
         eigenvalues, eigenvectors = jnp.linalg.eig(T_safe)
     else:
         if T_ab is None:
             T_ab = g_ab @ T_safe
-        T_ab_safe = jnp.where(jnp.isnan(T_ab), 0.0, T_ab)
-        g_ab_safe = jnp.where(jnp.isnan(g_ab), 0.0, g_ab)
+        T_ab_safe = jnp.where(jnp.isfinite(T_ab), T_ab, 0.0)
+        g_ab_safe = jnp.where(jnp.isfinite(g_ab), g_ab, 0.0)
         try:
             from warpax.energy_conditions._gen_eig_callback import _gen_eig_pencil
         except ImportError as e:
@@ -312,11 +313,13 @@ def classify_hawking_ellis(
         jnp.max(jnp.abs(T_safe)) == 0.0
     )
 
-    # Causal character g_{ab} v^a v^b per eigenvector, with a relative
-    # sign threshold (floored at 1.0 to keep Minkowski behavior).
+    # Causal character g_{ab} v^a v^b per eigenvector, on a relative sign
+    # threshold. Clamping the scale at 1.0 made it absolute below unit scale:
+    # at g = 1e-24 eta every quadratic reads as null and a Type-I tensor came
+    # back Type II with NaN pressures.
     causal = jnp.einsum("ab,ak,bk->k", g_ab, evecs_real, evecs_real)
-    g_quad_scale = jnp.maximum(jnp.max(jnp.abs(causal)), 1.0)
-    relative_g_quad = causal / g_quad_scale
+    g_quad_scale = jnp.max(jnp.abs(causal))
+    relative_g_quad = jnp.where(g_quad_scale > 0.0, causal / g_quad_scale, causal)
 
     n_timelike = jnp.sum(relative_g_quad < -tol)
     n_null = jnp.sum(jnp.abs(relative_g_quad) <= tol)

@@ -37,8 +37,8 @@ def richardson_extrapolation(
         Computed quantity at each resolution ``[Q(h1), Q(h2), Q(h3)]``,
         ordered from coarsest to finest.
     grid_sizes : list[int]
-        Grid sizes ``[N1, N2, N3]`` (e.g. ``[25, 50, 100]``), ordered
-        coarsest to finest.
+        Grid sizes ``[N1, N2, N3]`` (e.g. ``[25, 49, 97]``, whose spacing
+        ratio is exactly 2), ordered coarsest to finest.
     expected_order : int
         Expected convergence order for validation.
 
@@ -76,7 +76,11 @@ def richardson_extrapolation(
     # Use the last 3 resolutions (coarsest -> finest)
     Q1, Q2, Q3 = values[-3], values[-2], values[-1]
     N1, N2, N3 = grid_sizes[-3], grid_sizes[-2], grid_sizes[-1]
-    h1, h2, h3 = 1.0 / N1, 1.0 / N2, 1.0 / N3
+    # Endpoint-inclusive grids: N points over a fixed domain span N-1 cells, so
+    # the spacing that the error expansion is in goes as 1/(N-1). Using 1/N put
+    # exactly second-order data at order 2.069 with a nonzero extrapolant, and
+    # rejected [25, 49, 97], whose spacing ratio is exactly 2.
+    h1, h2, h3 = 1.0 / (N1 - 1), 1.0 / (N2 - 1), 1.0 / (N3 - 1)
 
     # The three-point order estimate is valid only on a geometric ladder.
     r, r2 = h1 / h2, h2 / h3
@@ -95,8 +99,10 @@ def richardson_extrapolation(
     dQ12 = Q1 - Q2
     dQ23 = Q2 - Q3
 
-    # Guard against zero denominator
-    if abs(dQ23) < 1e-30:
+    # Relative: an absolute 1e-30 called [4e-100, 2e-100, 1e-100] exact while
+    # it was still halving at every level.
+    q_scale = max(abs(Q1), abs(Q2), abs(Q3))
+    if abs(dQ23) <= 1e-15 * q_scale:
         # Already converged to machine precision
         return {
             "extrapolated_value": float(Q3),
@@ -240,8 +246,14 @@ def compute_convergence_quantity(
     if quantity == "min_margin":
         return float(np.nanmin(flat))
 
-    elif quantity == "l2_violation":
-        violated = flat[flat < -1e-10]
+    # Relative roundoff gate: an absolute -1e-10 reports zero violation for a
+    # grid whose margins are all of order 1e-12.
+    finite = flat[np.isfinite(flat)]
+    scale = float(np.max(np.abs(finite))) if finite.size else 0.0
+    cut = -1e-10 * scale
+
+    if quantity == "l2_violation":
+        violated = flat[flat < cut]
         if violated.size == 0:
             return 0.0
         # sqrt(sum f^2 dV), not sqrt(sum f^2): without the volume this counts
@@ -249,7 +261,7 @@ def compute_convergence_quantity(
         return float(np.sqrt(np.sum(violated**2) * cell_volume))
 
     elif quantity == "integrated_violation":
-        violated = flat[flat < -1e-10]
+        violated = flat[flat < cut]
         if violated.size == 0:
             return 0.0
         return float(np.sum(np.abs(violated)) * cell_volume)

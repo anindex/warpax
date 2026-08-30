@@ -4,8 +4,9 @@ Units: geometric (``G = c = 1``) throughout.
 
 Environment variables:
 
-- ``WARPAX_JIT_CACHE=1`` enables the version-salted persistent JIT cache
-  at ``~/.cache/warpax/jax/<hash>/`` (see :mod:`warpax._jit_cache`).
+- ``WARPAX_JIT_CACHE=1`` points JAX's persistent compilation cache at
+  ``~/.cache/warpax/jax``. Override the location with
+  ``JAX_COMPILATION_CACHE_DIR``.
 - ``WARPAX_BEARTYPE=1`` installs whole-package runtime type checks via
   ``beartype.claw``. Off by default so production users pay nothing.
 """
@@ -17,9 +18,13 @@ import jax
 # Must run before any JAX array is created.
 jax.config.update("jax_enable_x64", True)
 
-from ._jit_cache import _initialize_jit_cache
-
-_initialize_jit_cache()
+# JAX's own cache key already covers the HLO, the jaxlib version, the backend
+# and the devices, so a directory is all this needs.
+if os.environ.get("WARPAX_JIT_CACHE") == "1":
+    os.environ.setdefault(
+        "JAX_COMPILATION_CACHE_DIR",
+        os.path.expanduser("~/.cache/warpax/jax"),
+    )
 
 if os.environ.get("WARPAX_BEARTYPE") == "1":
     from beartype import BeartypeConf
@@ -37,7 +42,6 @@ __version__ = "1.4.0"
 __author__ = "An T. Le"
 __email__ = "an@robot-learning.de"
 
-from . import design as design
 from .certify import CertifyResult, certify
 
 __all__ = [
@@ -48,3 +52,14 @@ __all__ = [
     "certify",
     "design",
 ]
+
+
+def __getattr__(name):
+    # design pulls in sympy: 1.6 s of the 2.5 s import, paid by every script
+    # and every pool worker. Import it on first use instead.
+    if name == "design":
+        import importlib
+
+        # import_module, not "from . import design": the latter re-enters here.
+        return importlib.import_module(".design", __name__)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

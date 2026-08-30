@@ -50,6 +50,26 @@ def eigenvalues_mpmath(
         return tuple(evals)  # type: ignore[return-value]
 
 
+def _no_verdict(precision: int) -> dict[str, Any]:
+    """Report for a point whose tensor or metric is not finite."""
+    nan = float("nan")
+    return {
+        "he_type": nan,
+        "all_real": False,
+        "near_vacuum": False,
+        "n_timelike": 0,
+        "n_null": 0,
+        "n_unique": 0,
+        "max_imag_abs": nan,
+        "max_real_abs": nan,
+        "eigenvalues_real": [nan] * 4,
+        "eigenvalues_imag": [nan] * 4,
+        "precision": precision,
+        "cond_V": float("inf"),
+        "uncertain": True,
+    }
+
+
 def classify_hawking_ellis_mpmath(
     T_mixed: np.ndarray,
     g_ab: np.ndarray,
@@ -106,7 +126,12 @@ def classify_hawking_ellis_mpmath(
             f"Expected (4, 4) matrices, got T={T_mixed.shape}, g={g_ab.shape}"
         )
 
-    T_safe = np.where(np.isnan(T_mixed), 0.0, T_mixed)
+    # No verdict on non-finite input, matching classification.py. Zeroing it
+    # here returned he_type=1, near_vacuum=True for a NaN tensor.
+    if not np.all(np.isfinite(T_mixed)) or not np.all(np.isfinite(g_ab)):
+        return _no_verdict(precision)
+
+    T_safe = T_mixed
 
     with mpmath.workdps(precision):
         M = mpmath.matrix(T_safe.tolist())
@@ -403,8 +428,10 @@ def _causal_counts(
                 quad += g_ab[a, b] * v[a] * v[b]
         quads.append(quad)
 
-    max_abs_quad = max(abs(q) for q in quads) if quads else 1.0
-    scale = max(max_abs_quad, 1.0)
+    # Relative, not clamped at 1.0: see the same gate in classification.py.
+    scale = max((abs(q) for q in quads), default=0.0)
+    if scale == 0.0:
+        return 0, len(quads)
     n_timelike = sum(1 for q in quads if q / scale < -tol)
     n_null = sum(1 for q in quads if abs(q) / scale <= tol)
     return n_timelike, n_null

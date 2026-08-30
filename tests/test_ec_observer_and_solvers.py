@@ -585,25 +585,24 @@ class TestDeterminantGuardMask:
             mask = determinant_guard_mask(g_field)
         assert not jnp.any(mask), "Degenerate metric (det=0) should fail guard"
 
-    def test_determinant_guard_configurable_threshold(self):
-        """Threshold parameter changes behavior."""
-        # Metric with small but nonzero determinant
-        g = jnp.diag(jnp.array([-1e-6, 1e-6, 1e-6, 1e-6]))
-        g_field = g.reshape(1, 4, 4)
-        det_val = float(jnp.linalg.det(g))
+    def test_determinant_guard_is_scale_invariant(self):
+        """A uniform rescaling of the coordinates does not degrade the metric."""
+        eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+        for scale in (1e-6, 1e-3, 1.0, 1e3, 1e6):
+            mask = determinant_guard_mask((scale * eta).reshape(1, 4, 4))
+            assert bool(mask[0]), f"g = {scale:.0e} eta has condition number 1"
 
-        # Default threshold (1e-10): should fail since |det| = 1e-24
+    def test_determinant_guard_configurable_threshold(self):
+        """Threshold parameter changes behavior on an ill-conditioned metric."""
+        # Condition number 1e18: near-degenerate whatever the overall scale.
+        g = jnp.diag(jnp.array([-1e-18, 1.0, 1.0, 1.0]))
+        g_field = g.reshape(1, 4, 4)
+
         with pytest.warns(UserWarning, match="grid points have"):
             mask_default = determinant_guard_mask(g_field)
-        assert not bool(mask_default[0]), (
-            f"|det|={abs(det_val):.2e} should fail default threshold"
-        )
+        assert not bool(mask_default[0])
 
-        # Very low threshold: should pass
-        mask_low = determinant_guard_mask(g_field, threshold=1e-30)
-        assert bool(mask_low[0]), (
-            f"|det|={abs(det_val):.2e} should pass threshold=1e-30"
-        )
+        assert bool(determinant_guard_mask(g_field, threshold=1e-30)[0])
 
     def test_determinant_guard_warning(self):
         """warnings.warn is called with count of degenerate points."""

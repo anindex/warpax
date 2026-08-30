@@ -124,14 +124,22 @@ def _project_to_null(
     cross = 2.0 * jnp.einsum("ab,a,b->", g_ab, u_t * e0, u_s)
     disc = cross**2 - 4.0 * A_s * A_t
     sqrt_disc = jnp.sqrt(jnp.maximum(disc, 0.0))
-    denom = 2.0 * A_s + 1e-30
-    lam_plus = (-cross + sqrt_disc) / denom
-    lam_minus = (-cross - sqrt_disc) / denom
-    lam = jnp.where(
-        jnp.abs(lam_plus - 1.0) <= jnp.abs(lam_minus - 1.0),
-        lam_plus,
-        lam_minus,
-    )
+    # Citardauq form. The naive (-cross +/- sqrt_disc) / (2 A_s) cancels
+    # catastrophically for a nearly-null tangent, and its additive 1e-30
+    # denominator offset dominates once A_s falls below it.
+    sgn = jnp.where(cross >= 0.0, 1.0, -1.0)
+    q = -0.5 * (cross + sgn * sqrt_disc)
+    a_ok = A_s != 0.0
+    q_ok = q != 0.0
+    lam_a = jnp.where(a_ok, q / jnp.where(a_ok, A_s, 1.0), 1.0)
+    lam_b = jnp.where(q_ok, A_t / jnp.where(q_ok, q, 1.0), 1.0)
+
+    # The two roots have opposite signs whenever g_00 < 0, and the negative one
+    # is the reflected ray. Keep the spatial direction, then closest to 1.
+    def score(lam):
+        return jnp.where(lam > 0.0, jnp.abs(lam - 1.0), jnp.inf)
+
+    lam = jnp.where(score(lam_a) <= score(lam_b), lam_a, lam_b)
     return u_t * e0 + lam * u_s
 
 
@@ -284,19 +292,21 @@ def anec(
     # trapezoid over affine parameter (non-uniform lam OK)
     line_integral = jnp.trapezoid(integrand, lam)
 
-    # Rigor witness: worst off-cone deviation of the SAMPLED tangents. With
-    # 'null_projected' this is ~0 by construction; otherwise it reports how
-    # well the integrated geodesic stayed on the null cone.
-    if tangent_norm == "null_projected":
-        g_kk = jax.vmap(
-            lambda c, u: velocity_norm(metric, c, _project_to_null(metric(c), u))
-        )(positions, velocities)
-    else:
-        g_kk = jax.vmap(lambda c, u: velocity_norm(metric, c, u))(
-            positions, velocities
-        )
+    # Rigor witness on the TRAJECTORY tangent dx/dlambda, in every mode. Under
+    # 'null_projected' it used to be measured on the projected vector, which is
+    # null by construction, so a timelike path returned null_preserved=True
+    # while the integral contracted T on a null field unrelated to the curve.
+    g_kk = jax.vmap(lambda c, u: velocity_norm(metric, c, u))(
+        positions, velocities
+    )
     max_abs_g_kk = jnp.max(jnp.abs(g_kk))
-    null_preserved = bool(max_abs_g_kk < null_tol)
+    # Relative verdict: g(k,k) carries the square of the tangent scale, so an
+    # absolute tolerance flips on a rescaling of the affine parameter alone.
+    kk_ref = jax.vmap(
+        lambda c, u: jnp.max(jnp.abs(metric(c))) * jnp.max(u**2)
+    )(positions, velocities)
+    ref = jnp.max(kk_ref)
+    null_preserved = bool(max_abs_g_kk < null_tol * jnp.where(ref > 0.0, ref, 1.0))
 
     geodesic_complete = result_code == RESULT_SUCCESS
 

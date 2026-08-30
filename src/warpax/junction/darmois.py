@@ -117,6 +117,26 @@ def _induced_and_extrinsic(
 
 
 @jaxtyped(typechecker=beartype)
+def _one_sided_limit(
+    metric: MetricSpecification,
+    boundary_fn: Callable[[Float[Array, "4"]], Float[Array, ""]],
+    probe: Float[Array, "4"],
+    opposite: Float[Array, "4"],
+):
+    """``(h, K, eps)`` extrapolated to Sigma from one side.
+
+    Two probes on the same side, at the given separation and at half of it,
+    linearly extrapolated. Differencing the raw probes across Sigma instead
+    gives ``-s h'`` , first order in the separation, so a smooth metric
+    reported a jump proportional to its own gradient and never passed.
+    """
+    on_sigma = 0.5 * (probe + opposite)
+    near = 0.5 * (probe + on_sigma)
+    h_far, K_far, _ = _induced_and_extrinsic(metric, boundary_fn, probe)
+    h_near, K_near, eps = _induced_and_extrinsic(metric, boundary_fn, near)
+    return 2.0 * h_near - h_far, 2.0 * K_near - K_far, eps
+
+
 def darmois(
     metric: MetricSpecification,
     boundary_fn: Callable[[Float[Array, "4"]], Float[Array, ""]],
@@ -151,18 +171,25 @@ def darmois(
 
     Notes
     -----
-    Pointwise probe test (not a full Sigma integral). Smooth metrics
-    (Alcubierre-family) give discontinuities ``O(probe_separation^2)``
-    and pass at any reasonable ``tol``; genuine shell metrics (WarpShell
-    at the shell boundary) yield finite ``[[K]]``.
+    Pointwise probe test (not a full Sigma integral). Each side is
+    extrapolated to Sigma from two probes, so a smooth metric
+    (Alcubierre-family) gives a jump that vanishes with the probe separation
+    (measured: a factor 8 per halving), while a genuine shell metric
+    (WarpShell at the shell boundary) keeps a finite ``[[K]]``. The verdict is
+    therefore a statement about the separation used: shrink it until
+    ``first_form_discontinuity`` stops falling.
     """
     if probe_coords_inside is None:
         probe_coords_inside = jnp.array([0.0, 0.9, 0.0, 0.0])
     if probe_coords_outside is None:
         probe_coords_outside = jnp.array([0.0, 1.1, 0.0, 0.0])
 
-    h_in, K_in, _ = _induced_and_extrinsic(metric, boundary_fn, probe_coords_inside)
-    h_out, K_out, _ = _induced_and_extrinsic(metric, boundary_fn, probe_coords_outside)
+    h_in, K_in, _ = _one_sided_limit(
+        metric, boundary_fn, probe_coords_inside, probe_coords_outside
+    )
+    h_out, K_out, _ = _one_sided_limit(
+        metric, boundary_fn, probe_coords_outside, probe_coords_inside
+    )
 
     first_form_disc = jnp.max(jnp.abs(h_in - h_out))
     second_form_disc = jnp.max(jnp.abs(K_in - K_out))
@@ -220,7 +247,9 @@ def surface_stress_energy(
 
     delta_K = K_out - K_in
     h_avg = 0.5 * (h_in + h_out)
-    epsilon = 0.5 * (eps_in + eps_out)
+    # eps is +/-1. Averaging a sign change gives 0 and silently zeroed S_ab;
+    # a Sigma whose normal changes causal character has no Israel stress.
+    epsilon = jnp.where(eps_in == eps_out, eps_in, jnp.nan)
 
     # Trace of the jump on the induced metric (h^{ab} is a 3D inverse;
     # use the Moore-Penrose pseudo-inverse for the 4x4 representation

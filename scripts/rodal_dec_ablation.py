@@ -45,7 +45,7 @@ from warpax.energy_conditions.filtering import (
 )
 from warpax.energy_conditions.verifier import verify_grid
 from warpax.visualization._style import (
-    apply_style, COLORS, DOUBLE_COL, LINE_STYLES, metric_color,
+    apply_style, DOUBLE_COL, LINE_STYLES, metric_color,
 )
 
 

@@ -101,7 +101,13 @@ def eulerian_momentum_frame(
     j_up = -(proj @ (T_mixed @ n_up))            # spatial momentum density j^a
     j2 = j_up @ (g_ab @ j_up)
     jmag = jnp.sqrt(jnp.clip(j2, min=0.0))
-    jhat = j_up / jnp.where(jmag > 1e-30, jnp.sqrt(jnp.clip(j2, min=1e-300)), 1.0)
+    # Normalise j by its own largest component first. The direction is
+    # well-defined however small |j| is, but dividing by |j| against an
+    # absolute 1e-30 floor collapsed jhat, and with it S_par, at small momentum.
+    j_scale = jnp.max(jnp.abs(j_up))
+    j_unit = j_up / jnp.where(j_scale > 0.0, j_scale, 1.0)
+    j2_unit = j_unit @ (g_ab @ j_unit)
+    jhat = j_unit / jnp.sqrt(jnp.where(j2_unit > 0.0, j2_unit, 1.0))
     S_par = jhat @ (g_ab @ ((proj @ (T_mixed @ proj)) @ jhat))
     return rho, S_par, jmag
 
@@ -158,7 +164,14 @@ def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi,
     is_I = he_type == 1
     if ill_conditioned is not None:
         is_I = is_I & ~ill_conditioned
-    # 2 * lmi["nec"] is slemma.null_deficit, the same quantity as nec_I.
+    # 2 * lmi["nec"] is slemma.null_deficit, at Eulerian null normalisation.
+    # It equals nec_I only in T's own rest frame: under a boost of rapidity
+    # zeta the two differ by exp(2 zeta), and the WEC/SEC/DEC slots differ
+    # already at rest (on diag(2, .5, .5, .5) the WEC slack is 2.0 against an
+    # LMI value of 1.25) because one is an inequality slack and the other the
+    # worst contraction. Only the SIGN is comparable across types; consumers
+    # that want a magnitude must stay within one type, which is what
+    # typeI_min_margins does.
     nonI_nec = 2.0 * lmi["nec"]
     nec = jnp.where(is_I, nec_I, nonI_nec)
     wec = jnp.where(is_I, wec_I, lmi["wec"])
@@ -345,6 +358,7 @@ def certify_grid_frame_free(
         n_vacuum=n_vacuum,
         n_total=int(he.size),
         max_imag_eigenvalue=max_imag,
+        lmi_substituted=_rs(jnp.asarray(ill, dtype=nec.dtype)),
     )
 
 
@@ -403,6 +417,10 @@ def typeI_min_margins(
     These are the cap-free, frame-independent "peak deficit" severities: the most
     negative value of each eigenvalue inequality slack across Type-I points.
     Returns NaN for a condition when no Type-I points are selected.
+
+    Type-I points whose eigenbasis was too ill-conditioned to read carry an LMI
+    value in the same slot, which is a different quantity at a different
+    normalisation, so they are excluded here.
     """
     he = np.asarray(result.he_types).ravel()
     sel = (
@@ -411,6 +429,8 @@ def typeI_min_margins(
         else np.asarray(mask).ravel().astype(bool)
     )
     typeI = sel & (he == 1.0)
+    if result.lmi_substituted is not None:
+        typeI &= np.asarray(result.lmi_substituted).ravel() < 0.5
     out: dict[str, float] = {}
     for key, field in (
         ("nec", result.nec_margins),

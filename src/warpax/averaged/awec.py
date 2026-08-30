@@ -53,25 +53,34 @@ class AWECResult(NamedTuple):
         Diffrax failure mode (e.g. ``'max_steps'``, ``'nonfinite'``,
         ``'dt_min_reached'``, ``'event_occurred'``) or ``'unknown'``
         for an unrecognized result code.
+    timelike_preserved : bool
+        True iff every sampled tangent is timelike. AWEC is defined on a
+        timelike curve; without this a spacelike one integrates silently.
+    max_u_sq : Float[Array, ""]
+        Worst (least negative) ``g_{ab} u^a u^b`` over the samples.
     """
 
     line_integral: Float[Array, ""]
     geodesic_complete: bool
     termination_reason: str
+    timelike_preserved: bool = True
+    max_u_sq: Float[Array, ""] = None
 
 
 def _tangent_renormalized_timelike(
     g_ab: Float[Array, "4 4"],
     u: Float[Array, "4"],
-) -> Float[Array, "4"]:
+) -> tuple[Float[Array, "4"], Float[Array, ""], Float[Array, ""]]:
     """Rescale ``u`` so that ``g_{ab} u^a u^b = -1``.
 
-    Robust against non-strictly-timelike numerical drift via the
-    absolute-value norm + small epsilon floor.
+    Returns the rescaled tangent, ``dtau/dlambda = sqrt(-g(u,u))``, and the
+    unnormalised ``g(u,u)`` as a causal witness. Taking ``sqrt(abs(.))``
+    instead accepted a spacelike curve and returned it with ``g(u,u) = +1``.
     """
     u_sq = jnp.einsum("a,ab,b->", u, g_ab, u)
-    scale = jnp.sqrt(jnp.abs(u_sq) + 1e-30)
-    return u / scale
+    rate = jnp.sqrt(jnp.clip(-u_sq, min=0.0))
+    scale = jnp.where(rate > 0.0, rate, 1.0)
+    return u / scale, rate, u_sq
 
 
 def _awec_integrand_at_point(
@@ -79,15 +88,16 @@ def _awec_integrand_at_point(
     coords: Float[Array, "4"],
     u: Float[Array, "4"],
     tangent_norm: str,
-) -> Float[Array, ""]:
-    """Compute ``T_{ab} u^a u^b`` at a single sample."""
+) -> tuple[Float[Array, ""], Float[Array, ""], Float[Array, ""]]:
+    """``T_{ab} u^a u^b``, ``dtau/dlambda``, and ``g(u,u)`` at a single sample."""
     curv = compute_curvature_chain(metric, coords)
     T_ab = curv.stress_energy
+    u_sq = jnp.einsum("a,ab,b->", u, curv.metric, u)
     if tangent_norm == "renormalized":
-        u_final = _tangent_renormalized_timelike(curv.metric, u)
+        u_final, rate, u_sq = _tangent_renormalized_timelike(curv.metric, u)
     else:
-        u_final = u
-    return jnp.einsum("ab,a,b->", T_ab, u_final, u_final)
+        u_final, rate = u, jnp.ones_like(u_sq)
+    return jnp.einsum("ab,a,b->", T_ab, u_final, u_final), rate, u_sq
 
 
 def _extract_trajectory(
@@ -172,12 +182,18 @@ def awec(
         metric, geodesic, n_samples, affine_bounds
     )
 
-    integrand = jax.vmap(
+    integrand, rate, u_sq = jax.vmap(
         lambda c, u: _awec_integrand_at_point(metric, c, u, tangent_norm)
     )(positions, velocities)
 
-    # trapezoid over affine parameter (non-uniform lam OK)
-    line_integral = jnp.trapezoid(integrand, lam)
+    # Integrate in proper time. Renormalising the tangent means lambda is no
+    # longer tau, so the measure needs dtau/dlambda; ford_roman.py carries it,
+    # this did not.
+    line_integral = jnp.trapezoid(integrand * rate, lam)
+
+    # Causal witness on the unnormalised tangent, relative to the sample scale.
+    u_scale = jnp.max(jnp.abs(u_sq))
+    timelike = bool(jnp.all(u_sq < -1e-10 * jnp.where(u_scale > 0.0, u_scale, 1.0)))
 
     geodesic_complete = result_code == RESULT_SUCCESS
 
@@ -185,4 +201,6 @@ def awec(
         line_integral=line_integral,
         geodesic_complete=geodesic_complete,
         termination_reason=termination_reason(result_code),
+        timelike_preserved=timelike,
+        max_u_sq=jnp.max(u_sq),
     )

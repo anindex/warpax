@@ -152,13 +152,19 @@ class TestAWEC:
 
     def test_alcubierre_timelike_sentinel(self):
         """Alcubierre AWEC on an off-axis static worldline (y=0.5):
-        regression pin on the line integral value."""
+        regression pin on the line integral value.
+
+        The parameter is not proper time here (the tangent needs
+        renormalising), so the integral carries dtau/dlambda. Without that
+        Jacobian this read 0.10535108223138044.
+        """
         metric = AlcubierreMetric()
         wl = lambda tau: jnp.array([tau, 0.0, 0.5, 0.0])
         result = awec(metric, wl)
         val = float(result.line_integral)
         # rel=1e-6: cross-platform ODE drift (see ANEC pin above).
-        assert val == pytest.approx(0.10535108223138044, rel=1e-6)
+        assert val == pytest.approx(0.09474048865368674, rel=1e-6)
+        assert result.timelike_preserved is True
         assert result.geodesic_complete is True
         assert result.termination_reason == "complete"
 
@@ -172,10 +178,20 @@ class TestAWEC:
         """``AWECResult`` exposes named attributes."""
         wl = lambda tau: jnp.array([tau, 0.0, 0.0, 0.0])
         result = awec(MinkowskiMetric(), wl)
-        li, gc, tr = result
+        li, gc, tr, *_witness = result
         assert float(li) == float(result.line_integral)
         assert gc is result.geodesic_complete
         assert tr == result.termination_reason
+        # Causal witness appended (append-only NamedTuple extension).
+        assert result.timelike_preserved is True
+        assert float(result.max_u_sq) < 0.0
+
+    def test_spacelike_curve_is_refused(self):
+        """A spacelike curve is not an AWEC trajectory and must say so."""
+        wl = lambda tau: jnp.array([0.0, tau, 0.0, 0.0])
+        result = awec(MinkowskiMetric(), wl)
+        assert result.timelike_preserved is False
+        assert float(result.max_u_sq) > 0.0
 
 
 class TestFordRoman:
@@ -336,12 +352,25 @@ class TestDiffraxResultCodes:
 class TestDefaultTangentNorm:
     """API change: anec() default tangent_norm is now 'null_projected'."""
 
-    def test_default_path_stays_on_null_cone(self):
-        """The default must yield a vanishing on-cone witness on a short
-        Alcubierre coordinate ray (projection is exact by construction)."""
+    def test_witness_measures_the_supplied_ray_not_the_projection(self):
+        """The witness reports how far the SUPPLIED curve is off the cone.
+
+        Measuring the projected vector instead made it null by construction,
+        so any curve at all, timelike ones included, reported
+        ``null_preserved=True``. An Alcubierre coordinate ray at y=0.5 is
+        genuinely off the cone and must say so.
+        """
         m = AlcubierreMetric(v_s=0.5)
         ray = lambda lam: jnp.array([lam, lam, 0.5, 0.0])
         result = anec(m, ray, n_samples=64, affine_bounds=(-3.0, 3.0))
+        assert float(result.max_abs_g_kk) > 1e-3
+        assert result.null_preserved is False
+
+    def test_witness_vanishes_on_a_genuine_null_ray(self):
+        """On Minkowski a coordinate null ray is exactly null."""
+        ray = lambda lam: jnp.array([lam, lam, 0.0, 0.0])
+        result = anec(MinkowskiMetric(), ray, n_samples=64,
+                      affine_bounds=(-3.0, 3.0))
         assert float(result.max_abs_g_kk) <= 1e-10
         assert result.null_preserved is True
 

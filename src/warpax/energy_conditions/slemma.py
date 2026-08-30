@@ -79,10 +79,11 @@ _TERNARY_STEPS = 80
 # Set by the residual bracket and the eigvalsh error on M(sigma); see noise_floor.
 _NOISE_REL = 1e-12
 
-# Absolute floor, set by the residual ternary bracket at zero tensor scale (the
-# search returns about -6e-22 on exact vacuum). Small enough not to mask a
-# violation at any tensor scale above ~1e-6.
-_NOISE_ABS = 1e-18
+# Absolute floor. Zero: with the bracket unclamped it collapses to the single
+# point 0 at zero tensor scale, where lam_min(0) = 0 exactly, so no absolute
+# term is needed. A nonzero one dominates below scale ~1e-6 and reported a
+# violation of 100% of its own tensor scale as inconclusive.
+_NOISE_ABS = 0.0
 
 # Projected-gradient steps for the violating-observer search in witness_observer.
 _DESCENT_STEPS = 400
@@ -133,23 +134,22 @@ def _lmi_margin(
     is bounded above by ``That_00 - sigma`` and by ``That_ii + sigma``, hence tends
     to ``-inf`` in both directions.
     """
-    # The bracket contains the whole feasible set, not merely a point of it. If
-    # M(sigma) is PSD then every diagonal entry is non-negative, so rho - sigma >= 0
-    # and S_ii + sigma >= 0 for each i; hence -max_i|S_ii| <= sigma <= rho and
-    # sigma lies in [-scale, scale] where scale = max|That_IJ|. (An earlier version of
-    # this comment argued instead that sigma = rho is feasible whenever anything is,
-    # which is false unless b = 0 -- the conclusion held, the argument did not.)
+    # The bracket must contain the argmax whether or not the LMI is feasible.
+    # The feasible-set argument (M(sigma) PSD forces every diagonal entry
+    # non-negative, so -max_i|S_ii| <= sigma <= rho) says nothing on a violated
+    # point, where no sigma is PSD.
     #
-    # The scale is NOT clamped at 1. Clamping made the residual bracket ABSOLUTE
-    # rather than relative: at exact vacuum the search then ran on a width-4 bracket
-    # and returned about -1e-14, which read against a relative floor convicts
-    # Minkowski of violating all four conditions. Unclamped, the bracket collapses
-    # with the tensor -- to the single point 0 on vacuum, where lam_min(0) = 0
-    # exactly -- so the residual stays at ~1e-14 * scale, two orders under the
-    # relative floor in noise_floor.
+    # Unconditionally: lam_min(M(sigma)) <= That_00 - sigma <= scale - sigma and
+    # <= That_ii + sigma <= scale + sigma, while the maximum is at least
+    # lam_min(That) >= -4 scale by Gershgorin. Hence |sigma*| <= 5 scale.
+    #
+    # The scale is NOT clamped at 1, so the bracket collapses with the tensor:
+    # to the single point 0 on vacuum, where lam_min(0) = 0 exactly. Clamping
+    # made the residual absolute and convicted Minkowski of violating all four
+    # conditions.
     scale = _tensor_scale(T_hat)
-    lo = jnp.maximum(sigma_lo, -2.0 * scale)
-    hi = 2.0 * scale
+    lo = jnp.maximum(sigma_lo, -5.0 * scale)
+    hi = 5.0 * scale
 
     def lam_min(s):
         return jnp.linalg.eigvalsh(T_hat + s * _ETA)[0]
@@ -376,61 +376,3 @@ def witness_observer(
     vals = jax.vmap(q)(cands)
     best = cands[jnp.argmin(vals)]
     return jnp.where(jnp.min(vals) < 0.0, best, jnp.nan)
-
-
-def _demo() -> None:
-    """Self-check: the LMI must agree with a brute-force observer search.
-
-    Run on the four Hawking-Ellis canonical forms plus the Type-IV tensor whose
-    quartic discriminant vanishes, in Minkowski coordinates where the tetrad is
-    the identity.
-    """
-    import numpy as np
-
-    eta = np.diag([-1.0, 1.0, 1.0, 1.0])
-    g = jnp.asarray(eta)
-    rng = np.random.default_rng(0)
-
-    def brute(T_np, on_sphere, n=400_000):
-        w = rng.normal(size=(n, 3))
-        w /= np.linalg.norm(w, axis=1, keepdims=True)
-        if not on_sphere:
-            w *= rng.random((n, 1)) ** (1 / 3.0)
-        u = np.concatenate([np.ones((n, 1)), w], axis=1)
-        return float(np.einsum("ni,ij,nj->n", u, T_np, u).min())
-
-    cases = {}
-    # Type I: diagonal perfect-fluid-like, both a satisfying and a failing case.
-    cases["I(ok)"] = np.diag([2.0, 0.5, 0.5, 0.5])
-    cases["I(bad)"] = np.diag([-1.0, 0.5, 0.5, 0.5])
-    # Type II: null dust T = k k with k null, plus a defective variant.
-    k = np.array([1.0, 1.0, 0.0, 0.0])
-    cases["II"] = np.outer(k, k)
-    cases["II(bad)"] = np.outer(k, k) + np.diag([-1.0, 0.0, 3.0, 3.0])
-    # Type III canonical form (mixed tensor has a 3x3 Jordan block).
-    Tm = np.array([[0.7, 0.0, 1.0, 0.0], [0.0, -0.7, 1.0, 0.0],
-                   [1.0, -1.0, -0.7, 0.0], [0.0, 0.0, 0.0, 0.3]])
-    cases["III"] = eta @ Tm
-    # Type IV with vanishing quartic discriminant: eigenvalues +-i f and a double c.
-    f, c = 1.3, 0.4
-    Tm = np.array([[0.0, f, 0.0, 0.0], [-f, 0.0, 0.0, 0.0],
-                   [0.0, 0.0, c, 0.0], [0.0, 0.0, 0.0, c]])
-    cases["IV(D4=0)"] = eta @ Tm
-
-    for name, T_np in cases.items():
-        T_np = 0.5 * (T_np + T_np.T)
-        m = certify_point(jnp.asarray(T_np), g)
-        for key, sphere in (("nec", True), ("wec", False)):
-            cert = bool(m[key] >= -1e-8)
-            true = brute(T_np, sphere) >= -1e-6
-            assert cert == true, (
-                f"{name}/{key}: LMI says {cert}, brute force says {true} "
-                f"(margin {float(m[key]):.3e})"
-            )
-        # DEC and SEC must never be reported cleaner than the WEC/NEC they imply.
-        assert float(m["dec"]) <= float(m["wec"]) + 1e-9, name
-    print("slemma self-check passed on", ", ".join(cases))
-
-
-if __name__ == "__main__":
-    _demo()

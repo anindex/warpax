@@ -730,7 +730,6 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
             # leave the wall band and are then discarded by the mask test.
             return -math.inf, math.inf, f_iv
 
-        import numpy as np
 
         def _decoupled(rho_, b_, S_):
             """Rigorous version of ``N >= rho_lo - 2|b|_max + lambda_min_lo(S)``.
@@ -1013,7 +1012,13 @@ def tail_bound(metric_fn, shape_fn, x_outer, s_outer, prec=60, wall_mask=(0.1, 0
     # this argument inert.
     mpmath.mp.prec = prec
     iv.prec = prec
-    r_min = min(abs(x_outer[0]), abs(x_outer[1]))
+    # min |x| over the interval, which is 0 when it straddles the origin.
+    # min(|endpoint|) is not that, and returned a certified exclusion for a
+    # slab containing the wall.
+    if x_outer[0] <= 0.0 <= x_outer[1]:
+        r_min = 0.0
+    else:
+        r_min = min(abs(x_outer[0]), abs(x_outer[1]))
     if s_outer[0] > 0:
         r_min = math.hypot(r_min, s_outer[0])
     f_at_rmin = shape_fn(iv.mpf([r_min, r_min]), iv.mpf([0.0, 0.0]))

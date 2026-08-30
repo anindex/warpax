@@ -14,6 +14,9 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
+# Absolute floors make the tetrad depend on the coordinate scale.
+_DEGENERATE_RTOL = 1e-12
+
 
 def _gram_schmidt_step(
     v: Float[Array, "4"],
@@ -35,17 +38,22 @@ def _select_first_nondegenerate(
     candidates: Float[Array, "K 4"],
     norm_sqs: Float[Array, "K"],
     *,
-    threshold: float = 1e-14,
+    rtol: float = _DEGENERATE_RTOL,
 ) -> tuple[Float[Array, "4"], Float[Array, ""]]:
-    """Pick the first candidate whose ``|v^T g v|`` is above ``threshold``.
+    """Pick the first candidate whose ``v^T g v`` clears ``rtol`` times the largest.
 
     Branchless fallback that keeps the function vmap-safe at degenerate
-    spatial bases (e.g. when the primary axis already lies in the
-    timelike direction's plane).
+    spatial bases. Returns NaN when nothing clears the floor, rather than a
+    collapsed row that would pass as normalised.
     """
-    ok = norm_sqs > threshold
+    scale = jnp.max(jnp.abs(norm_sqs))
+    ok = norm_sqs > rtol * scale
     idx = jnp.argmax(ok)
-    return candidates[idx], norm_sqs[idx]
+    any_ok = jnp.any(ok)
+    return (
+        jnp.where(any_ok, candidates[idx], jnp.nan),
+        jnp.where(any_ok, norm_sqs[idx], jnp.nan),
+    )
 
 
 def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
@@ -73,7 +81,8 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     # time direction g_{00} turns spacelike, the slice normal stays timelike.
     # The tetrad is therefore well-defined for every v_s (see the superluminal
     # orthonormality sentinel in tests/test_ec_observer_and_solvers.py).
-    alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], 1e-30))
+    g_inv_scale = jnp.max(jnp.abs(g_inv))
+    alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], _DEGENERATE_RTOL * g_inv_scale))
     beta_up = -g_inv[0, 1:4] / g_inv[0, 0]
     e0 = jnp.array([1.0 / alpha, -beta_up[0] / alpha,
                     -beta_up[1] / alpha, -beta_up[2] / alpha])
@@ -106,8 +115,9 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
         norm_sqs = jnp.stack(norm_sqs)
 
         v_sel, norm_sq_sel = _select_first_nondegenerate(candidates, norm_sqs)
-        # Floor radicand: autodiff-safe at norm_sq -> 0.
-        norm = jnp.sqrt(jnp.abs(norm_sq_sel) + 1e-60)
+        # Selection guarantees a positive radicand; abs() would normalise a
+        # timelike candidate as spacelike.
+        norm = jnp.sqrt(norm_sq_sel)
         tetrad = tetrad.at[slot].set(v_sel / norm)
 
     return tetrad

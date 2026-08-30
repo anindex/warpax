@@ -31,7 +31,6 @@ import numpy as np
 import warpax  # noqa: F401  (installs the x64 config on import)
 from warpax import certify
 from warpax.energy_conditions.classification import classify_hawking_ellis
-from warpax.energy_conditions.slemma import noise_floor
 from warpax.metrics.warpshell import WarpShellMetric
 
 # The manuscript's WarpShell case. Bounds are recorded here because the previous

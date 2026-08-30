@@ -12,7 +12,6 @@ Eulerian-frame margins are exposed separately by
 from __future__ import annotations
 
 
-import warnings
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -303,6 +302,22 @@ def verify_point(
     rho = cls.rho
     pressures = cls.pressures
 
+    # The classifier returns NaN when the tensor is not finite. Report that
+    # before the optimizer runs, rather than crashing on int(NaN) after it.
+    if not jnp.isfinite(he_type):
+        nan = jnp.asarray(jnp.nan)
+        return ECPointResult(
+            he_type=he_type,
+            eigenvalues=cls.eigenvalues,
+            rho=rho,
+            pressures=pressures,
+            nec_margin=nan, wec_margin=nan, sec_margin=nan, dec_margin=nan,
+            worst_observer=jnp.full((4,), jnp.nan),
+            worst_params=jnp.full((3,), jnp.nan),
+            nec_opt_margin=nan, wec_opt_margin=nan,
+            sec_opt_margin=nan, dec_opt_margin=nan,
+        )
+
     opt_results = optimize_point(
         T_ab, g_ab,
         conditions=("nec", "wec", "sec", "dec"),
@@ -375,13 +390,17 @@ def _compute_summary(
     above the noise (~1e-15 relative) and well below any physical
     margin we report.
     """
-    n = margins.shape[0]
     threshold = atol if scale is None else atol + rtol * scale
-    violated = margins < -threshold
+    # A NaN margin is no verdict, so it belongs in neither side of the
+    # fraction. Leaving it in the denominator reported 0.5 where every
+    # decided point was violated.
+    decided = jnp.isfinite(margins)
+    n = jnp.maximum(jnp.sum(decided.astype(jnp.float64)), 1.0)
+    violated = decided & (margins < -threshold)
     frac = jnp.sum(violated.astype(jnp.float64)) / n
     violation_magnitudes = jnp.where(violated, jnp.abs(margins), 0.0)
     max_viol = jnp.max(violation_magnitudes)
-    min_margin = jnp.min(margins)
+    min_margin = jnp.min(jnp.where(decided, margins, jnp.inf))
     return ECSummary(
         fraction_violated=frac,
         max_violation=max_viol,
@@ -406,10 +425,19 @@ def verify_grid(
     neighbor_fraction: float = 1.0 / 16.0,
     starts: str = "axis+gaussian",
 ) -> ECGridResult:
-    """Verify energy conditions across an entire grid.
+    """Verify energy conditions across an entire grid, by observer search.
 
     Flatten-vmap-reshape pattern: classification and eigenvalue checks
     are vmapped; optimization uses lax.map (or vmap) for memory safety.
+
+    Scope. Off Type I every margin here comes from the rapidity-capped
+    optimizer, so it is a severity display, not a certification: a violation
+    living above ``zeta_max`` is truncated, and the returned number is a BFGS
+    result where :func:`.slemma.certify_point` has an exact one. This is the
+    single-frame-search arm, kept as the comparison baseline for the
+    observer-robust result. For certification at any algebraic type use
+    :func:`.frame_free.certify_grid_frame_free`, which the two APIs will
+    therefore disagree with off Type I by construction.
 
     Parameters
     ----------

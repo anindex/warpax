@@ -10,13 +10,15 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import equinox as eqx
 import jax.numpy as jnp
-import sympy as sp
 from jaxtyping import Array, Float
-from sympy import lambdify
+
+# sympy costs 0.55 s and only the symbolic bridge below needs it.
+if TYPE_CHECKING:
+    import sympy as sp
 
 
 class SymbolicMetric:
@@ -232,6 +234,8 @@ def sympy_metric_to_jax(
     Callable[[Float[Array, "4"]], Float[Array, "4 4"]]
         A JAX-compatible function evaluating the metric tensor.
     """
+    from sympy import lambdify
+
     f_raw = lambdify(symbolic_metric.coords, symbolic_metric.g, modules="jax")
 
     def f_wrapped(coords: Float[Array, "4"]) -> Float[Array, "4 4"]:
@@ -258,6 +262,8 @@ def sympy_metric_inverse_to_jax(
     Callable[[Float[Array, "4"]], Float[Array, "4 4"]]
         A JAX-compatible function evaluating the inverse metric tensor.
     """
+    from sympy import lambdify
+
     f_raw = lambdify(
         symbolic_metric.coords, symbolic_metric.g_inv, modules="jax"
     )
