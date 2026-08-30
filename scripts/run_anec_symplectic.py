@@ -25,6 +25,7 @@ import os
 from pathlib import Path
 
 from _anec_window import crossing_span
+from _paper_metrics import METRIC_ORDER, instantiate
 from _json_io import dump_json, write_table as write_tex_table
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
@@ -37,9 +38,8 @@ import numpy as np
 
 from warpax.averaged.anec import anec_rigorous, null_ic_canonical
 from warpax.geodesics import integrate_geodesic_symplectic
-from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric
+from warpax.benchmarks import MinkowskiMetric
 from warpax.geodesics import eulerian_affine_scale
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results", "anec")
@@ -77,21 +77,8 @@ B_REFINE_POINTS = 21
 B_REFINE_LEVELS = 4
 B_REFINE_RTOL = 1.0e-4
 
-METRICS = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (
-        VanDenBroeckMetric,
-        {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0},
-    ),
-    "Rodal": (RodalMetric, {}),
-}
-METRIC_ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 
 
-def _instantiate(name: str):
-    cls, extra = METRICS[name]
-    return cls(v_s=V_S, R=R_B, sigma=SIGMA, **extra)
 
 
 def _affine_scale(metric, x0) -> float:
@@ -224,7 +211,7 @@ def main() -> None:
 
     per_metric: dict[str, dict] = {}
     for name in METRIC_ORDER:
-        metric = _instantiate(name)
+        metric = instantiate(name, V_S, R_B, SIGMA)
         span, span_converged = _measure_span(metric)
         print(f"  {name:16s} affine window {span:.1f} "
               f"({'crossing covered' if span_converged else 'RAY DID NOT LEAVE'})", flush=True)

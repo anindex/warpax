@@ -39,6 +39,7 @@ import json
 import os
 
 from _benchmark_grid import benchmark_grid
+from _paper_metrics import METRIC_ORDER, instantiate
 from _json_io import dump_json, write_table as write_tex_table
 
 import jax
@@ -48,39 +49,26 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.energy_conditions.frame_free import eulerian_momentum_frame
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
 TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
-METRICS = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (VanDenBroeckMetric,
-                       {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}),
-    "Rodal": (RodalMetric, {}),
-}
-METRIC_ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 F_LOW, F_HIGH = 0.1, 0.9
 # a = 0 means the pair never closes; guarded relative to the tensor scale.
 A_FLOOR_REL = 1e-12
 
 
-def _instantiate(name, v_s):
-    cls, extra = METRICS[name]
-    return cls(v_s=v_s, R=1.0, sigma=8.0, **extra)
 
 
 def coefficients(name, v_s, N):
     """Wall values of (a, d, weight), with a, d stripped of their v_s scaling."""
-    metric = _instantiate(name, v_s)
+    metric = instantiate(name, v_s)
     grid = benchmark_grid(metric, N)
     curv = evaluate_curvature_grid(metric, grid, batch_size=2048)
     coords = build_coord_batch(grid, t=0.0)

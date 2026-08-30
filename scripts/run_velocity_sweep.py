@@ -29,6 +29,7 @@ import argparse
 import json
 import os
 
+from _paper_metrics import METRIC_ORDER, instantiate
 from _json_io import dump_json, write_table as write_tex_table
 from _benchmark_grid import benchmark_grid
 
@@ -55,7 +56,6 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.energy_conditions.frame_free import (
     certify_grid_frame_free,
@@ -64,7 +64,6 @@ from warpax.energy_conditions.frame_free import (
 )
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from warpax.grids import proper_volume_weights
 
 HERE = os.path.dirname(__file__)
@@ -77,24 +76,13 @@ FIG_DIR = os.path.join(HERE, "..", "figures")
 BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
 
-METRICS = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (VanDenBroeckMetric,
-                       {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}),
-    "Rodal": (RodalMetric, {}),
-}
-METRIC_ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 
 
-def _instantiate(name, v_s):
-    cls, extra = METRICS[name]
-    return cls(v_s=v_s, R=1.0, sigma=8.0, **extra)
 
 
 def run_point(name, v_s, N):
     shape = (N, N, N)
-    metric = _instantiate(name, v_s)
+    metric = instantiate(name, v_s)
     grid = benchmark_grid(metric, N)
     curv = evaluate_curvature_grid(metric, grid, batch_size=2048)
     coords = build_coord_batch(grid, t=0.0)

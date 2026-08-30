@@ -35,6 +35,7 @@ import argparse
 import os
 
 from _benchmark_grid import benchmark_grid
+from _paper_metrics import METRICS, METRIC_ORDER
 from _json_io import dump_json, write_table as write_tex_table
 
 import jax
@@ -44,26 +45,16 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.energy_conditions.frame_free import certify_grid_frame_free
 from warpax.energy_conditions.slemma import certify_point as certify_point_lmi
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results")
 TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
-METRICS = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (VanDenBroeckMetric,
-                       {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}),
-    "Rodal": (RodalMetric, {}),
-}
-METRIC_ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 CONDITIONS = ("nec", "wec", "sec", "dec")
 F_LOW, F_HIGH = 0.1, 0.9
 

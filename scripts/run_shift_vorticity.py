@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 
+from _paper_metrics import instantiate
 from _json_io import dump_json, write_table as write_tex_table
 
 import matplotlib
@@ -34,10 +35,8 @@ import jax.numpy as jnp
 import numpy as np
 
 from warpax.analysis.shift_kinematics import compute_shift_kinematics_grid
-from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.geometry.grid import build_coord_batch
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from _benchmark_grid import benchmark_grid
 from warpax.visualization.shift_vorticity_plots import plot_shift_vorticity
 from warpax.grids import proper_volume_weights
@@ -51,24 +50,14 @@ FIG_DIR = os.path.join(HERE, "..", "figures")
 
 BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
-METRICS = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (VanDenBroeckMetric,
-                       {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}),
-    "Rodal": (RodalMetric, {}),
-}
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 
 
-def _instantiate(name, v_s):
-    cls, extra = METRICS[name]
-    return cls(v_s=v_s, R=1.0, sigma=8.0, **extra)
 
 
 def wall_decomposition(name, v_s, N):
     """Wall proper-volume-weighted (<theta^2/3>, <sigma^2>, <omega^2>)."""
-    metric = _instantiate(name, v_s)
+    metric = instantiate(name, v_s)
     shape = (N, N, N)
     grid = benchmark_grid(metric, N)
     theta, sigma_sq, omega_sq = compute_shift_kinematics_grid(

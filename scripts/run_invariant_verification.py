@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import os
 
+from _paper_metrics import instantiate
 from _json_io import dump_json, write_table as write_tex_table
 from _benchmark_grid import benchmark_grid, wall_cells, N_DEFAULT
 
@@ -45,12 +46,10 @@ from warpax.analysis.invariant_verification import (
     single_frame_miss,
 )
 from warpax.analysis.extrema import refine_extremum
-from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.energy_conditions.frame_free import certify_grid_frame_free, type_fractions
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from warpax.grids import proper_volume_weights
 
 HERE = os.path.dirname(__file__)
@@ -65,24 +64,14 @@ def _field_nec_typeI(curv):
     he = np.asarray(ff.he_types)
     return np.where(he == 1.0, np.asarray(ff.nec_margins), np.inf)
 
-METRICS = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (VanDenBroeckMetric,
-                       {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}),
-    "Rodal": (RodalMetric, {}),
-}
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 
 
-def _instantiate(name, v_s):
-    cls, extra = METRICS[name]
-    return cls(v_s=v_s, R=1.0, sigma=8.0, **extra)
 
 
 def verify_metric(name, v_s, N):
     shape = (N, N, N)
-    metric = _instantiate(name, v_s)
+    metric = instantiate(name, v_s)
     grid = benchmark_grid(metric, N)
     curv = evaluate_curvature_grid(metric, grid, batch_size=4096)
     T, g, gi = curv.stress_energy, curv.metric, curv.metric_inv

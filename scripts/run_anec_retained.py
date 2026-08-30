@@ -26,6 +26,7 @@ import os
 from pathlib import Path
 
 from _anec_window import crossing_span
+from _paper_metrics import instantiate
 from _json_io import dump_json
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
@@ -37,8 +38,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from warpax.averaged.anec import anec
-from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
+from warpax.benchmarks import MinkowskiMetric
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "..", "results", "anec")
@@ -56,21 +56,9 @@ TANGENT_NORM = "null_projected"
 B_SCAN = np.linspace(1.0e-3, 2.5, 80)
 SENTINEL_TOL = 1.0e-8
 
-METRICS = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (
-        VanDenBroeckMetric,
-        {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0},
-    ),
-    "Rodal": (RodalMetric, {}),
-}
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 
 
-def _instantiate(name: str):
-    cls, extra = METRICS[name]
-    return cls(v_s=V_S, R=R_B, sigma=SIGMA, **extra)
 
 
 def _axial_ray(b: float):
@@ -146,7 +134,7 @@ def main() -> None:
 
     per_metric: dict[str, dict] = {}
     for name in ORDER:
-        metric = _instantiate(name)
+        metric = instantiate(name, V_S, R_B, SIGMA)
         span, span_converged = _measure_span(metric)
         on_axis = _anec_along(metric, float(B_SCAN[0]), span)
         scan = np.array([_anec_along(metric, float(b), span) for b in B_SCAN])

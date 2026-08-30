@@ -33,6 +33,7 @@ import os
 import shutil
 from pathlib import Path
 
+from _paper_metrics import instantiate
 from _json_io import dump_json, write_table as write_tex_table
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
@@ -43,9 +44,8 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 
-from warpax.benchmarks import AlcubierreMetric, MinkowskiMetric
+from warpax.benchmarks import MinkowskiMetric
 from warpax.benchmarks.alcubierre import alcubierre_shape
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 from warpax.quantum.ford_roman import ford_roman, _rho_at_tau
 
 HERE = os.path.dirname(__file__)
@@ -60,15 +60,6 @@ N_SAMPLES = 1024
 TAU0_GRID = np.geomspace(0.1, 40.0, 200)
 F_LOW, F_HIGH = 0.1, 0.9
 
-METRICS = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (
-        VanDenBroeckMetric,
-        {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0},
-    ),
-    "Rodal": (RodalMetric, {}),
-}
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 # The Ford--Roman threshold requires a smooth, resolution-stable wall energy
 # density. The Type-IV-walled Natário/VdB have no invariant energy density and
@@ -79,9 +70,6 @@ ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 QI_METRICS = ["Alcubierre", "Rodal"]
 
 
-def _instantiate(name: str):
-    cls, extra = METRICS[name]
-    return cls(v_s=V_S, R=R_B, sigma=SIGMA, **extra)
 
 
 def _static_worldline(x_w: float, y_w: float):
@@ -262,7 +250,7 @@ def main() -> None:
 
     per_metric: dict[str, dict] = {}
     for name in QI_METRICS:
-        metric = _instantiate(name)
+        metric = instantiate(name, V_S, R_B, SIGMA)
         rho_min, x_w, y_w = _worst_static_point(metric)
         margins = _margin_curve(metric, x_w, y_w)
         tau_th = _threshold(metric, x_w, y_w, margins)
