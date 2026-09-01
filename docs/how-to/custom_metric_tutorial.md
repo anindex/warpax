@@ -34,14 +34,15 @@ methods:
   Must return a value in `[0, 1]`. Consumed by `shape_function_mask` to
   build wall-restricted diagnostics (see Step 4).
 
-Excerpt from `examples/07_custom_warp_metric.py`:
+From `examples/07_custom_warp_metric.py`:
 
 ```python
-from warpax.geometry.metric import ADMMetric, SymbolicMetric
-from jaxtyping import Array, Float, jaxtyped
-from beartype import beartype
 import jax.numpy as jnp
 import sympy as sp
+from beartype import beartype
+from jaxtyping import Array, Float, jaxtyped
+
+from warpax.geometry.metric import ADMMetric, SymbolicMetric
 
 
 class GaussianWarpMetric(ADMMetric):
@@ -70,11 +71,34 @@ class GaussianWarpMetric(ADMMetric):
         dx = x - self.v_s * t
         r_s = jnp.sqrt(dx * dx + y * y + z * z)
         return jnp.exp(-(r_s * r_s) / (2.0 * self.w * self.w))
+
+    def symbolic(self) -> SymbolicMetric:
+        """SymPy form, cross-validated against the JAX autodiff output."""
+        t, x, y, z = sp.symbols("t x y z")
+        v_s = sp.Symbol("v_s", positive=True)
+        w = sp.Symbol("w", positive=True)
+        r_s = sp.sqrt((x - v_s * t) ** 2 + y**2 + z**2)
+        beta_x = -v_s * sp.exp(-(r_s**2) / (2 * w**2))
+        g = sp.Matrix(
+            [
+                [-(1 - beta_x**2), beta_x, 0, 0],
+                [beta_x, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]
+        )
+        return SymbolicMetric([t, x, y, z], g)
+
+    def name(self) -> str:
+        return "GaussianWarp"
 ```
 
-The `@jaxtyped(typechecker=beartype)` decorator is project convention --
-shapes are validated at runtime. It is not required for the metric to
-function.
+All six methods are abstract on `ADMMetric`, so all six have to be present:
+omitting `symbolic` or `name` fails at construction with `TypeError: Can't
+instantiate abstract class`.
+
+The `@jaxtyped(typechecker=beartype)` decorator is project convention, shapes
+are validated at runtime. It is not required for the metric to function.
 
 Two patterns worth flagging:
 
@@ -147,13 +171,18 @@ for cond in ("nec", "wec", "sec", "dec"):
     rob_min = float(np.min(comparison.robust_margins[cond]))
     print(
         f"{cond.upper()}: eul_min={eul_min:+.3e} rob_min={rob_min:+.3e}"
-        f" cond_miss={comparison.conditional_miss_rate[cond]:.1%}"
+        f" cond_miss={comparison.conditional_miss_rate[cond]:.1f}%"
     )
 ```
 
 The returned `ComparisonResult` carries per-condition margins for both
 frames plus the missed-violation mask (points where Eulerian reports
 "satisfied" but the robust optimizer reports "violated").
+
+Note that `ComparisonResult.conditional_miss_rate` is already a percentage
+on `[0, 100]`, alongside `pct_missed` and `pct_violated_robust`. Format it
+with `:.1f}%`, not `:.1%`. The wall-restricted rates of Step 4 go the other
+way: they are fractions on `[0, 1]`, and `None` when nothing was violated.
 
 ## Step 4: Wall-restricted statistics
 
@@ -195,7 +224,8 @@ stats = compute_wall_restricted_stats(
 )
 
 print(f"Type IV fraction in wall: {stats.frac_type_iv:.1%}")
-print(f"NEC miss rate in wall: {stats.nec_miss_rate}")
+nec_rate = stats.nec_miss_rate
+print(f"NEC miss rate in wall: {'n/a' if nec_rate is None else format(nec_rate, '.1%')}")
 ```
 
 The default interval `[f_low=0.1, f_high=0.9]` captures the transition

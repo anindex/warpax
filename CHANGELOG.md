@@ -26,7 +26,7 @@ certificate.
 - `energy_conditions.interval_lmi`: the same certificate in interval arithmetic,
   from the metric rather than from a sampled stress-energy tensor.
 - `grids.proper_volume_weights`: the slice Jacobian
-  $\mathrm{d}V = \sqrt{\det\gamma}\\,\mathrm{d}^3x$. Every volume-weighted
+  $\mathrm{d}V = \sqrt{\det\gamma}\,\mathrm{d}^3x$. Every volume-weighted
   fraction on a conformally scaled slice moves.
 - `analysis.extrema.refine_extremum`: polishes a grid extremum off the grid.
 

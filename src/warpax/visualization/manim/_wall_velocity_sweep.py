@@ -62,7 +62,11 @@ from warpax.visualization.manim._scene_utils import (
     make_axes_for_frames,
     make_violation_indicator,
 )
-from warpax.visualization.manim._surface import framedata_to_surface
+from warpax.visualization.manim._surface import (
+    auto_linthresh,
+    framedata_to_surface,
+    symlog_height,
+)
 
 
 class WallAndVelocitySweep(ThreeDScene):
@@ -106,11 +110,21 @@ class WallAndVelocitySweep(ThreeDScene):
             theta=-45 * DEGREES,
         )
 
+        # rho_Eul grows by ~10^3 over the sweep (a weak sigma=1 wall to a steep
+        # sigma=16 one) and then decays by the same factor as v_s is turned off.
+        # One linear height scale would therefore be set by the single steepest
+        # frame and leave every other frame flat, so the embedding height is
+        # symlog with the knee three decades below the global maximum.
+        ed_linthresh = auto_linthresh(
+            max(abs(v) for v in compute_global_clim(all_frames, "energy_density"))
+        )
+
         # Build axes from energy_density range across ALL frames
         axes = make_axes_for_frames(
             all_frames,
             "energy_density",
             coord_range=(-2, 2),
+            linthresh=ed_linthresh,
         )
 
         # Global color limits (prevents flickering). Both fields are <= 0 for
@@ -124,12 +138,16 @@ class WallAndVelocitySweep(ThreeDScene):
             compute_global_clim(all_frames, "nec_margin_sweep", percentile=1.0)[0],
             0.0,
         )
+        # The NEC margin spans the same ~10^3 as rho_Eul, so the slab gets the
+        # same symlog treatment: a linear ramp would leave every frame but the
+        # steepest wall a single flat colour.
+        nec_linthresh = auto_linthresh(abs(nec_clim[0]))
 
         # Auto-exaggeration for embedding
-        exag = compute_auto_exaggeration(all_frames, "energy_density")
+        exag = compute_auto_exaggeration(all_frames, "energy_density", linthresh=ed_linthresh)
 
         # z_extent for heatmap positioning
-        max_abs = max(abs(ed_clim[0]), abs(ed_clim[1]))
+        max_abs = float(np.max(np.abs(symlog_height(np.asarray(ed_clim), ed_linthresh))))
         z_extent = max_abs * exag * 1.3
 
         title_text = Text(
@@ -152,7 +170,12 @@ class WallAndVelocitySweep(ThreeDScene):
             """Wireframe embedding surface: always energy_density."""
             frame = all_frames[at_frame()].with_clim("energy_density", ed_clim)
             return framedata_to_surface(
-                frame, "energy_density", axes, exaggeration=exag, resolution=(32, 32)
+                frame,
+                "energy_density",
+                axes,
+                exaggeration=exag,
+                resolution=(32, 32),
+                linthresh=ed_linthresh,
             )
 
         def _make_heatmap():
@@ -167,6 +190,7 @@ class WallAndVelocitySweep(ThreeDScene):
                 z_offset=-z_extent * 0.85,
                 resolution=(48, 48),
                 colormap="nec_depth",
+                linthresh=nec_linthresh,
             )
 
         embedding = always_redraw(_make_surface)
@@ -263,7 +287,7 @@ class WallAndVelocitySweep(ThreeDScene):
             ]
         ).arrange(RIGHT, buff=0)
         ed_title = Text(
-            "Eulerian energy density (wireframe; ≤ 0)",
+            "Eulerian energy density (wireframe height, log; ≤ 0)",
             font_size=16,
             color=WHITE,
             weight="LIGHT",

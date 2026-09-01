@@ -47,7 +47,7 @@ prefer `run_matched_benchmark.py` (cross-metric) and `run_velocity_sweep.py`.
 | `run_enclosures.py` | `results/enclosures.json`, `tables/enclosures.tex` (certified global interval enclosures of the wall null deficit; hours, opt-in stage) |
 | `run_classifier_error_rate.py` | `results/classifier_error_rate.json` (Jordan displacement exponents and the LMI audit of the classifier's labels) |
 | `run_exoticity_ranking.py` | `results/exoticity_ranking.json`, `tables/exoticity_ranking.tex`, `tables/scaling_laws.tex` (composite exoticity ranking + v_s scaling laws, reads `run_velocity_sweep.py` + `run_anec_symplectic.py`) |
-| `derive_vorticity_type.py` | `results/vorticity_type_analytic.json`, `figures/vorticity_type_mechanism.pdf` (vorticity -> Type-IV mechanism f = kappa*omega; cross-metric entries record theta, sigma, sigma/omega, and the excess Im/(kappa*omega)) |
+| `derive_vorticity_type.py` | `results/vorticity_type_analytic.json` (vorticity -> Type-IV mechanism f = kappa*omega; cross-metric entries record theta, sigma, sigma/omega, and the excess Im/(kappa*omega)) |
 | `run_curvature_scaling.py` | `results/curvature_scaling.json`, `tables/curvature_scaling.tex`, `figures/curvature_scaling.pdf` (universal v_s scaling of wall curvature invariants) |
 | `run_ssv_bound.py` | `results/ssv_bound.json`, `tables/ssv_bound.tex` (SSV NEC lower-bound saturation, reads `run_velocity_sweep.py`) |
 | `run_analysis.py` | `results/comparison_table.json` |

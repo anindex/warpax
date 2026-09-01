@@ -33,6 +33,8 @@ from manim import (
     Write,
 )
 
+from warpax.visualization.manim._surface import symlog_height
+
 if TYPE_CHECKING:
     from manim import ThreeDScene
 
@@ -221,6 +223,7 @@ def make_axes_for_frames(
     field_name: str,
     coord_range: tuple[float, float] = (-3, 3),
     z_headroom: float = 1.3,
+    linthresh: float | None = None,
 ) -> ThreeDAxes:
     """Build ThreeDAxes sized for a pre-computed frame sequence.
 
@@ -240,9 +243,11 @@ def make_axes_for_frames(
     ThreeDAxes
         Axes with computed z-range.
     """
-    exag = compute_auto_exaggeration(frames, field_name)
+    exag = compute_auto_exaggeration(frames, field_name, linthresh=linthresh)
     vmin, vmax = compute_global_clim(frames, field_name)
     max_abs = max(abs(vmin), abs(vmax))
+    if linthresh is not None:
+        max_abs = float(np.max(np.abs(symlog_height(np.array([vmin, vmax]), linthresh))))
     z_extent = max_abs * exag * z_headroom
 
     lo, hi = coord_range
@@ -259,6 +264,7 @@ def make_axes_for_frames(
 def compute_auto_exaggeration(
     frames: list[FrameData],
     field_name: str,
+    linthresh: float | None = None,
 ) -> float:
     """Compute the exaggeration factor for embedding surfaces.
 
@@ -283,7 +289,9 @@ def compute_auto_exaggeration(
         if field_name not in f.scalar_fields:
             continue
         mid_z = f.grid_shape[2] // 2
-        eq_slice = f.scalar_fields[field_name][:, :, mid_z]
+        eq_slice = np.asarray(f.scalar_fields[field_name][:, :, mid_z])
+        if linthresh is not None:
+            eq_slice = symlog_height(eq_slice, linthresh)
         frame_max = float(np.max(np.abs(eq_slice)))
         if frame_max > max_warp:
             max_warp = frame_max

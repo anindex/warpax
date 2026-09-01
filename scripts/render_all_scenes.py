@@ -250,13 +250,23 @@ def render_scene(
     return mp4_path
 
 
-def convert_to_gif(mp4_path: Path) -> Path | None:
+# The 2D scenes are short and mostly flat colour, so they encode to ~100 kB at
+# full width. The 3D sweeps carry a wireframe mesh over a dithered slab in every
+# frame, which GIF handles badly: at 1280/10fps the wall sweep lands at 8.8 MB.
+# Encoding those at the width the README actually displays (760) and 8 fps brings
+# it to ~3 MB with no visible loss, so they get their own settings.
+_GIF_SETTINGS = {"width": 1280, "fps": 10, "colors": 64, "lossy": 120}
+_GIF_SETTINGS_3D = {"width": 832, "fps": 8, "colors": 64, "lossy": 120}
+
+
+def convert_to_gif(mp4_path: Path, scene_class: str = "") -> Path | None:
     """Convert an MP4 to optimized GIF, returning the GIF path on success."""
     # Import from the project package
     from warpax.visualization.manim._gif_utils import mp4_to_gif
 
+    settings = _GIF_SETTINGS_3D if scene_class in _OPENGL_SCENES else _GIF_SETTINGS
     try:
-        gif_path = mp4_to_gif(mp4_path, width=1280, fps=10, colors=64, lossy=120)
+        gif_path = mp4_to_gif(mp4_path, **settings)
         logger.info("GIF: %s", gif_path)
         return gif_path
     except Exception:
@@ -346,7 +356,7 @@ def main() -> None:
 
         gif_path = None
         if mp4_path is not None and not args.skip_gif:
-            gif_path = convert_to_gif(mp4_path)
+            gif_path = convert_to_gif(mp4_path, scene_class)
 
         results.append((scene_class, desc, mp4_path, gif_path))
 

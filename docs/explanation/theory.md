@@ -103,7 +103,7 @@ wall curvature grows with warp speed: the wall-peak curvature invariants scale a
 rotational shift contributes a curvature term linear in `v_s` that the irrotational
 drive lacks. Every drive still violates the NEC (the wall deficit
 `min(ρ+p_i) = -C v_s²` saturates the Santiago-Schuster-Visser bound); the
-irrotational drive is simply the mildest on every boost-invariant axis.
+irrotational drive is the mildest on every boost-invariant axis.
 
 ## References
 

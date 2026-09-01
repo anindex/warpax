@@ -40,6 +40,12 @@ No symbolic algebra or finite-difference stencils are used. JAX's forward-mode A
 
 ## Sub-packages
 
+The sections below cover the packages the curvature-to-certification pipeline
+runs through. The remaining ones (`averaged`, `benchmarks`, `bondi`, `classify`,
+`design`, `io`, `numerics`, `quantum`) sit beside that pipeline rather than in
+it; the package table in the repository `README.md` lists all of them, and the
+[API reference](../reference/index.md) documents each in full.
+
 ### `geometry`
 Core differential geometry: Christoffel symbols, curvature tensors, stress-energy,
 invariants, grid evaluation. All tensors are JAX arrays with jaxtyping annotations.

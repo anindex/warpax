@@ -38,14 +38,14 @@ while [ $# -gt 0 ]; do
         --stage)
             shift
             if [ $# -eq 0 ]; then
-                echo "Error: --stage requires an argument (core, ablation, figures, enclosures)" >&2
+                echo "Error: --stage requires an argument (core, ablation, figures, gate, enclosures)" >&2
                 exit 1
             fi
             STAGE_ONLY="$1"
             ;;
         core|ablation|figures|enclosures|gate) STAGE_ONLY="$1" ;;
         -h|--help)
-            echo "Usage: $0 [--keep-cache] [--stage core|ablation|figures|enclosures]"
+            echo "Usage: $0 [--keep-cache] [--stage core|ablation|figures|gate|enclosures]"
             echo "  --keep-cache   Skip cache deletion (only recompute missing results)"
             echo "  --stage NAME   Run only one stage (core, ablation, figures, gate, enclosures)"
             echo "                 'enclosures' is hours of interval branch-and-bound;"
@@ -386,6 +386,12 @@ case "${STAGE_ONLY}" in
         ;;
     enclosures)
         run_enclosures
+        ;;
+    *)
+        # Without this an unknown stage runs nothing and still reports success.
+        echo "Error: unknown stage '${STAGE_ONLY}'." >&2
+        echo "Valid stages: core, ablation, figures, gate, enclosures" >&2
+        exit 1
         ;;
 esac
 

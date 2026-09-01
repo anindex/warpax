@@ -60,7 +60,11 @@ from warpax.visualization.manim._scene_utils import (
     make_axes_for_frames,
     make_violation_indicator,
 )
-from warpax.visualization.manim._surface import framedata_to_surface
+from warpax.visualization.manim._surface import (
+    auto_linthresh,
+    framedata_to_surface,
+    symlog_height,
+)
 
 
 class VelocitySweep(ThreeDScene):
@@ -104,8 +108,15 @@ class VelocitySweep(ThreeDScene):
             theta=-45 * DEGREES,
         )
 
+        # rho_Eul scales as v_s^2, so v_s: 0.1 -> 0.99 spans about two decades.
+        # A linear height would be set by the fastest frame and leave the slow
+        # end of the sweep flat, so the embedding height is symlog.
+        ed_linthresh = auto_linthresh(
+            max(abs(v) for v in compute_global_clim(all_frames, "energy_density"))
+        )
+
         # Build axes from energy_density range across all frames
-        axes = make_axes_for_frames(all_frames, "energy_density")
+        axes = make_axes_for_frames(all_frames, "energy_density", linthresh=ed_linthresh)
 
         # Global color limits (prevents flickering). rho_Eul and the NEC margin
         # are both <= 0 for Alcubierre -> one-sided depth scales (deepest -> 0).
@@ -117,11 +128,13 @@ class VelocitySweep(ThreeDScene):
             0.0,
         )
 
+        nec_linthresh = auto_linthresh(abs(nec_clim[0]))
+
         # Auto-exaggeration for embedding
-        exag = compute_auto_exaggeration(all_frames, "energy_density")
+        exag = compute_auto_exaggeration(all_frames, "energy_density", linthresh=ed_linthresh)
 
         # z_extent for heatmap positioning
-        max_abs = max(abs(ed_clim[0]), abs(ed_clim[1]))
+        max_abs = float(np.max(np.abs(symlog_height(np.asarray(ed_clim), ed_linthresh))))
         z_extent = max_abs * exag * 1.3
 
         title_text = Text(
@@ -150,6 +163,7 @@ class VelocitySweep(ThreeDScene):
                 axes,
                 exaggeration=exag,
                 resolution=(32, 32),
+                linthresh=ed_linthresh,
             )
 
         def _make_heatmap():
@@ -164,6 +178,7 @@ class VelocitySweep(ThreeDScene):
                 z_offset=-z_extent * 0.85,
                 resolution=(48, 48),
                 colormap="nec_depth",
+                linthresh=nec_linthresh,
             )
 
         embedding = always_redraw(_make_surface)

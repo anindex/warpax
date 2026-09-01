@@ -15,6 +15,7 @@ import numpy as np
 from manim import Surface, ThreeDAxes
 
 from warpax.visualization.manim._image_utils import bilinear_sampler
+from warpax.visualization.manim._surface import symlog_height
 
 if TYPE_CHECKING:
     from warpax.visualization.common._frame_data import FrameData
@@ -93,6 +94,7 @@ def framedata_to_heatmap(
     resolution: tuple[int, int] | None = None,
     colormap: str = "RdBu_r",
     flat: bool = True,
+    linthresh: float | None = None,
 ) -> Surface:
     """Convert a FrameData equatorial slice to a flat colored slab (heatmap).
 
@@ -124,6 +126,11 @@ def framedata_to_heatmap(
         Color scale name: ``"RdBu_r"`` (default diverging blue-red),
         ``"nec_depth"`` (one-sided violation depth for EC fields), or
         ``"inferno"`` (sequential).
+    linthresh : float, optional
+        If given, the colour ramp is :func:`symlog_height` of the field
+        rather than the field itself. Use it when one colour scale has to
+        serve frames spanning more than about a decade, where a linear ramp
+        leaves every frame but the most extreme one a single flat colour.
 
     Returns
     -------
@@ -137,7 +144,9 @@ def framedata_to_heatmap(
     # Extract 2D equatorial slice
     x_2d = frame.x[:, :, slice_idx]
     y_2d = frame.y[:, :, slice_idx]
-    color_2d = frame.scalar_fields[color_field][:, :, slice_idx]
+    color_2d = np.asarray(frame.scalar_fields[color_field][:, :, slice_idx])
+    if linthresh is not None:
+        color_2d = symlog_height(color_2d, linthresh)
 
     # 1D coordinate vectors
     x_1d = x_2d[:, 0]
@@ -158,6 +167,8 @@ def framedata_to_heatmap(
     clim = frame.clim.get(color_field)
     if clim is not None:
         vmin, vmax = clim
+        if linthresh is not None:
+            vmin, vmax = (float(v) for v in symlog_height(np.array([vmin, vmax]), linthresh))
     else:
         vmin = float(np.nanmin(color_2d))
         vmax = float(np.nanmax(color_2d))

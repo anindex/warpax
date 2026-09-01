@@ -1,6 +1,6 @@
 # Your first curvature computation
 
-A 30-line walk-through of the full curvature chain on a Minkowski spacetime.
+A walk-through of the full curvature chain on a Minkowski spacetime.
 Useful as a sanity check: Minkowski is flat, so every curvature tensor should
 be numerically zero to machine precision. If this works, your environment is
 ready for the more interesting warp metrics.

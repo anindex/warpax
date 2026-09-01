@@ -86,6 +86,35 @@ def test_direction_fields_smoke():
     assert ax is not None
 
 
+def test_symlog_height_keeps_ordering_and_opens_the_dynamic_range() -> None:
+    """The embedding height map must reorder nothing and flatten nothing.
+
+    A parameter sweep whose field grows by 10^3 is the case this exists for: a
+    linear height leaves the weakest frame at 0.1% of the strongest, which
+    renders as a flat plane.
+    """
+    pytest.importorskip("manim")
+
+    from warpax.visualization.manim._surface import auto_linthresh, symlog_height
+
+    lt = auto_linthresh(0.1474)
+    assert lt == pytest.approx(1.474e-4)
+    assert auto_linthresh(0.0) == 1.0  # a flat field must not divide by zero
+
+    v = np.linspace(-0.15, 0.15, 201)
+    h = symlog_height(v, lt)
+    assert np.all(np.diff(h) > 0)  # strictly monotone, so no value reorders
+    assert np.all(np.sign(h) == np.sign(v))  # sign, hence NEC verdict, preserved
+    assert h[np.argmin(np.abs(v))] == pytest.approx(0.0, abs=1e-12)
+
+    # The whole point: 10^3 of field range must not compress to 10^-3 of height.
+    weak, strong = 9.3e-4, 1.19e-1
+    linear_ratio = weak / strong
+    symlog_ratio = symlog_height(np.array([weak]), lt)[0] / symlog_height(np.array([strong]), lt)[0]
+    assert linear_ratio < 0.01
+    assert symlog_ratio > 0.25
+
+
 def test_dark_diverge_colormaps_register() -> None:
     """All four ``dark_diverge_*`` colormaps register without error."""
     pytest.importorskip("manim")

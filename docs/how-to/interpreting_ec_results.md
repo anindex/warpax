@@ -90,12 +90,20 @@ rate). `compute_wall_restricted_stats` returns `nec_miss_rate`,
 `wec_miss_rate`, `sec_miss_rate`, and `dec_miss_rate`: wall-conditional
 miss rates, the wall-restricted analogue of `f_miss|viol`.
 
+Note that the two carry different units. Everything on `ComparisonResult`
+is a percentage on `[0, 100]`, so format it with `:.1f}%`. The
+wall-restricted rates are fractions on `[0, 1]`, so format them with
+`:.1%`, and they are `None` rather than `0.0` when the wall holds no
+violated point at all.
+
 ## Wall-restricted vs full-grid
 
 Full-grid statistics average violation fractions across vacuum regions
 (where no warp geometry exists) and wall regions (where the warp field
 lives). This dilutes the signal. Wall-restricted filtering uses the
-shape function to isolate the active region:
+shape function to isolate the active region. The call shape, continuing the
+`metric`, `grid`, `coords_batch`, `ec_grid` and `eul_margins` of
+[`custom_metric_tutorial.md`](custom_metric_tutorial.md):
 
 ```python
 from warpax.energy_conditions import (

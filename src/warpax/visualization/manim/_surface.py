@@ -18,6 +18,24 @@ if TYPE_CHECKING:
     from warpax.visualization.common._frame_data import FrameData
 
 
+def symlog_height(values: np.ndarray, linthresh: float) -> np.ndarray:
+    """Signed logarithmic height map, linear below *linthresh*.
+
+    ``sign(v) * log1p(|v| / linthresh)``. Monotone and sign-preserving, so
+    the ordering of the field is untouched while a dynamic range of several
+    decades compresses into one a single height axis can display. Without it
+    a parameter sweep whose field grows by 10^3 renders flat everywhere but
+    at its own maximum.
+    """
+    v = np.asarray(values, dtype=float)
+    return np.sign(v) * np.log1p(np.abs(v) / linthresh)
+
+
+def auto_linthresh(max_abs: float, decades: float = 3.0) -> float:
+    """Linear threshold placing *decades* of the field above the linear knee."""
+    return max_abs / 10.0**decades if max_abs > 0.0 else 1.0
+
+
 def framedata_to_surface(
     frame: FrameData,
     warp_field: str,
@@ -26,6 +44,7 @@ def framedata_to_surface(
     slice_idx: int | None = None,
     exaggeration: float | None = None,
     resolution: tuple[int, int] | None = None,
+    linthresh: float | None = None,
 ) -> Surface:
     """Convert a FrameData equatorial slice to a Manim Surface (embedding diagram).
 
@@ -46,11 +65,16 @@ def framedata_to_surface(
     resolution : tuple[int, int], optional
         Manim surface resolution ``(u_res, v_res)``. Defaults to
         ``(min(Nx-1, 32), min(Ny-1, 32))``.
+    linthresh : float, optional
+        If given, the height is :func:`symlog_height` of the field rather
+        than the field itself. Use it whenever one *exaggeration* has to
+        serve frames spanning more than about a decade.
 
     Returns
     -------
     Surface
         Manim Surface with z = warp_field * exaggeration, colored by z-value.
+        With *linthresh* set, z = symlog_height(warp_field) * exaggeration.
     """
     if slice_idx is None:
         slice_idx = frame.grid_shape[2] // 2
@@ -58,7 +82,9 @@ def framedata_to_surface(
     # Extract 2D equatorial slice
     x_2d = frame.x[:, :, slice_idx]  # (Nx, Ny)
     y_2d = frame.y[:, :, slice_idx]
-    warp_2d = frame.scalar_fields[warp_field][:, :, slice_idx]
+    warp_2d = np.asarray(frame.scalar_fields[warp_field][:, :, slice_idx])
+    if linthresh is not None:
+        warp_2d = symlog_height(warp_2d, linthresh)
 
     # 1D coordinate vectors for the interpolator
     x_1d = x_2d[:, 0]
@@ -104,6 +130,8 @@ def framedata_to_surface(
     clim = frame.clim.get(warp_field)
     if clim is not None:
         vmin, vmax = clim
+        if linthresh is not None:
+            vmin, vmax = (float(v) for v in symlog_height(np.array([vmin, vmax]), linthresh))
     else:
         vmin = float(np.nanmin(warp_2d))
         vmax = float(np.nanmax(warp_2d))

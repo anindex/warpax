@@ -123,5 +123,9 @@ print(float(anec.symplectic.line_integral), float(anec.symplectic.max_abs_g_kk))
 ## Conventions
 
 - 64-bit JAX (`jax.config.update('jax_enable_x64', True)`); geometric units, signature $(-{+}{+}{+})$.
-- **Verdict** = frame-free Hawking-Ellis type + cap-free Type-I slacks (no rapidity cap, valid at all $v_s$). The $\zeta_{\max}=5$ BFGS optimizer is a labelled non-Type-I severity diagnostic only.
-- ANEC: symplectic null geodesic (`anec_rigorous`); only the **sign** of the line integral is invariant under $k^a\to\lambda k^a$. The on-cone witness $\max|g_{ab}k^ak^b|$ certifies the path stayed null.
+- **Verdict** = frame-free Hawking-Ellis type + cap-free Type-I slacks (no
+  rapidity cap, valid at all $v_s$). The $\zeta_{\max}=5$ BFGS optimizer is a
+  labelled non-Type-I severity diagnostic only.
+- ANEC: symplectic null geodesic (`anec_rigorous`); only the **sign** of the
+  line integral is invariant under $k^a\to\lambda k^a$. The on-cone witness
+  $\max|g_{ab}k^ak^b|$ certifies the path stayed null.

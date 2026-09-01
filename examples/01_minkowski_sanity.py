@@ -29,10 +29,12 @@ print(f"Kretschmann scalar:  {K:.2e}")
 
 ec = verify_point(result.stress_energy, result.metric, result.metric_inv)
 print("\nEnergy-condition margins (positive = satisfied):")
-print(f"  NEC: {ec.nec_margin:.2e}")
-print(f"  WEC: {ec.wec_margin:.2e}")
-print(f"  SEC: {ec.sec_margin:.2e}")
-print(f"  DEC: {ec.dec_margin:.2e}")
+# Add 0.0 so an exactly-vanishing margin prints as 0.00e+00 rather than
+# -0.00e+00, which on a sanity check reads like a violation.
+print(f"  NEC: {ec.nec_margin + 0.0:.2e}")
+print(f"  WEC: {ec.wec_margin + 0.0:.2e}")
+print(f"  SEC: {ec.sec_margin + 0.0:.2e}")
+print(f"  DEC: {ec.dec_margin + 0.0:.2e}")
 
 assert jnp.allclose(result.stress_energy, 0, atol=1e-10), "T_ab should vanish"
 assert jnp.abs(K) < 1e-10, "Kretschmann scalar should vanish"

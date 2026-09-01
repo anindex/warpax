@@ -4,7 +4,7 @@
 [![DOI](https://zenodo.org/badge/1162355401.svg)](https://doi.org/10.5281/zenodo.18715933)
 [![CI](https://github.com/anindex/warpax/actions/workflows/ci.yml/badge.svg)](https://github.com/anindex/warpax/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/anindex/warpax/blob/main/LICENSE)
 
 [**Observer-robust energy condition verification for warp drive spacetimes.**](https://arxiv.org/abs/2602.18023)
 
@@ -21,21 +21,35 @@ rapidity cap and no classification tolerance, and each verdict backed by an exac
 rational certificate.
 
 <p align="center">
-  <img src="./figures/wall_velocity_sweep.gif" width="760" alt="Alcubierre warp bubble: Eulerian energy density embedding and observer-robust NEC-margin slab"/>
+  <img src="https://raw.githubusercontent.com/anindex/warpax/main/figures/wall_velocity_sweep.gif" width="760" alt="Alcubierre warp bubble: Eulerian energy density embedding and observer-robust NEC-margin slab"/>
 </p>
 
-<p align="center"><em>An Alcubierre warp bubble. The wireframe is the Eulerian energy density, negative everywhere across the wall (&rho;<sub>Eul</sub> &le; 0); the slab beneath is the NEC margin minimized over the whole null sphere, which never rises above zero. The sweep sharpens the wall (&sigma;: 1 &rarr; 16), then eases the velocity toward flat space.</em></p>
+<p align="center"><em>An Alcubierre warp bubble. The wireframe is the Eulerian energy density, negative everywhere across the wall (&rho;<sub>Eul</sub> &le; 0); the slab beneath is the NEC margin minimized over the whole null sphere, which never rises above zero. The sweep sharpens the wall (&sigma;: 1 &rarr; 16), then eases the velocity toward flat space. Both fields span about three decades over the sweep, so height and colour are on a signed log scale: monotone and sign-preserving, but not proportional.</em></p>
 
 ## Features
 
-- Frame-independent, all-observer energy-condition certification at every warp speed (including superluminal $v_s \ge 1$), from the eigenstructure of $T^a{}_b$, exact and cap-free for every Hawking-Ellis type.
-- Hawking-Ellis classification (Type I-IV) with explicit Type-IV detection, cross-checked by two eigensolver backends against a 50-digit `mpmath` reference.
-- Exact decision at Type-III/IV points from the absence of a causal eigenvector, with a closed-form Eulerian null witness for the momentum-sourced case; a closed-form Type-I worst observer and a multistart BFGS optimizer serve only to display violation severity.
-- Momentum-density control of the wall type through the discriminant $\Delta=(\rho+S_\parallel)^2-4|j|^2$: a negative discriminant sends a point to Type IV, and the same momentum density sets the wall NEC deficit and curvature scaling.
-- Rigorous geodesic-integrated ANEC via a symplectic null integrator (with an on-cone witness), plus a Ford-Roman quantum-inequality diagnostic.
-- Bondi four-momentum radiated-flux and Newman-Penrose peeling at null infinity (`warpax.bondi`).
+- Frame-independent, all-observer energy-condition certification at every warp
+  speed (including superluminal $v_s \ge 1$), from the eigenstructure of
+  $T^a{}_b$, exact and cap-free for every Hawking-Ellis type.
+- Hawking-Ellis classification (Type I-IV) with explicit Type-IV detection,
+  cross-checked by two eigensolver backends against a 50-digit `mpmath`
+  reference.
+- Exact decision at Type-III/IV points from the absence of a causal
+  eigenvector, with a closed-form Eulerian null witness for the
+  momentum-sourced case; a closed-form Type-I worst observer and a multistart
+  BFGS optimizer serve only to display violation severity.
+- Momentum-density control of the wall type through the discriminant
+  $\Delta=(\rho+S_\parallel)^2-4|j|^2$: a negative discriminant sends a point to
+  Type IV, and the same momentum density sets the wall NEC deficit and
+  curvature scaling.
+- Rigorous geodesic-integrated ANEC via a symplectic null integrator (with an
+  on-cone witness), plus a Ford-Roman quantum-inequality diagnostic.
+- Bondi four-momentum radiated-flux and Newman-Penrose peeling at null infinity
+  (`warpax.bondi`).
 - Exact curvature via forward-mode JAX autodiff, no finite-difference stencils.
-- Ten warp/shell metrics, constraint residuals, anisotropic TOV, ADM mass with falloff, Israel junctions, transport diagnostics, and source-first S-/T-shell construction with a five-criterion admissibility standard.
+- Ten warp/shell metrics, constraint residuals, anisotropic TOV, ADM mass with
+  falloff, Israel junctions, transport diagnostics, and source-first S-/T-shell
+  construction with a five-criterion admissibility standard.
 
 ## Two papers, one toolkit
 
@@ -116,7 +130,7 @@ grid points the Eulerian frame reports as SEC-satisfied while the boosted observ
 sees them violated (right). Regenerate it with
 `python examples/07_custom_warp_metric.py --readme-figure`.
 
-![Gaussian Warp Grid Comparison](./figures/gaussian_warp_grid_comparison.png)
+![Gaussian Warp Grid Comparison](https://raw.githubusercontent.com/anindex/warpax/main/figures/gaussian_warp_grid_comparison.png)
 
 <p align="center"><em>SEC comparison for a custom Gaussian warp bubble (v<sub>s</sub> = 0.5). Red marks violations the Eulerian frame misses.</em></p>
 
@@ -182,6 +196,7 @@ metrics -> geometry -> energy_conditions -> analysis
 |---------|-------------|
 | `geometry` | JAX autodiff pipeline: metric $\to$ Christoffel $\to$ Riemann $\to$ Ricci $\to$ Einstein $\to$ $T_{\mu\nu}$; ADM 3+1 split; $C^2$ regularity diagnostics |
 | `energy_conditions` | NEC/WEC/SEC/DEC via Hawking-Ellis classification, eigenvalue algebra, multi-start BFGS observer optimization |
+| `grids` | Non-uniform grid generators; wall-clustered sampling that resolves a bubble wall without a uniform refinement everywhere |
 | `metrics` | Nine warp/shell metrics: Natário, Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell, Garattini-Zatrimaylov (Alcubierre, Minkowski, and Schwarzschild ship in `benchmarks`, making ten warp metrics total) |
 | `constraints` | Hamiltonian + momentum constraint residuals; S-shell and T-shell constraint solvers (pure JAX) |
 | `tov` | Anisotropic TOV equilibrium checker |
@@ -197,6 +212,9 @@ metrics -> geometry -> energy_conditions -> analysis
 | `classify` | Bobrick-Martire subluminal/superluminal taxonomy |
 | `averaged` | ANEC/AWEC null-ray and geodesic line integrals |
 | `quantum` | Ford-Roman quantum inequality evaluator |
+| `bondi` | Bondi four-momentum, radiated flux, and Newman-Penrose peeling at null infinity |
+| `benchmarks` | Reference spacetimes (Alcubierre, Minkowski, Schwarzschild). Distinct from the top-level `benchmarks/` asv harness |
+| `numerics` | Shared numerical utilities: constants, regularity floors, autodiff-safe helpers |
 
 All metrics implement a common `MetricFunction` interface: a callable `(4,) -> (4,4)` mapping
 coordinates $x^\mu$ to the covariant metric tensor $g_{\mu\nu}$.
@@ -204,12 +222,12 @@ coordinates $x^\mu$ to the covariant metric tensor $g_{\mu\nu}$.
 ## Running tests
 
 ```bash
-pytest                      # Whole suite, ~3 min (1089 tests, parallel by default)
+pytest                      # Whole suite, ~3 min (1090 tests, parallel by default)
 pytest -m smoke             # Visualization import / render smoke tests
 pytest tests/test_slemma.py # One module
 ```
 
-There is one tier: `-n auto` comes from `pyproject.toml`, and no test is excluded by
+One tier only: `-n auto` comes from `pyproject.toml`, and no test is excluded by
 default.
 
 ## Reproducing results
@@ -255,6 +273,7 @@ warpax ships full documentation in [`docs/`](docs/), organized following the [Di
 - [**Define a custom warp metric**](docs/how-to/custom_metric_tutorial.md) - subclass `ADMMetric` and run the verification pipeline
 - [**Interpret EC results**](docs/how-to/interpreting_ec_results.md) - read margin signs, Hawking-Ellis types, and worst-case observers
 - [**Load an external metric**](docs/how-to/loading_external_metrics.md) - use WarpFactory, EinFields, or Cactus data
+- [**Reproduce the observer-robust paper**](docs/how-to/reproduce_observer_robust_paper.md) - stage list, table- and figure-to-script maps, and the two consistency checks
 - [**Reproduce the warp-shell admissibility paper**](docs/how-to/reproduce_warpshell_paper.md) - per-figure, per-claim mapping to scripts and outputs
 
 ### Reference
@@ -278,9 +297,9 @@ sweep rather than a time evolution.
 <div align="center">
 <table>
 <tr>
-<td width="33%"><img src="./figures/eulerian_kinematics.gif" alt="Expansion theta = -K and shear of the Eulerian congruence"/></td>
-<td width="33%"><img src="./figures/kretschmann_invariant.gif" alt="Kretschmann curvature invariant"/></td>
-<td width="33%"><img src="./figures/eulerian_vs_worstcase_nec.gif" alt="Eulerian vs observer-robust NEC margin"/></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/anindex/warpax/main/figures/eulerian_kinematics.gif" alt="Expansion theta = -K and shear of the Eulerian congruence"/></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/anindex/warpax/main/figures/kretschmann_invariant.gif" alt="Kretschmann curvature invariant"/></td>
+<td width="33%"><img src="https://raw.githubusercontent.com/anindex/warpax/main/figures/eulerian_vs_worstcase_nec.gif" alt="Eulerian vs observer-robust NEC margin"/></td>
 </tr>
 <tr>
 <td align="center"><em><strong>Eulerian kinematics.</strong> Expansion θ = −K: space stretches behind the ship (red) and squeezes in front (blue). Shear σ² as iso-contours, with the f = 0.5 wall on top.</em></td>
