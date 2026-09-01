@@ -93,6 +93,21 @@ design = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/warpax"]
 
+# The sdist carries the package plus what it takes to run the tests. Rendered
+# artifacts and the paper reproduction outputs are repository content, not
+# package content: shipping figures/ and results/ put 3.9 MB of GIFs and JSON
+# into every download, and PyPI cannot render a relative image path anyway.
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+  "/tests",
+  "/examples",
+  "/pyproject.toml",
+  "/README.md",
+  "/CHANGELOG.md",
+  "/LICENSE",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # One tier: every test is fast enough to always run. -n auto because the suite is

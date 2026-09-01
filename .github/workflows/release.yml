@@ -9,23 +9,37 @@ on:
         description: "Tag to release, e.g. v1.4.0"
         required: true
 
-permissions:
-  contents: write
+# No blanket grant: each job asks for exactly what it needs, so the PyPI job is
+# the only one that can mint an OIDC token and the build job cannot write.
+permissions: {}
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+env:
+  UV_VERSION: "0.10.9"
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      version: ${{ steps.v.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
-          version: "0.10.9"
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
@@ -44,6 +58,11 @@ jobs:
       - name: Build the sdist and wheel
         run: uv build
 
+      # Catches a malformed long_description before PyPI rejects the upload,
+      # which it does without leaving the version usable again.
+      - name: Check the distributions
+        run: uv tool run --from twine twine check --strict dist/*
+
       # The release body is the CHANGELOG section for this version, so the two
       # cannot drift: a tag with no section is a tag that was never written up.
       - name: Extract the changelog section
@@ -56,10 +75,69 @@ jobs:
             exit 1
           fi
 
+      - name: Upload the distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+      - name: Upload the release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/p/warpax
+    permissions:
+      # Trusted publishing: PyPI verifies this OIDC token against the publisher
+      # configured for the project, so there is no long-lived API token to leak.
+      id-token: write
+
+    steps:
+      - name: Download the distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Makes a re-run after a partial failure a no-op rather than an error.
+          skip-existing: true
+
+  github-release:
+    needs: [build, pypi]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download the distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Download the release notes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+
       - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "${{ steps.v.outputs.tag }}" dist/* \
-            --title "${{ steps.v.outputs.tag }}" \
+          gh release create "${{ needs.build.outputs.tag }}" dist/* \
+            --title "${{ needs.build.outputs.tag }}" \
             --notes-file release-notes.md
