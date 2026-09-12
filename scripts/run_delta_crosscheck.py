@@ -1,28 +1,13 @@
-"""Algebraic momentum-discriminant cross-check of the Type-IV map.
+"""Numerical comparison of the momentum discriminant and Type-IV labels.
 
-Independent, eig-free confirmation of the Hawking-Ellis Type-IV classification.
-At each wall grid point (v_s=0.5) we decompose ``T`` in the Eulerian frame into
-energy density ``rho``, momentum density ``j^i`` and spatial stress ``S``, then
-form the *algebraic* momentum discriminant
+Delta=(rho+S_par)^2-4|j|² uses the Eulerian momentum direction where j!=0.
+Delta<0 supplies a negative axial null contraction. Its Type-IV implication
+requires the additional principal-axis splitting hypothesis; the converse
+from a negative axial contraction is false. This script records agreement
+and both kinds of disagreement with the eigensolver, without treating that
+comparison as an independent type certificate.
 
-    Delta = (rho + S_par)^2 - 4 |j|^2 ,   S_par = S(jhat, jhat), jhat = j/|j|,
-
-and label a point "Delta-TypeIV" where ``Delta < 0``. This is the closed-form
-momentum-plane witness (``T_ab k^a k^b = rho + S_par - 2|j| < 0`` for the null
-``k = n +/- jhat`` iff ``Delta < 0``). We compare it point-by-point to the
-eig-based ``classify_hawking_ellis`` Type-IV label and report the agreement rate.
-
-PHYSICS EXPECTATION: the momentum-plane drives (Alcubierre, Natario) agree ~100%
--- their complex eigenpair is sourced entirely by the ``j`` plane. Rodal is 100%
-Type I (no Type-IV content at all, so the two labels agree trivially with zero
-active points). Van den Broeck is the KNOWN EXCEPTION: its conformal spatial
-factor opens a *transverse* complex pair that the full 4x4 eig detects (Type IV)
-but that leaves ``Delta >= 0`` (the momentum witness is non-negative). We
-quantify that conformal-channel exception count.
-
-Outputs
--------
-- results/delta_crosscheck.json
+Output: results/delta_crosscheck.json.
 """
 
 from __future__ import annotations
@@ -60,6 +45,34 @@ FAMILY = {
 }
 V_S = 0.5
 N = 60  # wall-clustered resolution
+
+
+def _sampling_parameters():
+    return {
+        "v_s": V_S,
+        "N": N,
+        "evaluation_time": 0.0,
+        "grid": {"kind": "wall_clustered", "shape": [N, N, N], "a": 1.2},
+        "weighting": "unweighted point counts",
+        "wall_band": [0.1, 0.9],
+        "units": "G=c=1; profile length units; sigma in inverse profile length units",
+        "metrics": {
+            name: {"params": {"v_s": V_S, **kw}, "bounds": bounds}
+            for name, (_, kw, bounds) in FAMILY.items()
+        },
+        "splitting_checked": False,
+        "note": (
+            "This separate count comparison uses R=1, sigma=8 for Alcubierre, "
+            "Natario and Van den Broeck, and native R=100, sigma=0.03 for Rodal. "
+            "n_delta_typeIV is a legacy field name for the count with Delta<0; "
+            "it is not an independent Type-IV classification. "
+            "eig_iv_delta_nonneg counts eigensolver Type-IV labels with Delta>=0; "
+            "delta_only counts Delta<0 points without that label. "
+            "The comparison does not test the principal-axis splitting premise "
+            "or establish the cause of a disagreement. The median imaginary "
+            "magnitude is a numerical diagnostic, not a type certificate."
+        ),
+    }
 
 
 def _instantiate(name):
@@ -116,11 +129,10 @@ def _analyze(name):
         im = imag[sel]
         n = int(np.sum(sel))
         agree = int(np.sum(e == d))
-        # eig says IV but Delta>=0: complex pair NOT sourced by the momentum
-        # plane (VdB conformal channel; Natario vortical/transverse channel).
+        # Eigensolver Type-IV labels with Delta>=0; no mechanism is inferred.
         exc = e & ~d
         n_exc = int(np.sum(exc))
-        # Delta<0 but eig not Type IV (e.g. Type-I NEC-violating far field).
+        # Delta<0 without a Type-IV label; the splitting premise is not checked.
         delta_only = int(np.sum(~e & d))
         active = e | d
         n_active = int(np.sum(active))
@@ -128,14 +140,13 @@ def _analyze(name):
         return {
             "n_points": n,
             "n_eig_typeIV": int(np.sum(e)),
-            "n_delta_typeIV": int(np.sum(d)),
+            "n_delta_typeIV": int(np.sum(d)),  # Legacy key: count with Delta<0.
             "agreement_rate": (agree / n) if n else float("nan"),
             "n_active": n_active,
             "agreement_rate_active": (agree_active / n_active) if n_active else 1.0,
-            "eig_iv_delta_nonneg": n_exc,  # eig-IV & Delta>=0 (off-momentum channel)
+            "eig_iv_delta_nonneg": n_exc,  # eig-IV & Delta>=0
             "delta_only": delta_only,  # Delta<0 & not eig-IV
-            # median |Im lambda| of the off-momentum exception points: confirms
-            # they are true complex pairs, not classifier noise.
+            # Median numerical |Im lambda| on those points does not certify type.
             "exc_median_abs_imag": float(np.median(im[exc])) if n_exc else 0.0,
         }
 
@@ -158,7 +169,7 @@ def main():
             ara = s["agreement_rate_active"]
             print(
                 f"  [{region:4s}] n={s['n_points']:>7d}  eig-IV={s['n_eig_typeIV']:>6d}  "
-                f"Delta-IV={s['n_delta_typeIV']:>6d}  agree={ar * 100:6.2f}%  "
+                f"Delta<0={s['n_delta_typeIV']:>6d}  agree={ar * 100:6.2f}%  "
                 f"agree(active)={ara * 100:6.2f}%  "
                 f"eig-IV&Delta>=0={s['eig_iv_delta_nonneg']:>5d}"
                 f"(med|Im|={s['exc_median_abs_imag']:.1e})  "
@@ -166,15 +177,7 @@ def main():
             )
 
     out = {
-        "params": {
-            "v_s": V_S,
-            "N": N,
-            "note": "matched family R_b=1 sigma=8; Rodal native R=100 sigma=0.03. "
-            "eig_iv_delta_nonneg = eig Type-IV but Delta>=0 (off-momentum-plane "
-            "channel: VdB conformal, Natario vortical). Wall = shape function in "
-            "[0.1,0.9]; full-grid delta_only is dominated by Type-I NEC-violating "
-            "far field (Delta<0 is a NEC-violation witness, broader than Type IV).",
-        },
+        "params": _sampling_parameters(),
         "order": ORDER,
         "results": results,
     }

@@ -1,11 +1,9 @@
-"""Observer parameterizations for energy condition verification.
+"""Tetrads and observer parameterizations for energy-condition evaluation.
 
-Boost 3-vector ``w in R^3`` with ``zeta = |w|`` and direction
-``w / |w|`` (``w = 0`` is the Eulerian observer; optional smooth cap
-``zeta_max * tanh(|w| / zeta_max)``); also a ``(zeta, theta, phi)``
-rapidity-angle form. Null directions use stereographic projection
-from ``R^2`` to ``S^2`` to avoid polar singularities. JIT- and
-vmap-safe via ``jnp.where``.
+Timelike observers use rapidity angles or a spatial rapidity vector with an
+optional smooth cap. Rapidity is relative to the supplied tetrad's timelike
+leg; the tetrad constructor uses the Eulerian slice normal. Null directions
+use angles or a stereographic chart on the sphere with one pole excluded.
 """
 
 from __future__ import annotations
@@ -40,11 +38,10 @@ def _select_first_nondegenerate(
     *,
     rtol: float = _DEGENERATE_RTOL,
 ) -> tuple[Float[Array, "4"], Float[Array, ""]]:
-    """Pick the first candidate whose ``v^T g v`` clears ``rtol`` times the largest.
+    """Select the first candidate with positive norm above a relative floor.
 
-    Branchless fallback that keeps the function vmap-safe at degenerate
-    spatial bases. Returns NaN when nothing clears the floor, rather than a
-    collapsed row that would pass as normalised.
+    The floor is ``rtol * max |norm_sqs|``. Returns NaN if none qualifies.
+    The branchless selection supports ``vmap``.
     """
     scale = jnp.max(jnp.abs(norm_sqs))
     ok = norm_sqs > rtol * scale
@@ -57,27 +54,23 @@ def _select_first_nondegenerate(
 
 
 def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
-    """Orthonormal tetrad ``{e_0, e_1, e_2, e_3}`` from the metric at a point.
+    """Construct an Eulerian orthonormal tetrad for a Lorentzian metric.
 
-    ADM-motivated construction: ``e_0`` is the unit normal to spatial
-    slices, ``e_1, e_2, e_3`` are obtained by Gram-Schmidt on the spatial
-    basis ``{x, y, z}`` using ``g_{ab}`` as the inner product. If any
-    candidate spatial basis vector is degenerate (numerically aligned
-    with already-fixed tetrad rows), the next axis is tried.
+    Requires spacelike coordinate slices, so ``g^{00} < 0``. The timelike
+    leg is the future slice normal; spatial legs use metric Gram-Schmidt
+    with coordinate-axis fallbacks. Nonspacelike slices or unresolved
+    spatial degeneracy produce NaN entries.
 
     Returns
     -------
     Float[Array, "4 4"]
-        Tetrad with ``tetrad[I, a] = e_I^a`` (row ``I`` is the ``I``-th
-        tetrad vector, column ``a`` is the coordinate component). Well-defined
-        at all warp speeds: the slice normal ``e_0`` stays timelike even where
-        the coordinate-time direction ``g_{00}`` turns spacelike.
+        ``tetrad[I, a] = e_I^a``. Normalization holds to numerical accuracy.
+        The slice normal remains timelike at any warp speed under the stated
+        hypotheses, including where the coordinate-time direction is spacelike.
     """
     g_inv = jnp.linalg.inv(g_ab)
 
-    # e_0 is the future-pointing unit normal. ``g^{00} = -1/alpha^2 < 0`` for any
-    # spacelike foliation, so no floor: it is positive by construction, and flooring it
-    # rescales the tetrad. Non-positive means the slice is not spacelike, so no verdict.
+    # Spacelike slices require g^{00} < 0. An absolute floor would rescale e_0.
     neg_g00 = -g_inv[0, 0]
     alpha = 1.0 / jnp.sqrt(jnp.where(neg_g00 > 0.0, neg_g00, jnp.nan))
     beta_up = -g_inv[0, 1:4] / g_inv[0, 0]
@@ -111,7 +104,7 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
         norm_sqs = jnp.stack(norm_sqs)
 
         v_sel, norm_sq_sel = _select_first_nondegenerate(candidates, norm_sqs)
-        # Selection guarantees a positive radicand; abs() would normalise a
+        # Selection requires a positive radicand; abs() would normalize a
         # timelike candidate as spacelike.
         norm = jnp.sqrt(norm_sq_sel)
         tetrad = tetrad.at[slot].set(v_sel / norm)
@@ -133,7 +126,7 @@ def timelike_from_rapidity(
     Parameters
     ----------
     zeta : Float[Array, ""]
-        Rapidity zeta in [0, inf). Zero = comoving with Eulerian observer.
+        Rapidity in [0, inf) relative to the tetrad's timelike leg ``e_0``.
     theta : Float[Array, ""]
         Polar angle theta in [0, pi].
     phi : Float[Array, ""]
@@ -176,7 +169,7 @@ def null_from_angles(
     Returns
     -------
     Float[Array, "4"]
-        Null 4-vector k^a, shape (4,).
+        Null 4-vector with ``-g(k, e_0)=1``, to numerical accuracy.
     """
     return (
         tetrad[0]
@@ -191,30 +184,28 @@ def timelike_from_boost_vector(
     tetrad: Float[Array, "4 4"],
     zeta_max: Float[Array, ""] | None = None,
 ) -> Float[Array, "4"]:
-    """Construct a unit timelike 4-vector from an unconstrained boost 3-vector.
+    """Construct a timelike vector from a spatial rapidity vector.
 
-    u^a = cosh(zeta) e_0^a + sinh(zeta) s^a
-
-    where ``zeta = |w|`` (or ``zeta_max * tanh(|w| / zeta_max)`` when a
-    rapidity cap is supplied), and ``s^a`` is the unit spatial direction
-    obtained by projecting ``w / |w|`` into the orthonormal tetrad frame.
-
-    When ``w = 0``, this returns the Eulerian observer ``e_0`` exactly,
-    since ``cosh(0) = 1`` and ``sinh(0) = 0``.
+    Uses ``u = cosh(zeta) e_0 + sinh(zeta) s``. The radial variable is
+    ``r = sqrt(|w|^2 + 1e-24)``; ``s = (w^i/r) e_i`` and ``zeta = r``, or
+    ``zeta = zeta_max * tanh(r/zeta_max)`` when a cap is supplied. This
+    regularization makes the map smooth at zero; normalization is accurate
+    up to the regularization and floating-point errors.
 
     Parameters
     ----------
     w : Float[Array, "3"]
-        Unconstrained boost 3-vector in the tetrad spatial frame.
+        Unconstrained spatial rapidity vector in the supplied tetrad.
     tetrad : Float[Array, "4 4"]
-        Orthonormal tetrad, shape (4, 4).
+        Orthonormal tetrad; its timelike leg fixes the rapidity reference.
     zeta_max : Float[Array, ""] or None
-        If provided, cap rapidity smoothly via ``zeta_max * tanh(|w| / zeta_max)``.
+        Positive smooth rapidity cap relative to that timelike leg.
 
     Returns
     -------
     Float[Array, "4"]
-        Unit timelike 4-vector u^a, shape (4,).
+        Timelike vector, approximately unit normalized. At ``w=0`` it agrees
+        with ``e_0`` to floating-point accuracy.
     """
     eps = 1e-12
     norm = jnp.sqrt(jnp.dot(w, w) + eps**2)
@@ -224,7 +215,7 @@ def timelike_from_boost_vector(
     else:
         zeta = norm
 
-    # w=0 picks an arbitrary direction; sinh(0)=0 cancels the contribution.
+    # At w=0 the spatial contribution vanishes.
     s_hat = w / norm
     s = s_hat[0] * tetrad[1] + s_hat[1] * tetrad[2] + s_hat[2] * tetrad[3]
 
@@ -235,28 +226,28 @@ def null_from_stereo(
     w: Float[Array, "2"],
     tetrad: Float[Array, "4 4"],
 ) -> Float[Array, "4"]:
-    """Construct a null 4-vector via stereographic projection from R^2 to S^2.
+    """Construct a tetrad-normalized null vector in a stereographic chart.
 
-    Maps ``w in R^2`` to a direction on S^2 via:
-        n = (2 w_1, 2 w_2, 1 - |w|^2) / (1 + |w|^2)
+    Maps ``w in R^2`` to
 
-    then ``k^a = e_0^a + n^i e_i^a``.
+        n = (2 w_1, 2 w_2, 1 - |w|^2) / (1 + |w|^2),
+        k = e_0 + n^i e_i.
 
-    ``w = 0`` maps to the north pole (``e_3`` direction).
-    ``|w| -> inf`` approaches the south pole (``-e_3``).
-    This covers all of S^2 smoothly without polar coordinate singularities.
+    The chart covers the unit sphere except its south pole. ``w=0`` gives
+    the north pole; ``|w| -> inf`` approaches the south pole. Normalization
+    is ``-g(k, e_0)=1`` relative to the supplied tetrad.
 
     Parameters
     ----------
     w : Float[Array, "2"]
-        Unconstrained 2-vector for stereographic projection.
+        Unconstrained stereographic coordinates.
     tetrad : Float[Array, "4 4"]
-        Orthonormal tetrad, shape (4, 4).
+        Orthonormal tetrad.
 
     Returns
     -------
     Float[Array, "4"]
-        Null 4-vector k^a, shape (4,).
+        Future null vector to numerical accuracy.
     """
     r_sq = jnp.dot(w, w)
     denom = 1.0 + r_sq

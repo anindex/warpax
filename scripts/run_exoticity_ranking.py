@@ -1,29 +1,12 @@
-"""Boost-invariant exoticity ranking and v_s scaling laws.
+"""Slice-dependent composite diagnostic and empirical speed fits.
 
-Aggregates the frame-independent invariants already computed by the velocity
-sweep and the rigorous ANEC into a single citable ranking across
-all retained drives, and extracts universal ``v_s`` scaling laws.
-
-Axes (all boost-invariant):
-  - NEC severity ``|min(rho+p_i)|`` over wall Type-I points;
-  - Hawking-Ellis Type-IV volume fraction (no-rest-frame content);
-  - rigorous ANEC minimum (most-negative geodesic-integrated line integral).
-
-Each axis is mapped to a [0,1] sub-score relative to the Alcubierre baseline and
-combined by a geometric mean, so a construction that is clean on any axis (e.g.
-the irrotational Rodal drive) scores low. The full per-axis vector is reported
-alongside the scalar index, never the scalar alone.
-
-Scaling laws: for each metric the wall NEC severity is fit to ``|min(rho+p_i)|
-= A v_s^p`` over the subluminal branch (log-log regression). Rodal's clean
-``~0.773 v_s^2`` is recovered as the special case; the exponent is universal
-(~2) and the coefficient is the per-drive fingerprint.
-
-Outputs
--------
-- results/exoticity_ranking.json
-- ../warpax_arxiv/tables/scaling_laws.tex
-- ../warpax_arxiv/tables/exoticity_ranking.tex
+The composite uses the Type-I wall NEC slack, a proper-volume Type-IV fraction
+on t=0 with mask 0.1<=f<=0.9, and a basin-local finite-segment null-geodesic
+minimum found at initial frequency -g(k,n)=1. NEC and finite-ray ratios to
+Alcubierre are capped at 1, all three axes are floored at 1e-4, then geometrically
+averaged. It is not an observer-independent severity or complete-geodesic ANEC
+ranking. The fitted exponents are empirical except where an independent j=0
+quadratic theorem applies on a fixed domain.
 """
 
 from __future__ import annotations
@@ -74,7 +57,7 @@ def scaling_law_fit(rows, metric):
 
 
 def axis_values(rows, anec, metric, ref_v_s):
-    """Raw boost-invariant axes for ``metric`` at the reference speed."""
+    """Raw axes of the specified slice diagnostic for ``metric`` at the reference speed."""
     nec_sev = float("nan")
     type_iv = float("nan")
     for r in rows:
@@ -101,7 +84,7 @@ def exoticity_index(axes, baseline_axes):
     s_iv = axes["type_iv_frac"] if np.isfinite(axes["type_iv_frac"]) else float("nan")
     s_anec = _safe_ratio(axes["anec_min_abs"], baseline_axes["anec_min_abs"])
     subs = [s for s in (s_nec, s_iv, s_anec) if np.isfinite(s)]
-    if not subs:
+    if len(subs) != 3:
         return {"index": float("nan"), "s_nec": s_nec, "s_type_iv": s_iv, "s_anec": s_anec}
     # Geometric mean with a small floor so a zero axis does not annihilate it.
     floored = [max(s, 1e-4) for s in subs]
@@ -149,7 +132,7 @@ def write_ranking_table(scores, out_path):
     lines = [
         r"\begin{tabular}{@{}l cccc@{}}",
         r"  \toprule",
-        r"  Metric & NEC & Type~IV & ANEC & Exoticity \\",
+        r"  Metric & NEC & Type~IV & $I_{\rm seg}$ & Composite \\",
         r"  & severity & fraction & $|\min|$ & index \\",
         r"  \midrule",
     ]
@@ -177,7 +160,7 @@ def main():
     anec = _load(anec_path) if os.path.exists(anec_path) else None
 
     print("=" * 70)
-    print(f"EXOTICITY RANKING + SCALING LAWS  (reference v_s={REF_V_S})")
+    print(f"SLICE COMPOSITE + EMPIRICAL SCALING FITS  (reference v_s={REF_V_S})")
     print("=" * 70)
 
     fits = {name: scaling_law_fit(rows, name) for name in ORDER}
@@ -191,7 +174,7 @@ def main():
     raw = {name: axis_values(rows, anec, name, REF_V_S) for name in ORDER}
     baseline = raw["Alcubierre"]
     scores = {name: exoticity_index(raw[name], baseline) for name in ORDER}
-    print("  Exoticity index (lower = less exotic):")
+    print("  Composite index (specified slice, masks and normalization):")
     for name in ORDER:
         print(
             f"    {name:16s} index={_f(scores[name]['index'], 3)}  "
@@ -202,6 +185,18 @@ def main():
 
     out = {
         "reference_v_s": REF_V_S,
+        "diagnostic_conventions": {
+            "t": 0.0,
+            "wall_mask": [0.1, 0.9],
+            "grid_N": 100,
+            "slice_measure": "proper volume",
+            "pointwise_axis": "minimum Type-I algebraic NEC slack on the sweep grid",
+            "finite_ray_axis": "basin-local finite-segment minimum found; no tail bound",
+            "affine_normalization": "-g(k,n)=1 at x=-8 R_b, t=0",
+            "ratio_cap": 1.0,
+            "axis_floor": 1e-4,
+            "rapidity_cap": "not used by these three axes; other displayed diagnostics use 5",
+        },
         "scaling_laws": fits,
         "raw_axes": raw,
         "scores": scores,

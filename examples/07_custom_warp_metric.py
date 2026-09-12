@@ -116,8 +116,8 @@ class GaussianWarpMetric(ADMMetric):
         """
         t, x, y, z = coords
         dx = x - self.v_s * t
-        r_s = jnp.sqrt(dx * dx + y * y + z * z)
-        return jnp.exp(-(r_s * r_s) / (2.0 * self.w * self.w))
+        r_squared = dx * dx + y * y + z * z
+        return jnp.exp(-r_squared / (2.0 * self.w * self.w))
 
     def symbolic(self) -> SymbolicMetric:
         """Symbolic form for cross-validation against the JAX output."""

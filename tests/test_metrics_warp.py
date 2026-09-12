@@ -1,5 +1,8 @@
 """Warp-metric construction and contracts: Lentz, Natario, Rodal, VdB, WarpShell."""
 
+from pathlib import Path
+from runpy import run_path
+
 import equinox as eqx
 import jax
 import jax.numpy as jnp
@@ -131,6 +134,19 @@ def test_curvature_chain_is_finite_at_the_wall(c):
         assert jnp.all(jnp.isfinite(getattr(result, field))), field
 
 
+def test_gaussian_example_has_regular_center_curvature():
+    example = Path(__file__).resolve().parents[1] / "examples/07_custom_warp_metric.py"
+    metric = run_path(str(example))["GaussianWarpMetric"](v_s=0.5, w=1.3)
+    for time in (0.0, 2.0):
+        center = jnp.array([time, metric.v_s * time, 0.0, 0.0])
+        result = compute_curvature_chain(metric, center)
+        assert result.riemann.dtype == jnp.float64
+        for field in ("christoffel", "riemann", "ricci", "einstein", "stress_energy"):
+            assert jnp.all(jnp.isfinite(getattr(result, field))), field
+        hessian = jax.hessian(metric.shape_function_value)(center)
+        assert jnp.allclose(hessian[1:, 1:], -jnp.eye(3) / metric.w**2, atol=1e-14)
+
+
 # Metrics whose defaults give a Minkowski limit on the x-axis. Natario is co-moving,
 # so its far field carries a uniform flow, and WarpShell checks its exterior at two
 # radii; both keep their own test.
@@ -259,47 +275,19 @@ class TestNatario:
     # ------------------------------------------------------------------
 
     def test_natario_at_origin(self):
-        """Evaluate at origin, verify metric structure.
-
-        At origin (co-moving bubble center): n(0)=0, n'(0)=0, so shift = 0.
-        Metric should be Minkowski at the bubble center.
-        """
-        m = NatarioMetric()  # v_s=0.1, R=100.0, sigma=0.03
-        coords = jnp.array([0.0, 0.0, 0.0, 0.0])
-        g = m(coords)
-        assert g.shape == (4, 4)
-        minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, minkowski, atol=1e-10), (
-            f"At bubble center, metric should be Minkowski. Got:\n{g}"
-        )
+        """The moving laboratory center has a unit timelike tangent."""
+        m = NatarioMetric()
+        for t in (0.0, 1.3):
+            coords = jnp.array([t, m.v_s * t, 0.0, 0.0])
+            tangent = jnp.array([1.0, m.v_s, 0.0, 0.0])
+            assert jnp.allclose(m.shift(coords), jnp.array([-m.v_s, 0.0, 0.0]))
+            assert jnp.isclose(tangent @ m(coords) @ tangent, -1.0, atol=1e-14)
 
     def test_natario_far_field(self):
-        """Evaluate far from bubble, verify the actual far-field behavior.
-
-        The Natario metric uses co-moving bubble frame where far field
-        has a uniform flow: n(inf) = 1/2, so shift = -v_s * x_hat.
-        The metric at far field is NOT Minkowski: it has nonzero shift.
-
-        g_00 = -(1 - v_s^2), g_0x = -v_s, g_ij = delta_ij.
-        """
-        m = NatarioMetric(v_s=0.1)  # R=100.0
-        far_coords = jnp.array([0.0, 1000.0, 0.0, 0.0])
-        g = m(far_coords)
-
-        # At far field along x-axis: shift = -v_s*(2*n_val) with n(inf)=1/2
-        # so beta_x ~ -v_s*(2*0.5) = -v_s (since dn~0 far away)
-        # g_00 = -(1 - v_s^2), g_01 = beta_x = -v_s
-        v_s = m.v_s
-        expected_g00 = -(1.0 - v_s**2)
-        expected_g01 = -v_s
-        assert jnp.isclose(g[0, 0], expected_g00, atol=1e-4), (
-            f"g_00 = {g[0, 0]}, expected {expected_g00}"
-        )
-        assert jnp.isclose(g[0, 1], expected_g01, atol=1e-4), (
-            f"g_01 = {g[0, 1]}, expected {expected_g01}"
-        )
-        # Spatial block still flat
-        assert jnp.allclose(g[1:, 1:], jnp.eye(3), atol=1e-14)
+        """The laboratory metric tends to Minkowski at spatial infinity."""
+        m = NatarioMetric(v_s=0.1)
+        g = m(jnp.array([0.0, 1000.0, 0.0, 0.0]))
+        assert jnp.allclose(g, jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0])), atol=1e-14)
 
     # ------------------------------------------------------------------
     # Physics-specific tests
@@ -353,7 +341,7 @@ class TestNatario:
         """Verify analytical Eulerian energy density is strictly non-positive.
 
         rho = -(v_s^2 / kappa) * [...] is negative wherever dn/dr != 0,
-        confirming WEC/NEC violation everywhere on the bubble wall.
+        confirming WEC violation wherever the density is negative.
         """
         x = jnp.linspace(-200, 200, 40)
         y = jnp.linspace(-200, 200, 40)

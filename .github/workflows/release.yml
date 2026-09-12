@@ -6,15 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release, e.g. v1.4.0"
+        description: "Existing tag to release, e.g. v1.5.0"
         required: true
+        type: string
 
-# No blanket grant: each job asks for exactly what it needs, so the PyPI job is
-# the only one that can mint an OIDC token and the build job cannot write.
 permissions: {}
 
 concurrency:
-  group: release-${{ github.event.inputs.tag || github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 env:
@@ -26,68 +25,88 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      actions: read
     outputs:
-      tag: ${{ steps.v.outputs.tag }}
-      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
-          fetch-depth: 0
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+          persist-credentials: false
+
+      - name: Check tag and package versions
+        id: version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import ast
+          import os
+          import pathlib
+          import tomllib
+
+          version = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          module = ast.parse(pathlib.Path("src/warpax/__init__.py").read_text())
+          package_version = next(
+              ast.literal_eval(node.value)
+              for node in module.body
+              if isinstance(node, ast.Assign)
+              and any(isinstance(target, ast.Name) and target.id == "__version__" for target in node.targets)
+          )
+          if package_version != version or os.environ["RELEASE_TAG"] != f"v{version}":
+              raise SystemExit("Tag, pyproject.toml, and warpax.__version__ must agree")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print(f"tag=v{version}", file=output)
+              print(f"version={version}", file=output)
+          PY
+
+      - name: Require successful CI for the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          conclusion=$(gh run list --workflow ci.yml --commit "$(git rev-parse HEAD)" \
+            --branch main --event push --limit 1 --json conclusion --jq '.[0].conclusion')
+          if [ "$conclusion" != success ]; then
+            echo "Push this commit to main and wait for CI to pass before releasing." >&2
+            exit 1
+          fi
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          python-version: "3.13"
+          enable-cache: false
 
-      - name: Resolve the tag and check it against the package version
-        id: v
+      - name: Build and check distributions
         run: |
-          tag="${{ github.event.inputs.tag || github.ref_name }}"
-          version=$(python3 -c 'import tomllib, pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')
-          if [ "$tag" != "v$version" ]; then
-            echo "tag $tag does not match the pyproject version $version" >&2
-            exit 1
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          uv build --no-sources
+          uv tool run --from twine==7.0.0 twine check --strict dist/*
 
-      - name: Build the sdist and wheel
-        run: uv build
-
-      # Catches a malformed long_description before PyPI rejects the upload,
-      # which it does without leaving the version usable again.
-      - name: Check the distributions
-        run: uv tool run --from twine twine check --strict dist/*
-
-      # The release body is the CHANGELOG section for this version, so the two
-      # cannot drift: a tag with no section is a tag that was never written up.
-      - name: Extract the changelog section
+      - name: Extract release notes from the changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          awk -v v="## [${{ steps.v.outputs.version }}]" \
+          awk -v v="## [$VERSION]" \
             'index($0, v) == 1 { p = 1; next } p && /^## \[/ { exit } p' \
             CHANGELOG.md > release-notes.md
-          if [ ! -s release-notes.md ]; then
-            echo "CHANGELOG.md has no section for ${{ steps.v.outputs.version }}" >&2
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "CHANGELOG.md has no notes for $VERSION" >&2
             exit 1
           fi
 
-      - name: Upload the distributions
-        uses: actions/upload-artifact@v5
+      - name: Upload distributions and release notes
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: dist
-          path: dist/
+          name: release
+          path: |
+            dist/
+            release-notes.md
           if-no-files-found: error
-
-      - name: Upload the release notes
-        uses: actions/upload-artifact@v5
-        with:
-          name: release-notes
-          path: release-notes.md
-          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
   pypi:
     needs: build
@@ -97,21 +116,16 @@ jobs:
       name: pypi
       url: https://pypi.org/p/warpax
     permissions:
-      # Trusted publishing: PyPI verifies this OIDC token against the publisher
-      # configured for the project, so there is no long-lived API token to leak.
       id-token: write
 
     steps:
-      - name: Download the distributions
-        uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
-          name: dist
-          path: dist/
+          name: release
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
-          # Makes a re-run after a partial failure a no-op rather than an error.
           skip-existing: true
 
   github-release:
@@ -122,22 +136,20 @@ jobs:
       contents: write
 
     steps:
-      - name: Download the distributions
-        uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
-          name: dist
-          path: dist/
-
-      - name: Download the release notes
-        uses: actions/download-artifact@v5
-        with:
-          name: release-notes
+          name: release
 
       - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
         run: |
-          gh release create "${{ needs.build.outputs.tag }}" dist/* \
-            --title "${{ needs.build.outputs.tag }}" \
-            --notes-file release-notes.md
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md
+            gh release upload "$RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* --verify-tag \
+              --title "$RELEASE_TAG" --notes-file release-notes.md
+          fi

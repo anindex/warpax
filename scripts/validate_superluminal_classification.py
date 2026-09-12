@@ -1,42 +1,16 @@
-"""Feasibility GATE: is Hawking-Ellis classification of T^a_b
-trustworthy across the luminal transition (v_s -> 1 and beyond)?
+"""Check numerical Hawking-Ellis classifications across v_s=1.
 
-This is the required prerequisite for the velocity-resolved type/EC map. The
-frame-independent classifier (``classify_hawking_ellis``,
-operating on the mixed tensor ``T^a_b``) never uses the Eulerian normal, so it
-*runs* at v_s >= 1 where the ADM lapse ``alpha = 1/sqrt(-g^{00})`` becomes
-ill-defined. The open question is whether the Type-IV labels it returns near
-the ergosurface (g_00 -> 0) are REAL physics (a complex-eigenvalue,
-no-rest-frame stress-energy) or a NUMERICAL ARTIFACT of an ill-conditioned
-non-symmetric eigenproblem.
+Compare standard and generalized eigensolvers and a 50-digit mpmath subset,
+then vary the real-spectrum tolerance and selected spatial resolutions.
+The Eulerian ADM normal remains timelike for positive lapse at every speed;
+g_00=0 concerns coordinate-stationary worldlines, not metric degeneracy.
 
-For each (metric, v_s) we apply three independent trustworthiness criteria to
-the wall region (where the transition and any Type-IV live):
+The stored type_iv_trustworthy flag accepts omitted refinement or mpmath
+checks. The Markdown report distinguishes those incomplete cases from
+rows that pass all three checks. Neither is a continuum certification.
 
-  1. Solver agreement: float64 standard ``jnp.linalg.eig`` vs LAPACK ``zggev``
-     generalized pencil (solver="generalized") vs 50-digit ``mpmath`` on a
-     sampled subset of wall points (Type-IV-prioritized).
-  2. Refinement stability: the wall Type-IV volume fraction across
-     N in {30,50,70} via ``f_miss_stability`` (discontinuous-quantity test).
-  3. Tolerance insensitivity: the wall Type-IV fraction across the
-     real-spectrum threshold tol in {1e-12, 1e-10, 1e-8}. A fraction that
-     scales with the tolerance is noise; one that plateaus is physical.
-
-Plus diagnostics: cond(g) at the wall, and |Im lambda| / |Re lambda| scaling.
-
-DECISION RULE (per metric, v_s): Type-IV is TRUSTWORTHY iff
-  mpmath flip-rate <= 1%  AND  wall Type-IV fraction refinement-stable
-  AND  wall Type-IV fraction tolerance-insensitive (<= 0.5 pp spread).
-
-Outputs
--------
-- results/superluminal_gate.json        : structured per-(metric, v_s) data
-- results/superluminal_gate_report.md   : human-readable verdict table
-
-Usage
------
-    python scripts/validate_superluminal_classification.py
-    python scripts/validate_superluminal_classification.py --smoke
+Outputs: results/superluminal_gate.json and results/superluminal_gate_report.md.
+Run: python scripts/validate_superluminal_classification.py [--smoke]
 """
 
 from __future__ import annotations
@@ -247,33 +221,57 @@ def _fmt(x, nd=3):
 
 
 def write_report(cells, out_path):
+    """Render completed checks separately from untested refinement cases."""
     lines = [
-        "# Superluminal classification feasibility gate\n",
-        "Wall-restricted (R=1, sigma=8) Hawking-Ellis Type-IV trustworthiness.\n",
-        "Type-IV is trustworthy iff: mpmath flip-rate <= 1% AND refinement-stable "
-        "AND tolerance-insensitive (<=0.5pp).\n",
+        "# Superluminal classification checks",
         "",
-        "| Metric | v_s | wall TypeIV % | tol spread pp | std/gen agree | "
-        "mpmath flip | refine stable | Im/Re | TRUSTWORTHY |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "Source: `superluminal_gate.json`. R=1, sigma=8, domain=[-3,3]^3; "
+        "wall fractions use proper-volume weights where 0.1 <= f <= 0.9.",
+        "",
+        "Pass requires an observed 50-digit mpmath flip fraction <= 0.01, "
+        "tolerance spread <= 0.5 percentage points (pp) for tol=1e-12, 1e-10, 1e-8, "
+        "and tested refinement stability. Refinement passes if the maximum "
+        "deviation from the mean wall percentage is <= 0.5 pp or <= 5% of that mean. "
+        "Incomplete means a required check was not run; fail means a measured criterion failed.",
+        "",
+        "Standard/generalized agreement and mpmath flips are fractions of sampled wall points, "
+        "with Type IV prioritized. Im/Re is the median ratio of maximum absolute imaginary "
+        "to real eigenvalue parts among wall Type-IV points (denominator floor 1e-30). "
+        "`--` means unavailable. These are numerical consistency checks, not continuum proofs.",
+        "",
+        "| Metric | v_s | Wall Type IV % | Tolerance spread (pp) | "
+        "Std/gen agreement | mpmath flip | Refinement stable | Im/Re | Checks |",
+        "|---|---:|---:|---:|---:|---:|---|---:|---|",
     ]
     for c in cells:
+        flip = c["mpmath_flip_rate"]
+        if (
+            (flip is not None and flip > 0.01)
+            or not c["tol_insensitive"]
+            or c["refine_stable"] is False
+        ):
+            status = "fail"
+        elif flip is None or c["refine_stable"] is None:
+            status = "incomplete"
+        else:
+            status = "pass"
         lines.append(
             f"| {c['metric']} | {c['v_s']:.2f} | "
             f"{_fmt(c['wall_frac_type_IV'] * 100, 2)} | {_fmt(c['tol_spread_pp'], 2)} | "
-            f"{_fmt(c['std_gen_agreement'])} | {_fmt(c['mpmath_flip_rate'])} | "
-            f"{_fmt(c['refine_stable'])} | {_fmt(c['wall_iv_imag_re_ratio_median'])} | "
-            f"{_fmt(c['type_iv_trustworthy'])} |"
+            f"{_fmt(c['std_gen_agreement'])} | {_fmt(flip)} | "
+            f"{_fmt(c['refine_stable'])} | {_fmt(c['wall_iv_imag_re_ratio_median'])} | {status} |"
         )
-    # summary: max trustworthy v_s per metric (where Type-IV present)
-    lines += ["", "## Trustworthy velocity ceiling per metric", ""]
-    for name in METRIC_ORDER:
-        mc = [c for c in cells if c["metric"] == name]
-        good = [c["v_s"] for c in mc if c["type_iv_trustworthy"]]
-        ceiling = max(good) if good else None
-        lines.append(f"- {name}: classification trustworthy up to v_s = {_fmt(ceiling, 2)}")
+    main_ns = sorted({c["N_main"] for c in cells})
+    refine_ns = sorted({n for c in cells for n in c.get("refine_Ns", [])})
+    lines += [
+        "",
+        f"Main grid N={main_ns}; tested refinement grids N={refine_ns}. "
+        "Each row applies only to its tested speed; these samples do not define a velocity ceiling. "
+        "A passing census with zero wall Type IV does not establish the presence of Type IV.",
+        "",
+    ]
     with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+        f.write("\n".join(lines))
     print(f"Wrote {out_path}")
 
 

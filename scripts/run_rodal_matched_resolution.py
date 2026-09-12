@@ -1,19 +1,11 @@
-"""Test Rodal at matched parameters R=1, sigma=8 for numerical feasibility.
+"""Check Rodal miss fractions at R=1, sigma=8, v_s=0.5 on [-3,3]^3.
 
-Runs Eulerian vs robust EC comparison at resolutions N=30/50/70 on a [-3,3]^3
-domain (same as Alcubierre/Natario/VDB). Feasibility criterion: f_miss
-stability across resolutions within +/-5%.
+Compare N=30,50,70 using the maximum deviation from the mean:
+<=0.5 percentage points or <=5% relative. This tests numerical stability,
+not continuum convergence. Results and report are written to
+results/rodal_matched_resolution.json and results/rodal_matched_report.md.
 
-See also the broader N = {25, 50, 100} resolution sweep in
-``run_clustered_convergence.py``.
-
-Outputs:
-  - results/rodal_matched_resolution.json (per-resolution f_miss data)
-  - results/rodal_matched_report.md (feasibility verdict)
-
-Usage
------
-    python scripts/run_rodal_matched_resolution.py
+Run: python scripts/run_rodal_matched_resolution.py
 """
 
 from __future__ import annotations
@@ -228,81 +220,49 @@ def save_json(results, stability, start_time):
 
 
 def save_report(results, stability, start_time):
-    """Save human-readable feasibility report to markdown."""
+    """Render miss fractions and the absolute-or-relative stability criterion."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
-
-    all_stable = all(v["stable"] for v in stability.values())
-    verdict_word = "FEASIBLE" if all_stable else "NOT FEASIBLE"
-    verb = "is" if all_stable else "is not"
-
-    lines = []
-    lines.append("# Rodal Matched-Parameter Feasibility Report\n")
-    lines.append(f"**Date:** {start_time}\n")
-    lines.append("**Script:** `scripts/run_rodal_matched_resolution.py`\n")
-    lines.append(
-        f"**Parameters:** v_s={V_S}, R={R}, sigma={SIGMA}, "
-        f"domain=[{DOMAIN[0][0]},{DOMAIN[0][1]}]^3\n"
-    )
-
-    # Verdict
-    lines.append("## Verdict\n")
-    lines.append(
-        f"**{verdict_word}**: f_miss {verb} stable within +/-{TOLERANCE * 100:.0f}% "
-        f"across resolutions N={', '.join(str(n) for n in RESOLUTIONS)}.\n"
-    )
-
-    # Per-resolution table
-    lines.append("## Per-Resolution Results\n")
-    lines.append(
-        "| N | n_total | NEC_miss% | WEC_miss% | SEC_miss% | DEC_miss% | Type_I_pct | Time (s) |"
-    )
-    lines.append(
-        "|--:|--------:|----------:|----------:|----------:|----------:|-----------:|---------:|"
-    )
+    all_stable = all(s["stable"] for s in stability.values())
+    lines = [
+        "# Rodal matched-parameter resolution",
+        "",
+        f"Date: {start_time}. Source: `rodal_matched_resolution.json`.",
+        "",
+        f"v_s={V_S}, R={R}, sigma={SIGMA}, domain=[{DOMAIN[0][0]},{DOMAIN[0][1]}]^3. "
+        "Miss percentages count grid points where the Eulerian test passes "
+        "and the observer search finds a violation, divided by all grid points.",
+        "",
+        "| N | Grid points | NEC miss % | WEC miss % | SEC miss % | DEC miss % | Type I % | Time (s) |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
     for r in results:
         lines.append(
-            f"| {r['N']} | {r['n_total']} "
-            f"| {r['nec_missed']:.2f} | {r['wec_missed']:.2f} "
+            f"| {r['N']} | {r['n_total']} | {r['nec_missed']:.2f} | {r['wec_missed']:.2f} "
             f"| {r['sec_missed']:.2f} | {r['dec_missed']:.2f} "
             f"| {r['type_i_pct']:.1f} | {r['elapsed']:.1f} |"
         )
-    lines.append("")
-
-    # Stability table
-    lines.append("## Stability Analysis\n")
-    lines.append("| Condition | Stable | Mean f_miss | Max Deviation |")
-    lines.append("|-----------|--------|------------:|--------------:|")
+    lines += [
+        "",
+        f"{'All conditions pass' if all_stable else 'Some conditions fail'} the numerical stability test: "
+        f"maximum deviation from the three-grid mean <= {ABS_TOL_PP} percentage points (pp) "
+        f"**or** relative deviation <= {TOLERANCE:.0%}. "
+        "Relative deviation is the absolute deviation divided by the mean. "
+        "This is a resolution check, not a continuum error bound.",
+        "",
+        "| Condition | Mean miss % | Max deviation (pp) | Relative deviation % | Stable |",
+        "|---|---:|---:|---:|---|",
+    ]
     for cond in CONDITIONS:
         s = stability[cond]
-        stable_str = "Yes" if s["stable"] else "No"
         lines.append(
-            f"| {cond.upper()} | {stable_str} | {s['mean']:.4f} | {s['max_deviation']:.4f} |"
+            f"| {cond.upper()} | {s['mean']:.4f} | {s['max_dev_pp']:.4f} "
+            f"| {100 * s['max_deviation']:.4f} | {'yes' if s['stable'] else 'no'} |"
         )
     lines.append("")
-
-    # Note for paper
-    lines.append("## Note for Paper\n")
-    if all_stable:
-        lines.append(
-            "Matched parameters (R=1.0, sigma=8.0) produce stable f_miss across "
-            "resolutions N=30, 50, 70 on the compact [-3,3]^3 domain. These "
-            "parameters are suitable for the main cross-metric comparison table "
-            "alongside Alcubierre, Natario, and Van den Broeck.\n"
-        )
-    else:
-        # Identify which conditions are unstable
-        unstable = [c.upper() for c in CONDITIONS if not stability[c]["stable"]]
-        lines.append(
-            f"Rodal at matched parameters (R=1.0, sigma=8.0) exhibits "
-            f"unstable f_miss for {', '.join(unstable)} across resolutions. "
-            f"Report Rodal at native parameters (R=100, sigma=0.03) in the main "
-            f"comparison table with a comparability caveat.\n"
-        )
-
-    report_path = os.path.join(RESULTS_DIR, "rodal_matched_report.md")
-    with open(report_path, "w") as f:
+    path = os.path.join(RESULTS_DIR, "rodal_matched_report.md")
+    with open(path, "w") as f:
         f.write("\n".join(lines))
-    print(f"Report saved to {report_path}")
+    print(f"Report saved to {path}")
 
 
 # Main

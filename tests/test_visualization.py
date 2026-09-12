@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib
+import json
+import math
 
 import jax.numpy as jnp
 import matplotlib
@@ -52,6 +54,41 @@ def test_convergence_plots_smoke():
         pytest.skip("convergence_data.json not present")
     fig = plot_convergence(str(json_path))
     assert fig is not None
+
+
+@pytest.mark.parametrize("values", [[1.0, 1.0, 1.0], [1.0, 1.4, 1.1]])
+def test_descriptive_convergence_plots(tmp_path, values):
+    from warpax.visualization.convergence_plots import plot_convergence, plot_convergence_table
+
+    mean = math.fsum(values) / len(values)
+    path = tmp_path / "grid_samples.json"
+    path.write_text(
+        json.dumps(
+            {
+                "summary_method": "observed_grid_spread",
+                "metric": "fixture",
+                "resolutions": [25, 49, 97],
+                "min_margin_nec": {
+                    "values": values,
+                    "mean": mean,
+                    "max_abs_deviation_from_mean": max(abs(value - mean) for value in values),
+                },
+            }
+        )
+    )
+    fig = plot_convergence(str(path))
+    ax = fig.axes[0]
+    np.testing.assert_array_equal(ax.lines[0].get_xdata(), [25, 49, 97])
+    np.testing.assert_array_equal(ax.lines[0].get_ydata(), values)
+    assert len(ax.lines) == 1
+    assert ax.get_yscale() == "linear"
+
+    table_fig = plot_convergence_table(str(path))
+    labels = [
+        cell.get_text().get_text() for cell in table_fig.axes[0].tables[0].get_celld().values()
+    ]
+    assert "Max departure from mean" in labels
+    assert "Extrapolated" not in labels
 
 
 def test_kinematic_plots_smoke():

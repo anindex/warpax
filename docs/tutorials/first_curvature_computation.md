@@ -1,9 +1,6 @@
 # Your first curvature computation
 
-A walk-through of the full curvature chain on a Minkowski spacetime.
-Useful as a sanity check: Minkowski is flat, so every curvature tensor should
-be numerically zero to machine precision. If this works, your environment is
-ready for the more interesting warp metrics.
+Evaluate flat spacetime, where all curvature tensors vanish.
 
 ## Prerequisites
 
@@ -11,7 +8,7 @@ ready for the more interesting warp metrics.
 - `warpax` installed editable: `pip install -e ".[dev]"` inside the repo
 - Runnable counterpart: `examples/01_minkowski_sanity.py`
 
-## The full pipeline, end to end
+## Evaluate the curvature
 
 ```python
 import jax.numpy as jnp
@@ -31,15 +28,12 @@ print(f"Einstein G_ab max norm: {float(jnp.max(jnp.abs(result.einstein))):.3e}")
 print(f"Stress-energy T_ab max: {float(jnp.max(jnp.abs(result.stress_energy))):.3e}")
 ```
 
-Expected output: every non-metric quantity is zero to $\le 10^{-10}$.
+The first output is `-1`; the curvature and stress outputs are zero.
 
-## What just happened
+## How it works
 
-1. `MinkowskiMetric` returns the metric directly rather than through an ADM
-   split: its pointwise call $g_{ab}(t,x,y,z)$ is
-   $\eta_{ab} = \mathrm{diag}(-1,1,1,1)$ at every point. In ADM terms that is
-   lapse $\alpha=1$, shift $\beta^i=0$, spatial metric
-   $\gamma_{ij}=\delta_{ij}$.
+1. `MinkowskiMetric` returns $g_{ab}=\mathrm{diag}(-1,1,1,1)$ at every point.
+   Its ADM lapse is 1, shift is zero, and spatial metric is Euclidean.
 2. `compute_curvature_chain` applies `jax.jacfwd` at two differentiation
    stages: first on the metric to obtain the Christoffel symbols, then a
    nested `jax.jacfwd` on the Christoffel map for the Riemann tensor

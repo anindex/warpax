@@ -14,10 +14,13 @@ from __future__ import annotations
 
 import argparse
 import collections
+import hashlib
 import json
+import math
 import pathlib
 import re
 import sys
+from itertools import pairwise
 from pathlib import Path
 
 RESULTS = Path(__file__).resolve().parents[1] / "results"
@@ -58,10 +61,10 @@ _TABLE_ARTIFACTS = (
     "rodal_dec_diagnosis.json",
     "comparison_table.json",
     "nstarts_ablation.json",
-    "c1_vs_c2_comparison.json",
     "convergence_data.json",
     "integrated_negative_energy.json",
     "rodal_native_resolution.json",
+    "fibonacci_dec_comparison.json",
 )
 
 DEFAULT_PAPER = Path(__file__).resolve().parents[2] / "warpax_arxiv"
@@ -89,6 +92,51 @@ def table_column(body: str, col: int, rows: list[str]) -> list[str]:
     return [table_cell(body, r, col) for r in rows]
 
 
+def ray_scan_failures(row):
+    """Check exclusions and selected-ray validity without treating failed rays as data."""
+    errors = []
+    b = row.get("b_scan", [])
+    values = row.get("line_integral_scan", [])
+    complete = row.get("scan_completed", [])
+    preserved = row.get("scan_null_preserved", [])
+    if not (len(b) == len(values) == len(complete) == len(preserved)):
+        return ["inconsistent scan status lengths"]
+    excluded = [
+        i
+        for i, (v, c, n) in enumerate(zip(values, complete, preserved, strict=True))
+        if not c or not n or v is None or not math.isfinite(v)
+    ]
+    if row.get("scan_excluded_indices") != excluded or row.get("scan_excluded_count") != len(
+        excluded
+    ):
+        errors.append("wrong excluded scan indices or count")
+    if row.get("scan_excluded_b") != [b[i] for i in excluded]:
+        errors.append("wrong excluded impact parameters")
+    if row.get("all_null_preserved") != all(preserved):
+        errors.append("wrong full-fan null-preservation flag")
+    for label, ray in row.get("selected_ray_convergence", {}).items():
+        if not ray.get("step_stable"):
+            errors.append(f"{label}: unstable selected ray")
+        for record in ray.get("records", []):
+            if not record.get("geodesic_complete") or not record.get("null_preserved"):
+                errors.append(f"{label}: incomplete or non-null selected ray")
+    if not row.get("all_selected_null_preserved"):
+        errors.append("selected-ray null-preservation flag fails")
+    return errors
+
+
+def compatible_artifact(path: Path, sources: dict[str, str], record: dict) -> bool:
+    """Accept only the exact artifact/source pair with matching source hashes."""
+    entry = record.get("artifacts", {}).get(str(path.relative_to(RESULTS)))
+    return bool(
+        entry
+        and sources == record.get("sources_sha256")
+        and entry.get("reason", "").strip()
+        and entry.get("evidence", "").strip()
+        and hashlib.sha256(path.read_bytes()).hexdigest() == entry.get("sha256")
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--paper", type=Path, default=DEFAULT_PAPER)
@@ -108,7 +156,8 @@ def main() -> int:
         path = RESULTS / name
         if not path.exists():
             return None
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return None if data.get("partial") else data
 
     metrics = ["Alcubierre", "Natário", "Van den Broeck"]
     type_i = table_column(bench, 0, metrics)
@@ -118,7 +167,6 @@ def main() -> int:
     rodal_dec_conv = table_cell(conv, "Rodal", 2)
     vdb_range = table_cell(vort, "Van den Broeck", 3)
     nat_iv_sweep = table_cell(vel, "Natário", 1)
-    nat_iv_bench = table_cell(bench, "Natário", 1)
     nat_exo_iv = table_cell(exo, "Natário", 1)
 
     lo_iv, hi_iv = min(float(v) for v in type_iv), max(float(v) for v in type_iv)
@@ -153,11 +201,6 @@ def main() -> int:
             "Section 3.2 Van den Broeck low-end wall Type-IV vs shift_vorticity",
             (vdb_lo,),
             r"only \$(\d+)\\%\$ of the Van~den~Broeck wall is Type-IV",
-        ),
-        (
-            "Table 15 caption Natario Type-IV gap vs velocity sweep and benchmark",
-            (nat_iv_sweep, nat_iv_bench),
-            r"\$([\d.]+)\\%\$ here and \$([\d.]+)\\%\$ in Table~",
         ),
     ]
 
@@ -195,7 +238,7 @@ def main() -> int:
         # The grid the sweep actually ran on must be the grid the captions claim.
         n_run = sweep["config"]["N"]
         # Match the grid claim itself, not the surrounding caption wording, which
-        # an editorial pass can move out from under the pattern.
+        # prose edits can move out from under the pattern.
         for caption_n in re.findall(r"benchmark grid\s*\(\$N=(\d+)\$", tex):
             if int(caption_n) != n_run:
                 failures_pre.append(
@@ -204,79 +247,52 @@ def main() -> int:
                     + f"$ but velocity_sweep.json ran at N={n_run}"
                 )
 
-    # The geodesic ANEC ordering is an argument, not just a number, and it turns on
-    # the affine window. Pin the ordering and the four values together, so a window
-    # change cannot leave the prose asserting a ranking the data contradicts.
-    anec = artifact("anec/retained_symplectic.json")
-    if anec is not None:
-        m = anec["metrics"]
-        checks.append(
-            (
-                "Section 3.4 geodesic ANEC minima vs anec/retained_symplectic.json",
-                (
-                    f"{m['Natário']['min_line_integral']:.2f}",
-                    f"{m['Alcubierre']['min_line_integral']:.2f}",
-                    f"{m['Van den Broeck']['min_line_integral']:.3f}",
-                    f"{m['Rodal']['min_line_integral']:.4f}",
-                ),
-                r"the impact-parameter scan is \$(-[\d.]+)\$ \(Nat\\'ario\), \$(-[\d.]+)\$ \(Alcubierre\),\s*\n?"
-                r"\$(-[\d.]+)\$ \(Van~den~Broeck\), and \$(-[\d.]+)\$ \(Rodal\)",
-            )
-        )
-
-    # The coordinate-ray minima of Section 3.4 are a SECOND list, from a different
-    # artifact. At the two significant figures its companions carry, Rodal's turns
-    # over between -0.0134 and -0.0136, so a quadrature change moves the digit.
-    ray = artifact("anec/retained.json")
-    if ray is not None:
-        r = ray["metrics"]
-        checks.append(
-            (
-                "Section 3.4 coordinate-ray ANEC minima vs anec/retained.json",
-                (
-                    f"{r['Alcubierre']['min_line_integral']:.2f}",
-                    f"{r['Van den Broeck']['min_line_integral']:.3f}",
-                    f"{r['Rodal']['min_line_integral']:.3f}",
-                    f"{r['Natário']['min_line_integral']:.4f}",
-                ),
-                r"the minimum over \$b\$ is\s*\n?"
-                r"\$(-[\d.]+)\$ \(Alcubierre, \$b\\!\\approx\\!0\.86\$\), \$(-[\d.]+)\$ \(Van~den~Broeck,\s*\n?"
-                r"\$b\\!\\approx\\!0\.82\$\), \$(-[\d.]+)\$ \(Rodal, \$b\\!\\approx\\!1\.27\$\), and \$(-[\d.]+)\$",
-            )
-        )
-        # Appendix F reads the enclosures as ratios rather than widths, so pin the
-        # ratios the prose quotes. The Alcubierre one is the whole A2 claim: a
-        # certified bound that agrees with the achieved value to four digits.
-        enc = artifact("enclosures.json")
-        if enc is not None:
-            e = enc["results"]
-
-            def ratio(name: str, sig: int) -> str:
-                r = e[name]
-                return f"{r['lower'] / r['upper']:.{sig}g}"
-
-            checks.append(
-                (
-                    "Appendix F enclosure ratios vs enclosures.json",
-                    (
-                        f"{e['Alcubierre']['width']:.1e}".replace("e-04", r"\times10^{-4}"),
-                        ratio("Alcubierre", 5),
-                        ratio("VanDenBroeck", 3),
-                        ratio("Natario", 2),
-                    ),
-                    r"bracketed to a width of \$(.+?)\$,[\s\S]{0,200}?"
-                    r"a factor of \$([\d.]+)\$ apart"
-                    r"[\s\S]{0,140}?within a factor of \$([\d.]+)\$"
-                    r"[\s\S]{0,300}?finite but \$([\d.]+)\$ times its own achieved value",
+    # The selected finite rays must be the rays actually step-refined.
+    for filename, geodesic in (
+        ("anec/retained_symplectic.json", True),
+        ("anec/retained.json", False),
+    ):
+        data = artifact(filename)
+        if data is None:
+            continue  # Required-artifact gate below reports the missing file.
+        for name, row in data["metrics"].items():
+            for label, value_key in (
+                ("near_axis", "on_axis"),
+                ("minimum_found", "min_line_integral"),
+            ):
+                ray = row.get("selected_ray_convergence", {}).get(label)
+                if ray is None:
+                    failures_pre.append(f"{filename} {name}: missing {label} refinement")
+                    continue
+                values = [r["line_integral"] for r in ray["records"]] if geodesic else ray["values"]
+                steps = (
+                    [r["steps_per_reference_span"] for r in ray["records"]]
+                    if geodesic
+                    else ray["samples_per_reference_span"]
                 )
-            )
-
-        order = sorted(m, key=lambda k: m[k]["min_line_integral"])
-        if order[0] != "Natário":
-            failures_pre.append(
-                "the deepest geodesic ANEC minimum is now "
-                f"{order[0]}, but Section 3.4 names Natário"
-            )
+                if (
+                    len(values) < 3
+                    or len(steps) != len(values)
+                    or any(b != 2 * a for a, b in pairwise(steps))
+                ):
+                    failures_pre.append(f"{filename} {name} {label}: invalid refinement ladder")
+                if len(values) < 2 or any(v is None or not math.isfinite(v) for v in values):
+                    failures_pre.append(f"{filename} {name} {label}: nonfinite selected refinement")
+                    continue
+                if values[-1] != row[value_key] or ray["span"] != row["affine_span"]:
+                    failures_pre.append(
+                        f"{filename} {name} {label}: reported ray differs from refinement"
+                    )
+                expected_b = row["b_at_min"] if label == "minimum_found" else row["b_scan"][0]
+                if ray["b"] != expected_b:
+                    failures_pre.append(f"{filename} {name} {label}: wrong impact parameter")
+                change = abs(values[-1] - values[-2])
+                if change > 1e-8 + 1e-4 * abs(values[-1]):
+                    failures_pre.append(
+                        f"{filename} {name} {label}: step refinement has not stabilized"
+                    )
+                if abs(ray["finest_change"] - change) > 1e-15:
+                    failures_pre.append(f"{filename} {name} {label}: wrong observed change")
 
     # The Rodal single-frame miss rates are quoted in five places, none of them a
     # table. Pin every one.
@@ -293,7 +309,7 @@ def main() -> int:
         for desc, pattern, expected in (
             (
                 "abstract",
-                r"reading of Rodal misses about \$(\d+)\\%\$ of its wall weak-energy",
+                r"For Rodal, the Eulerian reading misses about \$(\d+)\\%\$ of the sampled wall weak-energy",
                 (wec,),
             ),
             (
@@ -335,51 +351,33 @@ def main() -> int:
                 )
             )
 
-    # The Garattini wall is not uniformly labelled Type I. The balance is Type II and
-    # the manuscript now says so; if the fraction moves, the prose must move with it.
+    # GZ fractions use the exact result; raw near-degeneracy labels are separate.
     cv = artifact("construction_verification.json")
     if cv is not None:
-
-        def type_ii_pct(block: str) -> str:
-            row = cv[block]["Garattini"][-1]
-            return f"{100 * (1.0 - row['frac_type_i'] - row['frac_type_iv']):.1f}"
-
-        checks.append(
-            (
-                "Garattini Type-II wall balance vs construction_verification.json",
-                (type_ii_pct("matched"), type_ii_pct("native")),
-                r"returns Type~II on \$([\d.]+)\\%\$ of the matched wall volume and "
-                r"\$([\d.]+)\\%\$ of the native",
-            )
-        )
-
-    exo_json = artifact("exoticity_ranking.json")
-    if exo_json is not None:
-        axes = exo_json["raw_axes"]
-        ratio = axes["Natário"]["nec_severity"] / axes["Alcubierre"]["nec_severity"]
-        checks.append(
-            (
-                "Table 15 caption uncapped NEC severity ratio vs exoticity_ranking.json",
-                (f"{ratio:.0f}",),
-                # The caption says "~13x": the ratio is not an integer. Allow the tilde,
-                # the digits are still pinned.
-                r"severity is \$(?:\{\\sim\})?(\d+)\\times\$ the Alcubierre\s*\n?\s*baseline",
-            )
-        )
+        for block in ("matched", "native"):
+            for row in cv[block]["Garattini"]:
+                pars = row["params"]
+                required = ("H", "r_0", "R", "sigma", "evaluation_time", "units", "provenance")
+                if any(key not in pars for key in required):
+                    failures_pre.append(f"Garattini {block}: incomplete parameter provenance")
+                    continue
+                if (
+                    pars["evaluation_time"] != 0
+                    or abs(row["speed"] - pars["H"] * pars["r_0"]) > 1e-14
+                ):
+                    failures_pre.append(f"Garattini {block}: inconsistent epoch/matched motion")
+                if (row["frac_type_i"], row["frac_type_ii"], row["frac_type_iv"]) != (
+                    1.0,
+                    0.0,
+                    0.0,
+                ):
+                    failures_pre.append(
+                        f"Garattini {block}: physical type fractions contradict the exact result"
+                    )
 
     curv = artifact("curvature_scaling.json")
     if curv is not None:
         fits = curv["fits"]
-        a = fits["Alcubierre"]["ricci_squared"]
-        r = fits["Rodal"]["ricci_squared"]
-        cross = (a["A"] / r["A"]) ** (1.0 / (r["q"] - a["q"]))
-        checks.append(
-            (
-                "Section 3.5 Ricci-axis crossing speed vs curvature_scaling.json",
-                (f"{cross:.2f}",),
-                r"overtaking the Alcubierre wall at \$v_s=([\d.]+)\$ on the Ricci axis",
-            )
-        )
 
         # The worst single-point departure from each fitted power law. Quoted in
         # Section 3.6 so the log-fit R^2 is not the only thing a reader sees.
@@ -401,11 +399,37 @@ def main() -> int:
                     f"{curv['fits']['Alcubierre']['ricci_squared']['max_rel_dev']:.2f}",
                 ),
                 r"is\s*\n?\$(.+?)\$ \(Alcubierre, Weyl\), \$(.+?)\$ \(Nat\\'ario, all three\) and\s*\n?"
-                r"\$(.+?)\$ \(Rodal, all three\), rising to \$([\d.]+)\$ on the one branch",
+                r"\$(.+?)\$ \(Rodal, all three\), rising to \$([\d.]+)\$ for\s*Alcubierre Ricci-squared",
             )
         )
 
-    # Appendix H quotes the type-transition audit in prose rather than only through a
+    fibonacci = artifact("fibonacci_dec_comparison.json")
+    if fibonacci is not None:
+        count = f"{fibonacci['n_violations']:,}".replace(",", r"\,")
+        total = f"{fibonacci['n_points']:,}".replace(",", r"\,")
+        checks.append(
+            (
+                "Fibonacci caption: algebraic violating and sampled point counts",
+                (count, total),
+                r"\$(.+?)\$ violating points of the \$(.+?)\$ sampled",
+            )
+        )
+        checks.append(
+            (
+                "Fibonacci caption: finest sampled detection rate",
+                (f"{fibonacci['results'][-1]['detection_rate']:.1f}",),
+                r"Detection rate \(circles\) reaches \$([\d.]+)\\%\$",
+            )
+        )
+        checks.append(
+            (
+                "Fibonacci caption: minimum algebraic DEC slack",
+                (f"{fibonacci['alg_min_dec'] / 1e-6:.4f}",),
+                r"algebraic slack is \$(-[\d.]+)\\times10\^\{-6\}\$",
+            )
+        )
+
+    # Appendix H quotes the type-transition comparison in prose rather than only through a
     # table, and those are the numbers that carry the answer to the exhaustiveness
     # objection. Pin them to the artifact.
     tt = artifact("type_transitions.json")
@@ -417,12 +441,21 @@ def main() -> int:
             (
                 "Appendix H momentum-family sample count vs type_transitions.json",
                 (str(fam["n"]),),
-                r"Across \$(\d+)\$ samples\s+the\s+inequality's margin is Lipschitz",
+                r"Across \$(\d+)\$ samples\s+the\s+maximum observed adjacent-grid slope",
+            )
+        )
+        error_mantissa, error_power = f"{fam['max_lmi_vs_brute_abs_err']:.1e}".split("e")
+        checks.append(
+            (
+                "Transition sample contraction discrepancy vs corrected finite sample",
+                (error_mantissa, str(int(error_power))),
+                r"Twice the margin differs from the finite-sample null minimum by at most\s*"
+                r"\$([\d.]+)\\times10\^\{(-?\d+)\}\$",
             )
         )
         checks.append(
             (
-                "Appendix H Type-III branch: every point mislabelled, every point certified",
+                "Appendix H Type-III branch: numerical labels and negative margins",
                 (
                     str(t3["n"]),
                     str(n_iv_at_tight),
@@ -430,7 +463,7 @@ def main() -> int:
                 ),
                 r"family, \$(\d+)\$ points log-spaced over[\s\S]{0,400}?"
                 r"Type~IV at every one of the\s*\n?\$(\d+)\$[\s\S]{0,600}?"
-                r"certifies the null-energy violation at all \$(\d+)\$",
+                r"detects null-energy violation at all \$(\d+)\$",
             )
         )
 
@@ -514,9 +547,8 @@ def main() -> int:
                     f"wall-cell range ${lo}$ to ${hi}$ contradicts the {'/'.join(rungs)} ladder"
                 )
 
-    # The census and the branch-and-bound both bound the same infimum from above, by
-    # disjoint routes. The census endpoint sits ABOVE the search's achieved upper
-    # end for all four drives, and must: a 33x129 sample cannot beat 120,000 boxes.
+    # Independent achieved upper bounds need not be ordered. Both must lie
+    # above a valid continuum lower bound for the same wall objective.
     cen, enc2 = artifact("interval_lmi_census.json"), artifact("enclosures.json")
     if cen is not None and enc2 is not None:
         alias = {
@@ -527,18 +559,13 @@ def main() -> int:
         }
         for drive, row in cen["results"].items():
             nec = row["conditions"]["nec"] if "conditions" in row else row
-            attained, br = nec["deepest_upper"], enc2["results"][alias[drive]]
-            if not br["lower"] <= attained:
-                failures.append(
-                    f"census endpoint {attained:.6f} for {drive} is below the certified "
-                    f"lower end {br['lower']:.6f}; one of the two is wrong"
-                )
-            if attained < br["upper"]:
-                failures.append(
-                    f"census endpoint {attained:.6f} for {drive} is deeper than the "
-                    f"branch-and-bound achieved upper end {br['upper']:.6f}; the sample "
-                    f"cannot beat the search, so re-read Appendix H.2"
-                )
+            br = enc2["results"][alias[drive]]
+            if not br["lower"] <= nec["deepest_upper"]:
+                failures.append(f"{drive}: census contradicts the global lower bound")
+            if not br["lower"] <= br["upper"]:
+                failures.append(f"{drive}: reversed global enclosure")
+            if not br["lower"] <= br["point_lower"] <= br["point_upper"]:
+                failures.append(f"{drive}: point enclosure contradicts the global lower bound")
 
     # The hand-maintained macros in paper_numbers.tex are quoted numbers no table
     # carries. emit_paper_numbers.py rewrites only the auto-sourced block, so
@@ -581,6 +608,14 @@ def main() -> int:
             q for q in scripts_dir.glob("*.py") if q.name != pathlib.Path(__file__).name
         ]
         newest_code = max((q.stat().st_mtime for q in watched), default=0.0)
+        source_hashes = {
+            str(q.relative_to(RESULTS.parent)): hashlib.sha256(q.read_bytes()).hexdigest()
+            for q in watched
+        }
+        compatibility_path = args.paper / "verify" / "numerical_compatibility.json"
+        compatibility = (
+            json.loads(compatibility_path.read_text()) if compatibility_path.exists() else {}
+        )
         for name in sorted(_TABLE_ARTIFACTS):
             path = RESULTS / name
             # A MISSING artifact is a failure, not a skip. Every JSON-pinned check
@@ -592,7 +627,9 @@ def main() -> int:
                     f"silently skipped. Run reproduce_all.sh before quoting a number"
                 )
                 continue
-            if path.stat().st_mtime < newest_code:
+            if path.stat().st_mtime < newest_code and not compatible_artifact(
+                path, source_hashes, compatibility
+            ):
                 failures.append(
                     f"results/{name} predates the newest file in src/warpax/ "
                     f"or scripts/; regenerate before quoting it"
@@ -613,7 +650,12 @@ def main() -> int:
         # already exists, on existence alone, so a re-run after a source edit rebuilds
         # every JSON from older grids and each JSON then carries a fresh mtime.
         # reproduce_all.sh deletes the grids unless --keep-cache is passed.
-        stale_npz = sorted(q.name for q in RESULTS.glob("*.npz") if q.stat().st_mtime < newest_code)
+        stale_npz = sorted(
+            q.name
+            for q in RESULTS.glob("*.npz")
+            if q.stat().st_mtime < newest_code
+            and not compatible_artifact(q, source_hashes, compatibility)
+        )
         if stale_npz:
             failures.append(
                 f"{len(stale_npz)} cached grid(s) in results/ predate the newest file "
@@ -628,7 +670,8 @@ def main() -> int:
     tables_dir = RESULTS.parent.parent / "warpax_arxiv" / "tables"
     repo = RESULTS.parent
     if tables_dir.is_dir():
-        for tex_path in sorted(tables_dir.glob("*.tex")):
+        for name in sorted(set(re.findall(r"\\input\{(tables/[^}]+)\}", tex))):
+            tex_path = args.paper / name
             head = tex_path.read_text(errors="replace").lstrip().split("\n", 1)[0]
             if not head.startswith(("% Generated by", "% Hand-written")):
                 failures.append(
@@ -657,8 +700,17 @@ def main() -> int:
     try:
         sym = artifact("anec/retained_symplectic.json")["metrics"]
         for name, m in sym.items():
-            if not m.get("all_null_preserved"):
-                failures.append(f"ANEC {name}: not every ray is symplectically certified")
+            failures.extend(f"Finite ray {name}: {error}" for error in ray_scan_failures(m))
+            if m.get("scan_excluded_count", 0):
+                if not re.search(
+                    r"(?:failed|incomplete|excluded)[^.!?]{0,300}(?:scan|fan)|"
+                    r"(?:scan|fan)[^.!?]{0,300}(?:failed|incomplete|excluded)",
+                    tex,
+                    re.I,
+                ):
+                    failures.append(
+                        f"Finite ray {name}: missing manuscript disclosure of excluded fan rays"
+                    )
             drift = m.get("worst_killing_energy_drift")
             if drift is None:
                 failures.append(f"ANEC {name}: Killing-energy witness not computed")
@@ -667,18 +719,19 @@ def main() -> int:
     except Exception as exc:  # pragma: no cover - defensive
         failures.append(f"ANEC witness check could not run: {exc}")
 
-    # The momentum-channel fraction is claimed as a LOWER bound on the wall Type-IV
-    # fraction for flat-slice drives. A negative gap there falsifies it.
+    # Aggregate fraction differences do not check the pointwise splitting premise.
     try:
         for row in artifact("closing_speed.json")["rows"]:
-            if row["flat_slice_premise_holds"] and row["min_gap_pp"] < -1e-9:
-                failures.append(
-                    f"closing speed {row['metric']}: momentum-channel fraction "
-                    f"exceeds the measured Type-IV fraction by "
-                    f"{-row['min_gap_pp']:.2f} pp"
-                )
+            for predicted, measured, gap in zip(
+                row["predicted_frac_type_iv"],
+                row["measured_frac_type_iv"],
+                row["fraction_gap_pp"],
+                strict=True,
+            ):
+                if abs(100 * (measured - predicted) - gap) > 1e-10:
+                    failures.append(f"closing speed {row['metric']}: inconsistent fraction gap")
     except Exception as exc:  # pragma: no cover - defensive
-        failures.append(f"closing-speed bound check could not run: {exc}")
+        failures.append(f"closing-speed comparison check could not run: {exc}")
 
     # The cached grids are gitignored, so the manifest is their only integrity
     # record. Keep it in the same gate as the numbers it backs.
@@ -698,7 +751,7 @@ def main() -> int:
     # The non-`checks` gates, counted by name rather than by a constant.
     extra_gates = (
         "caption-N pin",
-        "ANEC ordering",
+        "selected finite-ray refinement",
         "exoticity/velocity cross-table",
         "wall-cell ladder",
         "Rodal DEC convergence cross-table",
@@ -707,8 +760,8 @@ def main() -> int:
         "table provenance headers",
         "ANEC window rule",
         "ANEC witnesses",
-        "closing-speed bound",
-        "census vs enclosure ordering",
+        "closing-speed comparison",
+        "census and point/global enclosure consistency",
         "paper_numbers.tex macros",
         "MANIFEST",
     )

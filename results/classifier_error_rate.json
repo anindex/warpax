@@ -34,9 +34,9 @@
     },
     "type_4": {
       "n": 32384,
-      "nec_certified_satisfied": 0,
-      "error_rate_percent": 0.0,
-      "wec_violated_percent": 100.0
+      "wec_violated_percent": 100.0,
+      "numerically_detected_label_contradictions": 0,
+      "contradiction_rate_percent": 0.0
     }
   }
 }

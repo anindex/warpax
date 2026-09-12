@@ -1,7 +1,7 @@
 """Slice-integrated negative-energy measures vs warp speed.
 
-The paper reports the *pointwise* wall NEC deficit and its ``v_s^2`` speed law
-(``run_ssv_bound.py``). This script is the slice-integrated companion: on the
+The paper reports pointwise wall NEC deficits and empirical speed fits
+(``run_ssv_bound.py``). This script evaluates the distinct slice integral: on the
 ``t = 0`` slice we integrate, per metric, over a subluminal ``v_s`` sweep,
 
     E_minus(v_s) = int_{rho<0} |rho| dV          (Eulerian negative-energy volume)
@@ -20,8 +20,8 @@ For a unit-lapse, spatially flat drive the shift is linear in ``v_s`` and the
 Eulerian energy density is quadratic (Hamiltonian constraint ``16 pi rho = K^2 -
 K_ij K^ij ~ v_s^2`` on a flat slice), so ``E_-`` scales as ``v_s^2``: PHYSICS
 EXPECTATION ``p ~ 2`` for the pure warp drives (Alcubierre, Natario, Rodal). This
-connects the pointwise Santiago-Schuster-Visser deficit to Rodal's
-slice-integrated negative-energy volume (arXiv:2512.18008).
+is independent of any claim about pointwise NEC minima. The quantity is
+Rodal's slice-integrated negative-energy volume (arXiv:2512.18008).
 
 One measured departure, physical, not a bug:
   * Van den Broeck carries a ``v_s``-independent conformal negative-energy offset

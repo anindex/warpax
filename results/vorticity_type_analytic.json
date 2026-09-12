@@ -1,5 +1,14 @@
 {
   "controlled_family": {
+    "profile": "beta=c*(-y,x,0)*exp(-(x*x+y*y+z*z)/(2*w*w))",
+    "point": [
+      0.0,
+      0.5,
+      0.5,
+      0.0
+    ],
+    "w": 1.0,
+    "fit_status": "empirical through-origin fit over the sampled c values",
     "c_values": [
       0.0,
       0.025,
@@ -81,21 +90,21 @@
       "im_measured": 0.07865059069463987
     },
     "Nat\u00e1rio": {
-      "omega": 0.2972716598556904,
-      "imag_measured": 0.5635390875201064,
-      "imag_predicted": 0.017738431751603646,
+      "omega": 0.2972716598556905,
+      "imag_measured": 0.5777251060629817,
+      "imag_predicted": 0.017738431751603653,
       "he_type": 4,
-      "theta": 6.106226635438361e-16,
-      "sigma": 2.179012562069717,
-      "shear_to_vorticity": 7.330037996650983,
-      "imag_ratio": 31.769386122263008,
-      "rho": -0.09446036352437649,
-      "jmag": 0.591580682358753,
-      "S_par": -0.11506670333979026,
-      "ratio": 5.646818725737863,
-      "Delta": -1.3559692232114906,
-      "im_predicted_disc": 0.5822304576393034,
-      "im_measured": 0.5635390875201064
+      "theta": -6.661338147750939e-16,
+      "sigma": 2.1790125620697176,
+      "shear_to_vorticity": 7.330037996650982,
+      "imag_ratio": 32.56911964671015,
+      "rho": -0.09446036352437635,
+      "jmag": 0.5915806823587527,
+      "S_par": -0.07736877603875665,
+      "ratio": 6.885685208723236,
+      "Delta": -1.3703455617571834,
+      "im_predicted_disc": 0.5853087992156755,
+      "im_measured": 0.5777251060629817
     },
     "Van den Broeck": {
       "omega": 0.4619926475577141,
@@ -115,5 +124,5 @@
       "im_measured": 0.058185150001925
     }
   },
-  "summary": "f = kappa * omega established on a controlled pure-rotation shift (R^2 ~ 1, type flips I->IV at omega>0); irrotational Rodal is Type I with Im ~ 0, vortical drives are Type IV with Im tracking kappa * omega; the pure-rotation slope under-predicts the full-metric Im (x2-x32), increasing with the shear-to-vorticity ratio at the sample point (shear amplifies the pair that vorticity opens)."
+  "summary": "The slope is an empirical fit for the specified localized-rotation profile and point. Cross-metric samples report their own tensor spectrum and momentum discriminant; no universal slope or causal inference from vorticity alone is established."
 }

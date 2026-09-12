@@ -39,7 +39,7 @@ Two consequences, both deliberate:
    because it is physically informative, not because the certification needs it.
 
 Because Type III and Type IV violate every standard energy condition
-(Martin-Moruno & Visser 2017), the LMI also *audits* these labels: a point labelled
+(Martin-Moruno & Visser 2017), the LMI also checks these labels: a point labelled
 III or IV whose LMI margin certifies satisfaction is a classification error, and
 counting them measures the rate rather than assuming it away.
 """

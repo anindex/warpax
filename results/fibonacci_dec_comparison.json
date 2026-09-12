@@ -4,31 +4,32 @@
   "n_points": 15625,
   "n_violations": 15624,
   "bfgs_min_dec": -2.0446006814907176e-06,
+  "reference_method": "Type-I algebraic shortcut; bfgs_min_dec is a legacy field name",
   "alg_min_dec": -2.0446006814907176e-06,
   "results": [
     {
       "n_dir": 10,
       "detection_rate": 92.20430107526882,
       "min_sampled": -0.011187718705497892,
-      "elapsed": 0.4184086322784424
+      "elapsed": 0.6842687129974365
     },
     {
       "n_dir": 50,
       "detection_rate": 92.93394777265746,
       "min_sampled": -0.011256277070054072,
-      "elapsed": 0.6604464054107666
+      "elapsed": 1.2739841938018799
     },
     {
       "n_dir": 200,
       "detection_rate": 93.26676907322069,
       "min_sampled": -0.011256332237888501,
-      "elapsed": 2.403669834136963
+      "elapsed": 4.433208465576172
     },
     {
       "n_dir": 1000,
       "detection_rate": 93.40757808499744,
       "min_sampled": -0.011256501384530385,
-      "elapsed": 10.820173978805542
+      "elapsed": 20.539777040481567
     }
   ]
 }

@@ -1,9 +1,9 @@
-"""Richardson extrapolation convergence validation.
+"""Uniform-grid sensitivity of one consistently defined NEC diagnostic.
 
 Analyzes a single warp metric (default: Alcubierre at v_s=0.5) at three
-grid resolutions (25^3, 50^3, 100^3) and applies Richardson extrapolation
-to smooth scalar quantities to estimate convergence order and extrapolated
-continuum values.
+grid resolutions (25^3, 49^3, 97^3). Reports the sampled minimum and two
+discrete violation integrals, with their observed departures from the mean.
+These statistics do not estimate a continuum error or convergence order.
 
 Usage
 -----
@@ -11,34 +11,28 @@ Default (Alcubierre):
     python scripts/run_convergence.py
 
 Custom metric/resolutions:
-    python scripts/run_convergence.py --metric natario --resolutions 10 20 40
+    python scripts/run_convergence.py --metric rodal --resolutions 10 20 40
 
-Note: At 100^3 the observer optimizer is extremely expensive
-(1M points x 8 starts x 4 conditions). By default, the 100^3 resolution
-uses Eulerian-only EC (skipping optimization) and computes Eulerian min
-margin for convergence. Use --full-100 to force optimization at 100^3
-(may take hours).
+By default every rung uses the six Eulerian-frame null directions n +/- e_i.
+The legacy --full-100 flag instead enables the full observer optimizer at
+every rung; that mode is expensive and can take hours.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import inspect
+import math
 import os
 import time
-
-import matplotlib
-from _json_io import dump_json
-
-matplotlib.use("Agg")
+from pathlib import Path
 
 import jax
 import numpy as np
+from _json_io import dump_json
 
-from warpax.analysis import (
-    compare_eulerian_vs_robust,
-    compute_convergence_quantity,
-    richardson_extrapolation,
-)
+from warpax.analysis import compare_eulerian_vs_robust, compute_convergence_quantity
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.verifier import _eulerian_ec_point
 from warpax.geometry import GridSpec, evaluate_curvature_grid
@@ -78,7 +72,7 @@ def _cell_volume(grid_spec: GridSpec) -> float:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Richardson extrapolation convergence validation.",
+        description="Uniform-grid NEC samples and observed spreads.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -105,7 +99,7 @@ def main():
     parser.add_argument(
         "--full-100",
         action="store_true",
-        help="Run full optimization at 100^3 (very expensive).",
+        help="Legacy flag: run full observer optimization at every resolution (expensive).",
     )
     parser.add_argument(
         "--results-dir",
@@ -120,6 +114,8 @@ def main():
     metric = metric_class(**cfg["params"])
     bounds = cfg["bounds"]
     resolutions = sorted(args.resolutions)
+    if len(resolutions) < 2 or len(set(resolutions)) != len(resolutions) or min(resolutions) < 2:
+        parser.error("provide at least two distinct resolutions, each at least 2")
     results_dir = args.results_dir
     os.makedirs(results_dir, exist_ok=True)
 
@@ -152,11 +148,7 @@ def main():
         print(f"    Curvature: {time.time() - t0:.1f}s")
 
         # Step 2: EC analysis
-        # For the largest resolution, use Eulerian-only by default to avoid
-        # prohibitive optimizer cost (1M points x 8 starts x 4 conditions).
-        use_full_optimizer = (N <= 50) or args.full_100
-
-        if use_full_optimizer:
+        if args.full_100:
             print(f"  Running full Eulerian vs robust comparison (batch_size={ec_batch})...")
             t0 = time.time()
             comparison = compare_eulerian_vs_robust(
@@ -170,8 +162,7 @@ def main():
             nec_margin = np.asarray(comparison.robust_margins["nec"])
             print(f"    Comparison: {time.time() - t0:.1f}s")
         else:
-            # Eulerian-only for convergence (much cheaper)
-            print(f"  Running Eulerian-only EC (skipping optimization for {N}^3)...")
+            print("  Evaluating the six Eulerian-frame null directions...")
             t0 = time.time()
             n_points = int(np.prod(grid_spec.shape))
             flat_T = curv.stress_energy.reshape(n_points, 4, 4)
@@ -180,7 +171,6 @@ def main():
             eul = jax.vmap(_eulerian_ec_point)(flat_T, flat_g, flat_g_inv)
             nec_margin = np.asarray(eul["nec"]).reshape(grid_spec.shape)
             print(f"    Eulerian EC: {time.time() - t0:.1f}s")
-            print(f"    NOTE: Using Eulerian NEC margin for convergence at {N}^3")
 
         # Exclude the exact coordinate center, where the C-infinity
         # regularization guard (epsilon ~ 1e-12 inside r_s) dominates the
@@ -209,46 +199,64 @@ def main():
         print(f"    l2_violation_nec: {q_l2:.6e}")
         print(f"    integrated_violation_nec: {q_int:.6e}")
 
-    # -----------------------------------------------------------------------
-    # Richardson extrapolation
-    # -----------------------------------------------------------------------
     print("\n" + "=" * 60)
-    print("Richardson Extrapolation Results")
+    print("Sampled values and observed grid spreads")
     print("=" * 60)
 
+    source_paths = [
+        Path(__file__).resolve(),
+        Path(inspect.getfile(metric_class)).resolve(),
+        Path(inspect.getfile(compute_convergence_quantity)).resolve(),
+        Path(inspect.getfile(_eulerian_ec_point)).resolve(),
+    ]
+    if args.full_100:
+        source_paths.append(Path(inspect.getfile(compare_eulerian_vs_robust)).resolve())
+    repo_root = Path(__file__).resolve().parents[1]
     convergence_data: dict = {
+        "summary_method": "observed_grid_spread",
         "metric": args.metric,
+        "metric_parameters": cfg["params"],
         "resolutions": grid_sizes,
+        "diagnostic": {
+            "name": "robust_nec" if args.full_100 else "eulerian_six_direction_nec",
+            "same_definition_at_every_resolution": True,
+            "null_normalization": "k = n + s, |s| = 1, -g(n,k) = 1",
+            "directions": "multistart sphere search" if args.full_100 else "s = +/- e_i, i = 1,2,3",
+            "optimizer_enabled": args.full_100,
+            "n_starts": args.n_starts if args.full_100 else None,
+        },
+        "grid": {
+            "t": 0.0,
+            "bounds": bounds,
+            "endpoint_inclusive": True,
+            "coordinate_core_exclusion_r_squared_lt": 1e-12,
+            "volume_rule": "uniform coordinate cell volume times the sample sum",
+        },
+        "violation_roundoff_gate": "margin < -1e-10 * max(abs(negative finite margins))",
+        "spread_definition": "max(abs(Q_i - mean(Q))) from unrounded samples",
+        "interpretation": (
+            "Observed grid sensitivity only; no fitted order, extrapolated minimum or continuum error bound."
+        ),
+        "source_sha256": {
+            str(path.relative_to(repo_root)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in source_paths
+        },
     }
 
     for qname, values in quantities.items():
-        if len(values) < 3:
-            print(f"\n  {qname}: Not enough resolutions for extrapolation ({len(values)} < 3).")
-            convergence_data[qname] = {"values": values, "error": "insufficient_resolutions"}
-            continue
-
-        result = richardson_extrapolation(values, grid_sizes)
+        mean = math.fsum(values) / len(values)
+        max_abs_deviation = max(abs(value - mean) for value in values)
         convergence_data[qname] = {
             "values": values,
-            "extrapolated_value": result["extrapolated_value"],
-            "observed_order": result["observed_order"],
-            "error_estimate": result["error_estimate"],
-            "converged": result["converged"],
-            "fallback": result.get("fallback", False),
-            "error_basis": result.get("error_basis"),
+            "mean": mean,
+            "max_abs_deviation_from_mean": max_abs_deviation,
         }
 
         print(f"\n  {qname}:")
-        for i, (N, v) in enumerate(zip(grid_sizes, values, strict=True)):
+        for N, v in zip(grid_sizes, values, strict=True):
             print(f"    N={N:>4d}: {v:.6e}")
-        print(f"    Extrapolated: {result['extrapolated_value']:.6e}")
-        p_obs = result["observed_order"]
-        print(
-            "    Observed order p: "
-            + (f"{p_obs:.2f}" if p_obs is not None else "-- (non-monotone triplet)")
-        )
-        print(f"    Error estimate: {result['error_estimate']:.6e}")
-        print(f"    Converged: {result['converged']}")
+        print(f"    Mean: {mean:.6e}")
+        print(f"    Max absolute departure from mean: {max_abs_deviation:.6e}")
 
     # Save convergence data
     output_path = os.path.join(results_dir, "convergence_data.json")

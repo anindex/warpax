@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-08-30T20:23:46Z",
+    "date": "2026-09-12T09:36:23Z",
     "script": "scripts/run_lentz_wall_assessment.py",
     "lentz_params": {
       "R": 100.0,
@@ -30,7 +30,7 @@
       300
     ],
     "grid_n": 50,
-    "notes": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
+    "notes": "Automatic differentiation evaluates local curvature in floating-point arithmetic; spatial sampling requires a separate resolution check."
   },
   "radial_cut": [
     {
@@ -3037,6 +3037,6 @@
   "verdict": {
     "resolved": false,
     "under_resolution_ratio": 44.58,
-    "note": "Autodiff computes exact curvature at each point; wall resolution affects spatial sampling density, not curvature accuracy"
+    "note": "Automatic differentiation evaluates local curvature in floating-point arithmetic; spatial sampling requires a separate resolution check."
   }
 }

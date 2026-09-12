@@ -1,47 +1,19 @@
-"""Sweep analytic families through the Type-I / Type-II / Type-IV transition.
+"""Numerical transition studies for explicit covariant stress tensors.
 
-The Hawking-Ellis types I and IV do not exhaust the four. In the momentum plane,
-with ``A = [[-rho, j], [-j, S_par]]`` and ``Delta = (rho + S_par)^2 - 4 j^2``, a
-continuous transition from ``Delta > 0`` to ``Delta < 0`` at fixed ``j != 0`` passes
-through ``Delta = 0``, where the repeated eigenvalue has a single *null* eigenvector:
-the point is Type II. So a decision procedure that consults the algebraic type cannot
-be complete, and the Type-II and Type-III strata are exactly the ones a
-floating-point eigensolver cannot resolve (Martin-Moruno and Visser show these two
-types are unstable under perturbation while I and IV are stable).
+The momentum-aligned family crosses the exact Type-II locus at j=1. A second
+family has the same type transition with a negative null minimum on both sides.
+A decoupled transverse family tests a complex pair with positive momentum
+Delta. The Type-III family has an exact size-three chain for nonzero strength;
+its 50-digit labels are a numerical cross-check of that algebraic result.
 
-The energy-condition verdict never consults the type: it comes from a 4x4 linear
-matrix inequality. These families measure that on closed-form ground truth rather
-than on a grid, where the Type-III branch is empty.
+Each study records binary64 LMI margins, tolerance-dependent labels and direct
+contractions on one seeded finite sample of normalized null directions.
+A finite sample minimum is not the continuum null-cone minimum. Adjacent-grid
+slopes are observed statistics; the separate fixed-tetrad theorem supplies
+continuity and a norm bound. Numerical disagreements do not identify which
+route failed.
 
-The families
-------------
-All are written in the Minkowski orthonormal frame, so the classifier, the LMI and a
-brute-force observer scan see literally the same matrix and no tetrad step can hide a
-discrepancy.
-
-``momentum_aligned``
-    ``rho = S_par = 1``, ``p_perp = 0``, ``j`` sweeping through 1. ``Delta = 4(1-j^2)``:
-    Type I below, Type IV above, and at ``j = 1`` the momentum block is a nilpotent
-    ``J_2(0)``, Type II exactly. The null deficit is ``1 - j^2`` below and
-    ``2 - 2j`` above, continuous and vanishing at the locus.
-
-``momentum_decoupled``
-    Same ``Delta`` and the same Type II at ``j = 1``, but ``p_perp = -3`` puts the
-    null-cone minimum at ``-2 - j^2/4``, which never changes sign. The label flips
-    from I to IV while nothing physical happens, so the algebraic type is not a proxy
-    for an energy condition.
-
-``transverse``
-    A transverse coupling ``m`` opens a complex pair through the cubic discriminant
-    with ``Delta = 3 > 0`` throughout, so Type IV occurs where the momentum
-    discriminant says it should not.
-
-``type_iii_chain``
-    A Segre [3,1] family, ``f`` sweeping down to where float64 loses it. Ground truth
-    comes from the 50-digit mpmath solver, which separates [3,1] from [2,1,1] by the
-    Jordan defect rather than by counting distinct eigenvalues.
-
-Run:  JAX_PLATFORMS=cpu python scripts/run_type_transitions.py
+Run: JAX_PLATFORMS=cpu python scripts/run_type_transitions.py
 """
 
 from __future__ import annotations
@@ -115,14 +87,14 @@ def _brute_sphere_min(T_ab, directions):
     """Minimum of ``T_ab k^a k^b`` over the null cone, by direct sampling.
 
     With ``eta`` the frame metric and ``k = (1, s)``, ``|s| = 1``, the contraction is
-    ``rho + 2 b.s + s^T S s`` in the notation of the appendix. Independent of the LMI
+    ``rho - 2 b.s + s^T S s``, with ``b_i=-T_0i``. Independent of the LMI
     and of the classifier, so agreement is evidence and not a tautology.
     """
     rho = T_ab[0, 0]
     b = -T_ab[0, 1:]
     S = T_ab[1:, 1:]
     return float(
-        (rho + 2.0 * directions @ b + np.einsum("ni,ij,nj->n", directions, S, directions)).min()
+        (rho - 2.0 * directions @ b + np.einsum("ni,ij,nj->n", directions, S, directions)).min()
     )
 
 
@@ -171,8 +143,7 @@ def sweep(name, builder, params, directions):
 
     margins = np.array([r["nec_margin"] for r in rows])
     ps = np.array([r["param"] for r in rows])
-    # Discrete Lipschitz constant of the margin: finite means continuous across
-    # the locus. The label is not.
+    # Observed adjacent-grid slope; finiteness on a grid does not prove continuity.
     lip = float(np.max(np.abs(np.diff(margins)) / np.maximum(np.diff(ps), 1e-30)))
     primary = np.array([r["labels"][f"tol_{TOLS[0]:g}"] for r in rows])
     jumps = [int(i) for i in np.flatnonzero(np.diff(primary) != 0)]
@@ -222,8 +193,7 @@ def type_iii_arm(fs, directions):
         return None
 
     # Smallest chain strength at which float64 still agrees with 50 digits, and the
-    # smallest at which the LMI still certifies a violation. The gap between them is
-    # the point: the verdict outlives the label by orders of magnitude.
+    # smallest at which the numerical LMI margin is below its recorded floor.
     agree = [r["f"] for r in rows if r["labels"][f"tol_{TOLS[0]:g}"] == r["he_type_mpmath_50digit"]]
     certifies = [r["f"] for r in rows if r["nec_margin"] < -r["noise_floor"]]
     return {
@@ -247,8 +217,8 @@ def write_table(out, path):
         r"% Generated by scripts/run_type_transitions.py; do not edit.",
         r"\begin{tabular}{@{}l cccc@{}}",
         r"  \toprule",
-        r"  Family & points & labelled II & margin Lip.\ & $|2\mathcal{N}_{\rm LMI}"
-        r" - \min_{|s|=1}q|$ \\",
+        r"  Family & points & labeled II & max.\ grid slope & $|2\mathcal{N}_{\rm LMI}"
+        r" - \min_{s\in\mathrm{sample}}q(s)|$ \\",
         r"  \midrule",
         row("momentum_aligned", r"Momentum, $\Delta\to0$"),
         row("momentum_decoupled", r"Momentum, decoupled"),
@@ -283,12 +253,12 @@ def main():
     }
 
     print("=" * 72)
-    print("TYPE-TRANSITION AUDIT   (LMI vs classifier across the Type-II locus)")
+    print("TYPE-TRANSITION COMPARISON   (LMI vs classifier across the Type-II locus)")
     print("=" * 72)
     for k, d in out["families"].items():
         print(
             f"  {k:20s} n={d['n']:4d}  labelled II={d['n_labelled_type_ii']:3d}  "
-            f"margin Lipschitz={d['margin_lipschitz']:.4g}  "
+            f"maximum adjacent-grid slope={d['margin_lipschitz']:.4g}  "
             f"max|LMI-brute|={d['max_lmi_vs_brute_abs_err']:.2e}"
         )
     t3 = out["type_iii_chain"]
@@ -296,7 +266,7 @@ def main():
         f"  type_iii_chain       n={t3['n']:4d}  "
         f"mpmath says III at {t3['n_mpmath_type_iii']} of them; "
         f"float64 label agrees down to f={t3['f_label_agrees_down_to']}, "
-        f"LMI certifies down to f={t3['f_lmi_certifies_down_to']}"
+        f"numerical LMI violation down to f={t3['f_lmi_certifies_down_to']}"
     )
 
     RESULTS.mkdir(parents=True, exist_ok=True)

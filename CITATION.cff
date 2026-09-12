@@ -5,13 +5,13 @@ type: software
 authors:
   - given-names: An T.
     family-names: Le
-    email: an.lt@vinuni.edu.vn
+    email: an.thai.le97@gmail.com
     affiliation: "Center for Environmental Intelligence, VinUniversity, Hanoi, Vietnam"
     orcid: "https://orcid.org/0000-0003-0929-3316"
 repository-code: "https://github.com/anindex/warpax"
 license: MIT
-version: 1.4.0
-date-released: "2026-08-31"
+version: 1.5.0
+date-released: "2026-09-12"
 keywords:
   - warp drive
   - general relativity
@@ -26,18 +26,11 @@ keywords:
   - linear matrix inequality
   - interval arithmetic
 abstract: >-
-  WarpAX uses JAX automatic differentiation to compute exact curvature tensors
-  from analytic warp drive metrics and decides the null, weak, strong and
-  dominant energy conditions over every timelike observer at once, from the
-  positive semidefiniteness of a single 4x4 linear matrix inequality, with a
-  continuous BFGS search over the observer manifold as the independent
-  cross-check.  Reported verdicts carry exact rational certificates, and
-  interval branch-and-bound supplies verified continuum enclosures of the
-  worst-case violation.  The toolkit includes source-consistency modules for Einstein
-  constraint residuals, anisotropic TOV equilibrium, ADM mass, Israel junction
-  conditions, and invariant transport diagnostics, as well as source-first shell
-  construction (S-shell Class I, T-shell Class II) with Bernstein-parameterized
-  profiles and constraint-derived metric potentials.
+  JAX tools for curvature, energy conditions, and geodesics in prescribed
+  spacetimes. Includes Hawking-Ellis classification, numerical LMI tests,
+  observer optimization, exact checks for supplied rational certificates,
+  interval enclosures on supported domains, and source-consistency diagnostics.
+  Finite-segment energy integrals and grid diagnostics carry explicit limits.
 preferred-citation:
   type: article
   authors:
@@ -48,5 +41,3 @@ preferred-citation:
   identifiers:
     - type: other
       value: "arXiv:2602.18023"
-    - type: doi
-      value: "10.5281/zenodo.18715933"

@@ -15,6 +15,5 @@ make bench-compare  # asv compare HEAD~1 HEAD
 
 `JAX_PLATFORMS=cpu` is set in every `bench_*.py`; CUDA benchmarking is deferred.
 
-Two unrelated things are named "benchmarks" here. The directory above is the perf
-harness; `warpax.benchmarks` is the library of reference spacetimes (Minkowski,
-Schwarzschild, Alcubierre), whose name is pinned by the public API.
+`warpax.benchmarks` is a separate public module containing Minkowski,
+Schwarzschild, and Alcubierre reference metrics.

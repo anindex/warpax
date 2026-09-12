@@ -1,20 +1,14 @@
-"""Error rate of the float64 Hawking-Ellis labels, and the limit that sets it.
+"""Numerical label contradictions and Jordan perturbation examples.
 
-**1. The intrinsic limit.** A defective Jordan block of size ``m`` is not a
-continuous function of the matrix entries: perturbing it by ``delta`` moves its
-eigenvalues by ``O(delta^(1/m))``. Float64 rounding supplies ``delta ~ eps``, so a
-``J_2`` splits by ``eps^(1/2) ~ 1.5e-8`` and a ``J_3`` by ``eps^(1/3) ~ 6e-6``,
-generically into a *complex* pair. No choice of tolerance repairs this, so the
-numerical Type II / Type III labels carry an error rate that has to be measured.
+Eigenvalues can vary as delta^(1/m) near a defective size-m block; the
+Jordan labels themselves are discontinuous. The recorded perturbation fits
+and floating-point splits describe these fixtures and solver settings.
 
-**2. The rate.** Hawking-Ellis Types III and IV violate *every* standard energy
-condition (Martin-Moruno & Visser, arXiv:1702.05915; a general Type III is
-``zeta (l (x) m + m (x) l) + lambda g`` and ``lambda g`` contributes nothing on the
-null cone). The S-lemma LMI decides the conditions without forming an
-eigendecomposition, so it is independent of the classifier. Any point labelled III
-or IV at which the LMI *certifies* satisfaction is a certified label error.
+Exact Types III and IV violate NEC. A positive binary64 LMI margin above
+its recorded floor at such a numerical label is a detected contradiction
+between numerical routes, not an independently certified label error.
 
-Run:  JAX_PLATFORMS=cpu python scripts/run_classifier_error_rate.py
+Run: JAX_PLATFORMS=cpu python scripts/run_classifier_error_rate.py
 """
 
 from __future__ import annotations
@@ -102,7 +96,7 @@ def jordan_split_scale():
     return out
 
 
-def audit_grid():
+def compare_grid():
     """Type census on the WarpShell wall, plus the LMI cross-check."""
     metric = WarpShellMetric(v_s=V_S)
     res = certify(metric, shape=SHAPE, bounds=BOUNDS)
@@ -113,34 +107,31 @@ def audit_grid():
     counts["vacuum"] = int(ff.n_vacuum)
     counts["total"] = int(he.size)
 
-    # LMI audit on the non-Type-I points: Types III and IV must violate everything.
+    # LMI comparison on the non-Type-I points: Types III and IV must violate everything.
     nec = np.asarray(ff.nec_margins).ravel()
     wec = np.asarray(ff.wec_margins).ravel()
-    audit = {}
+    comparison = {}
     for t in (3, 4):
         sel = he == t
         n = int(sel.sum())
         if n == 0:
-            audit[f"type_{t}"] = {"n": 0}
+            comparison[f"type_{t}"] = {"n": 0}
             continue
-        # A point whose NEC margin *certifies* satisfaction contradicts the theorem.
-        # The threshold has to be the LMI's own noise floor, not zero: the margin
-        # contract is one-sided, and a point sitting on saturation returns a value of
-        # either sign at rounding scale. Counting those as classification errors
-        # would report the floating-point floor rather than the classifier.
+        # Count contradictions only above the recorded binary64 noise floor.
+        # This comparison cannot identify which numerical route failed.
         floor = np.asarray(ff.nec_noise_floor).ravel()[sel]
         clean = int(np.sum(nec[sel] > floor))
-        audit[f"type_{t}"] = {
+        comparison[f"type_{t}"] = {
             "n": n,
-            "nec_certified_satisfied": clean,
-            "error_rate_percent": 100.0 * clean / n,
+            "numerically_detected_label_contradictions": clean,
+            "contradiction_rate_percent": 100.0 * clean / n,
             "wec_violated_percent": 100.0 * float(np.mean(wec[sel] < 0.0)),
         }
-    return counts, audit
+    return counts, comparison
 
 
 def main():
-    print("== Hawking-Ellis classifier audit ==\n")
+    print("== Hawking-Ellis classifier comparison ==\n")
 
     split = jordan_split_scale()
     print("Resolution limit (measured, float64):")
@@ -161,7 +152,7 @@ def main():
     )
     print()
 
-    counts, audit = audit_grid()
+    counts, comparison = compare_grid()
     print(
         f"WarpShell v_s={V_S}, grid {SHAPE}, bounds {BOUNDS[0]} (recorded, "
         "so the census is reproducible):"
@@ -170,16 +161,15 @@ def main():
         print(f"  {k:>10s}: {v}")
     print()
     print("LMI cross-check on the non-Type-I labels")
-    print("  (Types III and IV violate every condition, so a certified-satisfied")
-    print("   NEC margin at those labels is a classification error):")
-    for k, v in audit.items():
+    print("  Numerically detected label contradictions above the recorded NEC floor:")
+    for k, v in comparison.items():
         if v.get("n", 0) == 0:
             print(f"  {k}: none present")
             continue
         print(
-            f"  {k}: n={v['n']}, NEC certified satisfied at "
-            f"{v['nec_certified_satisfied']} points "
-            f"({v['error_rate_percent']:.1f}%), WEC violated at "
+            f"  {k}: n={v['n']}, numerically detected label contradictions: "
+            f"{v['numerically_detected_label_contradictions']} points "
+            f"({v['contradiction_rate_percent']:.1f}%), WEC violated at "
             f"{v['wec_violated_percent']:.1f}%"
         )
 
@@ -191,7 +181,7 @@ def main():
         "bounds": BOUNDS[0],
         "resolution_limit": split,
         "counts": counts,
-        "lmi_agreement": audit,
+        "lmi_agreement": comparison,
     }
     out.write_text(json.dumps(payload, indent=2))
     print(f"\nwrote {out}")

@@ -1,33 +1,16 @@
 # EinFields fixture
 
-`minkowski.ckpt/` - hand-synth Orbax checkpoint that makes the fixture's
-forward pass output `eta_{ab}` (Minkowski) at any input. Used by
-`tests/test_io.py` to exercise `warpax.io.load_einfield`.
-
-## Schema
-
-The checkpoint stores a single key, `eta_metric`, a `(4, 4) float64`
-array initialized to `diag(-1, 1, 1, 1)`. `load_einfield` samples this
-on a regular 4D grid and constructs an `InterpolatedADMMetric`.
-
-This is a deliberately minimal stand-in for a real EinFields network -
-enough to exercise the loader's Orbax restore path without pulling in
-the full Flax NNX dependency tree for every CI run.
-
-## Regeneration
+`minkowski.ckpt/` is a synthetic Orbax checkpoint used by `tests/test_io.py`
+to test `load_einfield`. It stores `eta_metric`, a `(4,4)` float64 array
+`diag(-1,1,1,1)`. The loader samples it on a regular grid and returns an
+`InterpolatedADMMetric`. This exercises checkpoint restoration, not a trained
+network's accuracy.
 
 ```bash
-pip install 'warpax[einfields]'
+python -m pip install -e ".[einfields]"
 python tests/fixtures/einfields/generate_minkowski_ckpt.py
 ```
 
-The generator writes `minkowski.ckpt/` (an Orbax-populated directory,
-~28 KB), which is committed so the round-trip test runs wherever the
-`einfields` extra is installed.
-
-## flax version drift
-
-If Flax's NNX topology API drifts, loader tests skip via `pytest.importorskip('flax')` +
-`pytest.importorskip('orbax.checkpoint')` + explicit `pytest.skip` on
-topology-rebuild failure. CI coverage skips when env is
-stale, rather than silently passing.
+The committed checkpoint is about 28 KB. Tests skip if optional Flax/Orbax
+packages are absent or if network topology cannot be rebuilt; inspect skips
+when validating this integration.

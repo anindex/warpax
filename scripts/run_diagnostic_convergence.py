@@ -3,8 +3,8 @@
 For each matched-parameter drive (R=1, sigma=8, v_s=0.5) on the canonical
 wall-resolved graded grid (box +-3, clustering a*=2.0; see scripts/_benchmark_grid.py)
 at three resolutions N = [80, 100, 120] -> 5.9 / 7.6 / 8.9 cells across the 10-90%
-wall on a radial crossing (every level clears the four-cell criterion), report a
-certificate for each wall diagnostic:
+wall on a radial crossing (every level clears the four-cell criterion), report
+numerical status for each wall diagnostic:
 
 - Wall Type-IV FRACTION: a non-smooth, thresholded volume fraction (integral of
   a Heaviside indicator). It is NOT a valid Richardson target; we report its
@@ -12,16 +12,16 @@ certificate for each wall diagnostic:
 - Wall max|Im lambda|, min(rho+p_i), min(rho-|p_i|): grid-sampled EXTREMA of
   smooth autodiff-exact fields. A grid-sampled extremum undershoots the true
   continuous extremum by an O(dx^2) grid-alignment gap that does not admit a
-  clean Richardson order (aliasing). We therefore report the EXACT continuous
-  extremum, obtained by continuous local refinement of the exact tensor
-  (warpax.analysis.extrema.refine_extremum), which is resolution-independent.
+  clean Richardson order (aliasing). We report a basin-local polished value,
+  obtained by local refinement (warpax.analysis.extrema.refine_extremum),
+  without a global enclosure.
   The ladder values are shown only to exhibit the sampled values approaching it.
 - Wall vorticity R_omega, WEC miss rate, DEC miss rate: bounded ratios in [0,1].
   Like the Type-IV fraction they admit no Richardson order, so we report their
   grid-stability spread across the wall-resolved ladder.
 
 No Richardson order is asserted for any quantity: fractions are non-smooth,
-extrema are exactly polished.
+extrema are polished within the selected basin.
 
 Outputs
 - results/diagnostic_convergence.json
@@ -184,9 +184,9 @@ def write_table(results, wall_info, out_path):
     ns = N_LADDER
     hdr = " & ".join(f"$N{{=}}{n}$" for n in ns)
     lines = [
-        r"\begin{tabular}{@{}l l ccc c@{}}",
+        r"\begin{tabular}{@{}l l ccc p{7.0cm}@{}}",
         r"  \toprule",
-        rf"  Metric & Diagnostic & {hdr} & Certification \\",
+        rf"  Metric & Diagnostic & {hdr} & Numerical status \\",
         r"  \midrule",
     ]
     labels = [
@@ -204,16 +204,20 @@ def write_table(results, wall_info, out_path):
             c = diags[key]
             v = c["ladder"]
             if kind == "fraction":
-                # Read the flag; the word was hard-coded, so this column could
-                # not fail (VdB WEC/DEC miss rates are stable=False).
-                verdict = "stable" if c.get("stable", False) else "\\emph{unstable}"
-                cert = f"{verdict} ({_f(c['max_dev_pp'], 2)}~pp)"
+                if any(x is None or not np.isfinite(x) for x in v):
+                    status = "undefined fraction; no three-grid statistic"
+                else:
+                    deviation = f_miss_stability([100 * x for x in v])["max_dev_pp"]
+                    status = (
+                        "maximum absolute deviation from the three-grid mean: "
+                        f"{deviation:.3f} percentage points"
+                    )
             else:
-                cert = f"polished {_f(c['polished'], 3)}"
+                status = f"basin-local polished value: {_f(c['polished'], 3)}; no global enclosure"
             mcol = name if first else ""
             first = False
             cells = " & ".join(_f(x) for x in v)
-            lines.append(f"  {mcol} & {label} & {cells} & {cert} \\\\")
+            lines.append(f"  {mcol} & {label} & {cells} & {status} \\\\")
         lines.append(r"  \midrule")
     lines[-1] = r"  \bottomrule"
     lines.append(r"\end{tabular}")
@@ -292,9 +296,13 @@ def main():
         st = f_miss_stability([v * 100 for v in series["type_iv_frac"]])
         stw = f_miss_stability([v * 100 for v in series["r_omega"]])
         # Miss rates are ratios in [0,1] (or None if the wall has no violations of
-        # that condition); certify their grid stability like the other fractions.
-        stwec = f_miss_stability([(v or 0.0) * 100 for v in series["wec_miss"]])
-        stdec = f_miss_stability([(v or 0.0) * 100 for v in series["dec_miss"]])
+        # that condition); report their grid stability like the other fractions.
+        stwec = f_miss_stability(
+            [(v if v is not None else float("nan")) * 100 for v in series["wec_miss"]]
+        )
+        stdec = f_miss_stability(
+            [(v if v is not None else float("nan")) * 100 for v in series["dec_miss"]]
+        )
         print(
             f"  WEC miss={_f(series['wec_miss'][-1])} DEC miss={_f(series['dec_miss'][-1])} "
             f"(spread {_f(stwec['max_dev_pp'], 2)}/{_f(stdec['max_dev_pp'], 2)} pp)"

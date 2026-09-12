@@ -12,15 +12,15 @@ exact closing speed
 
     v_*(x) = 2 d(x) / |a(x)|,
 
-Type IV in the momentum channel below it and Type I above. Computed once, this
-field fixes a curve for every speed at once:
+Under the principal-momentum-axis splitting hypothesis this gives Type IV
+below it and Type I above it. The numerical field fixes the comparison curve
 
     F_mom(v_s) = vol{ v_* > v_s } / vol(wall).
 
-Delta < 0 is sufficient but not necessary for Type IV, so F_mom is a LOWER BOUND
-on the wall Type-IV fraction, and the gap to the measured fraction is the share
-carried by the transverse (conformal) channel, which Delta does not govern. That
-gap is what this script measures; it is not otherwise quantified anywhere.
+Without that splitting hypothesis, Delta < 0 does not imply Type IV. This
+script compares aggregate fractions; it does not check the splitting or a
+pointwise implication. Its signed gap is an empirical difference, not a bound
+or a decomposition into physical channels.
 
 The premise is the exact v_s scaling, which needs flat slices. Van den Broeck has
 gamma_ij = B^2 delta_ij and fails it, its ``a`` moves by O(1) between speeds
@@ -139,12 +139,9 @@ def main():
         v_star = closing_speeds(a, d)
         wt = float(np.sum(w))
         pred = {v: float(np.sum(w * (v_star > v)) / wt) for v in speeds}
-        # Signed, not absolute: the claim is a bound, and its direction is the
-        # content. gap = measured - predicted = the transverse channel's share.
+        # A signed difference of sampled fractions, without a type implication.
         gaps = [measured[(name, v)] - pred[v] for v in speeds if (name, v) in measured]
-        # Flat-slice drives must satisfy the bound; a negative gap there would
-        # falsify it. Van den Broeck is exempt and is flagged, not excluded.
-        flat_slice = a_dev < 1e-9
+        scaling_agrees = a_dev < 1e-9 and (not active.any() or d_dev < 1e-9)
         rows.append(
             {
                 "metric": name,
@@ -162,22 +159,17 @@ def main():
                 "speeds": speeds,
                 "predicted_frac_type_iv": [pred[v] for v in speeds],
                 "measured_frac_type_iv": [measured.get((name, v)) for v in speeds],
-                "flat_slice_premise_holds": bool(flat_slice),
-                "transverse_gap_pp": [100.0 * g for g in gaps],
+                "scaling_agrees": bool(scaling_agrees),
+                "splitting_checked": False,
+                "fraction_gap_pp": [100.0 * g for g in gaps],
                 "min_gap_pp": 100.0 * min(gaps) if gaps else None,
                 "max_gap_pp": 100.0 * max(gaps) if gaps else None,
             }
         )
-        if flat_slice and gaps and min(gaps) < -1e-9:
-            raise RuntimeError(
-                f"{name}: momentum-channel fraction exceeds the measured Type-IV "
-                f"fraction by {-100.0 * min(gaps):.2f} pp; the bound is claimed "
-                f"for flat-slice drives and this would falsify it"
-            )
         print(
             f"  {name:>15s}  a,d speed-dev {a_dev:.1e}, {d_dev:.1e}  "
-            f"{'flat-slice' if flat_slice else 'PREMISE FAILS'}  "
-            f"transverse gap {100.0 * min(gaps):+5.1f} to "
+            f"{'scaling agrees' if scaling_agrees else 'SCALING DIFFERS'}  "
+            f"fraction gap {100.0 * min(gaps):+5.1f} to "
             f"{100.0 * max(gaps):+5.1f} pp",
             flush=True,
         )
@@ -210,7 +202,7 @@ def write_table(rows, out_path, table_vels=(0.1, 0.5, 1.0, 2.5)):
                 cells += ["--", "--"]
                 continue
             p = r["predicted_frac_type_iv"][i]
-            g = r["transverse_gap_pp"][i]
+            g = r["fraction_gap_pp"][i]
             cells.append("--" if p is None else f"{100.0 * p:.1f}")
             cells.append("--" if g is None else f"{g:+.1f}")
         med = r["v_star_median"]

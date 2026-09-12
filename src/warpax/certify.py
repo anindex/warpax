@@ -1,27 +1,21 @@
-"""One-call, all-observer, all-velocity energy-condition certifier.
+"""Evaluate cap-free energy-condition margins and type fractions on a grid.
 
-``certify(metric)`` is the public entry point: an independent, reproducible
-verifier that recomputes the all-observer energy-condition truth of any
-warp-drive metric from the eigenstructure of ``T^a_b``, at any warp speed,
-including ``v_s >= 1``.
+``certify(metric)`` computes stress-energy, Hawking-Ellis classifications, and
+energy-condition margins. Well-conditioned Type-I points use eigenvalue
+inequalities; other points use the numerical LMI route in
+:mod:`.energy_conditions.frame_free`. The grid summaries include wall-restricted
+volume fractions and minimum Type-I slacks, subject to numerical tolerances.
+They do not certify unsampled spatial points.
 
-It wraps the certification engine:
-
-- frame-independent Hawking-Ellis classification + Type-I eigenvalue margins
-  (:func:`.energy_conditions.frame_free.certify_grid_frame_free`), valid at all
-  velocities because no Eulerian normal is constructed;
-- the volume-weighted Type census (where Type IV = no rest frame);
-- when ``v_s < 1`` (the Eulerian congruence is timelike), the single-frame miss
-  verification against the Eulerian frame
-  (:func:`.analysis.invariant_verification.single_frame_miss`).
+The API also computes Eulerian single-frame miss rates when ``v_s < 1``.
+This gate is a comparison policy. For a valid lapse and positive-definite
+spatial metric, the Eulerian normal remains timelike at every warp speed.
 
 Example
 -------
 >>> from warpax import certify
 >>> from warpax.metrics import RodalMetric
->>> r = certify(RodalMetric(v_s=2.0, R=1.0, sigma=8.0))   # superluminal
->>> r.type_fractions["frac_type_i"], r.invariant_nec_min
-(1.0, -2.75...)
+>>> result = certify(RodalMetric(v_s=2.0, R=1.0, sigma=8.0))
 """
 
 from __future__ import annotations
@@ -46,14 +40,14 @@ from .grids import proper_volume_weights, wall_clustered
 
 
 class CertifyResult(NamedTuple):
-    """All-observer, all-velocity certification summary for one metric."""
+    """Grid energy-condition margins and wall-restricted summary for one metric."""
 
     v_s: float
     frame_free: FrameFreeGridResult
     type_fractions: dict  # wall-restricted, volume-weighted
     invariant_nec_min: float  # min(rho+p_i) over wall Type-I points
     invariant_dec_min: float  # min(rho-|p_i|) over wall Type-I points
-    eulerian_available: bool  # True iff v_s < 1 (Eulerian congruence timelike)
+    eulerian_available: bool  # v_s < 1 enables the API's single-frame comparison
     single_frame_miss: dict | None  # per-condition Eulerian miss rates (or None)
 
 
@@ -68,32 +62,33 @@ def certify(
     batch_size: int = 256,
     wall_bounds: tuple[float, float] = (0.1, 0.9),
 ) -> CertifyResult:
-    """Certify the all-observer energy-condition structure of ``metric``.
+    """Evaluate the energy-condition structure of ``metric`` on a spatial grid.
 
     Parameters
     ----------
     metric : MetricSpecification
-        Any warp-drive metric (e.g. from :mod:`warpax.metrics`).
+        Warp metric with a ``v_s`` parameter.
     v_s : float or None
-        If given, the metric is rebuilt at this warp speed (via ``eqx.tree_at``);
-        otherwise the metric's own ``v_s`` is used. Works for ``v_s >= 1``.
+        If given, rebuild the metric at this speed via ``eqx.tree_at``.
+        Otherwise use the metric's speed. Values ``v_s >= 1`` are supported.
     bounds : list[(float, float)] or None
-        Spatial box; defaults to ``[(-3, 3)] * 3`` (matched compact domain).
+        Spatial box; defaults to ``[(-3, 3)] * 3``.
     shape : tuple[int, int, int]
         Grid resolution.
     clustered : bool
-        Use a wall-clustered grid (recommended; resolves the wall) vs uniform.
+        Use a wall-clustered grid if true; otherwise use a uniform grid.
     solver : {"auto", "standard", "generalized"}
         Eigenvalue backend for classification.
     batch_size : int
         Curvature evaluation batch size.
     wall_bounds : (float, float)
-        ``(f_low, f_high)`` defining the active wall region for the
-        wall-restricted statistics.
+        ``(f_low, f_high)`` selecting the wall for summary statistics.
 
     Returns
     -------
     CertifyResult
+        Numerical grid margins and summaries. Eulerian miss rates are
+        computed only when ``v_s < 1`` under the API's comparison policy.
     """
     if v_s is not None:
         metric = eqx.tree_at(lambda m: m.v_s, metric, v_s)

@@ -1,40 +1,24 @@
-# Custom Warp Metric Tutorial
+# Define a custom warp metric
 
-Defining a new warp spacetime and running the full energy condition (EC)
-pipeline with wall-restricted diagnostics. Full runnable script:
-`examples/07_custom_warp_metric.py` in the repo.
-
-## What you will build
-
-A Gaussian warp bubble, a minimal custom warp metric where the shift acts
-as a Gaussian envelope instead of the Alcubierre `tanh` top-hat. You will:
-
-1. Define a metric by subclassing `ADMMetric`
-2. Verify energy conditions at a single bubble-wall point
-3. Run a grid-level Eulerian vs observer-robust comparison
-4. Apply a wall-restricted filter and compute focused statistics
-5. Save a 3-panel NEC comparison figure
-
-Runtime target: under 30 seconds on a laptop CPU at `grid_n=16` (the default
-in the script). Scaling up to `grid_n=50` or higher takes minutes rather
-than seconds and is the right choice for publication-density figures.
+Define a Gaussian shift profile, evaluate its energy conditions, and summarize
+the bubble wall. The complete script is `examples/07_custom_warp_metric.py`.
+Use a coarse grid for exploration and check refinement before reporting results.
 
 ## Step 1: Subclass `ADMMetric`
 
-Every warp metric in warpax is an `ADMMetric` subclass. You implement six
-methods:
+Subclass `ADMMetric` and implement six methods:
 
 - `lapse(coords) -> alpha(t, x, y, z)`, ADM lapse function
 - `shift(coords) -> beta^i(t, x, y, z)`, 3-vector shift
 - `spatial_metric(coords) -> gamma_{ij}(t, x, y, z)`, 3x3 spatial metric
-- `symbolic -> SymbolicMetric`, SymPy form for cross-validation against
+- `symbolic() -> SymbolicMetric`, SymPy form for cross-validation against
   the JAX autodiff pipeline
-- `name -> str`, registry key (used for logging and result JSON keys)
-- `shape_function_value(coords) -> f(t, x, y, z)`, the addition.
-  Must return a value in `[0, 1]`. Consumed by `shape_function_mask` to
+- `name() -> str`, registry key (used for logging and result JSON keys)
+- `shape_function_value(coords) -> f(t, x, y, z)`, a wall indicator.
+  Return a value in `[0, 1]`. Consumed by `shape_function_mask` to
   build wall-restricted diagnostics (see Step 4).
 
-From `examples/07_custom_warp_metric.py`:
+A compact implementation:
 
 ```python
 import jax.numpy as jnp
@@ -69,11 +53,11 @@ class GaussianWarpMetric(ADMMetric):
     ) -> Float[Array, ""]:
         t, x, y, z = coords
         dx = x - self.v_s * t
-        r_s = jnp.sqrt(dx * dx + y * y + z * z)
-        return jnp.exp(-(r_s * r_s) / (2.0 * self.w * self.w))
+        r_squared = dx * dx + y * y + z * z
+        return jnp.exp(-r_squared / (2.0 * self.w * self.w))
 
     def symbolic(self) -> SymbolicMetric:
-        """SymPy form, cross-validated against the JAX autodiff output."""
+        """SymPy form for comparison with the JAX implementation."""
         t, x, y, z = sp.symbols("t x y z")
         v_s = sp.Symbol("v_s", positive=True)
         w = sp.Symbol("w", positive=True)
@@ -93,25 +77,11 @@ class GaussianWarpMetric(ADMMetric):
         return "GaussianWarp"
 ```
 
-All six methods are abstract on `ADMMetric`, so all six have to be present:
-omitting `symbolic` or `name` fails at construction with `TypeError: Can't
-instantiate abstract class`.
-
-The `@jaxtyped(typechecker=beartype)` decorator is project convention, shapes
-are validated at runtime. It is not required for the metric to function.
-
-Two patterns worth flagging:
-
-- **Reuse `shape_function_value` from inside `shift`.** The Gaussian
-  envelope only lives in one place, which keeps the shape function and the
-  shift aligned when parameters change.
-- **Unit lapse + flat spatial metric.** All of the warp geometry is carried
-  by the shift. This is the Alcubierre-style ADM shape, shared by the
-  Natário, Lentz, and Rodal metrics. Several other built-ins depart from it:
-  the shell metrics (WarpShell, S-shell, T-shell) and Fuchs carry a non-unit
-  lapse and a non-flat spatial metric, and Van den Broeck adds a conformal
-  spatial factor. Garattini keeps the shape and differs only in where the
-  bubble sits: its centre is $r_0 = v_s/H$, not the origin.
+All six methods are abstract. Runtime shape checking with `jaxtyped` is optional.
+Use the squared radius directly for this Gaussian so its Cartesian derivatives
+remain regular at the center. Reusing `shape_function_value` keeps the mask and
+shift consistent. This example uses unit lapse and a flat spatial metric;
+custom metrics may supply other ADM fields.
 
 ## Step 2: Verify at a single point
 
@@ -133,17 +103,13 @@ print(f"NEC margin (robust): {float(ec.nec_margin):+.6e}")
 print(f"Hawking-Ellis type: {int(ec.he_type)}")
 ```
 
-`verify_point` runs the Optimistix BFGS optimizer across the full bounded
-timelike observer manifold and returns the worst-case observer 4-velocity
-alongside the four margins. `compute_eulerian_ec` runs the same point
-through the ADM-normal observer only and returns a dict of margins for
-the single-frame comparison.
+`verify_point` returns Type-I eigenvalue slacks when applicable and capped BFGS
+diagnostics. At other types, its margins come from the observer search. For an
+all-observer LMI test, use `energy_conditions.slemma.certify_point`.
 
 ## Step 3: Grid-level comparison
 
-To see which regions of the bubble are violated and which are not, build a
-3D grid, evaluate the full curvature chain on it, and compare Eulerian vs
-robust margins at every point.
+Evaluate a spatial grid and compare the reported margins:
 
 ```python
 import numpy as np
@@ -175,21 +141,14 @@ for cond in ("nec", "wec", "sec", "dec"):
     )
 ```
 
-The returned `ComparisonResult` carries per-condition margins for both
-frames plus the missed-violation mask (points where Eulerian reports
-"satisfied" but the robust optimizer reports "violated").
-
-Note that `ComparisonResult.conditional_miss_rate` is already a percentage
-on `[0, 100]`, alongside `pct_missed` and `pct_violated_robust`. Format it
-with `:.1f}%`, not `:.1%`. The wall-restricted rates of Step 4 go the other
-way: they are fractions on `[0, 1]`, and `None` when nothing was violated.
+`ComparisonResult` holds both margin arrays and masks of violations found by
+the reference method but missed by the Eulerian test. Its rates are percentages
+on `[0,100]`; format with `:.1f}%`. Wall rates below are fractions on `[0,1]`
+and return `None` when no violations are found.
 
 ## Step 4: Wall-restricted statistics
 
-Full-grid statistics dilute warp-wall violations across vacuum
-regions. Wall-restricted filtering uses the shape function to isolate the
-active region. This is where the `shape_function_value` override in Step 1
-pays off.
+Select the transition region with the shape function:
 
 ```python
 from warpax.energy_conditions import (
@@ -228,18 +187,10 @@ nec_rate = stats.nec_miss_rate
 print(f"NEC miss rate in wall: {'n/a' if nec_rate is None else format(nec_rate, '.1%')}")
 ```
 
-The default interval `[f_low=0.1, f_high=0.9]` captures the transition
-region where the shape function is neither fully interior (`f = 1`) nor
-fully exterior (`f = 0`). See
-[`interpreting_ec_results.md`](interpreting_ec_results.md) for the
-rationale and a worked numeric example.
-
-`compute_wall_restricted_stats` consumes an `ECGridResult` (the output of
-`verify_grid`). Because `compare_eulerian_vs_robust` returns a
-`ComparisonResult` of a different shape, the script calls `verify_grid`
-explicitly to get the right input. Passing the comparison's
-`eulerian_margins` lets the stats object carry both Type breakdown **and**
-conditional miss rates in a single call.
+The mask selects `0.1 <= f <= 0.9`. `compute_wall_restricted_stats` requires
+an `ECGridResult`, so the example calls `verify_grid` separately from the
+comparison. These are sampled statistics; see
+[Interpreting results](interpreting_ec_results.md) for denominator and resolution limits.
 
 ## Step 5: Save the figure
 
@@ -258,25 +209,19 @@ fig = plot_comparison_panel(
 )
 ```
 
-The PDF is 3 panels: Eulerian NEC (left), robust NEC (center), and the
-missed mask (right) highlighting grid points where the Eulerian frame
-misreports the violation.
-
-## Running it
+The panels show Eulerian NEC, the reference NEC margin, and missed violations.
 
 ```bash
 python examples/07_custom_warp_metric.py
 ```
 
-Default runtime ~22 seconds on a laptop CPU at `grid_n=16`. Edit the
-`grid_n=16` argument inside `main` to scale up; at `grid_n=50` you get
-~125k points and the job runs in minutes.
+The script defaults to `grid_n=16`; larger grids increase both compilation and
+execution cost.
 
 ## Common pitfalls
 
 - **Forgetting to enable float64.** `warpax/__init__.py` enables float64 at
-  import, but standalone scripts should re-enable defensively with
-  `jax.config.update("jax_enable_x64", True)` before any JAX operation.
+  import, but import warpax before constructing JAX arrays in standalone scripts.
 - **Returning a shape function outside `[0, 1]`.** `shape_function_mask`
   filters on the interval `[f_low, f_high]` (default `[0.1, 0.9]`); a
   shape function that saturates above 1 or dips below 0 produces an

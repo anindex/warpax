@@ -93,11 +93,7 @@ class GarattiniMetric(ADMMetric):
     H : float
         de Sitter Hubble (expansion) rate.
     t0 : float
-        Retained for backward compatibility with the superseded exponential-slicing
-        implementation, which built its certification grid on a reference slice. It is
-        read by nothing: the slices here are flat at every ``t``, so
-        ``max|g(t0=0) - g(t0=17)| = 0`` exactly. Do not add a use for it without
-        deciding what it should mean.
+        Unused compatibility parameter; it does not affect the metric.
     """
 
     # Array leaves, not Python floats: eqx.filter_jit partitions on the

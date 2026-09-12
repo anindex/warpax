@@ -1,47 +1,78 @@
 {
+  "summary_method": "observed_grid_spread",
   "metric": "alcubierre",
+  "metric_parameters": {
+    "v_s": 0.5,
+    "R": 1.0,
+    "sigma": 8.0
+  },
   "resolutions": [
     25,
     49,
     97
   ],
+  "diagnostic": {
+    "name": "eulerian_six_direction_nec",
+    "same_definition_at_every_resolution": true,
+    "null_normalization": "k = n + s, |s| = 1, -g(n,k) = 1",
+    "directions": "s = +/- e_i, i = 1,2,3",
+    "optimizer_enabled": false,
+    "n_starts": null
+  },
+  "grid": {
+    "t": 0.0,
+    "bounds": [
+      [
+        -5,
+        5
+      ],
+      [
+        -5,
+        5
+      ],
+      [
+        -5,
+        5
+      ]
+    ],
+    "endpoint_inclusive": true,
+    "coordinate_core_exclusion_r_squared_lt": 1e-12,
+    "volume_rule": "uniform coordinate cell volume times the sample sum"
+  },
+  "violation_roundoff_gate": "margin < -1e-10 * max(abs(negative finite margins))",
+  "spread_definition": "max(abs(Q_i - mean(Q))) from unrounded samples",
+  "interpretation": "Observed grid sensitivity only; no fitted order, extrapolated minimum or continuum error bound.",
+  "source_sha256": {
+    "scripts/run_convergence.py": "21f31aa86374542c4f81af810cb3db25d903e237a39537e3f6dc7b4991d48a00",
+    "src/warpax/benchmarks/alcubierre.py": "a063e5d8df44603ef3f3c353bc856e5a7db5d0821b7c2ba7ae7d9b20fa37665b",
+    "src/warpax/analysis/convergence.py": "f4bcf3b100e7aa099e75ee4af58c7ce15161a7b8c31d6e0a90c8b0a0a359514e",
+    "src/warpax/energy_conditions/verifier.py": "d8da6d1d1c5b81084a6b1a39298c0ab27ff4a9074430931e514847d54265643e"
+  },
   "min_margin_nec": {
     "values": [
-      -0.6310512295451954,
-      -0.6310512295451954,
+      -0.6310512295451953,
+      -0.6310512295451953,
       -0.6310512295451953
     ],
-    "extrapolated_value": -0.6310512295451953,
-    "observed_order": 2.0,
-    "error_estimate": 0.0,
-    "converged": true,
-    "fallback": false,
-    "error_basis": "exact"
+    "mean": -0.6310512295451953,
+    "max_abs_deviation_from_mean": 0.0
   },
   "l2_violation_nec": {
     "values": [
-      0.823449035140287,
-      0.8343458362169048,
+      0.7509611164875749,
+      0.765783751225439,
       0.7289277549056602
     ],
-    "extrapolated_value": 0.7289277549056602,
-    "observed_order": null,
-    "error_estimate": 0.10541808131124464,
-    "converged": false,
-    "fallback": true,
-    "error_basis": "spread"
+    "mean": 0.7485575408728913,
+    "max_abs_deviation_from_mean": 0.019629785967231084
   },
   "integrated_violation_nec": {
     "values": [
-      1.7814732162314313,
-      1.9097609678050438,
+      1.5901768630057724,
+      1.720639772500074,
       1.6517517123017829
     ],
-    "extrapolated_value": 1.6517517123017829,
-    "observed_order": null,
-    "error_estimate": 0.2580092555032609,
-    "converged": false,
-    "fallback": true,
-    "error_basis": "spread"
+    "mean": 1.6541894492692097,
+    "max_abs_deviation_from_mean": 0.0664503232308642
   }
 }

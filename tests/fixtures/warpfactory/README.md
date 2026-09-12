@@ -1,8 +1,7 @@
 # WarpFactory fixture
 
-`alcubierre.mat` - MATLAB v7 export of an Alcubierre warp drive. Used
-by `tests/test_io.py` to exercise the `load_warpfactory`
-reader.
+`alcubierre.mat` is a synthetic MATLAB v7 Alcubierre fixture for
+`tests/test_io.py` and `load_warpfactory`. It is not an upstream MATLAB export.
 
 ## Schema
 
@@ -31,15 +30,10 @@ save('alcubierre.mat', '-v7.3', '-struct', 'metric');
 The v7.3 HDF5 variant dispatches through the `_load_v7_3` mat73 path;
 schema keys and `metric.tensor` shape are identical.
 
-## Hand-synth provenance (this fixture)
+## Fixture source
 
-Because the the CI/CD environment has no MATLAB, this fixture
-was generated from the warpax v0.1.x `AlcubierreMetric(v_s=0.5, R=2.0,
-sigma=8.0)` - the same parameters as the canonical WarpFactory recipe
-- by evaluating the metric pointwise on the 4D grid `(Nt=2, Nx=4,
-Ny=4, Nz=4)` over bounds `(-3, 3)` on each spatial axis. The result
-is a schema-valid v7 `.mat` file that exercises the full
-`load_warpfactory` code path.
-
-If a true upstream WarpFactory export becomes available, replace this
-file and regenerate with the canonical MATLAB recipe.
+The fixture was generated with warpax v0.1.x
+`AlcubierreMetric(v_s=0.5, R=2.0, sigma=8.0)` on a `(2,4,4,4)` spacetime grid,
+with spatial bounds `(-3,3)` on each axis. It tests schema compatibility.
+An independently generated upstream export would provide a stronger
+cross-implementation comparison.

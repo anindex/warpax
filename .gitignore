@@ -64,6 +64,7 @@ figures/*.png
 # summaries stay tracked; npz and pdf are regenerated via reproduce_all.sh.
 results/**/*.npz
 results/**/*.pdf
+results/**/checkpoints/
 
 # TeX and renderer logs
 *.log

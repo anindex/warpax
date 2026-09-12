@@ -2451,7 +2451,7 @@ wheels = [
 
 [[package]]
 name = "warpax"
-version = "1.4.0"
+version = "1.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "beartype" },
@@ -2503,12 +2503,8 @@ solver = [
     { name = "scipy" },
 ]
 viz = [
+    { name = "imageio" },
     { name = "scipy" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
 ]
 
 [package.metadata]
@@ -2521,6 +2517,7 @@ requires-dist = [
     { name = "griffe", marker = "extra == 'docs'", specifier = ">=2.0.2,<3.0" },
     { name = "h5py", marker = "extra == 'interop'", specifier = ">=3.16.0,<4.0.0" },
     { name = "imageio", marker = "extra == 'manim'", specifier = ">=2.31" },
+    { name = "imageio", marker = "extra == 'viz'", specifier = ">=2.31" },
     { name = "imageio-ffmpeg", marker = "extra == 'manim'", specifier = ">=0.4.9" },
     { name = "interpax", marker = "extra == 'design'", specifier = ">=0.3.14,<0.4.0" },
     { name = "jax", specifier = ">=0.10.0,<0.11.0" },
@@ -2545,9 +2542,6 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.0" },
 ]
 provides-extras = ["dev", "viz", "solver", "manim", "docs", "bench", "interop", "einfields", "design"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.1.1" }]
 
 [[package]]
 name = "watchdog"

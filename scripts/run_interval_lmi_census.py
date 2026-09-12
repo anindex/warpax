@@ -218,7 +218,7 @@ def write_table(results: dict, sampling: dict, out_path: str) -> None:
     lines = [
         r"\begin{tabular}{@{}l l rrr r@{}}",
         r"  \toprule",
-        r"  Construction & condition & certified & certified & refused"
+        r"  Construction & condition & certified & certified & inconclusive"
         r" & deepest \\",
         r"   &  & violated & satisfied &  & upper \\",
         r"  \midrule",
@@ -253,7 +253,7 @@ NOTE = (
     "point is a rigorous statement about the spacetime at that point, obtained "
     "without any Hawking-Ellis type, eigendecomposition, classification tolerance "
     "or rapidity cap; the table is a statement about this finite set of points and "
-    "not about the continuum. 'Refused' is the interval method declining to decide "
+    "not about the continuum. 'Inconclusive' is an unresolved interval verdict "
     "and is not evidence that the condition holds. The continuum statement for the "
     "null condition is the branch-and-bound bracket of results/enclosures.json."
 )

@@ -2,11 +2,117 @@
   "params": {
     "v_s": 0.5,
     "N": 60,
-    "note": "matched family R_b=1 sigma=8; Rodal native R=100 sigma=0.03. eig_iv_delta_nonneg = eig Type-IV but Delta>=0 (off-momentum-plane channel: VdB conformal, Natario vortical). Wall = shape function in [0.1,0.9]; full-grid delta_only is dominated by Type-I NEC-violating far field (Delta<0 is a NEC-violation witness, broader than Type IV)."
+    "evaluation_time": 0.0,
+    "grid": {
+      "kind": "wall_clustered",
+      "shape": [
+        60,
+        60,
+        60
+      ],
+      "a": 1.2
+    },
+    "weighting": "unweighted point counts",
+    "wall_band": [
+      0.1,
+      0.9
+    ],
+    "units": "G=c=1; profile length units; sigma in inverse profile length units",
+    "metrics": {
+      "Alcubierre": {
+        "params": {
+          "v_s": 0.5,
+          "R": 1.0,
+          "sigma": 8.0
+        },
+        "bounds": [
+          [
+            -3.0,
+            3.0
+          ],
+          [
+            -3.0,
+            3.0
+          ],
+          [
+            -3.0,
+            3.0
+          ]
+        ]
+      },
+      "Natário": {
+        "params": {
+          "v_s": 0.5,
+          "R": 1.0,
+          "sigma": 8.0
+        },
+        "bounds": [
+          [
+            -3.0,
+            3.0
+          ],
+          [
+            -3.0,
+            3.0
+          ],
+          [
+            -3.0,
+            3.0
+          ]
+        ]
+      },
+      "Van den Broeck": {
+        "params": {
+          "v_s": 0.5,
+          "R": 1.0,
+          "sigma": 8.0,
+          "R_tilde": 1.0,
+          "alpha_vdb": 0.5,
+          "sigma_B": 8.0
+        },
+        "bounds": [
+          [
+            -3.0,
+            3.0
+          ],
+          [
+            -3.0,
+            3.0
+          ],
+          [
+            -3.0,
+            3.0
+          ]
+        ]
+      },
+      "Rodal": {
+        "params": {
+          "v_s": 0.5,
+          "R": 100.0,
+          "sigma": 0.03
+        },
+        "bounds": [
+          [
+            -300.0,
+            300.0
+          ],
+          [
+            -300.0,
+            300.0
+          ],
+          [
+            -300.0,
+            300.0
+          ]
+        ]
+      }
+    },
+    "splitting_checked": false,
+    "note": "This separate count comparison uses R=1, sigma=8 for Alcubierre, Natario and Van den Broeck, and native R=100, sigma=0.03 for Rodal. n_delta_typeIV is a legacy field name for the count with Delta<0; it is not an independent Type-IV classification. eig_iv_delta_nonneg counts eigensolver Type-IV labels with Delta>=0; delta_only counts Delta<0 points without that label. The comparison does not test the principal-axis splitting premise or establish the cause of a disagreement. The median imaginary magnitude is a numerical diagnostic, not a type certificate."
   },
   "order": [
     "Alcubierre",
-    "Nat\u00e1rio",
+    "Natário",
     "Van den Broeck",
     "Rodal"
   ],
@@ -35,28 +141,28 @@
         "exc_median_abs_imag": 0.01896153132795777
       }
     },
-    "Nat\u00e1rio": {
+    "Natário": {
       "full_grid": {
         "n_points": 216000,
-        "n_eig_typeIV": 215720,
-        "n_delta_typeIV": 215320,
-        "agreement_rate": 0.9981481481481481,
-        "n_active": 215720,
-        "agreement_rate_active": 0.9981457444835898,
-        "eig_iv_delta_nonneg": 400,
-        "delta_only": 0,
-        "exc_median_abs_imag": 0.07151964912546427
+        "n_eig_typeIV": 212312,
+        "n_delta_typeIV": 212224,
+        "agreement_rate": 0.997,
+        "n_active": 212592,
+        "agreement_rate_active": 0.9969519078798826,
+        "eig_iv_delta_nonneg": 368,
+        "delta_only": 280,
+        "exc_median_abs_imag": 0.07870187160199656
       },
       "wall": {
         "n_points": 3160,
-        "n_eig_typeIV": 2880,
-        "n_delta_typeIV": 2480,
-        "agreement_rate": 0.8734177215189873,
-        "n_active": 2880,
-        "agreement_rate_active": 0.8611111111111112,
-        "eig_iv_delta_nonneg": 400,
+        "n_eig_typeIV": 2704,
+        "n_delta_typeIV": 2336,
+        "agreement_rate": 0.8835443037974684,
+        "n_active": 2704,
+        "agreement_rate_active": 0.863905325443787,
+        "eig_iv_delta_nonneg": 368,
         "delta_only": 0,
-        "exc_median_abs_imag": 0.07151964912546427
+        "exc_median_abs_imag": 0.07870187160199656
       }
     },
     "Van den Broeck": {

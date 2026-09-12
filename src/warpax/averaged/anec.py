@@ -94,9 +94,9 @@ def _tangent_renormalized_null(
 ) -> Float[Array, "4"]:
     """Identity rescale guarded against ``u[0] = 0`` division.
 
-    Historical misnomer: this does **not** project onto the null cone -
-    use ``tangent_norm='null_projected'`` for that. The integrand
-    ``T_{ab} k^a k^b`` is evaluated on the unprojected tangent.
+    This rescaling preserves the tangent direction. Use
+    ``tangent_norm='null_projected'`` to project onto the null cone.
+    The integrand ``T_{ab} k^a k^b`` is evaluated on the unprojected tangent.
     """
     scale = jnp.abs(u[0]) + 1e-30
     return u / scale * jnp.abs(u[0])

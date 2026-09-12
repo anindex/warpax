@@ -1,42 +1,19 @@
-"""Frame-independent, all-velocity energy-condition certification.
+"""Energy-condition margins without an observer rapidity cap.
 
-Energy conditions are decided from the eigenstructure of the mixed stress-energy
-tensor ``T^a_b`` (Hawking & Ellis 1973; Santiago, Schuster & Visser 2021;
-Martin-Moruno & Visser 2017), using only boost-invariant eigenvalues and no
-preferred observer, so the decision holds at all warp velocities including
-v_s >= 1.
+Well-conditioned Type-I points use the necessary and sufficient eigenvalue
+inequalities on ``(rho, p_i)``. Other points, including Type-I points with an
+ill-conditioned eigenbasis, use the numerical linear matrix inequalities in
+:mod:`.slemma`. Both reductions are exact in mathematics; computed margins are
+subject to floating-point error and the stated tolerances.
 
-The Eulerian normal ``n^a = (1/alpha)(partial_t - beta^i partial_i)`` is unit
-timelike at every speed: for a unit-lapse flat-slice drive ``alpha = 1`` and
-``g^{00} = -1`` never crosses zero. Only the coordinate-stationary observer
-``partial_t`` (normalized by ``sqrt(-g_00)``) loses timelike character at
-``v_s f -> 1``; this certification never requires ``partial_t`` to be timelike.
+The LMI uses an Eulerian orthonormal tetrad. It requires a Lorentzian metric
+with spacelike coordinate slices, not a timelike coordinate-time direction.
+The slice normal remains timelike at any warp speed under these hypotheses.
 
-Each Hawking-Ellis type is decided exactly, with no rapidity cap and no optimizer:
-
-- Type I (rest frame exists): the eigenvalue inequalities on ``(rho, p_i)`` are
-  necessary and sufficient (see :mod:`.eigenvalue_checks`).
-- Type III and IV (no rest frame): NEC is violated unconditionally, hence so are
-  WEC/SEC/DEC (Martin-Moruno & Visser 2017). When the complex pair is
-  momentum-sourced the Eulerian null vector ``k = n +/- jhat`` witnesses it in
-  closed form, ``T_ab k^a k^b = rho + S_par - 2|j| < 0``, which holds when
-  ``Delta = (rho + S_par)^2 - 4|j|^2 < 0``; that explicit null vector is kept as
-  the margin because it is checkable by hand. A conformal Type-IV pair can leave
-  the momentum witness >= 0, and there the margin comes from :mod:`.slemma` rather
-  than from a sentinel, so the unconditional-violation theorem stays a *test* of
-  the pipeline instead of an assumption inside it. See
-  :func:`eulerian_null_witness` and :func:`_exact_margins`.
-- Type II (null eigenvector): *no* single null contraction decides any condition
-  here, the NEC included. The Eulerian witness ``k = n +/- jhat`` probes the
-  momentum plane only, and a Type-II violation can sit entirely in the transverse
-  channel: for the canonical block ``(mu, f, p_2, p_3) = (0, 1, -2, 0)`` the
-  witness is exactly zero while ``k = (1, 0, 1, 0)`` gives ``T_ab k^a k^b = -1``
-  and the true null-cone minimum is ``-4/3``. All four conditions are therefore
-  decided by :mod:`.slemma`, whose 4x4 linear matrix inequality quantifies over
-  every observer at every algebraic type.
-
-The rapidity-capped optimizer in :mod:`.optimization` is a severity display off
-Type I, not the certification path.
+Type-I eigenvalue slacks and Eulerian LMI margins have different normalizations.
+Their signs test the same conditions, but their magnitudes cannot be compared
+as a single observer-independent severity. The momentum-direction contraction
+is a separate, sufficient NEC violation diagnostic when momentum is nonzero.
 """
 
 from __future__ import annotations
@@ -59,21 +36,22 @@ def eulerian_null_witness(
     g_ab: Float[Array, "4 4"],
     g_inv: Float[Array, "4 4"],
 ) -> Float[Array, ""]:
-    """Cap-free NEC witness along the Eulerian momentum direction.
+    """Evaluate the NEC contraction along the Eulerian momentum direction.
 
-    Decomposes ``T`` in the Eulerian frame ``{n, e_i}`` into energy density
-    ``rho``, momentum density ``j^i`` and spatial stress ``S``, then evaluates
-    the null contraction ``T_ab k^a k^b`` for ``k = n +/- jhat`` (an exactly null
-    vector, no rapidity), minimizing over the sign:
+    For nonzero momentum ``j``, the two null vectors ``k = n +/- jhat`` have
+    ``-g(k, n) = 1``. The smaller contraction is
 
         witness = rho + S(jhat, jhat) - 2 |j|.
 
-    For a Type-III/IV point the momentum-density discriminant
-    ``Delta = (rho + S_par)^2 - 4 |j|^2`` is negative, so ``witness < 0`` and NEC
-    is certified violated with an explicit null vector, the closed-form
-    replacement for the rapidity-capped optimizer at non-Type-I points. For a
-    Type-II point the same contraction decides NEC (can be >= 0). Frame choice
-    only fixes the null normalization; the sign of ``witness`` is invariant.
+    A negative value witnesses NEC failure, subject to numerical error. A
+    nonnegative value does not establish NEC, at any Hawking-Ellis type.
+    The discriminant ``(rho + S_par)^2 - 4 |j|^2 < 0`` is sufficient for a
+    negative witness; it is not a general characterization of Type III or IV.
+    Changing the Eulerian normal can change the direction being tested.
+
+    At exactly zero momentum the implementation returns ``rho`` because
+    ``jhat`` is zero. That fallback is not a null contraction; use
+    :func:`.slemma.null_deficit` for the full normalized null minimum.
     """
     rho, S_par, jmag = eulerian_momentum_frame(T_ab, g_ab, g_inv)
     return rho + S_par - 2.0 * jmag
@@ -86,9 +64,10 @@ def eulerian_momentum_frame(
 ) -> tuple[Float[Array, ""], Float[Array, ""], Float[Array, ""]]:
     """Return ``(rho_n, S_par, |j|)`` in the Eulerian frame.
 
-    ``S_par = S(jhat, jhat)`` along the momentum direction. These are the three
-    quantities the momentum discriminant is built from,
-    ``Delta = (rho_n + S_par)^2 - 4 |j|^2``.
+    For nonzero momentum, ``S_par = S(jhat, jhat)``. The momentum-plane
+    discriminant is ``(rho_n + S_par)^2 - 4 |j|^2``. At zero momentum the
+    implementation sets ``jhat`` and ``S_par`` to zero. The metric must be
+    Lorentzian with spacelike coordinate slices.
     """
     # Eulerian normal n^a: n_a = (-1, 0, 0, 0) up to lapse; n^a = g^{ab} n_b,
     # renormalized to n.n = -1 so the construction is lapse-agnostic.
@@ -102,9 +81,7 @@ def eulerian_momentum_frame(
     j_up = -(proj @ (T_mixed @ n_up))  # spatial momentum density j^a
     j2 = j_up @ (g_ab @ j_up)
     jmag = jnp.sqrt(jnp.clip(j2, min=0.0))
-    # Normalise j by its own largest component first: the direction is
-    # well-defined at any |j|, but dividing by |j| against an absolute floor
-    # collapses jhat, and with it S_par, at small momentum.
+    # Normalize by the largest component first to preserve small nonzero momentum.
     j_scale = jnp.max(jnp.abs(j_up))
     j_unit = j_up / jnp.where(j_scale > 0.0, j_scale, 1.0)
     j2_unit = j_unit @ (g_ab @ j_unit)
@@ -113,11 +90,8 @@ def eulerian_momentum_frame(
     return rho, S_par, jmag
 
 
-# A boosted Type-I tensor keeps he_type = 1 while jnp.linalg.eig returns nearly
-# parallel eigenvectors, and the eigenvalue route then reports a wrong margin as
-# exact: at rapidity 11 an invariant NEC margin of 2.5 comes out 48. The
-# eigenvalue error grows like cond(V)^2 * eps, so 1e5 holds it under ~1e-6
-# relative. Past it the point takes the LMI, which touches no eigenvector.
+# Large boosts can make a Type-I eigenbasis nearly singular. Route such points
+# to the LMI; this cutoff is a conditioning policy, not a rigorous error bound.
 _EVEC_COND_MAX = 1e5
 
 
@@ -128,42 +102,23 @@ def ill_conditioned_eigenbasis(evecs, cond_max: float = _EVEC_COND_MAX):
 
 
 def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi, ill_conditioned=None):
-    """Select cap-free EC margins by Hawking-Ellis type (branchless for vmap).
+    """Select numerical margins by algebraic type and eigenbasis conditioning.
 
-    Type I -> eigenvalue-inequality margins (exact, necessary & sufficient).
+    Well-conditioned Type-I points use eigenvalue-inequality slacks. All
+    other points use :func:`.slemma.certify_point`; the NEC LMI margin is
+    doubled to give the null deficit at Eulerian normalization.
 
-    Type II/III/IV -> all four margins come from :func:`.slemma.certify_point`.
-
-    The NEC margin at every type is the full null deficit ``min_{|s|=1} q(s)``:
-    ``min_i(rho + p_i)`` at Type I and ``2 * lmi["nec"]`` elsewhere. The momentum
-    witness is kept as evidence (an explicit null vector a reader can substitute
-    by hand) but not as the margin, it probes one direction, so it is an upper
-    bound on the deficit, and reporting it where it happened to be negative put
-    three different scales in one array.
-
-    Returning the witness as the Type-II NEC margin was wrong. It probes the
-    momentum plane only, so a violation living in the transverse channel is
-    invisible to it: for ``(mu, f, p_2, p_3) = (0, 1, -2, 0)`` the witness is
-    exactly ``0``, read as satisfied, while ``k = (1, 0, 1, 0)`` gives ``-1``
-    and the null-cone minimum is ``-4/3``. The LMI returns ``-2/3``, correctly
-    negative. (An earlier bug in the same slot returned the witness for WEC/SEC/DEC
-    too, certifying ``mu = -2, f = 1, p_2 = p_3 = 3`` clean at Eulerian energy
-    density ``-1``.)
-
-    Forcing ``-max(imag, 1e-30)`` at Type III/IV was a sentinel, not a decision:
-    Type III has ``imag = 0`` by construction, so every Type-III point was reported
-    violating at ``-1e-30`` whatever its stress-energy. That is true, Type III and
-    IV violate every condition (Martin-Moruno & Visser 2017), but true by fiat, so
-    it could neither be checked nor falsified. The LMI decides them on their own
-    merits, and the theorem then becomes a *test* of the pipeline rather than an
-    assumption baked into it: see ``tests/test_slemma.py``.
+    The Type-I NEC slack ``min_i(rho + p_i)`` uses eigenframe normalization.
+    It agrees with the Eulerian null deficit when the two timelike frames
+    coincide, but generally has a different magnitude. WEC, SEC, and DEC
+    slacks likewise differ from their LMI counterparts. Compare signs with
+    appropriate numerical tolerances, not magnitudes across the two routes.
+    The ``witness`` argument does not determine any returned margin.
     """
     is_I = he_type == 1
     if ill_conditioned is not None:
         is_I = is_I & ~ill_conditioned
-    # 2 * lmi["nec"] is slemma.null_deficit at Eulerian normalisation, equal to nec_I
-    # only in T's own rest frame. The slots are an inequality slack against a worst
-    # contraction, so only the SIGN is comparable; typeI_min_margins exists for that.
+    # The LMI deficit uses Eulerian normalization; nec_I uses the eigenframe.
     nonI_nec = 2.0 * lmi["nec"]
     nec = jnp.where(is_I, nec_I, nonI_nec)
     wec = jnp.where(is_I, wec_I, lmi["wec"])
@@ -180,7 +135,11 @@ def certify_point_frame_free(
     solver: str = "auto",
     tol: float = 1e-10,
 ) -> dict:
-    """Frame-independent EC certification at a single spacetime point.
+    """Compute cap-free energy-condition margins at one spacetime point.
+
+    The metric must have Lorentzian signature and spacelike coordinate slices.
+    Marginal values require numerical error assessment; this function does not
+    produce exact rational certificates.
 
     Parameters
     ----------
@@ -193,14 +152,15 @@ def certify_point_frame_free(
     solver : {"auto", "standard", "generalized"}
         Eigenvalue backend (see :func:`.classification.classify_with_solver`).
     tol : float
-        Classification tolerance.
+        Classification tolerance, not an energy-condition error bound.
 
     Returns
     -------
     dict
-        ``he_type`` (1-4), ``rho``, ``pressures`` (NaN if non-Type-I),
-        ``nec``/``wec``/``sec``/``dec`` margins (from the LMI if non-Type-I),
-        ``eigenvalues``, ``eigenvalues_imag``, ``is_vacuum``.
+        ``he_type`` (1-4), ``rho``, ``pressures``, ``eigenvalues``,
+        ``eigenvalues_imag``, ``is_vacuum``, and ``nec``/``wec``/``sec``/``dec``
+        margins. Margins use the LMI for non-Type-I points or ill-conditioned
+        eigenbases. Rest-frame quantities are meaningful only at Type I.
     """
     if g_inv is None:
         g_inv = jnp.linalg.inv(g_ab)
@@ -241,35 +201,35 @@ def certify_grid_frame_free(
     tol: float = 1e-10,
     lmi_where: Float[Array, "..."] | None = None,
 ) -> FrameFreeGridResult:
-    """Frame-independent EC certification across an evaluation grid.
+    """Compute cap-free energy-condition margins across an evaluation grid.
 
-    Reuses :func:`._classify_grid_batch` (standard ``jnp.linalg.eig`` with an
-    automatic generalized-pencil fallback on near-degenerate points) and
-    :func:`.eigenvalue_checks.check_all`. No optimizer, no Eulerian normal, no
-    timelike tetrad: valid at all velocities.
+    Uses eigenvalue inequalities at well-conditioned Type-I points and the
+    Eulerian tetrad LMI elsewhere. The metric must have Lorentzian signature
+    and spacelike coordinate slices. See :func:`_exact_margins` for the
+    normalization of each route.
 
     Parameters
     ----------
     T_field : Float[Array, "... 4 4"]
-        Covariant stress-energy on a grid; leading dims are the grid shape.
+        Covariant stress-energy on a grid; leading dimensions are the grid shape.
     g_field, g_inv_field : Float[Array, "... 4 4"]
-        Covariant and (optional) inverse metric on the same grid.
+        Covariant and optional inverse metric on the same grid.
     solver : {"auto", "standard", "generalized"}
         Eigenvalue backend.
     tol : float
-        Classification tolerance.
+        Classification tolerance, not an energy-condition error bound.
     lmi_where : Float[Array, "..."] | None
-        Boolean mask of points whose margins the caller will actually read. The
-        LMI, the whole cost of this function, is then evaluated only on the
-        non-Type-I points inside it, and non-Type-I points outside it get NaN
-        margins rather than a number nobody asked for. Pass the wall mask when
-        only wall-restricted statistics are consumed: a wall band is ~1% of a
-        bubble grid against the ~80% that is non-Type-I. ``None`` (default)
-        computes everything, which is what a grid-wide consumer needs.
+        Boolean mask restricting LMI evaluation. Non-Type-I points and
+        ill-conditioned Type-I points outside the mask receive NaN margins.
+        Well-conditioned Type-I margins are computed everywhere. ``None``
+        evaluates every required LMI.
 
     Returns
     -------
     FrameFreeGridResult
+        Grid margins, type counts, and diagnostics. ``nec_noise_floor`` uses
+        the scale of the returned NEC margins, twice the underlying LMI
+        floor. ``lmi_substituted`` marks ill-conditioned eigenbases.
     """
     grid_shape = T_field.shape[:-2]
     flat_T = jnp.reshape(T_field, (-1, 4, 4))
@@ -285,9 +245,7 @@ def certify_grid_frame_free(
     witness = jax.vmap(eulerian_null_witness)(flat_T, flat_g, flat_ginv)
 
     he = np.asarray(cls.he_type)
-    # The LMI decides every non-Type-I point and only those. At ~0.95 ms/point against
-    # ~5 us for the classification, running it everywhere costs ~16 min per 1e6 points,
-    # so gather the ones that read the slot, run it there, and scatter back.
+    # Evaluate the costlier LMI only where eigenvalue margins are unavailable.
     ill = np.asarray(jax.vmap(ill_conditioned_eigenbasis)(cls.eigenvectors))
     wanted = (he != 1) | ill
     if lmi_where is not None:
@@ -301,9 +259,7 @@ def certify_grid_frame_free(
     else:
         lmi = {"nec": unused, "wec": unused, "sec": unused, "dec": unused}
     if lmi_where is not None:
-        # A non-Type-I point the caller excluded has no verdict, and NaN is the
-        # sentinel every consumer already treats as one. Zero would read as a
-        # satisfied condition.
+        # Excluded points needing the LMI have no computed margin.
         nan = jnp.full_like(unused, jnp.nan)
         skipped = jnp.asarray(((he != 1) | ill) & ~wanted)
         lmi = {k: jnp.where(skipped, nan, v) for k, v in lmi.items()}
@@ -326,10 +282,9 @@ def certify_grid_frame_free(
     def _rs(x, trailing=()):  # reshape flat -> grid
         return jnp.reshape(x, (*grid_shape, *trailing))
 
-    # The LMI margin contract is one-sided: a value between -floor and +floor is
-    # inconclusive, not a verdict. Carry the floor so a consumer can honour it;
-    # thresholding at exactly zero counts saturated points as errors.
-    nec_floor = jax.vmap(lambda T, g: noise_floor(T, g, condition="nec"))(flat_T, flat_g)
+    # Preserve the LMI tolerance for comparisons on both sides of zero.
+    # The routed NEC slot is twice the LMI margin, so its floor has the same scale.
+    nec_floor = 2 * jax.vmap(lambda T, g: noise_floor(T, g, condition="nec"))(flat_T, flat_g)
 
     return FrameFreeGridResult(
         he_types=_rs(cls.he_type),
@@ -394,15 +349,12 @@ def typeI_min_margins(
     result: FrameFreeGridResult,
     mask: Float[Array, "..."] | None = None,
 ) -> dict[str, float]:
-    """Minimum invariant eigenvalue margins over Type-I points (optionally masked).
+    """Minimum eigenvalue-inequality slacks over selected Type-I points.
 
-    These are the cap-free, frame-independent "peak deficit" severities: the most
-    negative value of each eigenvalue inequality slack across Type-I points.
-    Returns NaN for a condition when no Type-I points are selected.
-
-    Type-I points whose eigenbasis was too ill-conditioned to read carry an LMI
-    value in the same slot, which is a different quantity at a different
-    normalisation, so they are excluded here.
+    These slacks are invariant under frame changes in exact arithmetic, but
+    are not capped observer minima. Type-I points with ill-conditioned
+    eigenbases carry LMI margins with a different normalization and are
+    excluded. Returns NaN when a condition has no finite selected margin.
     """
     he = np.asarray(result.he_types).ravel()
     sel = np.ones_like(he, dtype=bool) if mask is None else np.asarray(mask).ravel().astype(bool)

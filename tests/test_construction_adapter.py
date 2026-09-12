@@ -105,3 +105,66 @@ def test_axisymmetric_center_shifts_only_the_axis():
     for col in (0, 2, 3):
         np.testing.assert_array_equal(np.asarray(b.coords)[:, col], np.asarray(a.coords)[:, col])
     np.testing.assert_array_equal(b.weights, a.weights)
+
+
+def test_garattini_miss_denominators_use_known_type_i_despite_mislabels(monkeypatch):
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
+    import run_construction_verification as run
+
+    from warpax.analysis import invariant_verification
+
+    metric = SimpleNamespace(H=0.1, shape_function_value=lambda point: point[1])
+    spec = SimpleNamespace(
+        metric=lambda: metric,
+        center_of=lambda _: 1.0,
+        r_max=3.0,
+        wall_radius=1.0,
+        cluster_a=1.2,
+        name="Garattini",
+        default_speed=0.1,
+        speed_param="v_s",
+        params={"r_0": 1.0},
+        claim="test",
+    )
+    grid = SimpleNamespace(
+        r=np.array([0.1, 1.0]),
+        coords=jnp.array([[0, 0.5, 0, 0], [0, 0.5, 0, 0], [0, 0.95, 0, 0]]),
+        weights=np.array([1.0, 2.0, 4.0]),
+    )
+    eta = jnp.broadcast_to(jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0])), (3, 4, 4))
+    stress = jnp.stack(
+        [
+            jnp.diag(jnp.array(values))
+            for values in ([1.0, -2.0, 0.0, 0.0], [-1.0, 0.0, 0.0, 0.0], [1.0, -2.0, 0.0, 0.0])
+        ]
+    )
+    monkeypatch.setattr(run, "axisymmetric_grid", lambda *a, **kw: grid)
+    monkeypatch.setattr(run, "wall_cells_on_axis", lambda *a: SimpleNamespace(cells=10, width=0.2))
+    monkeypatch.setattr(
+        run,
+        "evaluate_curvature_points",
+        lambda *a, **kw: SimpleNamespace(stress_energy=stress, metric=eta, metric_inv=eta),
+    )
+    monkeypatch.setattr(run, "proper_volume_weights", lambda weights, _: weights)
+    labels = SimpleNamespace(
+        he_types=np.array([2.0, 1.0, 2.0]),
+        is_vacuum=np.zeros(3),
+        **{f"{condition}_margins": np.full(3, -1.0) for condition in ("nec", "wec", "sec", "dec")},
+    )
+    monkeypatch.setattr(run, "certify_grid_frame_free", lambda *a, **kw: labels)
+    monkeypatch.setattr(invariant_verification, "certify_grid_frame_free", lambda *a, **kw: labels)
+
+    row = run.verify_one(spec, 3, 1)
+    assert row["frac_type_i"] == 1.0 and row["frac_type_ii"] == 0.0
+    assert row["numerical_type_labels"]["2"] == pytest.approx(1 / 3)
+    assert row["invariant_nec_min"] == -1.0
+    for condition in ("nec", "wec", "dec"):
+        assert row[f"n_violated_{condition}"] == 2
+    assert row["miss_nec_pct"] == 0.0
+    assert row["miss_wec_pct"] == pytest.approx(100 / 3)
+    assert row["miss_dec_pct"] == pytest.approx(100 / 3)

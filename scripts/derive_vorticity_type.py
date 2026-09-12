@@ -92,8 +92,12 @@ class _RotationShift(ADMMetric):
 
     def symbolic(self):
         t, x, y, z = sp.symbols("t x y z")
+        env = sp.exp(-(x * x + y * y + z * z) / (2 * self.w * self.w))
+        beta = sp.Matrix([-self.c * y * env, self.c * x * env, 0])
         g = sp.eye(4)
-        g[0, 0] = -1
+        g[0, 0] = -1 + beta.dot(beta)
+        g[0, 1:4] = beta.T
+        g[1:4, 0] = beta
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self):
@@ -113,7 +117,7 @@ def _kinematics_and_imag(metric, point) -> tuple[float, float, float, float, int
 
 
 def controlled_family() -> dict:
-    """Pure-rotation sweep: demonstrate f = kappa * omega, type flip at omega>0."""
+    """Fit the imaginary eigenvalue of the sampled localized-rotation family."""
     point = jnp.array([0.0, 0.5, 0.5, 0.0])
     omegas, imags, types = [], [], []
     c_values = [0.0, 0.025, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4]
@@ -125,6 +129,10 @@ def controlled_family() -> dict:
     nz = np.array(omegas) > 0
     fit = fit_kappa(np.array(omegas)[nz], np.array(imags)[nz])
     return {
+        "profile": "beta=c*(-y,x,0)*exp(-(x*x+y*y+z*z)/(2*w*w))",
+        "point": [0.0, 0.5, 0.5, 0.0],
+        "w": 1.0,
+        "fit_status": "empirical through-origin fit over the sampled c values",
         "c_values": c_values,
         "omega": omegas,
         "imag": imags,
@@ -311,13 +319,10 @@ def main():
         "controlled_family": controlled,
         "cross_metric": cross,
         "summary": (
-            "f = kappa * omega established on a controlled pure-rotation shift "
-            "(R^2 ~ 1, type flips I->IV at omega>0); irrotational Rodal is "
-            "Type I with Im ~ 0, vortical drives are Type IV with Im tracking "
-            "kappa * omega; the pure-rotation slope under-predicts the "
-            "full-metric Im (x2-x32), increasing with the shear-to-vorticity "
-            "ratio at the sample point (shear amplifies the pair that "
-            "vorticity opens)."
+            "The slope is an empirical fit for the specified localized-rotation "
+            "profile and point. Cross-metric samples report their own tensor "
+            "spectrum and momentum discriminant; no universal slope or causal "
+            "inference from vorticity alone is established."
         ),
     }
     out_path = os.path.join(RESULTS_DIR, "vorticity_type_analytic.json")

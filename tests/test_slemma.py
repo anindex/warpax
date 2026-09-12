@@ -84,8 +84,8 @@ def _type_ii_canonical(mu, f, p2, p3):
     )
 
 
-def _type_iv_b2(f=1.3, c=0.4):
-    """The referee's own B2 counterexample: eigenvalues +-i f and a double c."""
+def _type_iv_zero_discriminant(f=1.3, c=0.4):
+    """Type-IV tensor with eigenvalues +-i f and a double c."""
     Tm = np.array([[0.0, f, 0.0, 0.0], [-f, 0.0, 0.0, 0.0], [0.0, 0.0, c, 0.0], [0.0, 0.0, 0.0, c]])
     return ETA @ Tm
 
@@ -101,7 +101,7 @@ CASES = {
     "II-violating": _type_ii_canonical(-2.0, 1.0, 3.0, 3.0),
     "II-transverse-violating": _type_ii_canonical(0.0, 1.0, -2.0, 0.0),
     "III": _type_iii(),
-    "IV-B2": _type_iv_b2(),
+    "IV-zero-discriminant": _type_iv_zero_discriminant(),
     "IV-momentum": _sym(
         np.array(
             [[0.1, 2.0, 0.0, 0.0], [2.0, 0.1, 0.0, 0.0], [0.0, 0.0, 0.1, 0.0], [0.0, 0.0, 0.0, 0.1]]
@@ -130,7 +130,7 @@ EXPECTED_TYPE = {
     "II-violating": 2,
     "II-transverse-violating": 2,
     "III": 3,
-    "IV-B2": 4,
+    "IV-zero-discriminant": 4,
     "IV-momentum": 4,
 }
 
@@ -304,9 +304,6 @@ def test_agrees_in_sign_with_eigenvalue_margins_at_type_i():
         assert disagree.size == 0, (
             f"{key}: LMI and eigenvalue verdicts differ at rho={rho[disagree]} p={p[disagree]}"
         )
-
-
-# --- regressions for the three defects found in the R2 audit ------------------
 
 
 @pytest.mark.parametrize(
@@ -495,13 +492,8 @@ def test_exact_vacuum_returns_exactly_zero():
         assert float(v) == 0.0, f"{k} = {float(v):g}"
 
 
-# --------------------------------------------------------------------------
-# The referee's Type-II locus (report item B1).
-# --------------------------------------------------------------------------
-
-
 def test_lmi_is_continuous_through_the_type_ii_locus():
-    """Item B1's counterexample is the zero of the LMI margin, not a hole in it.
+    """The LMI margin is continuous through a Type-II point.
 
     For the momentum block ``A = [[-rho, j], [-j, S_par]]`` the discriminant
     ``Delta = (rho + S_par)^2 - 4 j^2`` vanishes with ``j != 0`` at a Hawking-Ellis

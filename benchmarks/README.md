@@ -1,25 +1,10 @@
 # warpax asv benchmarks
 
-This top-level `benchmarks/` directory hosts the
-[airspeed velocity (`asv`)](https://asv.readthedocs.io) regression harness.
-It tracks commit-to-commit performance deltas across the 13 benchmarks
-defined below.
+The [airspeed velocity](https://asv.readthedocs.io) harness measures performance
+across commits. It is separate from `src/warpax/benchmarks/`, the public module
+containing Minkowski, Schwarzschild, and Alcubierre reference metrics.
 
-## Naming collision
-
-There are **two unrelated things named "benchmarks"** in this repo:
-
-| Location | Type | Purpose |
-|----------|------|---------|
-| `benchmarks/` (this directory) | asv perf harness | Regression benchmarks |
-| `src/warpax/benchmarks/` | Python module | Reference spacetimes (Alcubierre, Schwarzschild, Minkowski) |
-
-The `warpax.benchmarks` module is pinned by the v0.1.0 public API
-surface so renaming it would break downstream consumers. The top-level
-`benchmarks/` directory follows the SciPy / NumPy / Astropy convention
-for asv harnesses.
-
-## The 13 benchmarks
+## Benchmark catalog
 
 | # | File | Class | Coverage |
 |---|------|-------|----------|
@@ -37,34 +22,29 @@ for asv harnesses.
 | 12 | `bench_auto_chunk.py` | `AutoChunkMemoryEnvelope` | Full-vmap vs chunked memory envelope |
 | 13 | `bench_jit_cache.py` | `JITCacheColdVsWarm` | Persistent JIT cache cold vs warm |
 
-## How to run
-
-### Quick (local development)
+## Run
 
 ```bash
 make bench          # asv run --quick --show-stderr (single timing per bench)
 make bench-compare  # asv compare HEAD~1 HEAD (per-commit deltas)
 ```
 
-### Full history
+To compare a longer history:
 
 ```bash
-asv run v1.0.0..HEAD  # time every commit since v1.0.0
+asv run v1.0.0..HEAD  # historical range; choose the tags of interest
 asv publish           # HTML report at .asv/html/
 asv preview           # local web server for exploring results
 ```
 
 ## Noise budget
 
-`regressions_thresholds.default = 0.20` in `asv.conf.json`, so deltas under
-20% are tolerated. This is a single-CPU harness and CI runners have +/-10%
-variance on tight kernels, so the budget covers noise without masking drift.
+`asv.conf.json` uses a 20% regression threshold. Shared-runner timing noise can
+be substantial; confirm regressions on the same hardware and environment.
 
 ## JAX platform
 
-`JAX_PLATFORMS=cpu` is set at the top of every `bench_*.py` module for
-CPU canonical reproduction. The CUDA matrix axis is documented but not
-yet enabled.
+The benchmark modules select `JAX_PLATFORMS=cpu`; CUDA is not in the matrix.
 
 ## Matrix
 

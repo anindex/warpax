@@ -1,203 +1,128 @@
-# Interpreting Energy Condition Results
+# Interpreting energy-condition results
 
-A reference for reading warpax output: margin signs, Hawking-Ellis types,
-miss-rate definitions, wall-restricted diagnostics, and when to trust a
-number.
+A margin is meaningful only with its method, frame, normalization, and tolerance.
+A negative contraction gives a violating observer. A positive result from a
+finite search does not establish satisfaction for every observer.
 
-## Margin sign convention
+## Choose the right result
 
-Every EC margin returned by warpax is **signed**:
+| API or diagnostic | Meaning |
+|---|---|
+| `energy_conditions.slemma.certify_point` | All-observer LMI test for each condition, with a numerical noise floor |
+| `warpax.certify`, `frame_free` | Cap-free classification/eigenvalue route with LMI tests at non-Type-I or ill-conditioned points |
+| Type-I eigenvalue slack | Rest-frame inequality such as `min_i(rho + p_i)` |
+| `verify_point`, `verify_grid` | Type-I slacks plus bounded-rapidity optimizer diagnostics; non-Type-I values come from the search |
+| Eulerian contraction | A diagnostic relative to the unit slice normal |
+| Rational certificate | Exact sufficient evidence for the supplied tensor entries, when construction succeeds |
+| Interval enclosure | Bound including the uncertainty covered by the specified interval calculation |
 
-- **Margin > 0**, energy condition satisfied at this observer and point
-- **Margin = 0**, on the violation boundary
-- **Margin < 0**, energy condition violated. The magnitude indicates how
-  deep the violation is in stress-energy units.
+The sign of an all-observer energy condition is frame independent. Its LMI
+margin, a normalized null contraction, and a capped-search minimum generally
+have different magnitudes. In particular, an eigenframe Type-I slack cannot be
+compared numerically with an Eulerian contraction as a universal severity scale.
+A reliable search on the same objective and domain can improve an Eulerian
+candidate, but generic optimizer outputs do not carry a guaranteed ordering.
 
-The robust margin is the minimum over a continuous observer search
-(rapidity-capped BFGS via Optimistix). The Eulerian margin uses only the
-ADM normal observer. By construction:
+`ECPointResult` contains margins, observer parameters, and the algebraic type.
+`ECGridResult` adds per-condition summaries and optional convergence arrays.
+`WallRestrictedStats` summarizes a supplied mask.
 
-    robust_margin <= eulerian_margin
+## Hawking-Ellis classification
 
-at every point. When the inequality is strict the robust analysis has
-found a boosted observer that the Eulerian-only pipeline would miss.
+| `he_type` | Structure |
+|---|---|
+| 1 | Real diagonal form with one timelike and three spacelike eigenvectors |
+| 2 | Null Jordan block of size 2 |
+| 3 | Null Jordan block of size 3 |
+| 4 | Complex-conjugate eigenvalue pair; no timelike rest frame |
 
-The structured result types are defined in
-`warpax.energy_conditions.types`:
+Type I permits eigenvalue inequalities. LMI tests cover every type, so Type IV
+does not require observer optimization to decide the energy conditions.
+Near-degenerate floating-point eigenvectors can give unreliable labels.
 
-- `ECPointResult`, single-point result: four margins, worst observer,
-  worst `(zeta, theta, phi)` parameters, and Hawking-Ellis type.
-- `ECGridResult`, grid-level result: per-point margins, per-condition
-  `ECSummary` (`fraction_violated`, `max_violation`, `min_margin`), and
-  optional optimizer-convergence diagnostics.
-- `WallRestrictedStats`, post-hoc stats object for the wall-filtered
-  subset (see below).
+`solver="auto"` starts with the standard eigensolver and falls back to a
+generalized pencil solve when needed and when `warpax[solver]` is installed.
+Use `solver="generalized"` to force that route or `solver="standard"` for the
+pure-JAX route. Check ambiguous labels with conditioning and precision tests.
+The matched Garattini-Zatrimaylov construction has an exact Type-I reduction;
+its construction panel uses that reduction in masks and denominators.
 
-## Hawking-Ellis Type I-IV
+## Miss rates and units
 
-At each grid point, warpax classifies the stress-energy tensor `T^a_b` by
-the algebraic structure of its eigenvalues:
+For a stated tolerance, mask, and reference verification method:
 
-### Eigenvalue solver (`solver='auto'`)
+$$
+f_{\rm miss}=\frac{N(\text{Eulerian satisfied, reference violated})}{N(\text{all points})},
+\qquad
+f_{{\rm miss}|{\rm viol}}=
+\frac{N(\text{Eulerian satisfied, reference violated})}{N(\text{reference violated})}.
+$$
 
-By default, `verify_point` and `verify_grid` use `solver='auto'`: a fast
-standard eigen-decomposition of `T^a_b`, with automatic fallback to the
-generalized pencil solve `(T - λ g) v = 0` (requires `warpax[solver]`) when
-eigenvalues are ill-conditioned. WarpShell and other near-degenerate
-metrics can spuriously classify as Type IV under the standard path; auto
-mode reclassifies those points before margin computation.
+The unconditional rate is diluted by points outside the active wall. The
+conditional rate measures the fraction of detected violations missed by the
+Eulerian test. An optimizer-based reference includes only violations it found.
 
-Use `solver='generalized'` to force the pencil solve everywhere, or
-`solver='standard'` for a pure-JAX path when you know the metric is well
-conditioned.
+| Result | Range | Formatting |
+|---|---|---|
+| `ComparisonResult.pct_missed`, `conditional_miss_rate`, `pct_violated_robust` | Percent, `[0,100]` | `:.1f}%` |
+| `WallRestrictedStats.*_miss_rate` | Fraction, `[0,1]`, or `None` when there are no violations | `:.1%` after checking for `None` |
 
-- **Type I**, diagonalizable with four real eigenvalues (one timelike,
-  three spacelike). The generic case; algebraic EC checks suffice.
-- **Type II**, defective 2x2 null Jordan block, degenerate eigenvalue.
-  Corresponds to pure radiation. Requires null-direction optimization for
-  NEC.
-- **Type III**, 3x3 null Jordan structure. Very rare in practice.
-- **Type IV**, complex eigenvalue pair (no real timelike eigenvector).
-  Requires full continuous observer optimization; cannot be reduced to an
-  algebraic check.
+State whether statistics count points or use proper-volume weights. A missed
+sample does not provide a lower bound on the continuum violation fraction.
 
-Warp walls often produce Type IV points where only the optimizer finds the
-worst violation.
+## Wall-restricted statistics
 
-See `warpax.energy_conditions.classification.classify_hawking_ellis` for
-the classifier. The `he_type` field on `ECPointResult` and the
-`he_types` grid on `ECGridResult` encode the type as an integer
-(1=Type I, 2=Type II, 3=Type III, 4=Type IV).
-
-## `f_miss` vs `f_miss|viol`
-
-Two different "how much does Eulerian miss?" metrics:
-
-- **Unconditional miss rate**
-  `f_miss = # {Eulerian-satisfied and robust-violated} / # {all points}`.
-  Low `f_miss` can mean "warp geometry is benign" OR "most of the grid is
-  vacuum where both analyses agree". Typically dominated by vacuum
-  dilution.
-
-- **Conditional miss rate**
-  `f_miss|viol = # {Eulerian-satisfied and robust-violated} / # {robust-violated}`.
-  Normalized by the violation set; tells you what fraction of real
-  violations the Eulerian analysis would have reported as "satisfied".
-
-Report both rates. `compare_eulerian_vs_robust` returns `pct_missed`
-(the unconditional rate) and `conditional_miss_rate` (the conditional
-rate). `compute_wall_restricted_stats` returns `nec_miss_rate`,
-`wec_miss_rate`, `sec_miss_rate`, and `dec_miss_rate`: wall-conditional
-miss rates, the wall-restricted analogue of `f_miss|viol`.
-
-Note that the two carry different units. Everything on `ComparisonResult`
-is a percentage on `[0, 100]`, so format it with `:.1f}%`. The
-wall-restricted rates are fractions on `[0, 1]`, so format them with
-`:.1%`, and they are `None` rather than `0.0` when the wall holds no
-violated point at all.
-
-## Wall-restricted vs full-grid
-
-Full-grid statistics average violation fractions across vacuum regions
-(where no warp geometry exists) and wall regions (where the warp field
-lives). This dilutes the signal. Wall-restricted filtering uses the
-shape function to isolate the active region. The call shape, continuing the
-`metric`, `grid`, `coords_batch`, `ec_grid` and `eul_margins` of
-[`custom_metric_tutorial.md`](custom_metric_tutorial.md):
+Continue with the arrays from the [custom metric tutorial](custom_metric_tutorial.md):
 
 ```python
-from warpax.energy_conditions import (
-    shape_function_mask, compute_wall_restricted_stats,
-)
+from warpax.energy_conditions import shape_function_mask, compute_wall_restricted_stats
 
 wall_mask = shape_function_mask(metric, coords_batch, grid.shape,
                                 f_low=0.1, f_high=0.9)
-stats = compute_wall_restricted_stats(ec_grid, wall_mask,
-                                      eulerian_margins=eul_margins)
+stats = compute_wall_restricted_stats(
+    ec_grid, wall_mask, eulerian_margins=comparison.eulerian_margins,
+)
 ```
 
-The default interval `[f_low=0.1, f_high=0.9]` captures the transition
-region where the shape function is neither fully interior (`f = 1`) nor
-fully exterior (`f = 0`).
+The default mask selects `0.1 <= f <= 0.9`. It describes a chosen transition
+region, not a coordinate-independent definition of the wall.
 
-### Worked example: Alcubierre, `v_s=0.5`
+For the Alcubierre `v_s=0.5`, `50^3` example in
+`results/wall_restricted_analysis.json`:
 
-Measured on a 50^3 grid
-(`results/wall_restricted_analysis.json`):
-
-| Statistic | Full grid | Wall-restricted |
-|-------------------|-----------|-----------------|
+| Statistic | Full grid | Wall mask |
+|---|---|---|
 | Grid points | 125000 | 416 |
-| Type I fraction | 84.51% | 0.00% |
-| Type IV fraction | 15.49% | 100.00% |
-| SEC miss rate | 7.19% | 15.38% |
+| Type-I fraction | 84.51% | 0.00% |
+| Type-IV fraction | 15.49% | 100.00% |
+| Reported SEC miss statistic | 7.19% unconditional | 15.38% conditional on wall violations |
 
-Every wall point is Type IV. The full-grid 15.49% is a volume-diluted version
-of the same fact, dividing `19360 / 125000` rather than `416 / 416`: the
-exterior vacuum, which is Type I, is most of the box.
+The last row uses different denominators and should not be read as a like-for-like
+factor-of-two increase. The type fractions describe this sampled grid.
 
-The SEC miss rate doubles on the wall for the same reason.
+`WallRestrictedStats` fields are ordinary Python numbers:
 
-## `WallRestrictedStats` fields
+- `n_total`; `n_type_i`, `n_type_ii`, `n_type_iii`, `n_type_iv`.
+- `frac_type_i`, `frac_type_ii`, `frac_type_iii`, `frac_type_iv`.
+- For each of `nec`, `wec`, `sec`, `dec`: `*_violated`, `*_frac_violated`,
+  and `*_miss_rate`.
 
-Returned by `compute_wall_restricted_stats`. All counts and fractions are
-conditional on the supplied wall mask.
+## Before reporting a result
 
-- `n_type_i`, `n_type_ii`, `n_type_iii`, `n_type_iv`, per-Type counts
-- `frac_type_i`, `frac_type_ii`, `frac_type_iii`, `frac_type_iv`, Type
-  fractions (each in `[0, 1]`)
-- `n_total`, total points inside the wall mask
-- `nec_violated`, `wec_violated`, `sec_violated`, `dec_violated` --
-  per-condition violation counts
-- `nec_frac_violated`, `wec_frac_violated`, `sec_frac_violated`,
-  `dec_frac_violated`, per-condition violation fractions
-- `nec_miss_rate`, `wec_miss_rate`, `sec_miss_rate`, `dec_miss_rate` --
-  wall-conditional miss rates. Each is `None` if no violations exist for
-  that condition in the wall.
+1. Resolve the wall and refine the grid. Low cells-per-wall counts make
+   fractions unreliable; stability of a sampled minimum is not a continuum bound.
+2. Report the convergence method. Richardson extrapolation needs a suitable
+   refinement ladder and fitted order; a small observed spread is a different claim.
+3. Inspect type conditioning, tolerances, and points marked inconclusive.
+4. Check `*_opt_converged` arrays. Nonconverged searches return a best-found
+   value, not a certified optimum.
+5. For null integrals, report endpoints, affine normalization, excluded rays,
+   step refinement, and null-norm drift. Omitted-tail bounds are needed before
+   claiming complete-geodesic ANEC.
 
-All fields are plain Python `int` / `float` / `None` (not JAX arrays) --
-safe for direct printing or JSON serialization.
+Lentz's thin wall is unresolved on the common coarse grid. WarpShell's
+regularized transitions can produce very large curvature; those results concern
+the chosen regularized metric, not an ideal distributional thin shell.
 
-## When to trust a number
-
-Run these checks before reporting a warpax result:
-
-1. **Resolution support.** Is the wall resolved? Table 3 in the paper
-   reports wall-width / `dx` / cells-per-wall-width per metric. If the
-   cells-across-wall count is under 4, the metric is under-resolved and
-   reported fractions are lower bounds.
-2. **Convergence tier.** A result carries **Stability-only** when its
-   minimum margin is stable under refinement but no Richardson
-   extrapolation was run. A result with neither is a single-resolution
-   number and should be reported as such.
-3. **Hawking-Ellis Type distribution.** If more than ~1% Type-II or
-   Type-III at interior grid points, investigate; this usually signals a
-   numerical artifact at a transition zone rather than a physical
-   effect.
-4. **Optimizer convergence.** `ECGridResult` exposes
-   `nec_opt_converged`, `wec_opt_converged`, `sec_opt_converged`,
-   `dec_opt_converged` arrays (1.0 = converged, 0.0 = hit max_steps).
-   Non-converged points return the best-found margin and should be
-   flagged rather than silently accepted.
-
-## Resolution limits: Lentz and WarpShell
-
-Two metrics in the paper carry special caveats:
-
-- **Lentz**, wall is analytically ~44x under-resolved at 50^3 (see
-  `results/lentz_wall_assessment.json`). Note that Lentz is absent from
-  `results/wall_restricted_analysis.json` for that reason: any wall-restricted
-  fraction computed on that grid would be a lower bound, not a point estimate.
-- **WarpShell**, `C^2` quintic Hermite regularization of the
-  thin-shell; curvature scales are extreme (max Kretschmann ~1e34).
-  Results are physically valid for the regularized implementation but
-  should be read as a stress-test of the EC pipeline, not as a claim
-  about an idealized thin-shell spacetime.
-
-## See also
-
-- [`quickstart.md`](../tutorials/quickstart.md), install-to-first-result path
-- [`custom_metric_tutorial.md`](custom_metric_tutorial.md), defining your
-  own metric
-- [`ARCHITECTURE.md`](../explanation/ARCHITECTURE.md), autodiff curvature pipeline
-- The accompanying paper Sections 3-5, methodology paper
+See the [theory](../explanation/theory.md) and
+[reproduction guide](reproduce_observer_robust_paper.md) for the applicable limits.

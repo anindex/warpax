@@ -1,42 +1,24 @@
-# Lentz Wall Resolution Assessment
+# Lentz wall resolution
 
-**Date:** 2026-08-30T20:23:46Z
+Date: 2026-09-12T09:36:23Z. Source: `lentz_wall_assessment.json`.
 
-**Script:** `scripts/run_lentz_wall_assessment.py`
+The tested 50^3 grid on [-300, 300]^3 fails the chosen 4-cell wall-resolution criterion at sigma=8.0. The conclusion applies to this grid and domain.
 
-## Verdict
-
-The Lentz wall is **UNRESOLVABLE** at practical 3D resolution. At sigma=8.0 on a [-300,300]^3 grid with N=50, the wall width (0.274653) is spanned by only 0.0224 grid cells (threshold: 4.0). The grid spacing is 44.6x larger than the wall width.
-
-## Analytical Assessment
-
-| Parameter | Value |
-|-----------|------:|
-| Wall width (10-90%) | 0.274653 |
-| Grid spacing (dx) | 12.2449 |
+| Quantity | Value |
+|---|---:|
+| 10-90% wall width, 2 atanh(0.8)/sigma | 0.274653 |
+| Grid spacing | 12.2449 |
 | Cells across wall | 0.0224 |
-| Resolved (>= 4 cells) | False |
-| Under-resolution ratio | 44.6x |
+| Grid spacing / wall width | 44.58 |
 
-## 1D Radial Cut (N=500, r=[50.0, 150.0])
+The 500-point cut spans r=50 to 150 at (t,x,y,z)=(0,r,0.01,0), v_s=0.5 and R=100. Its sampled maximum absolute Kretschmann scalar is 3.110818e+04 at r=99.90; the sampled maximum stress-tensor Frobenius norm is 4.384302e+00 at r=99.90.
 
-Curvature peaks sharply at the wall (r ~ R=100.0). The Kretschmann scalar peaks at |K|=3.110818e+04 (r=99.90) and the stress-energy Frobenius norm peaks at ||T||=4.384302e+00 (r=99.90). The sharp curvature concentration near the wall confirms that standard 3D grids cannot adequately sample the wall structure.
+K=R_abcd R^abcd is invariant; the Frobenius norm uses the coordinate components of T_ab. Automatic differentiation evaluates local derivatives in floating-point arithmetic. It does not bound unsampled extrema or integration errors. Selected points near the sampled peak and the endpoints follow.
 
-### Selected Radial Cut Data Points
-
-| r | f(r) | |Kretschmann| | ||T|| |
-|--:|-----:|-------------:|------:|
+| r | f(r) | Absolute K | Frobenius norm of T |
+|---:|---:|---:|---:|
 | 50.00 | 1.000000 | 0.000000e+00 | 0.000000e+00 |
-| 60.02 | 1.000000 | 0.000000e+00 | 0.000000e+00 |
-| 70.04 | 1.000000 | 0.000000e+00 | 0.000000e+00 |
-| 80.06 | 1.000000 | 0.000000e+00 | 0.000000e+00 |
-| 90.08 | 1.000000 | 0.000000e+00 | 0.000000e+00 |
+| 99.70 | 0.990525 | 1.182909e+02 | 3.000338e-01 |
+| 99.90 | 0.808951 | 3.110818e+04 | 4.384302e+00 |
 | 100.10 | 0.146389 | 2.041381e+04 | 2.533619e+00 |
-| 110.12 | 0.000000 | 0.000000e+00 | 0.000000e+00 |
-| 120.14 | 0.000000 | 0.000000e+00 | 0.000000e+00 |
-| 130.16 | 0.000000 | 0.000000e+00 | 0.000000e+00 |
-| 140.18 | 0.000000 | 0.000000e+00 | 0.000000e+00 |
-
-## Note for Paper
-
-Lentz diagnostics should be presented as lower-bound estimates. The autodiff approach computes exact curvature at each sampled point, but the spatial sampling density at practical 3D grid resolution (N=50 on [-300,300]^3) is insufficient to capture the wall structure. Lentz results should be segregated in a separate table or footnoted with a resolution caveat.
+| 150.00 | 0.000000 | 0.000000e+00 | 0.000000e+00 |

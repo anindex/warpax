@@ -1,30 +1,16 @@
-"""Ford--Roman quantum-inequality diagnostic for the retained warp metrics.
+"""Flat-space Lorentzian-sampling diagnostics at coordinate-static wall points.
 
-At a fixed spatial point in the bubble wall a coordinate-static observer
-sees the warp bubble sweep past, so the sampled energy density
-``rho(tau)`` is a temporary negative pulse, precisely the situation the
-Ford--Roman quantum inequality constrains. For each retained metric we locate
-the most-negative static-observer energy density in the wall, then evaluate the
-flat-space Ford--Roman inequality
+The numerical curves use G=c=hbar=1 and R_b=1. Their roots are dimensionless
+pulse diagnostics, not coefficients that can be rescaled to a macroscopic bubble.
+Separately, the short-window approximation rho_static(tau) ~= rho_static(0)
+gives tau0 ~= c_short sqrt(l_P R_b), where
+c_short = (C / abs(rho_static(0) R_b^2))^(1/4).
 
-    \\int rho(tau) f(tau) dtau  >=  -C / tau_0^4 ,
-    C = 3 / (32 pi^2),  f the normalized Lorentzian of width tau_0,
-
-along that worldline as a function of the sampling time ``tau_0``, and report
-the threshold ``tau_0^th`` beyond which the inequality is violated.
-
-This is applied as a *flat-space sampling diagnostic* along a curved-spacetime
-worldline; a fully rigorous curved-space quantum inequality would carry
-curvature corrections. The coordinate-static worldline is timelike only
-for ``v_s < 1``, matching the subluminal scope of the single-frame comparison.
-
-Also emits the combined "averaged and quantum diagnostics" table and figure,
-reading the ANEC line-integral results from ``run_anec_retained.py``.
-
-Outputs:
-- ../results/quantum/ford_roman.json
-- ../../warpax_arxiv/tables/averaged_quantum.tex
-- ../figures/averaged_quantum.pdf
+The sampled observer is u=partial_t/sqrt(-g00), not the Eulerian normal.
+The flat-space massless-scalar inequality is used as an illustrative diagnostic
+on a curved worldline; neither the finite integration window nor curvature
+corrections are bounded here. Null integrals read from run_anec_retained.py are
+finite-segment diagnostics and local minima found.
 """
 
 from __future__ import annotations
@@ -63,9 +49,8 @@ TAU0_GRID = np.geomspace(0.1, 40.0, 200)
 F_LOW, F_HIGH = 0.1, 0.9
 
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
-# The Ford--Roman threshold needs a smooth, resolution-stable wall energy density,
-# which the Type-IV-walled Natário and VdB do not have. Reported for the
-# smooth-wall drives only; the others carry the ANEC line integral instead.
+# These two coordinate-static density extrema have retained resolution checks.
+# Omitting the other metrics makes no claim about their smoothness or algebraic type.
 QI_METRICS = ["Alcubierre", "Rodal"]
 
 
@@ -77,7 +62,7 @@ def _static_worldline(x_w: float, y_w: float):
 
 
 def _worst_static_point(metric) -> tuple[float, float, float]:
-    """Most-negative static-observer energy density within the bubble wall.
+    """Basin-local minimum found for static-observer energy density in the wall.
 
     Restricted to the active wall ``f in [F_LOW, F_HIGH]`` for consistency with
     the rest of the paper. Used only for the smooth-wall drives.
@@ -145,6 +130,11 @@ def _threshold(metric, x_w: float, y_w: float, margins: np.ndarray) -> float:
     return float(np.sqrt(lo * hi))
 
 
+def _short_window_coefficient(rho_static_min: float, radius: float) -> float:
+    """Coefficient of sqrt(l_P R_b) in the constant-density short-window estimate."""
+    return (3.0 / (32.0 * np.pi**2 * abs(rho_static_min * radius**2))) ** 0.25
+
+
 def _fmt(v: float) -> str:
     return f"{v:+.3g}"
 
@@ -153,18 +143,20 @@ def _write_table(anec: dict, qi: dict) -> None:
     lines = [
         r"\begin{tabular}{l rr rr}",
         r"  \toprule",
-        r"  & \multicolumn{2}{c}{ANEC null-ray $\int T_{ab}k^ak^b\,\dd\lambda$}"
-        r" & \multicolumn{2}{c}{Ford--Roman QI} \\",
+        r"  & \multicolumn{2}{c}{Finite-segment $\int T_{ab}k^ak^b\,\dd\lambda$}"
+        r" & \multicolumn{2}{c}{Short-window estimate} \\",
         r"  \cmidrule(lr){2-3}\cmidrule(lr){4-5}",
-        r"  Metric & on-axis & min ($b^\ast$) & $\rho_{\min}$"
-        r" & $\tau_0^{\mathrm{th}}$ \\",
+        r"  Metric & on-axis & min found ($b^\ast$) & $R_b^2\rho_{\rm static,min}$"
+        r" & $c_{\rm short}$ \\",
         r"  \midrule",
     ]
     for name in ORDER:
         a = anec["metrics"][name]
         q = qi["metrics"][name]
         if q.get("robust"):
-            qi_cols = f"${_fmt(q['rho_min'])}$ & ${q['tau0_threshold']:.2f}$"
+            qi_cols = (
+                f"${_fmt(q['rho_static_min'] * R_B**2)}$ & ${q['short_window_coefficient']:.2f}$"
+            )
         else:
             qi_cols = r"-- & --"
         lines.append(
@@ -178,7 +170,7 @@ def _write_table(anec: dict, qi: dict) -> None:
         os.path.join(TABLES_DIR, "averaged_quantum.tex"),
         lines,
         script="scripts/run_quantum_inequality.py",
-        sources="results/quantum/ford_roman.json",
+        sources=["results/quantum/ford_roman.json", "results/anec/retained.json"],
     )
 
 
@@ -203,26 +195,26 @@ def _make_figure(anec: dict, qi: dict) -> None:
         ax_a.plot(a["b_scan"], a["line_integral_scan"], color=c, label=name, lw=1.4)
         q = qi["metrics"][name]
         if q.get("robust"):
-            ax_b.plot(TAU0_GRID, q["margin_curve"], color=c, label=name, lw=1.4)
-            th = q["tau0_threshold"]
+            ax_b.plot(
+                TAU0_GRID / R_B, np.array(q["margin_curve"]) * R_B**2, color=c, label=name, lw=1.4
+            )
+            th = q["tau0_threshold"] / R_B
             if np.isfinite(th):
                 ax_b.axvline(th, color=c, ls=":", lw=0.8, alpha=0.7)
 
     ax_a.axhline(0.0, color="0.4", lw=0.7, ls="--")
     ax_a.set_xlabel(r"impact parameter $b$")
-    # Natario peaks at +6.7 while the minima this panel is about are ~-0.1, so a
-    # linear axis hides the negativity the caption claims. symlog shows both.
     ax_a.set_yscale("symlog", linthresh=1e-2)
     ax_a.set_ylabel(r"null line integral $\int T_{ab}k^ak^b\,d\lambda$")
-    ax_a.set_title("(a) Averaged null energy along null rays", fontsize=9)
+    ax_a.set_title("(a) Finite-segment null integrals", fontsize=9)
     ax_a.legend(frameon=False, fontsize=7)
 
     ax_b.axhline(0.0, color="0.4", lw=0.7, ls="--")
     ax_b.set_xscale("log")
     ax_b.set_yscale("symlog", linthresh=1e-5)
-    ax_b.set_xlabel(r"sampling time $\tau_0$")
-    ax_b.set_ylabel(r"Ford--Roman QI margin")
-    ax_b.set_title("(b) Quantum inequality, smooth-wall drives", fontsize=9)
+    ax_b.set_xlabel(r"sampling width $\tau_0/R_b$")
+    ax_b.set_ylabel(r"dimensionless sampling margin")
+    ax_b.set_title(r"(b) Flat-space diagnostic, $\hbar/R_b^2=1$", fontsize=9)
     ax_b.legend(frameon=False, fontsize=7)
 
     fig.tight_layout()
@@ -257,15 +249,18 @@ def main() -> None:
         tau_th = _threshold(metric, x_w, y_w, margins)
         per_metric[name] = {
             "robust": True,
-            "rho_min": rho_min,
+            "rho_min": rho_min,  # Legacy key; the observer is coordinate-static.
+            "rho_static_min": rho_min,
+            "short_window_coefficient": _short_window_coefficient(rho_min, R_B),
             "x_w": x_w,
             "y_w": y_w,
             "tau0_threshold": tau_th,
             "margin_curve": margins.tolist(),
         }
         print(
-            f"  {name:16s} rho_min={rho_min:+.4e} @ (x={x_w:.2f}, y={y_w:.2f})  "
-            f"tau0_th={tau_th:.3f}"
+            f"  {name:16s} rho_static_min={rho_min:+.4e} @ (x={x_w:.2f}, y={y_w:.2f})  "
+            f"dimensionless pulse root={tau_th / R_B:.3f}; "
+            f"c_short={_short_window_coefficient(rho_min, R_B):.3f}"
         )
     for name in ORDER:
         if name not in per_metric:
@@ -277,6 +272,21 @@ def main() -> None:
             "R_b": R_B,
             "sigma": SIGMA,
             "ford_roman_C": float(3.0 / (32.0 * np.pi**2)),
+            "hbar": 1.0,
+            "hbar_over_R_b_squared": 1.0 / R_B**2,
+            "observer": "u=partial_t/sqrt(-g00), future-directed where g00<0",
+            "density": "rho_static=T00/(-g00); not Eulerian rho_n",
+            "field": "massless scalar, four-dimensional flat-space bound",
+            "sampling": "Lorentzian kernel in accumulated proper time",
+            "n_samples": N_SAMPLES,
+            "proper_time_half_span_over_tau0": 10.0,
+            "curve_status": "finite-window diagnostic; no tail or curved-space error bound",
+            "tau0_threshold_definition": "root of hbar=1 pulse diagnostic; not a macroscopic scaling coefficient",
+            "short_window_definition": (
+                "c_short=(C/abs(rho_static_min*R_b^2))^(1/4); "
+                "tau0 approximately c_short*sqrt(l_P*R_b), assuming nearly constant "
+                "density over the short sampling window"
+            ),
         },
         "tau0_grid": TAU0_GRID.tolist(),
         "minkowski_margin": mink_margin,

@@ -190,42 +190,24 @@ def emit_c1_vs_c2() -> None:
 def emit_convergence() -> None:
     c = _load("convergence_data.json")
     res = c["resolutions"]
-
-    def _is_fallback(q):
-        if "fallback" in q:
-            return bool(q["fallback"])
-        v = q["values"]
-        return (v[0] - v[1]) * (v[1] - v[2]) <= 0  # non-monotone triplet
+    if c.get("summary_method") != "observed_grid_spread":
+        raise ValueError("Rerun run_convergence.py to produce a consistent diagnostic grid study")
 
     def _row(label, key, fmt):
         q = c[key]
         vals = " & ".join(f"${fmt(v)}$" for v in q["values"])
-        p = q.get("observed_order")
-        if _is_fallback(q) or p is None:
-            p_cell = "--$^{\\dagger}$"  # non-monotone: no fitted order, see dagger note
-        else:
-            p_cell = f"${p:.1f}$"
-        # "richardson": extrapolated continuum value. "spread": finest computed
-        # value with the ladder spread as its bound, marked with a double dagger.
-        basis = q.get("error_basis", "richardson" if q["converged"] else None)
-        if basis in ("richardson", "exact"):
-            ext = f"${fmt(q['extrapolated_value'])}$"
-            err = _sci(q["error_estimate"])
-        elif basis == "spread":
-            ext = _mark(f"${fmt(q['extrapolated_value'])}$", "^{\\ddagger}")
-            err = _mark(_sci(q["error_estimate"]), "^{\\ddagger}")
-        else:
-            ext, err = "--", "--"
-        return f"    {label}\n      & {vals}\n      & {ext} & {p_cell} & {err} \\\\"
+        mean = math.fsum(q["values"]) / len(q["values"])
+        spread = max(abs(value - mean) for value in q["values"])
+        return f"    {label}\n      & {vals}\n      & {_sci(spread, 2)} \\\\"
 
     header_cols = " & ".join(f"$N\\!=\\!{n}$" for n in res)
     lines = [
-        "\\begin{tabular}{@{}lcccccc@{}}",
+        "\\begin{tabular}{@{}l" + "c" * (len(res) + 1) + "@{}}",
         "    \\toprule",
         f"    Quantity & {header_cols}",
-        "      & Extrap.\\ & $p$ & Error est.\\ \\\\",
+        "      & $\\max_i|Q_i-\\overline Q|$ \\\\",
         "    \\midrule",
-        _row("Min margin NEC", "min_margin_nec", lambda v: f"{v:.3f}"),
+        _row("Sampled min NEC", "min_margin_nec", lambda v: f"{v:.3f}"),
         _row("Integrated viol.\\", "integrated_violation_nec", lambda v: f"{v:.3f}"),
         _row("$L^2$ viol.\\ norm", "l2_violation_nec", lambda v: f"{v:.2f}"),
         "    \\bottomrule",

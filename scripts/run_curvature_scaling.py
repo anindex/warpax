@@ -1,27 +1,14 @@
-"""Universal v_s scaling of the wall curvature invariants.
+"""Empirical speed fits of wall-peak curvature-invariant magnitudes.
 
-The matter-sector result (the wall NEC severity ``|min(rho+p_i)|`` follows a
-universal ``v_s^2`` law) has a geometric counterpart: the peak curvature in the
-bubble wall also follows clean power laws in the warp speed. Here we sweep the
-warp speed on the same matched-parameter (``R=1``, ``sigma=8``) wall-clustered
-grids used by the type map, and record the wall-peak Kretschmann ``K``,
-Weyl-squared ``C^2`` and Ricci-squared ``R_{ab}R^{ab}`` invariants. Each is fit
-to ``X = A v_s^q`` over the subluminal branch.
+Matched-parameter (R=1, sigma=8) wall-clustered grids supply the peaks of
+|K|, |C²| and |R_ab R^ab|. Each is fitted to A v_s^q on the stated speed
+window. The fitted exponent is not a general pointwise identity: a peak can
+move with speed, and leading coefficients can vanish. Curvature scalars are
+defined for every algebraic type.
 
-Two boost-invariant sectors emerge: the source-free Weyl (tidal) curvature and
-the Ricci (matter) curvature scale as separate, universal powers of ``v_s``
-across the family, showing that the exotic content is intrinsic geometry, not a
-coordinate artifact, and that it grows smoothly through and beyond the luminal
-transition.
-
-Sentinels: the Minkowski invariants vanish; Schwarzschild reproduces the closed
-form ``K = 48 M^2 / r^6`` (checked in tests/test_curvature_scaling.py).
-
-Outputs
--------
-- results/curvature_scaling.json
-- ../warpax_arxiv/tables/curvature_scaling.tex
-- ../warpax_arxiv/figures/curvature_scaling.pdf
+Minkowski and Schwarzschild checks are in tests/test_curvature_scaling.py.
+Outputs: results/curvature_scaling.json, tables/curvature_scaling.tex and
+figures/curvature_scaling.pdf.
 """
 
 from __future__ import annotations
@@ -74,8 +61,8 @@ F_LOW, F_HIGH = 0.1, 0.9
 
 # Invariants reported, in (json key, latex symbol) form.
 INVARIANTS = (
-    ("kretschmann", r"$K$"),
-    ("weyl_squared", r"$C^2$"),
+    ("kretschmann", r"$|K|$"),
+    ("weyl_squared", r"$|C^2|$"),
     ("ricci_squared", r"$|R_{ab}R^{ab}|$"),
 )
 
@@ -146,7 +133,7 @@ def fit_power_law(rows, metric, key, v_max=1.0):
 
     ``r_squared`` is the log-space R^2 of the regression actually performed;
     ``r_squared_linear`` is the same curve scored in linear space. They differ
-    only on Alcubierre Ricci^2 (0.9938 vs 0.9338).
+    because the two statistics weight the residuals differently.
     """
     vs, xs, dropped = _branch(rows, metric, key, v_max)
     if len(vs) < 3:
@@ -185,11 +172,10 @@ def fit_power_law(rows, metric, key, v_max=1.0):
 
 
 def fit_exact_exponents(rows, metric, key, powers=(2.0, 4.0), v_max=1.0):
-    """Fit X_max = sum_p C_p v_s^p at the exponents the theorem fixes.
+    """Empirical fixed-power fit of the wall maximum.
 
-    The exponents are fixed in closed form: an irrotational shift starts
-    at v_s^4, a vortical one carries a nonzero v_s^2 term. Fitting the
-    coefficients at those exponents makes C_2 a measurement of that statement.
+    Pointwise speed expansions motivate the basis but do not make the
+    speed-dependent maximum a polynomial with those coefficients.
     """
     vs, xs, dropped = _branch(rows, metric, key, v_max)
     if len(vs) <= len(powers):
@@ -219,11 +205,11 @@ def _f(x, nd=2):
 
 
 def write_table(fits, out_path):
-    """Universal curvature-invariant scaling exponents per metric."""
+    """Measured curvature-invariant scaling exponents per metric."""
     lines = [
         r"\begin{tabular}{@{}l ccc ccc@{}}",
         r"  \toprule",
-        r"  & \multicolumn{3}{c}{Weyl $C^2$} "
+        r"  & \multicolumn{3}{c}{Weyl $|C^2|$} "
         r"& \multicolumn{3}{c}{Ricci $|R_{ab}R^{ab}|$} \\",
         r"  \cmidrule(lr){2-4}\cmidrule(lr){5-7}",
         # R^2 of a power law is ambiguous; name the convention.
@@ -234,18 +220,10 @@ def write_table(fits, out_path):
         w = fits[name]["weyl_squared"]
         ri = fits[name]["ricci_squared"]
         r2w = w.get("r_squared")
-        # A Type-IV-dominated wall (VdB) has no resolved Type-I curvature branch
-        # and no clean single power law; report it as such rather than a noisy fit.
-        if r2w is not None and np.isfinite(r2w) and r2w >= 0.99:
-            lines.append(
-                f"  {name} & {_f(w.get('q'))} & {_f(w.get('A'), 3)} & {_f(r2w, 4)}"
-                f" & {_f(ri.get('q'))} & {_f(ri.get('A'), 3)} & {_f(ri.get('r_squared'), 4)} \\\\"
-            )
-        else:
-            lines.append(
-                rf"  {name} & \multicolumn{{6}}{{c}}{{no clean fit "
-                rf"(Type-IV-dominated wall)}} \\"
-            )
+        lines.append(
+            f"  {name} & {_f(w.get('q'))} & {_f(w.get('A'), 3)} & {_f(r2w, 4)}"
+            f" & {_f(ri.get('q'))} & {_f(ri.get('A'), 3)} & {_f(ri.get('r_squared'), 4)} " + r" \\"
+        )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     write_tex_table(
@@ -264,7 +242,7 @@ def make_figure(rows, fits):
     os.makedirs(FIG_DIR, exist_ok=True)
     fig, (ax_w, ax_r) = plt.subplots(1, 2, figsize=(DOUBLE_COL, DOUBLE_COL * 0.44))
     for ax, key, title in (
-        (ax_w, "weyl_squared", "(a) Weyl $C^2$"),
+        (ax_w, "weyl_squared", "(a) Weyl $|C^2|$"),
         (ax_r, "ricci_squared", "(b) Ricci $|R_{ab}R^{ab}|$"),
     ):
         for name in METRIC_ORDER:
@@ -364,9 +342,7 @@ def main():
                 f"maxdev={_f(fl['max_rel_dev'], 3)}@v={_f(fl['v_s_at_max_dev'], 2)}"
                 + (f"  [{fl['n_dropped']} point(s) dropped]" if fl.get("n_dropped") else "")
             )
-    print(
-        "\n  Fixed-exponent law X_max = C2 v_s^2 + C4 v_s^4 (C2 = 0 iff the shift is irrotational):"
-    )
+    print("\n  Empirical fixed-power fit X_max = C2 v_s^2 + C4 v_s^4:")
     for name in args.metrics:
         for key, sym in INVARIANTS:
             tt = two_term[name][key]

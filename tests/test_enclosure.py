@@ -35,6 +35,54 @@ from warpax.metrics.van_den_broeck import VanDenBroeckMetric
 _PT = [0.0, 0.62, 0.81, 0.0]
 
 
+def test_shape_constants_enclose_unrounded_binary_parameter_products():
+    from warpax.energy_conditions import _intervalad as ad
+    from warpax.energy_conditions.enclosure import _shape
+
+    mpmath.mp.prec = iv.prec = 120
+    R, sigma, radius = 0.1, 0.2, 0.4
+    with mpmath.workprec(240):
+        rr, ss, rad = map(mpmath.mpf, (R, sigma, radius))
+        expected = (mpmath.tanh(ss * (rad + rr)) - mpmath.tanh(ss * (rad - rr))) / (
+            2 * mpmath.tanh(ss * rr)
+        )
+    for value in (
+        _shape(ad.constant(iv.mpf(radius)), R, sigma).v,
+        shape_interval(R, sigma)(iv.mpf(radius), iv.mpf(0)),
+    ):
+        assert mpmath.mpf(value.a) <= expected <= mpmath.mpf(value.b)
+
+
+def test_natario_interval_uses_the_analytic_radius_without_a_floor():
+    from warpax.energy_conditions import _intervalad as ad
+
+    mpmath.mp.prec = iv.prec = 256
+    point = [0.0, 0.62, 0.81, 0.0]
+    coords = [ad.variable(iv.mpf(c), i) for i, c in enumerate(point)]
+    transverse = natario_metric(0.5, 1.0, 8.0)(*coords)[0][2].v
+    with mpmath.workprec(384):
+        x, y = map(mpmath.mpf, point[1:3])
+        r = mpmath.sqrt(x * x + y * y)
+        tp, tm = mpmath.tanh(8 * (r + 1)), mpmath.tanh(8 * (r - 1))
+        dn = 8 * (tp * tp - tm * tm) / (4 * mpmath.tanh(8))
+        expected = -mpmath.mpf(0.5) * dn * x * y / r
+    assert mpmath.mpf(transverse.a) <= expected <= mpmath.mpf(transverse.b)
+
+
+def test_tail_radius_rounds_down_and_requires_the_monotone_profile():
+    mpmath.mp.prec = iv.prec = 120
+    shape = shape_interval(1.0, 8.0)
+    _, upper, _ = tail_bound(None, shape, (1.0, 2.0), (1.0, 2.0), prec=120)
+    boundary = shape(iv.mpf(1), iv.mpf(1))
+    assert mpmath.mpf(upper) >= mpmath.mpf(boundary.b)
+    with pytest.raises(ValueError, match="monotone tanh"):
+        tail_bound(None, lambda x, s: iv.mpf(0), (1.0, 2.0), (0.0, 2.0))
+    with pytest.raises(ValueError, match="ordered finite extents"):
+        tail_bound(None, shape, (1.0, 2.0), (-1.0, 2.0))
+    with pytest.raises(ValueError, match="finite R > 0"):
+        shape_interval(R=-1.0, sigma=8.0)
+
+
 def _jax_reference(metric):
     """Eulerian decomposition in an ORTHONORMAL spatial frame, from the JAX chain.
 

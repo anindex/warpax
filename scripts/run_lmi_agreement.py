@@ -1,31 +1,14 @@
-"""How often the type-based certification and the type-free LMI agree, per grid point.
+"""Compare routed energy-condition margins with direct numerical LMI tests.
 
-Type-IV identification is tolerance dependent, and a finite grid missing the
-Type-II/III loci is no continuum proof of their absence. Both are properties of the
-*classification*. Neither holds for the linear matrix inequality, which forms no
-eigendecomposition, consults no tolerance and never asks what the algebraic type is,
-so it decides every point on the same footing.
+Reports Type-I sign agreement, contradictions between Type-III/IV labels
+and LMI verdicts, and wall coverage. Both routes use finite precision;
+a disagreement does not by itself identify which route failed.
 
-The certification routing is unchanged: Type-I points are decided by the eigenvalue
-inequalities, which are exact there. This runs the LMI everywhere as well and reports
-the agreement rate, which measures the classification rather than the energy
-conditions:
+The normalized NEC deficit is twice the LMI margin, so comparisons use
+its doubled noise floor. Values within either route's floor are inconclusive.
+Grid fractions and tolerance studies are numerical diagnostics.
 
-  * At a Type-I point the two are provably equivalent, so a disagreement is a *label*
-    error: the point was called Type I and is not, or the eigendecomposition of a
-    near-defective tensor moved the eigenvalues.
-  * At a Type-III or Type-IV point every standard energy condition fails
-    (Martin-Moruno & Visser 2017), so an LMI margin certifying satisfaction there is
-    a certified misclassification. Those are counted separately.
-
-Both comparisons run against ``nec_noise_floor``, not against zero. The LMI margin
-contract is one-sided, so a value inside the floor is inconclusive rather than a
-verdict, and thresholding at zero would report the float64 residual as label error.
-
-Outputs
--------
-- results/lmi_agreement.json
-- ../warpax_arxiv/tables/lmi_typefree.tex
+Outputs: results/lmi_agreement.json and the manuscript's lmi_typefree.tex table.
 """
 
 from __future__ import annotations
@@ -63,7 +46,7 @@ def _verdict(margin, floor):
     return np.where(margin > floor, 1, np.where(margin < -floor, -1, 0))
 
 
-def audit_one(name, v_s, N, batch_size=2048):
+def compare_one(name, v_s, N, batch_size=2048):
     cls, extra = METRICS[name]
     metric = cls(v_s=v_s, R=1.0, sigma=8.0, **extra)
     grid = benchmark_grid(metric, N)
@@ -77,7 +60,7 @@ def audit_one(name, v_s, N, batch_size=2048):
     lmi = jax.vmap(certify_point_lmi)(flat_T, flat_g)
 
     he = np.asarray(ff.he_types).reshape(-1)
-    floor = np.asarray(ff.nec_noise_floor).reshape(-1)
+    floor = np.asarray(ff.nec_noise_floor).reshape(-1) / 2  # Underlying LMI scale.
     vac = np.asarray(ff.is_vacuum).reshape(-1) > 0.5
     coords = build_coord_batch(grid, t=0.0)
     wall = np.asarray(
@@ -99,32 +82,31 @@ def audit_one(name, v_s, N, batch_size=2048):
         "type_counts": {str(t): int((he == t).sum()) for t in (1, 2, 3, 4)},
     }
 
-    # (a) Type-I agreement. Both routes are exact there, so any disagreement is a label
-    #     error rather than a disagreement about physics.
+    # Compare only points decisive under both numerical routes.
     isI = (he == 1) & ~vac
     for c in CONDITIONS:
-        a = _verdict(routed[c][isI], floor[isI])
+        routed_floor = 2 * floor if c == "nec" else floor
+        a = _verdict(routed[c][isI], routed_floor[isI])
         b = _verdict(np.asarray(lmi[c])[isI], floor[isI])
         both = (a != 0) & (b != 0)
         out[f"typeI_{c}_n_decisive"] = int(both.sum())
         out[f"typeI_{c}_agree"] = float((a[both] == b[both]).mean()) if both.any() else None
 
-    # (b) Certified misclassification: Types III and IV violate every condition, so an
-    #     LMI margin certifying any one of them contradicts the label. A disjunction,
-    #     not a conjunction, which would undercount by construction.
+    # A positive LMI verdict contradicts an exact Type-III/IV label.
+    # Count numerical contradictions; neither route is independently certified.
     bad_label = (he >= 3) & ~vac
     lmi_says_ok = np.zeros_like(bad_label)
     for c in CONDITIONS:
         lmi_says_ok |= _verdict(np.asarray(lmi[c]), floor) > 0
     nec_says_ok = _verdict(np.asarray(lmi["nec"]), floor) > 0
     out["n_type_iii_iv"] = int(bad_label.sum())
-    out["n_certified_misclassified"] = int((bad_label & lmi_says_ok).sum())
-    out["certified_misclassification_rate"] = (
+    out["n_detected_label_contradictions"] = int((bad_label & lmi_says_ok).sum())
+    out["detected_label_contradiction_rate"] = (
         float((bad_label & lmi_says_ok).sum() / bad_label.sum()) if bad_label.any() else None
     )
     # The NEC-only count is quoted separately in the appendix text, so it is recorded
     # rather than recomputed from the disjunction.
-    out["n_certified_misclassified_nec"] = int((bad_label & nec_says_ok).sum())
+    out["n_detected_label_contradictions_nec"] = int((bad_label & nec_says_ok).sum())
 
     # (c) Coverage. The eigenvalue route has nothing to say outside Type I; the LMI
     #     decides there too. This is the fraction of the wall it recovers.
@@ -146,7 +128,7 @@ def write_lmi_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
         r"\begin{tabular}{@{}l ccc ccc@{}}",
         r"  \toprule",
         r"  & \multicolumn{3}{c}{Type-I verdicts agreeing (\%)} "
-        r"& \multicolumn{3}{c}{Certified label errors (\%)} \\",
+        r"& \multicolumn{3}{c}{Numerically detected label contradictions (\%)} \\",
         r"  \cmidrule(lr){2-4}\cmidrule(lr){5-7}",
         r"  Metric & $v_s=0.5$ & $1.0$ & $2.0$ & $v_s=0.5$ & $1.0$ & $2.0$ \\",
         r"  \midrule",
@@ -156,7 +138,7 @@ def write_lmi_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
         for v in table_vels:
             r = get(name, v)
             a = None if r is None else r.get("typeI_nec_agree")
-            e = None if r is None else r.get("certified_misclassification_rate")
+            e = None if r is None else r.get("detected_label_contradiction_rate")
             agree.append("--" if a is None else f"{100.0 * a:.2f}")
             err.append("--" if e is None else f"{100.0 * e:.2f}")
         lines.append(f"  {name} & " + " & ".join(agree + err) + r" \\")
@@ -180,21 +162,21 @@ def main():
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
     print("=" * 70)
-    print(f"LMI AUDIT (R=1, sigma=8, N={args.N}, wall-clustered)")
+    print(f"LMI COMPARISON (R=1, sigma=8, N={args.N}, wall-clustered)")
     print("=" * 70)
     rows = []
     for name in args.metrics:
         for v_s in args.velocities:
-            r = audit_one(name, v_s, args.N)
+            r = compare_one(name, v_s, args.N)
             rows.append(r)
             agree = r["typeI_nec_agree"]
-            rate = r["certified_misclassification_rate"]
+            rate = r["detected_label_contradiction_rate"]
             print(
                 f"  {len(rows):2d}/{len(args.metrics) * len(args.velocities)} "
                 f"{name:>15s} v_s={v_s:.2f}  "
                 f"TypeI agree={'n/a' if agree is None else f'{100 * agree:6.2f}%'}  "
                 f"III/IV={r['n_type_iii_iv']:7d}  "
-                f"certified label errors="
+                f"numerically detected label contradictions="
                 f"{'n/a' if rate is None else f'{100 * rate:.3f}%'}",
                 flush=True,
             )

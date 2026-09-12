@@ -117,7 +117,7 @@ def construction_registry() -> dict[str, ConstructionSpec]:
             ((-3.0, 3.0),) * 3,
             64,
             is_comoving=True,
-            claim="baseline; NEC/WEC violated for all observers",
+            claim="baseline; NEC/WEC violated for some observers",
             params={"v_s": 0.5, "R": 1.0, "sigma": 8.0},
             wall_radius=1.0,
             r_max=3.0,
@@ -180,10 +180,21 @@ def construction_registry() -> dict[str, ConstructionSpec]:
             ((-3.0, 3.0),) * 3,
             192,
             is_comoving=True,
-            claim="de Sitter background; averaged ANEC/AWEC satisfied at the "
-            "matched speed v_s = H R, pointwise NEC/WEC violated at the wall "
-            "(arXiv:2502.13153)",
-            params={"v_s": 0.1, "R": 1.0, "sigma": 8.0, "H": 0.1},
+            claim=(
+                "de Sitter matched motion v=H r_0; paper states conditions up to an "
+                "averaged divergence (arXiv:2502.13153v4)"
+            ),
+            params={
+                "v_s": 0.1,
+                "R": 1.0,
+                "sigma": 8.0,
+                "H": 0.1,
+                "r_0": 1.0,
+                "evaluation_time": 0.0,
+                "Lambda": 0.03,
+                "units": "G=c=1; lengths and t in m; H and sigma in inverse m; v_s dimensionless",
+                "provenance": "parameter values chosen here; v(t)=H r_0 exp(Ht) from arXiv:2502.13153v4",
+            },
             wall_radius=1.0,
             r_max=3.0,
             grid_center=lambda m: m.v_s / m.H,
@@ -257,7 +268,7 @@ def matched_registry() -> dict[str, ConstructionSpec]:
             "Alcubierre",
             lambda vv: AlcubierreMetric(v_s=vv, R=R, sigma=s),
             v,
-            claim="baseline; NEC/WEC violated for all observers",
+            claim="baseline; NEC/WEC violated for some observers",
             params={"v_s": v, "R": R, "sigma": s},
             **common,
         ),
@@ -281,7 +292,7 @@ def matched_registry() -> dict[str, ConstructionSpec]:
                 "R_b": 1.0,
                 "r_s_param": 6.668692,
                 "kernel": "moving_average",
-                "sigmoid": "published (Fuchs Eq. 31-32)",
+                "sigmoid": "natural-endpoint regularization of Fuchs v1 Eqs. 27-28",
             },
             **common,
         ),
@@ -289,10 +300,25 @@ def matched_registry() -> dict[str, ConstructionSpec]:
             "Garattini",
             lambda vv: GarattiniMetric(v_s=vv, R=R, sigma=s, H=vv / R),
             v,
-            claim="de Sitter background; averaged ANEC/AWEC satisfied at the "
-            "matched speed v_s = H R, pointwise NEC/WEC violated at the "
-            "wall (arXiv:2502.13153)",
-            params={"v_s": v, "R": R, "sigma": s, "H": v / R, "Lambda_R2": 3.0 * (v) ** 2},
+            claim=(
+                "de Sitter matched motion v=H r_0; paper states conditions up to an "
+                "averaged divergence (arXiv:2502.13153v4)"
+            ),
+            params={
+                "v_s": v,
+                "R": R,
+                "sigma": s,
+                "H": v / R,
+                "r_0": R,
+                "evaluation_time": 0.0,
+                "Lambda": 3 * (v / R) ** 2,
+                "Lambda_R2": 3 * v**2,
+                "units": "G=c=1; lengths and t in m; H and sigma in inverse m; v_s dimensionless",
+                "provenance": (
+                    "parameter values chosen here for kinematic standardization; "
+                    "v(t)=H r_0 exp(Ht) from arXiv:2502.13153v4"
+                ),
+            },
             grid_center=lambda m: m.v_s / m.H,
             **common,
         ),

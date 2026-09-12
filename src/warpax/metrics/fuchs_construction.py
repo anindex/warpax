@@ -5,17 +5,16 @@ arXiv:2405.02709, Section 3) for the constant-velocity subluminal warp shell:
 
     1. Constant-density shell between R_1 and R_2 with total mass M.
     2. Solve the TOV equation for isotropic pressure P'(r), BC P'(R_2)=0.
-    3. Apply iterative Gaussian-kernel smoothing to density and pressure
+    3. Apply iterative kernel smoothing to density and pressure
        with differential kernel widths (sigma_rho / sigma_P ~ 1.72).
     4. Recompute cumulative mass from smoothed density.
     5. Solve metric functions a(r) and b(r) from Carroll Eqs. 5.143/5.152.
 
-The original paper uses MATLAB ``smooth()`` (a moving-average lowpass
-filter). We substitute a Gaussian kernel convolution, which provides
-equivalent boundary regularization without the moving average's spectral sidelobes.
-The kernel width is matched as sigma_gauss = span_MA / sqrt(12).
-See Weickert (1998) and Getreuer (2013) for the equivalence.
-
+The default factory uses the published moving-average kernel family, with
+fixed physical span across resolutions. The sigmoid's natural-endpoint
+extension, C2 radial spline and fixed-width interior/exterior joins are this
+manuscript's regularization, not a literal reproduction of the buffered clamps.
+The metric is stationary in the published comoving coordinates.
 References
 ----------
 Fuchs, Helmerich, Bobrick, Sellers, Melcher, Martire (2024).
@@ -27,12 +26,13 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 from ..geometry.metric import ADMMetric
-from ._interp import cubic_on_grid
+from ..geometry.transitions import smoothstep_c2
 from ._tov_scan import integrate_tov_inward
 
 
@@ -91,7 +91,8 @@ def _moving_average_smooth(
 
     The original Fuchs construction uses MATLAB's ``smooth()`` (an unweighted
     moving average over a span of grid points). We expose it here for an
-    exact-kernel reproduction of the published pipeline. The span is matched
+    reproduction of the published kernel family. Fractional endpoint-cell
+    weights hold its physical span fixed during resolution refinement. The span is matched
     to the Gaussian width as
 
         span = sigma * sqrt(12),
@@ -108,12 +109,17 @@ def _moving_average_smooth(
     n = values.shape[0]
     dr = r_grid[1] - r_grid[0]
     span = sigma * jnp.sqrt(12.0)
-    half = int(jnp.ceil(0.5 * span / dr))
+    half = int(jnp.ceil(0.5 * span / dr + 0.5))
     half = max(half, 1)
     half = min(half, n // 2)
 
-    window = 2 * half + 1
-    kernel = jnp.ones(window, dtype=jnp.float64) / window
+    # Cell-integrated boxcar weights keep the physical span fixed as dr changes.
+    offsets = jnp.arange(-half, half + 1, dtype=jnp.float64) * dr
+    kernel = jnp.maximum(
+        0.0,
+        jnp.minimum(offsets + dr / 2, span / 2) - jnp.maximum(offsets - dr / 2, -span / 2),
+    )
+    kernel = kernel / jnp.sum(kernel)
 
     padded = jnp.concatenate(
         [
@@ -234,32 +240,20 @@ def _fuchs_shift_transition(
     R_2: float,
     R_b: float,
 ) -> Float[Array, "..."]:
-    r"""Compact sigmoid ``S_warp(r)``, exactly as published (Fuchs Eqs. 31-32).
+    r"""Manuscript regularization of Fuchs Eqs. (27)--(28), arXiv v1.
 
-    .. math::
-        f(r) = \Big[\exp\!\Big((R_2-R_1)\big(\tfrac{1}{r-R_2}
-                 + \tfrac{1}{r-R_1}\big)\Big) + 1\Big]^{-1},
-
-    with ``S_warp = 1`` for ``r < R_1 + R_b``, ``1 - f(r)`` on the shell, and
-    ``0`` for ``r > R_2 - R_b``. The poles sit at the shell radii, so ``f`` and
-    every derivative vanish there; the buffer ``R_b`` only truncates the (already
-    exponentially small) tails, and the clamp is continuous to ~1e-4 at the
-    default parameters.
-
-    A quintic ``smoothstep`` between ``R_1 + R_b`` and ``R_2 - R_b`` stood in
-    here previously. It is a different profile, with ``R_1 = 10, R_2 = 20`` the
-    published sigmoid puts the 10-90% crossings at 12.790 and 17.210, giving a
-    wall of width 4.420 centred on 15, so results computed with the stand-in
-    could not be attributed to arXiv:2405.02709.
+    On R_1 < r < R_2, S=sigmoid((R_2-R_1)(1/(r-R_2)+1/(r-R_1))).
+    Extend S by 1 at/below R_1 and 0 at/above R_2. The exponential
+    approach makes every derivative vanish at both natural endpoints.
+    R_b is retained for constructor compatibility but no longer truncates S.
     """
-    # Evaluate strictly inside the shell; the clamp below discards the rest, so
-    # the poles are never touched and no NaN can propagate through the gradient.
-    eps = 1e-12 * jnp.maximum(R_2 - R_1, 1.0)
-    r_in = jnp.clip(r, R_1 + eps, R_2 - eps)
+    # Outside the open shell evaluate a harmless interior argument; the constant
+    # branch supplies the exact endpoint extension without reciprocal poles.
+    inside = (r > R_1) & (r < R_2)
+    r_in = jnp.where(inside, r, 0.5 * (R_1 + R_2))
     arg = (R_2 - R_1) * (1.0 / (r_in - R_2) + 1.0 / (r_in - R_1))
-    # 1 - 1/(exp(arg)+1) = sigmoid(arg), written to avoid overflow either way.
     S = jax.nn.sigmoid(arg)
-    return jnp.where(r <= R_1 + R_b, 1.0, jnp.where(r >= R_2 - R_b, 0.0, S))
+    return jnp.where(r <= R_1, 1.0, jnp.where(r >= R_2, 0.0, S))
 
 
 class FuchsConstructionResult(NamedTuple):
@@ -268,7 +262,7 @@ class FuchsConstructionResult(NamedTuple):
     Attributes
     ----------
     r_grid : radial grid points.
-    a_grid : lapse potential a(r), alpha = e^{a(r)}.
+    a_grid : time potential a(r), g00 = -e^{2a(r)}.
     b_grid : spatial potential b(r), gamma_rr = e^{2b(r)}.
     m_grid : cumulative mass m(r).
     rho_smoothed : Gaussian-smoothed density profile.
@@ -311,7 +305,7 @@ def build_fuchs_construction(
     r_pad_factor : extend grid to r_pad_factor * R_2.
     kernel_type : ``"gaussian"`` (default) or ``"moving_average"`` (the
         original MATLAB ``smooth()`` boxcar, variance-matched via
-        span = sigma*sqrt(12)) for exact-pipeline reproduction.
+        span = sigma*sqrt(12)) with the manuscript's fixed-span discretization.
     """
     from ..numerics import assert_uniform_grid
 
@@ -386,102 +380,105 @@ def build_fuchs_construction(
 class FuchsMetric(ADMMetric):
     """Fuchs warp shell metric with iteratively-smoothed profiles.
 
-    Uses pre-solved radial grids from ``build_fuchs_construction``, with
-    cubic interpolation at evaluation time (same approach as ``TShellMetric``).
+    The covariant metric has g00=-exp(2a), g01=g10=-v_s*S and g0y=g0z=0.
+    All spatial components are those of the spherical shell. ADM lapse and
+    contravariant shift are derived from this metric, not prescribed separately.
+    v_s denotes the paper's beta_warp in its stationary comoving coordinates.
 
-    Parameters
-    ----------
-    _r_grid, _a_grid, _b_grid : pre-solved radial grids.
-    v_s : shift magnitude (beta_warp from Fuchs Eq. 30).
-    R_1, R_2, R_b : shell radii and buffer zone.
-    total_mass : total shell mass.
+    Radial profiles use a C2 cubic spline. Quintic blends attach a constant
+    interior on [R_1/4,R_1/2] and a Schwarzschild exterior on
+    [(R_2+r_max)/2,r_max]. These fixed physical intervals are part of this
+    manuscript's regularization and remain fixed during grid refinement.
+    The finite, strictly increasing radial grid must begin in [0,R_1/4],
+    so its lower clipping point lies within the constant interior.
+    R_b remains accepted but does not clamp the sigmoid.
     """
 
     _r_grid: Float[Array, "N"]
     _a_grid: Float[Array, "N"]
     _b_grid: Float[Array, "N"]
-
     v_s: float
     R_1: float
     R_2: float
     R_b: float
     total_mass: float
+    _a_slope: Float[Array, "N"] = eqx.field(init=False)
+    _b_slope: Float[Array, "N"] = eqx.field(init=False)
 
-    def _interp(self, r: Float[Array, ""], grid_vals: Float[Array, "N"]) -> Float[Array, ""]:
-        return cubic_on_grid(r, self._r_grid, grid_vals)
+    def __post_init__(self):
+        from interpax import approx_df
+
+        profiles = (self._r_grid, self._a_grid, self._b_grid)
+        if not all(p.ndim == 1 and p.shape == self._r_grid.shape for p in profiles):
+            raise ValueError("Fuchs requires matching one-dimensional radial profiles")
+        if len(self._r_grid) < 2 or not all(bool(jnp.all(jnp.isfinite(p))) for p in profiles):
+            raise ValueError(
+                "Fuchs requires at least two finite radial knots and finite potentials"
+            )
+        if not bool(jnp.all(jnp.diff(self._r_grid) > 0)):
+            raise ValueError("Fuchs radial knots must be strictly increasing")
+        if not (0 < self.R_1 < self.R_2 < float(self._r_grid[-1])):
+            raise ValueError("Fuchs requires 0 < R_1 < R_2 < r_max")
+        if not (0 <= float(self._r_grid[0]) <= self.R_1 / 4):
+            raise ValueError("Fuchs radial grid must begin in [0, R_1/4] for a C2 inner join")
+        if not (0 <= self.total_mass < self.R_2 / 2):
+            raise ValueError("Fuchs exterior requires 0 <= 2M < R_2")
+        # Cache the spline solve; evaluating curvature only needs local coefficients.
+        self._a_slope = approx_df(self._r_grid, self._a_grid, method="cubic2", axis=0)
+        self._b_slope = approx_df(self._r_grid, self._b_grid, method="cubic2", axis=0)
 
     def _potentials(self, r: Float[Array, ""]) -> tuple[Float[Array, ""], Float[Array, ""]]:
-        """``(a(r), b(r))``, continued analytically as Schwarzschild outside.
+        """C2 radial potentials with constant interior and Schwarzschild exterior."""
+        from interpax import interp1d
 
-        The solved grid ends at ``r_pad_factor * R_2``. Clamping the
-        interpolation there froze both potentials at their boundary values, so
-        the exterior was not vacuum: the ADM surface integral then drifts
-        linearly in ``r`` instead of converging to the shell mass (the behaviour
-        pinned by ``TestSchwarzschildADMMassFuchs``). Outside the grid the field
-        equations give the exact Schwarzschild form for a static vacuum,
-
-            e^{2a} = 1 - 2M/r,      e^{2b} = (1 - 2M/r)^{-1},
-
-        which is what the construction's asymptotic flatness, and the
-        manuscript's claim that the Fuchs shell evades the Santiago-Schuster-
-        Visser hypotheses through a Schwarzschild exterior, actually requires.
-        """
         r_edge = self._r_grid[-1]
-        a_in = self._interp(r, self._a_grid)
-        b_in = self._interp(r, self._b_grid)
-        # Guard the log for the (unphysical) r <= 2M case; the shells here are
-        # far from compact, so this never binds in practice.
-        comp = jnp.clip(2.0 * self.total_mass / jnp.maximum(r, 1e-30), 0.0, 1.0 - 1e-12)
-        half_log = 0.5 * jnp.log1p(-comp)
-        outside = r > r_edge
-        return jnp.where(outside, half_log, a_in), jnp.where(outside, -half_log, b_in)
+        r_eval = jnp.clip(r, self._r_grid[0], r_edge)
+        a_in = interp1d(r_eval, self._r_grid, self._a_grid, method="cubic2", fx=self._a_slope)
+        b_in = interp1d(r_eval, self._r_grid, self._b_grid, method="cubic2", fx=self._b_slope)
+        inner = smoothstep_c2((r - self.R_1 / 4) / (self.R_1 / 4))
+        a_in = self._a_grid[0] + inner * (a_in - self._a_grid[0])
+        b_in = inner * b_in
+        outer = smoothstep_c2((r - (self.R_2 + r_edge) / 2) / ((r_edge - self.R_2) / 2))
+        half_log = 0.5 * jnp.log1p(-2 * self.total_mass / jnp.maximum(r, self.R_2))
+        return a_in + outer * (half_log - a_in), b_in + outer * (-half_log - b_in)
 
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
-        """Lapse alpha = e^{a(r)}, smoothly interpolated from grid."""
-        t, x, y, z = coords
-        x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
+        """alpha^2=exp(2a)+v_s^2*S^2*gamma^{xx}, preserving covariant g00."""
+        r = jnp.sqrt(jnp.sum(coords[1:] ** 2) + 1e-60)
         a_val, _ = self._potentials(r)
-        return jnp.maximum(jnp.exp(a_val), 1e-12)
+        beta_low = -self.v_s * self.shape_function_value(coords)
+        return jnp.sqrt(jnp.exp(2 * a_val) + beta_low * self.shift(coords)[0])
 
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
-        """Shift beta^x = -S_warp(r) * v_s."""
-        t, x, y, z = coords
-        x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
-        S_warp = _fuchs_shift_transition(r, self.R_1, self.R_2, self.R_b)
-        return jnp.array([-S_warp * self.v_s, 0.0, 0.0])
+        """beta^i=gamma^{ix}*(-v_s*S), including its transverse components."""
+        beta_low = jnp.array([-self.v_s * self.shape_function_value(coords), 0.0, 0.0])
+        return jnp.linalg.solve(self.spatial_metric(coords), beta_low)
 
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
-        """Spatial metric: delta_{ij} + (e^{2b} - 1) n_i n_j."""
-        t, x, y, z = coords
-        x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
-
+        """gamma_ij=delta_ij+(exp(2b)-1)n_i*n_j in stationary coordinates."""
+        position = coords[1:]
+        r = jnp.sqrt(jnp.sum(position**2) + 1e-60)
         _, b_val = self._potentials(r)
-        gamma_rr = jnp.exp(2.0 * b_val)
+        n_hat = position / r
+        return jnp.eye(3) + jnp.expm1(2 * b_val) * jnp.outer(n_hat, n_hat)
 
-        x_vec = jnp.array([x_rel, y, z])
-        n_hat = x_vec / r
-        gamma = jnp.eye(3) + (gamma_rr - 1.0) * jnp.outer(n_hat, n_hat)
-        return jnp.where(r < 1e-10, jnp.eye(3), gamma)
+    def __call__(self, coords: Float[Array, "4"]) -> Float[Array, "4 4"]:
+        """Published covariant-component modification, with regularized profiles."""
+        r = jnp.sqrt(jnp.sum(coords[1:] ** 2) + 1e-60)
+        a_val, _ = self._potentials(r)
+        beta_low = -self.v_s * self.shape_function_value(coords)
+        g = jnp.zeros((4, 4))
+        g = g.at[0, 0].set(-jnp.exp(2 * a_val))
+        g = g.at[0, 1].set(beta_low).at[1, 0].set(beta_low)
+        return g.at[1:, 1:].set(self.spatial_metric(coords))
 
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
-        """Warp transition function S_warp(r)."""
-        t, x, y, z = coords
-        x_rel = x - self.v_s * t
-        r = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
+        """Natural-endpoint sigmoid in the stationary comoving radial coordinate."""
+        r = jnp.sqrt(jnp.sum(coords[1:] ** 2) + 1e-60)
         return _fuchs_shift_transition(r, self.R_1, self.R_2, self.R_b)
 
     def symbolic(self):
-        """Symbolic placeholder (profiles are numerical).
-
-        Builds the spatial part as the full radial dyad
-        ``gamma_ij = delta_ij + (exp(2 b(r)) - 1) n_i n_j`` so the
-        symbolic and numerical forms agree off-axis.  Only the
-        ``x``-axis entry is x-rel-dependent because we evaluate the
-        outer product symbolically.
-        """
+        """Full covariant tensor with abstract regularized radial potentials."""
         import sympy as sp
 
         from ..geometry.metric import SymbolicMetric
@@ -491,8 +488,8 @@ class FuchsMetric(ADMMetric):
         b = sp.Function("b")
         beta = sp.Function("S_warp")
         v_s = sp.Symbol("v_s")
-        x_rel = x - v_s * t
-        r = sp.sqrt(x_rel**2 + y**2 + z**2)
+        x_rel = x
+        r = sp.sqrt(x**2 + y**2 + z**2)
 
         gamma_rr = sp.exp(2 * b(r))
         delta = sp.eye(3)
@@ -500,10 +497,9 @@ class FuchsMetric(ADMMetric):
         nnT = n * n.T
         spatial_metric = delta + (gamma_rr - 1) * nnT
 
-        # -v_s beta(r) is the CONTRAVARIANT beta^x; lower it with gamma_xx.
-        beta_low = -gamma_rr * v_s * beta(r)
+        beta_low = -v_s * beta(r)
         g = sp.Matrix.zeros(4, 4)
-        g[0, 0] = -sp.exp(2 * a(r)) + gamma_rr * (v_s * beta(r)) ** 2
+        g[0, 0] = -sp.exp(2 * a(r))
         g[0, 1] = beta_low
         g[1, 0] = beta_low
         for i in range(3):

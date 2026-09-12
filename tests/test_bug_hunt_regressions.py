@@ -402,6 +402,57 @@ class TestNullProjection:
 
 
 class TestConvergenceQuantities:
+    @pytest.mark.parametrize("full_optimizer", [False, True])
+    def test_uniform_study_keeps_one_diagnostic(self, monkeypatch, tmp_path, full_optimizer):
+        import json
+        import sys
+        from pathlib import Path
+        from types import SimpleNamespace
+
+        monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
+        import run_convergence
+
+        calls = []
+
+        def curvature(metric, grid, batch_size):
+            arrays = np.zeros((*grid.shape, 4, 4))
+            return SimpleNamespace(stress_energy=arrays, metric=arrays, metric_inv=arrays)
+
+        def eulerian(T, g, gi):
+            calls.append("eulerian")
+            return {"nec": jnp.array(-1.0)}
+
+        def robust(T, g, gi, shape, **kwargs):
+            calls.append("robust")
+            return SimpleNamespace(robust_margins={"nec": np.full(shape, -2.0)})
+
+        monkeypatch.setattr(run_convergence, "evaluate_curvature_grid", curvature)
+        monkeypatch.setattr(run_convergence, "_eulerian_ec_point", eulerian)
+        monkeypatch.setattr(run_convergence, "compare_eulerian_vs_robust", robust)
+        args = [
+            "run_convergence.py",
+            "--resolutions",
+            "3",
+            "5",
+            "7",
+            "--results-dir",
+            str(tmp_path),
+        ]
+        if full_optimizer:
+            args.append("--full-100")
+        monkeypatch.setattr(sys, "argv", args)
+        run_convergence.main()
+
+        result = json.loads((tmp_path / "convergence_data.json").read_text())
+        expected = "robust" if full_optimizer else "eulerian"
+        assert calls == [expected] * 3
+        assert result["diagnostic"]["optimizer_enabled"] is full_optimizer
+        q = result["min_margin_nec"]
+        assert q["values"] == ([-2.0] if full_optimizer else [-1.0]) * 3
+        assert q["max_abs_deviation_from_mean"] == 0.0
+        assert "observed_order" not in q and "error_estimate" not in q
+        assert "extrapolated_value" not in q
+
     def test_a_large_positive_margin_does_not_hide_a_violation(self):
         from warpax.analysis.convergence import compute_convergence_quantity
 

@@ -38,7 +38,7 @@
     "dr": 0.008078027856710732,
     "dtheta": 0.02454369260617026
   },
-  "note": "Each entry counts sampled wall points, not wall measure. The verdict at each point is a rigorous statement about the spacetime at that point, obtained without any Hawking-Ellis type, eigendecomposition, classification tolerance or rapidity cap; the table is a statement about this finite set of points and not about the continuum. 'Refused' is the interval method declining to decide and is not evidence that the condition holds. The continuum statement for the null condition is the branch-and-bound bracket of results/enclosures.json.",
+  "note": "Each entry counts sampled wall points, not wall measure. The verdict at each point is a rigorous statement about the spacetime at that point, obtained without any Hawking-Ellis type, eigendecomposition, classification tolerance or rapidity cap; the table is a statement about this finite set of points and not about the continuum. 'Inconclusive' is an unresolved interval verdict and is not evidence that the condition holds. The continuum statement for the null condition is the branch-and-bound bracket of results/enclosures.json.",
   "order": [
     "Alcubierre",
     "Nat\u00e1rio",
@@ -94,7 +94,7 @@
         }
       },
       "errors": [],
-      "seconds": 8.1
+      "seconds": 34.6
     },
     "Nat\u00e1rio": {
       "n_sampled": 4257,
@@ -106,45 +106,45 @@
           "violated": 4257,
           "satisfied": 0,
           "inconclusive": 0,
-          "deepest_upper": -5.212473827858314,
+          "deepest_upper": -5.216929671237184,
           "deepest_at": [
-            6.172698129054031e-17,
-            1.0080781060060262
+            6.22216178384475e-17,
+            1.016156133862737
           ]
         },
         "wec": {
           "violated": 4257,
           "satisfied": 0,
           "inconclusive": 0,
-          "deepest_upper": -5.212473827853044,
+          "deepest_upper": -5.216929671231917,
           "deepest_at": [
-            6.172698129054031e-17,
-            1.0080781060060262
+            6.22216178384475e-17,
+            1.016156133862737
           ]
         },
         "sec": {
           "violated": 4257,
           "satisfied": 0,
           "inconclusive": 0,
-          "deepest_upper": -5.212473827853062,
+          "deepest_upper": -5.2169296712319175,
           "deepest_at": [
-            6.172698129054031e-17,
-            1.0080781060060262
+            6.22216178384475e-17,
+            1.016156133862737
           ]
         },
         "dec": {
           "violated": 4257,
           "satisfied": 0,
           "inconclusive": 0,
-          "deepest_upper": -6.948921784143697,
+          "deepest_upper": -7.122807504005086,
           "deepest_at": [
-            0.19824222737394537,
-            0.9966309786840271
+            0.24494299955388588,
+            0.977867268487008
           ]
         }
       },
       "errors": [],
-      "seconds": 8.7
+      "seconds": 37.8
     },
     "Van den Broeck": {
       "n_sampled": 4257,
@@ -194,7 +194,7 @@
         }
       },
       "errors": [],
-      "seconds": 8.4
+      "seconds": 36.8
     },
     "Rodal": {
       "n_sampled": 4257,
@@ -244,7 +244,7 @@
         }
       },
       "errors": [],
-      "seconds": 7.8
+      "seconds": 35.9
     }
   }
 }

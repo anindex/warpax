@@ -1,5 +1,5 @@
 # warpax/results/ MANIFEST - SHA256 + size per cache file.
-# Generated 2026-08-30T20:48:36+00:00
+# Generated 2026-09-12T13:20:14+00:00
 # Regen recipe: JAX_PLATFORMS=cpu bash reproduce_all.sh --stage core
 # Per-file recipe: python scripts/run_analysis.py --metric <M> --v_s <V> --deterministic
 
@@ -8,7 +8,6 @@ c41df1ad462607cb2480a02b5620d034fb4d35c22d96840758719723f8931695       3001338  
 4d62c41915842c9820f285c919fbaa1daf64167fbf80029728e9dcb2edb4800b      32638934  alcubierre_vs0.5.npz
 ff5784f21e9db12c6eea1a370be0a98b02cea71599dfdf63f1cd14d8cc1dfba6      32638934  alcubierre_vs0.9.npz
 68d7bf7574b7660ca97bd21491dd90e05a058277544f9f71e4fc7ca137e66a65      32638934  alcubierre_vs0.99.npz
-01a1d85e795c5ff9b7d75ddbb9bcbbc2990a0753060928bda6919e5b27175960       3492296  alignment_rodal.npz
 8513fd347cff56a58d2767eb0fe5e39250c004871fa825d5aaf6737514f1b456         46022  geodesic_alcubierre_blueshift_vs0.1.npz
 e2708af0c19f8c13fb9ea7bfb22dde59623c948d12d06e092b358f2c28aed1a2         46022  geodesic_alcubierre_blueshift_vs0.5.npz
 fed91b936a34ce4ec0ad0c4e16702177a23eead2a6af2aa1ad2a162a605ee4ac         46022  geodesic_alcubierre_blueshift_vs0.9.npz
@@ -22,11 +21,11 @@ e2eb3fc6d3a37a622c5ef437dcafd8a2590664b3adbb43099c67202ee990fb74       3001338  
 391910db31ffc4b7a74a770aa8b237efc2d57c76a4a2be9f3bc27ad806ba92ae      32638934  lentz_vs0.5.npz
 dc5a7f9b5bd8a950445449e0acfbbb157fbfddaa3c03e03ae24decae05f172c4      32638934  lentz_vs0.9.npz
 7c1e8e2e8291c5b1e5c068ef40c8e6774b9bebab3183d63dd4aba8fef5038fe8      32638934  lentz_vs0.99.npz
-104926a43f4b9e1e716c84be7640effd3b805a623c406b1a0dbf8218896381ee       3001338  natario_kinematic_vs0.5.npz
-a656c4f6c67506987885fc73e691d9ce1fb9c57c822fd4ff1f7d16ebf8960e89      32638934  natario_vs0.1.npz
-d671e47520fb144a8ba8cb07bc6727b8d6c95c239ad98600ad3c5839f5544aff      32638934  natario_vs0.5.npz
-99683e868e1f3d6e1d7fa0fb917de41d9b8fa898fa55d894e6c3e082241d24f6      32638934  natario_vs0.9.npz
-b17a6ec411341de60a0b621f1e9514b02cc636c2167cf713765bbe22b507551e      32638934  natario_vs0.99.npz
+84c4d46dd3c77fd5242e4ca7a515720ee77b7ef07c0f270d94b176ac79ae8577       3001338  natario_kinematic_vs0.5.npz
+741d0d0448725514e5195040f12b6bb7aa6864d132cdd8e677b15c8cbb652d1f      32638934  natario_vs0.1.npz
+dd09335fcabe73de967ceea955c6ca95644914b1ed73e354490711d78d7db5de      32638934  natario_vs0.5.npz
+0c5f8f9160cd1a055058b76dddb9fcc97a9a1ca38756e55e806128504d9e0086      32638934  natario_vs0.9.npz
+27b37a34423dd202572753bb5e9d59f1b56ac970a38e85bdc1ced9bcf5964979      32638934  natario_vs0.99.npz
 795c9685611e8c3866192751667a65a6eb8a2b4d205f406aff7a756dccbe1b94       3001338  rodal_kinematic_vs0.5.npz
 b9304bca9545b54ef3352e30fa52909c22ed4afd076d05d46857829445bac355      32638934  rodal_vs0.1.npz
 5877d6f959c1e1420716ddcb9460cb68c7e8a81aa9cd480220df2fc1a712aecb      32638934  rodal_vs0.5.npz

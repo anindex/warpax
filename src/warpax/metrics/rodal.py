@@ -1,7 +1,8 @@
 """Rodal irrotational warp drive metric.
 
-Rodal, GRG 58:1, 2026 (arXiv:2512.18008). Irrotational shift derived
-from a scalar potential; stress-energy is globally Hawking-Ellis Type I.
+Rodal, GRG 58:1, 2026 (arXiv:2512.18008). The ideal shift derives from
+a scalar potential and has Hawking-Ellis Type-I stress-energy. The numerical
+radius regularizations below do not preserve exact irrotationality.
 
 ADM: ``alpha = 1``, ``gamma_ij = delta_ij``, ``beta^i`` from radial
 profile ``F(r)`` and angular profile ``G(r)`` (lab frame:
@@ -13,7 +14,6 @@ with ``n = (dx, y, z) / r_s``. Manifestly regular at ``r_s = 0`` since
 ``F - G -> 0``. The 0/0 form of ``g_paper(0)`` is handled by the analytic
 limit ``Delta'(0) = -2*sigma*tanh(sigma*R)``.
 
-Peak NEC/WEC violation is ~38x smaller than Alcubierre.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ def _rodal_g_paper(
 
     g_paper(0) = 0, g_paper(inf) = 1. (Paper co-moving frame convention.)
     """
-    # C-inf regularization for autodiff stability (not physical repair).
+    # Radius floor for numerical evaluation; the small-radius branch follows below.
     r_safe = jnp.sqrt(r**2 + 1e-60)
 
     # Numerically stable log-cosh difference (Delta)
@@ -160,42 +160,37 @@ class RodalMetric(ADMMetric):
     # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 
     def symbolic(self) -> SymbolicMetric:
-        """Return SymPy symbolic form for STRUCTURAL INSPECTION ONLY.
+        """Return the full analytic laboratory tensor for ``r_s > 0``.
 
-        WARNING: this symbolic form is NOT the irrotational Rodal metric. It
-        uses a simplified x-only shift ``beta_x = -v_s f_Alc(r)`` with
-        ``beta_y = beta_z = 0`` (Alcubierre-like), because the angular profile
-        ``G(r)`` that makes the shift irrotational has no compact closed form in
-        sympy. The full irrotational shift, and hence the globally Type-I
-        stress-energy of arXiv:2512.18008, is realized only by the numeric
-        ``__call__`` / :meth:`shift` path, which is what the verification
-        pipeline uses. Do NOT compute stress-energy or energy conditions from
-        this symbolic form; it will give the (different) Alcubierre-like answer.
+        Rodal's Eqs. (8), (36), (40) and (42) give the rest-frame tensor
+        with a minus-sign shift. Pulling it back by ``xi = x - v_s*t``
+        gives ``beta_lab = -X - v_s*e_x`` in our plus-sign convention.
+        The center value and derivatives require their analytic limits.
+
+        This represents the ideal profile; it omits the radius floors and
+        small-radius branch in the numerical implementation. Agreement away
+        from that regularized region is numerical, not an exact identity
+        between the symbolic and regularized metrics.
         """
-        t, x, y, z = sp.symbols("t x y z")
-        v_s = sp.Symbol("v_s", positive=True)
+        t, x, y, z = sp.symbols("t x y z", real=True)
+        v_s = sp.Symbol("v_s", real=True)
         R_val = sp.Symbol("R", positive=True)
         sigma_val = sp.Symbol("sigma", positive=True)
 
         dx = x - v_s * t
         r_s = sp.sqrt(dx**2 + y**2 + z**2)
 
-        # Alcubierre shape function (lab-frame radial profile)
-        f_alc = (sp.tanh(sigma_val * (r_s + R_val)) - sp.tanh(sigma_val * (r_s - R_val))) / (
+        F = (sp.tanh(sigma_val * (r_s + R_val)) - sp.tanh(sigma_val * (r_s - R_val))) / (
             2 * sp.tanh(sigma_val * R_val)
         )
-
-        # Simplified x-only shift for symbolic form
-        beta_x_sym = -v_s * f_alc
-
-        g = sp.Matrix(
-            [
-                [-(1 - beta_x_sym**2), beta_x_sym, 0, 0],
-                [beta_x_sym, 1, 0, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1],
-            ]
-        )
+        G = (
+            sp.log(sp.cosh(sigma_val * (r_s + R_val))) - sp.log(sp.cosh(sigma_val * (r_s - R_val)))
+        ) / (2 * sigma_val * r_s * sp.tanh(sigma_val * R_val))
+        beta = -v_s * (G * sp.Matrix([1, 0, 0]) + (F - G) * dx * sp.Matrix([dx, y, z]) / r_s**2)
+        g = sp.eye(4)
+        g[0, 0] = -1 + beta.dot(beta)
+        for i in range(3):
+            g[0, i + 1] = g[i + 1, 0] = beta[i]
         return SymbolicMetric([t, x, y, z], g)
 
     def name(self) -> str:

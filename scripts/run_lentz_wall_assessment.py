@@ -1,17 +1,10 @@
-"""Assess Lentz wall resolution via analytical wall-width and 1D radial cut.
+"""Compare Lentz wall width with the spacing of a specified 3D grid.
 
-Computes the wall-width/grid-spacing ratio analytically (from run_wall_resolution.py),
-then extends with a 1D radial cut at N=500 along the x-axis to show curvature
-behavior near the Lentz diamond wall. Target verdict: unresolvable at practical
-3D resolution.
+A 500-point radial cut supplements the width estimate with local curvature
+diagnostics. The outputs describe sampling at the tested resolution:
+results/lentz_wall_assessment.json and results/lentz_wall_report.md.
 
-Outputs:
-  - results/lentz_wall_assessment.json (wall-width ratios + radial cut data)
-  - results/lentz_wall_report.md (human-readable assessment)
-
-Usage
------
-    python scripts/run_lentz_wall_assessment.py
+Run: python scripts/run_lentz_wall_assessment.py
 """
 
 from __future__ import annotations
@@ -47,7 +40,7 @@ SIGMA_LENTZ = 8.0
 GRID_N = 50  # Standard 3D grid resolution
 DOMAIN_LENTZ = (-300, 300)
 
-# 1D radial cut parameters (N=500 is enough to resolve the wall profile).
+# Radial sampling parameters.
 N_RADIAL = 500
 RADIAL_RANGE = (50.0, 150.0)  # Focus on wall region around R=100
 
@@ -83,9 +76,8 @@ def analytical_assessment():
         "domain": list(DOMAIN_LENTZ),
         "grid_n": GRID_N,
         "notes": (
-            "Autodiff computes exact curvature at each point; "
-            "wall resolution affects spatial sampling density, "
-            "not curvature accuracy"
+            "Automatic differentiation evaluates local curvature in floating-point "
+            "arithmetic; spatial sampling requires a separate resolution check."
         ),
     }
 
@@ -182,9 +174,8 @@ def save_json(analytical, radial_cut, start_time):
             "resolved": analytical["resolved"],
             "under_resolution_ratio": analytical["under_resolution_ratio"],
             "note": (
-                "Autodiff computes exact curvature at each point; wall "
-                "resolution affects spatial sampling density, not curvature "
-                "accuracy"
+                "Automatic differentiation evaluates local curvature in floating-point "
+                "arithmetic; spatial sampling requires a separate resolution check."
             ),
         },
     }
@@ -199,94 +190,54 @@ def save_json(analytical, radial_cut, start_time):
 
 
 def save_report(analytical, radial_cut, start_time):
-    """Save human-readable wall resolution report to markdown."""
+    """Render wall sampling scales and the retained radial diagnostics."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
-
-    wall_width = analytical["wall_width"]
-    dx = analytical["dx"]
-    cells = analytical["cells_across_wall"]
-    resolved = analytical["resolved"]
-    ratio = analytical["under_resolution_ratio"]
-
-    kretschmann_vals = [abs(p["kretschmann"]) for p in radial_cut]
-    T_vals = [p["T_frobenius"] for p in radial_cut]
-    peak_k_idx = int(np.argmax(kretschmann_vals))
-    peak_T_idx = int(np.argmax(T_vals))
-
-    lines = []
-    lines.append("# Lentz Wall Resolution Assessment\n")
-    lines.append(f"**Date:** {start_time}\n")
-    lines.append("**Script:** `scripts/run_lentz_wall_assessment.py`\n")
-
-    # Verdict
-    lines.append("## Verdict\n")
-    if not resolved:
-        lines.append(
-            f"The Lentz wall is **UNRESOLVABLE** at practical 3D resolution. "
-            f"At sigma={SIGMA_LENTZ} on a [{DOMAIN_LENTZ[0]},{DOMAIN_LENTZ[1]}]^3 "
-            f"grid with N={GRID_N}, the wall width ({wall_width:.6f}) is "
-            f"spanned by only {cells:.4f} grid cells (threshold: 4.0). The grid "
-            f"spacing is {ratio:.1f}x larger than the wall width.\n"
-        )
-    else:
-        lines.append(
-            f"The Lentz wall is **RESOLVED** at the current grid configuration. "
-            f"At sigma={SIGMA_LENTZ}, the wall width ({wall_width:.6f}) is "
-            f"spanned by {cells:.2f} grid cells (threshold: 4.0).\n"
-        )
-
-    # Analytical assessment table
-    lines.append("## Analytical Assessment\n")
-    lines.append("| Parameter | Value |")
-    lines.append("|-----------|------:|")
-    lines.append(f"| Wall width (10-90%) | {wall_width:.6f} |")
-    lines.append(f"| Grid spacing (dx) | {dx:.4f} |")
-    lines.append(f"| Cells across wall | {cells:.4f} |")
-    lines.append(f"| Resolved (>= 4 cells) | {resolved} |")
-    lines.append(f"| Under-resolution ratio | {ratio:.1f}x |")
-    lines.append("")
-
-    # 1D radial cut summary
-    lines.append(f"## 1D Radial Cut (N={N_RADIAL}, r=[{RADIAL_RANGE[0]}, {RADIAL_RANGE[1]}])\n")
-    lines.append(
-        f"Curvature peaks sharply at the wall (r ~ R={R_LENTZ}). "
-        f"The Kretschmann scalar peaks at "
-        f"|K|={kretschmann_vals[peak_k_idx]:.6e} "
-        f"(r={radial_cut[peak_k_idx]['r']:.2f}) and the stress-energy "
-        f"Frobenius norm peaks at ||T||={T_vals[peak_T_idx]:.6e} "
-        f"(r={radial_cut[peak_T_idx]['r']:.2f}). "
-        f"The sharp curvature concentration near the wall confirms that "
-        f"standard 3D grids cannot adequately sample the wall structure.\n"
-    )
-
-    lines.append("### Selected Radial Cut Data Points\n")
-    lines.append("| r | f(r) | |Kretschmann| | ||T|| |")
-    lines.append("|--:|-----:|-------------:|------:|")
-    step = max(1, len(radial_cut) // 10)
-    for i in range(0, len(radial_cut), step):
+    peak_k = max(range(len(radial_cut)), key=lambda i: abs(radial_cut[i]["kretschmann"]))
+    peak_t = max(range(len(radial_cut)), key=lambda i: radial_cut[i]["T_frobenius"])
+    lines = [
+        "# Lentz wall resolution",
+        "",
+        f"Date: {start_time}. Source: `lentz_wall_assessment.json`.",
+        "",
+        f"The tested {analytical['grid_n']}^3 grid on {analytical['domain']}^3 "
+        f"{'passes' if analytical['resolved'] else 'fails'} the chosen "
+        f"{analytical['threshold_cells']:g}-cell wall-resolution criterion at sigma={analytical['sigma']}. "
+        "The conclusion applies to this grid and domain.",
+        "",
+        "| Quantity | Value |",
+        "|---|---:|",
+        f"| 10-90% wall width, 2 atanh(0.8)/sigma | {analytical['wall_width']:.6f} |",
+        f"| Grid spacing | {analytical['dx']:.4f} |",
+        f"| Cells across wall | {analytical['cells_across_wall']:.4f} |",
+        f"| Grid spacing / wall width | {analytical['under_resolution_ratio']:.2f} |",
+        "",
+        f"The {len(radial_cut)}-point cut spans r={radial_cut[0]['r']:g} to "
+        f"{radial_cut[-1]['r']:g} at (t,x,y,z)=(0,r,0.01,0), v_s=0.5 and R={R_LENTZ:g}. "
+        f"Its sampled maximum absolute Kretschmann scalar is "
+        f"{abs(radial_cut[peak_k]['kretschmann']):.6e} at r={radial_cut[peak_k]['r']:.2f}; "
+        f"the sampled maximum stress-tensor Frobenius norm is "
+        f"{radial_cut[peak_t]['T_frobenius']:.6e} at r={radial_cut[peak_t]['r']:.2f}.",
+        "",
+        "K=R_abcd R^abcd is invariant; the Frobenius norm uses the coordinate components of T_ab. "
+        "Automatic differentiation evaluates local derivatives in floating-point arithmetic. "
+        "It does not bound unsampled extrema or integration errors. "
+        "Selected points near the sampled peak and the endpoints follow.",
+        "",
+        "| r | f(r) | Absolute K | Frobenius norm of T |",
+        "|---:|---:|---:|---:|",
+    ]
+    selected = {0, len(radial_cut) - 1, peak_t}
+    selected.update(range(max(0, peak_k - 1), min(len(radial_cut), peak_k + 2)))
+    for i in sorted(selected):
         p = radial_cut[i]
         lines.append(
-            f"| {p['r']:.2f} | {p['f']:.6f} "
-            f"| {abs(p['kretschmann']):.6e} | {p['T_frobenius']:.6e} |"
+            f"| {p['r']:.2f} | {p['f']:.6f} | {abs(p['kretschmann']):.6e} | {p['T_frobenius']:.6e} |"
         )
     lines.append("")
-
-    # Note for paper
-    lines.append("## Note for Paper\n")
-    lines.append(
-        "Lentz diagnostics should be presented as lower-bound estimates. The "
-        "autodiff approach computes exact curvature at each sampled point, "
-        "but the spatial sampling density at practical 3D grid resolution "
-        f"(N={GRID_N} on [{DOMAIN_LENTZ[0]},{DOMAIN_LENTZ[1]}]^3) is "
-        "insufficient to capture the wall structure. Lentz results should "
-        "be segregated in a separate table or footnoted with a resolution "
-        "caveat.\n"
-    )
-
-    report_path = os.path.join(RESULTS_DIR, "lentz_wall_report.md")
-    with open(report_path, "w") as f:
+    path = os.path.join(RESULTS_DIR, "lentz_wall_report.md")
+    with open(path, "w") as f:
         f.write("\n".join(lines))
-    print(f"Report saved to {report_path}")
+    print(f"Report saved to {path}")
 
 
 # Main

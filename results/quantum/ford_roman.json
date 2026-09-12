@@ -3,7 +3,18 @@
     "v_s": 0.5,
     "R_b": 1.0,
     "sigma": 8.0,
-    "ford_roman_C": 0.009498860966469166
+    "ford_roman_C": 0.009498860966469166,
+    "hbar": 1.0,
+    "hbar_over_R_b_squared": 1.0,
+    "observer": "u=partial_t/sqrt(-g00), future-directed where g00<0",
+    "density": "rho_static=T00/(-g00); not Eulerian rho_n",
+    "field": "massless scalar, four-dimensional flat-space bound",
+    "sampling": "Lorentzian kernel in accumulated proper time",
+    "n_samples": 1024,
+    "proper_time_half_span_over_tau0": 10.0,
+    "curve_status": "finite-window diagnostic; no tail or curved-space error bound",
+    "tau0_threshold_definition": "root of hbar=1 pulse diagnostic; not a macroscopic scaling coefficient",
+    "short_window_definition": "c_short=(C/abs(rho_static_min*R_b^2))^(1/4); tau0 approximately c_short*sqrt(l_P*R_b), assuming nearly constant density over the short sampling window"
   },
   "tau0_grid": [
     0.1,
@@ -218,6 +229,8 @@
     "Alcubierre": {
       "robust": true,
       "rho_min": -0.087553163330673,
+      "rho_static_min": -0.087553163330673,
+      "short_window_coefficient": 0.5739181009250184,
       "x_w": -0.0743594548799999,
       "y_w": 1.0419097609466665,
       "tau0_threshold": 0.6880708143470873,
@@ -427,6 +440,8 @@
     "Rodal": {
       "robust": true,
       "rho_min": -0.0070413354202212295,
+      "rho_static_min": -0.0070413354202212295,
+      "short_window_coefficient": 1.0777154888468976,
       "x_w": 0.0,
       "y_w": 1.1174734609466668,
       "tau0_threshold": 1.6012903737650113,

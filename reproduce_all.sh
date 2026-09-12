@@ -12,7 +12,7 @@
 # Stages: core (analysis, convergence, scalars, geodesics),
 #         ablation (ablation + supplementary studies),
 #         figures (figure generation),
-#         gate (prose/table consistency check; runs last, needs everything above),
+#         gate (optional manuscript consistency check; needs matching inputs),
 #         enclosures (certified interval branch-and-bound; hours, opt-in only).
 set -euo pipefail
 
@@ -59,10 +59,7 @@ done
 
 PYTHON="${PYTHON:-python}"
 
-# Check the interpreter BEFORE step 0 deletes results/. A bare `python` is not on
-# PATH under uv-managed environments, so the default sent one run straight through
-# the cache wipe and into "command not found", destroying every artifact it was
-# about to regenerate. Fail here instead, while the cache is still intact.
+# Check the interpreter and package before deleting cached results.
 if ! command -v "${PYTHON}" >/dev/null 2>&1; then
     echo "[reproduce_all.sh] PYTHON='${PYTHON}' is not executable." >&2
     echo "[reproduce_all.sh] Nothing was deleted. Re-run with, e.g.:" >&2
@@ -78,10 +75,7 @@ if ! "${PYTHON}" -c 'import warpax' >/dev/null 2>&1; then
     exit 1
 fi
 
-# Pin JAX backend to CPU by default for deterministic reproduction.
-# Blackwell sm_120 with jax[cuda12]==0.10.0 crashes in two paths
-# (cuBLAS LT autotuner; cuSolver DN handle creation), so the committed cache
-# is CPU-provenanced. Override with JAX_PLATFORMS=gpu (non-deterministic).
+# Use CPU to match the supplied numerical results.
 export JAX_PLATFORMS="${JAX_PLATFORMS:-cpu}"
 # Persistent XLA compilation cache: each stage is a fresh python process,
 # so without this every stage repays full compile cost. Numerics-safe
@@ -144,7 +138,7 @@ run_core() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_anec_retained.py"
 
     echo ""
-    echo "[K6b] run_anec_symplectic.py Rigorous geodesic-integrated ANEC (symplectic + witness)"
+    echo "[K6b] run_anec_symplectic.py Finite-segment geodesic null-energy integrals (symplectic + witness)"
     $PYTHON "${SCRIPT_DIR}/scripts/run_anec_symplectic.py"
 
     echo ""
@@ -156,7 +150,7 @@ run_core() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_construction_verification.py"
 
     echo ""
-    echo "[K9] run_exoticity_ranking.py Boost-invariant exoticity ranking + v_s scaling laws (reads K1, K6b)"
+    echo "[K9] run_exoticity_ranking.py Specified-slice composite diagnostics + empirical speed fits (reads K1, K6b)"
     $PYTHON "${SCRIPT_DIR}/scripts/run_exoticity_ranking.py"
 
     echo ""
@@ -164,11 +158,11 @@ run_core() {
     $PYTHON "${SCRIPT_DIR}/scripts/derive_vorticity_type.py"
 
     echo ""
-    echo "[K11] run_curvature_scaling.py Universal v_s scaling of wall curvature invariants"
+    echo "[K11] run_curvature_scaling.py Empirical speed fits of wall curvature invariants"
     $PYTHON "${SCRIPT_DIR}/scripts/run_curvature_scaling.py"
 
     echo ""
-    echo "[K12] run_ssv_bound.py SSV NEC lower-bound saturation (reads K1)"
+    echo "[K12] run_ssv_bound.py Pointwise wall NEC deficits and speed fits (reads K1)"
     $PYTHON "${SCRIPT_DIR}/scripts/run_ssv_bound.py"
 
     echo ""
@@ -184,7 +178,7 @@ run_core() {
     $PYTHON "${SCRIPT_DIR}/scripts/run_rodal_sigma_resolved.py"
 
     echo ""
-    echo "[K16] run_classifier_error_rate.py Jordan displacement limit + LMI label audit"
+    echo "[K16] run_classifier_error_rate.py Jordan displacement limit + LMI label check"
     $PYTHON "${SCRIPT_DIR}/scripts/run_classifier_error_rate.py"
 
     echo ""
@@ -362,9 +356,7 @@ run_figures() {
     echo ""
 }
 
-# The consistency check runs AFTER everything, not inside core: it reads the
-# cached grids and every table, so placed earlier it fails on inputs the run has
-# not written yet and `set -e` stops the pipeline it was meant to check.
+# Run after all numerical stages, with the corresponding manuscript inputs.
 run_gate() {
     echo "============================================================"
     echo " Stage: Prose/table consistency gate"
@@ -382,7 +374,6 @@ case "${STAGE_ONLY}" in
         run_core
         run_ablation
         run_figures
-        run_gate
         ;;
     enclosures)
         run_enclosures

@@ -1,5 +1,113 @@
 {
   "partial": false,
+  "order": [
+    "Alcubierre",
+    "Rodal",
+    "Natario",
+    "VanDenBroeck"
+  ],
+  "results": {
+    "Alcubierre": {
+      "lower": -0.6316237158101168,
+      "upper": -0.631076649550177,
+      "width": 0.0005470662599398324,
+      "point_lower": -0.6310766495511775,
+      "point_upper": -0.6310766495511773,
+      "point_interval_precision_bits": 80,
+      "argmin": [
+        9.1552734375e-05,
+        0.93109130859375
+      ],
+      "n_evaluations": 119999,
+      "tail_shape_enclosure": [
+        0.0,
+        1.2664351586738398e-14
+      ],
+      "tail_excluded": true,
+      "build_seconds": 1.6689300537109375e-06,
+      "search_seconds": 10248.737415790558,
+      "max_boxes": 120000,
+      "requested_tolerance": 0.0001,
+      "tolerance_achieved": false,
+      "termination": "evaluation_budget",
+      "source_artifact_sha256": "dfd018c40e0a47301e0a75a9606fc69069012e7889c1fa23b9cbdb35c203d955"
+    },
+    "Rodal": {
+      "lower": -23.49680471594995,
+      "upper": -0.19414131490756753,
+      "width": 23.30266340104238,
+      "point_lower": -0.19414131492864628,
+      "point_upper": -0.19414131492863562,
+      "point_interval_precision_bits": 80,
+      "argmin": [
+        0.97265625,
+        0.0234375
+      ],
+      "n_evaluations": 4095,
+      "tail_shape_enclosure": [
+        0.0,
+        1.2664351586738398e-14
+      ],
+      "tail_excluded": true,
+      "build_seconds": 2.6226043701171875e-06,
+      "search_seconds": 367.6917157173157,
+      "max_boxes": 4096,
+      "requested_tolerance": 0.0001,
+      "tolerance_achieved": false,
+      "termination": "evaluation_budget",
+      "source_artifact_sha256": "e49b023611fd5fd166744e725bf1cae1c2d35d304372d61bea004a63c43eb6ae"
+    },
+    "Natario": {
+      "lower": -1419.1737891554167,
+      "upper": -5.21253405658073,
+      "width": 1413.9612550988359,
+      "point_lower": -5.212534060070895,
+      "point_upper": -5.212534060070893,
+      "point_interval_precision_bits": 80,
+      "argmin": [
+        0.05859375,
+        1.0078125
+      ],
+      "n_evaluations": 4095,
+      "tail_shape_enclosure": [
+        0.0,
+        1.2664351586738398e-14
+      ],
+      "tail_excluded": true,
+      "build_seconds": 3.337860107421875e-06,
+      "search_seconds": 333.6722173690796,
+      "max_boxes": 4096,
+      "requested_tolerance": 0.0001,
+      "tolerance_achieved": false,
+      "termination": "evaluation_budget",
+      "source_artifact_sha256": "a07127b5b3a9d2c998148e44d933b43a6a45a84ce16567cf866e9267bf49715a"
+    },
+    "VanDenBroeck": {
+      "lower": -35.3151362678058,
+      "upper": -1.281561054498618,
+      "width": 34.03357521330718,
+      "point_lower": -1.2815610545251088,
+      "point_upper": -1.281561054525108,
+      "point_interval_precision_bits": 80,
+      "argmin": [
+        -1.1015625,
+        0.046875
+      ],
+      "n_evaluations": 4095,
+      "tail_shape_enclosure": [
+        0.0,
+        1.2664351586738398e-14
+      ],
+      "tail_excluded": true,
+      "build_seconds": 3.0994415283203125e-06,
+      "search_seconds": 311.26418232917786,
+      "max_boxes": 4096,
+      "requested_tolerance": 0.0001,
+      "tolerance_achieved": false,
+      "termination": "evaluation_budget",
+      "source_artifact_sha256": "11941bf71769d2fdbbb77ae86722f55a7adb98741b6132b0dce4de15c8df2f42"
+    }
+  },
   "params": {
     "v_s": 0.5,
     "R_b": 1.0,
@@ -12,108 +120,55 @@
       0.0,
       3.0
     ],
-    "tail_x": [
-      3.0,
-      30.0
-    ],
-    "tail_s": [
-      0.0,
-      30.0
-    ],
-    "tol": 0.0001,
-    "max_boxes": 120000,
     "wall_mask": [
       0.1,
       0.9
     ],
-    "note": "N = min_{|v|=1} (rho_n + 2 b.v + v^T S v), the Eulerian-normalized null deficit; defined at every point regardless of Hawking-Ellis type. Lower end certified on the continuum by interval branch-and-bound."
-  },
-  "order": [
-    "Alcubierre",
-    "Rodal",
-    "Natario",
-    "VanDenBroeck"
-  ],
-  "results": {
-    "Alcubierre": {
-      "lower": -0.6316237158101168,
-      "upper": -0.631076649550177,
-      "width": 0.0005470662599398324,
-      "argmin": [
-        9.1552734375e-05,
-        0.93109130859375
-      ],
-      "n_evaluations": 119999,
-      "tail_shape_enclosure": [
-        0.0,
-        1.2664351586738398e-14
-      ],
-      "tail_excluded": true,
-      "reference": -0.6283694438533752,
-      "reference_statistic": "all-wall NEC min, per-metric section",
-      "reference_source": "comparison_table.json:metric=alcubierre,v_s=0.5.nec_robust_min",
-      "build_seconds": 2.1457672119140625e-06,
-      "search_seconds": 8059.483652591705
+    "tol": 0.0001,
+    "max_boxes_by_metric": {
+      "Alcubierre": 120000,
+      "Rodal": 4096,
+      "Natario": 4096,
+      "VanDenBroeck": 4096
     },
     "VanDenBroeck": {
-      "lower": -1.4461924132121295,
-      "upper": -1.2964550443603593,
-      "width": 0.14973736885177025,
-      "argmin": [
-        -1.11181640625,
-        0.0029296875
-      ],
-      "n_evaluations": 119999,
-      "tail_shape_enclosure": [
-        0.0,
-        1.2664351586738398e-14
-      ],
-      "tail_excluded": true,
-      "reference": null,
-      "reference_statistic": null,
-      "reference_source": null,
-      "build_seconds": 2.6226043701171875e-06,
-      "search_seconds": 10662.195634365082
+      "R_tilde": 1.0,
+      "alpha_vdb": 0.5,
+      "sigma_B": 8.0
     },
-    "Natario": {
-      "lower": -38.69478283015173,
-      "upper": -5.216418343993033,
-      "width": 33.478364486158696,
-      "argmin": [
-        -0.0029296875,
-        1.0107421875
-      ],
-      "n_evaluations": 119999,
-      "tail_shape_enclosure": [
-        0.0,
-        1.2664351586738398e-14
-      ],
-      "tail_excluded": true,
-      "reference": null,
-      "reference_statistic": null,
-      "reference_source": null,
-      "build_seconds": 2.384185791015625e-06,
-      "search_seconds": 10716.721831083298
-    },
-    "Rodal": {
-      "lower": -0.3793555572197421,
-      "upper": -0.19447279651665195,
-      "width": 0.18488276070309018,
-      "argmin": [
-        0.97119140625,
-        0.0029296875
-      ],
-      "n_evaluations": 119999,
-      "tail_shape_enclosure": [
-        0.0,
-        1.2664351586738398e-14
-      ],
-      "tail_excluded": true,
-      "reference": -0.19449467168305595,
-      "reference_statistic": "polished $\\min(\\rho+p_i)$",
-      "reference_source": "diagnostic_convergence.json:results.Rodal.nec_min.polished",
-      "build_seconds": 1.430511474609375e-06,
-      "search_seconds": 12409.54592514038
-    }
-  }
+    "normalization": "Eulerian n, k=n+v with spatial |v|=1, t=0"
+  },
+  "source_sha256": {
+    "src/warpax/energy_conditions/__init__.py": "787c5019c8c91f0d127b71d2e67c267c666cf782041657b0f25f66f0a1f9db09",
+    "src/warpax/energy_conditions/_gen_eig_callback.py": "d566e2b0b9ee74ee6edbce8dc4c7b8cf428c2d407d3531cc04ee892f7f61ca4d",
+    "src/warpax/energy_conditions/_intervalad.py": "b4468b3f589f2335fc4ef5d690e03ae387fe5c43652b0e80abf541588d6bf0fd",
+    "src/warpax/energy_conditions/_intervalcurv.py": "103fffcff272a44e54f05c9aedf226c6446da29dca76527e9aaa3ec866d0e0ce",
+    "src/warpax/energy_conditions/_jet.py": "93a34c06539a5ea42dbdbd30ad2c4029e66bb5a73e1c56c6e0720e78ba47d04b",
+    "src/warpax/energy_conditions/certificate.py": "5d7c91487d2ceee9946d6ccba9ddbd08829a24f2f495e7e0de0eb6fb020daf1f",
+    "src/warpax/energy_conditions/classification.py": "5c88c2ee1bba232e0b0e7b3c97877cda7ac1a92cf43f48f9a50320a69d9f0602",
+    "src/warpax/energy_conditions/classification_mpmath.py": "8af167438ca4adb2acfad5ca244be0bbc636ba8a800cb4c9cb3c4816b16b71c3",
+    "src/warpax/energy_conditions/eigenvalue_checks.py": "931f4399c75323b59e461331e2d288561690babd04e79e1c0239462b3d1329ce",
+    "src/warpax/energy_conditions/enclosure.py": "a2bea41254d0737fad6100af069485240040d64d242a059bec1b73990d33838f",
+    "src/warpax/energy_conditions/filtering.py": "1870da9df14be9730cef4a62c4339c7ff8bbe19a609d00426bdd4ab2b54e87b0",
+    "src/warpax/energy_conditions/frame_free.py": "ac1af2ce16647c381badbc50f9dcd302c893040830a6d0385dc8709ffeb60003",
+    "src/warpax/energy_conditions/interval_lmi.py": "d84385f2b10e4008541cc1b712bcd746255adce3a61c136e655a8527295bcebc",
+    "src/warpax/energy_conditions/observer.py": "d0feb9e760bba92aceb9888c4c97dd90d07b2ae6c55fda9f25a310909d71e550",
+    "src/warpax/energy_conditions/optimization.py": "7a8e7c6e057e6e0574816dfa0701239e987c76da600416f747155039dc267ec8",
+    "src/warpax/energy_conditions/slemma.py": "7692c747a307916400bb8fa76120af1bcdc4def3712c17dff89ffa1510ba0d79",
+    "src/warpax/energy_conditions/sweep.py": "ab08cf2f5fd5c3df5e6143084080f6f4a5d6dbd5303a2f474038fd3060b26d62",
+    "src/warpax/energy_conditions/types.py": "285906a38209df5136972cd029f04f0d85275cb7fe378974f9d7412f8850d3d6",
+    "src/warpax/energy_conditions/verifier.py": "d8da6d1d1c5b81084a6b1a39298c0ab27ff4a9074430931e514847d54265643e",
+    "src/warpax/energy_conditions/worst_observer_analytic.py": "dc32bdf774f45646a6d1149cc88d0db99ed7ef7251b1f09aa21177e5a420f4b0",
+    "scripts/run_enclosures.py": "e5dced8c4d7b45cd189c04b3801a5218ab9ac25d16f139fe20fb6b7bff0b5970"
+  },
+  "certified_strict_order_pairs": [
+    [
+      "Natario",
+      "Alcubierre"
+    ],
+    [
+      "VanDenBroeck",
+      "Alcubierre"
+    ]
+  ]
 }

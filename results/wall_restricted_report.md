@@ -1,60 +1,25 @@
-# Wall-Restricted Type-IV Analysis Report
+# Wall-restricted classification and missed violations
 
-**Date:** 2026-08-30T20:23:49Z
-**Script:** `scripts/run_wall_restricted_analysis.py`
-**Grid resolution:** 50^3 (per metric; bounds follow run_analysis.py)
-**Wall region:** shape function in [0.1, 0.9]
-**Velocity:** v_s = 0.5
+Date: 2026-09-12T09:36:26Z. Source: `wall_restricted_analysis.json`.
 
-## Overview
+v_s=0.5; 50^3 grid points per metric, with bounds from `run_analysis.py`. The wall mask is 0.1 <= f <= 0.9. Type fractions use point counts within the stated region.
 
-Full-domain Type-IV fractions are computed over the full grid, which for large-bubble metrics (Rodal, Lentz) is dominated by vacuum. Restricting to the active warp-wall region where the shape function lies in [0.1, 0.9] yields fractions that are directly physically meaningful. This report shows both quantities side-by-side so the scaling between full-grid (vacuum-dominated) and wall-restricted (wall-dominated) statistics is transparent.
+| Metric | Grid points | Wall points | Full Type IV % | Wall I / II / III / IV % | Time (s) |
+|---|---:|---:|---:|---|---:|
+| alcubierre | 125000 | 416 | 15.49 | 0.00 / 0.00 / 0.00 / 100.00 | 106.2 |
+| rodal | 125000 | 5208 | 0.00 | 100.00 / 0.00 / 0.00 / 0.00 | 2.6 |
+| vdb | 125000 | 416 | 5.67 | 15.38 / 0.00 / 0.00 / 84.62 | 39.7 |
+| natario | 125000 | 416 | 99.49 | 17.31 / 0.00 / 0.00 / 82.69 | 522.4 |
 
-## alcubierre
+A missed violation passes the Eulerian test but violates the condition for a searched observer. Full-grid percentages divide by all grid points; wall percentages divide by wall points with a detected violation of that condition. `N/A` means that denominator is zero. These denominators differ.
 
-- Wall points (f in [0.1, 0.9]): 416
-- Total grid points: 125000
-- Type-IV fraction: full=15.49%, wall=100.00%
-- Type I/II/III/IV wall breakdown: 0.00% / 0.00% / 0.00% / 100.00%
-- Full-grid miss % (Eulerian satisfied, robust violated): NEC=0.00%, WEC=0.00%, SEC=7.19%, DEC=0.00%
-- Wall-restricted conditional miss rate: NEC=0.00%, WEC=0.00%, SEC=15.38%, DEC=0.00%
-- Elapsed: 63.7s
-
-## rodal
-
-- Wall points (f in [0.1, 0.9]): 5208
-- Total grid points: 125000
-- Type-IV fraction: full=0.00%, wall=0.00%
-- Type I/II/III/IV wall breakdown: 100.00% / 0.00% / 0.00% / 0.00%
-- Full-grid miss % (Eulerian satisfied, robust violated): NEC=1.58%, WEC=15.60%, SEC=28.01%, DEC=28.53%
-- Wall-restricted conditional miss rate: NEC=10.13%, WEC=60.78%, SEC=11.60%, DEC=62.67%
-- Elapsed: 2.6s
-
-## vdb
-
-- Wall points (f in [0.1, 0.9]): 416
-- Total grid points: 125000
-- Type-IV fraction: full=5.67%, wall=84.62%
-- Type I/II/III/IV wall breakdown: 15.38% / 0.00% / 0.00% / 84.62%
-- Full-grid miss % (Eulerian satisfied, robust violated): NEC=0.10%, WEC=0.36%, SEC=1.78%, DEC=0.31%
-- Wall-restricted conditional miss rate: NEC=13.33%, WEC=53.33%, SEC=13.46%, DEC=33.33%
-- Elapsed: 26.0s
-
-## natario
-
-- Wall points (f in [0.1, 0.9]): 416
-- Total grid points: 125000
-- Type-IV fraction: full=99.97%, wall=90.38%
-- Type I/II/III/IV wall breakdown: 9.62% / 0.00% / 0.00% / 90.38%
-- Full-grid miss % (Eulerian satisfied, robust violated): NEC=0.00%, WEC=0.00%, SEC=0.00%, DEC=0.00%
-- Wall-restricted conditional miss rate: NEC=0.00%, WEC=0.00%, SEC=0.00%, DEC=0.00%
-- Elapsed: 355.9s
-
-## Summary Table
-
-| Metric | Wall points | Full Type-IV | Wall Type-IV | Full DEC miss % | Wall DEC miss | Caveat |
-|--------|-------------|--------------|--------------|------------------|----------------|--------|
-| alcubierre | 416 | 15.49% | 100.00% | 0.00% | 0.00% |  |
-| rodal | 5208 | 0.00% | 0.00% | 28.53% | 62.67% |  |
-| vdb | 416 | 5.67% | 84.62% | 0.31% | 33.33% |  |
-| natario | 416 | 99.97% | 90.38% | 0.00% | 0.00% |  |
+| Metric | Region | NEC miss % | WEC miss % | SEC miss % | DEC miss % |
+|---|---|---:|---:|---:|---:|
+| alcubierre | full grid | 0.00 | 0.00 | 7.19 | 0.00 |
+| alcubierre | wall | 0.00 | 0.00 | 15.38 | 0.00 |
+| rodal | full grid | 1.58 | 15.60 | 28.01 | 28.53 |
+| rodal | wall | 10.13 | 60.78 | 11.60 | 62.67 |
+| vdb | full grid | 0.10 | 0.36 | 1.78 | 0.31 |
+| vdb | wall | 13.33 | 53.33 | 13.46 | 33.33 |
+| natario | full grid | 0.00 | 0.00 | 3.21 | 0.00 |
+| natario | wall | 0.00 | 0.00 | 0.00 | 0.00 |

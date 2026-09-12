@@ -1,25 +1,12 @@
-"""Characterize superluminal warp drive behavior at v_s = 1.0, 1.5, 2.0.
+"""Characterize Alcubierre and Lentz metrics at v_s=1, 1.5, 2.
 
-Tests Alcubierre (tanh family) and Lentz (L1/diamond family) metrics to
-document the g_00 sign-flip failure mode and EC pipeline behavior in
-signature-changed regions. Produces evidence for subluminal scope claims.
+The unit-lapse, flat-spatial ADM determinant is -1 at every speed.
+A positive g_00 makes coordinate-stationary worldlines spacelike;
+the Eulerian normal remains timelike and the signature stays Lorentzian.
+Save radial diagnostics to results/superluminal_characterization.json
+and a summary to results/superluminal_report.md.
 
-For unit-lapse, flat-spatial ADM warp metrics the metric determinant
-remains det(g) = -1 at ALL velocities. The superluminal failure mode is
-a g_00 sign flip: g_00 = -(1 - v_s^2 * f(r)^2) becomes positive when
-v_s * f(r) > 1, creating a region with no static observers. The metric
-signature (-,+,+,+) is preserved (one eigenvalue stays negative) and the
-curvature chain produces no NaN, but EC physical interpretation becomes
-questionable.
-
-Outputs
--------
-  - results/superluminal_characterization.json (structured diagnostics)
-  - results/superluminal_report.md (human-readable summary)
-
-Usage
------
-    python scripts/run_superluminal_investigation.py
+Run: python scripts/run_superluminal_investigation.py
 """
 
 from __future__ import annotations
@@ -394,14 +381,13 @@ def compute_summary(all_results):
     summary["overall"] = {
         "det_g_always_minus1": all_det_g_ok,
         "any_nan_found": any_nan,
-        "corrected_failure_mode": "g_00 sign flip (v_s * f(r) > 1), NOT det(g) = 0",
+        "corrected_failure_mode": "g_00 changes sign when v_s * f(r) > 1; det(g) remains -1",
         "physical_interpretation": (
-            "When g_00 > 0, no static observers exist in that region. "
-            "The Eulerian frame (n^a = (1/alpha, 0, 0, 0)) remains timelike "
-            "because alpha = 1 always, but coordinate-stationary observers "
-            "become spacelike. EC margins are numerically computable but their "
-            "physical interpretation in the signature-changed region is "
-            "questionable."
+            "When g_00 > 0, coordinate-stationary worldlines are spacelike. "
+            "With ds^2=-alpha^2 dt^2+gamma_ij(dx^i+beta^i dt)(dx^j+beta^j dt), "
+            "the Eulerian normal n^a=(1,-beta^i)/alpha remains timelike. "
+            "The metric stays Lorentzian and Eulerian energy-condition "
+            "measurements remain meaningful."
         ),
     }
 
@@ -438,167 +424,62 @@ def save_json(results, summary, start_time):
 
 
 def save_report(results, summary, start_time):
-    """Save human-readable markdown summary.
-
-    Parameters
-    ----------
-    results : dict
-        Per-metric results.
-    summary : dict
-        Aggregated summary.
-    start_time : str
-        ISO-format timestamp.
-    """
-    lines = []
-    lines.append("# Superluminal Characterization Report")
-    lines.append("")
-    lines.append(f"**Date:** {start_time}")
-    lines.append("**Script:** `scripts/run_superluminal_investigation.py`")
-    lines.append("**Metrics tested:** Alcubierre (tanh), Lentz (L1/diamond)")
-    lines.append(f"**Velocities:** {', '.join(str(v) for v in VELOCITIES)}")
-    lines.append("")
-
-    # Key Finding
-    lines.append("## Key Finding")
-    lines.append("")
-    lines.append(
-        "The superluminal failure mode is NOT metric degeneracy (det(g) = 0). "
-        "For all unit-lapse, flat-spatial ADM warp metrics, det(g) = -1 at ALL "
-        "velocities. The actual failure mode is a g_00 sign flip: "
-        "g_00 = -(1 - v_s^2 * f(r)^2) becomes positive when v_s * f(r) > 1, "
-        "creating a region with no static observers."
-    )
-    lines.append("")
-    lines.append(
-        "The metric signature (-,+,+,+) is preserved: one eigenvalue of g_ab "
-        "remains negative at all tested velocities. The curvature chain "
-        "(Christoffel -> Riemann -> Ricci -> Einstein -> stress-energy) "
-        "produces no NaN. The EC pipeline continues to work, but the physical "
-        "interpretation of EC margins in the g_00 > 0 region is questionable "
-        "because coordinate-stationary observers become spacelike."
-    )
-    lines.append("")
-
-    # Per-velocity results
+    """Render the stored radial diagnostics and their observer interpretation."""
+    lines = [
+        "# Superluminal characterization",
+        "",
+        f"Date: {start_time}. Source: `superluminal_characterization.json`.",
+        "",
+        "Alcubierre (tanh) and Lentz (L1/diamond), R=100 and sigma=8. "
+        "For unit-lapse, flat-spatial ADM metrics, det(g)=-1 and the signature "
+        "is (-,+,+,+) at every speed. With the convention "
+        "ds^2=-alpha^2 dt^2+gamma_ij(dx^i+beta^i dt)(dx^j+beta^j dt), "
+        "the Eulerian normal is n^a=(1,-beta^i)/alpha and satisfies n^a n_a=-1. "
+        "Its energy-condition measurements remain meaningful when g_00>0.",
+        "",
+        "For these shifts, g_00=-1+v_s^2 f^2. Coordinate-stationary worldlines "
+        "become null at g_00=0 and spacelike at g_00>0. This surface alone "
+        "does not identify an event horizon. At v_s=1, g_00=0 wherever f=1; "
+        "the metric remains invertible.",
+        "",
+        "| Metric | v_s | Estimated g_00 crossing r | Max det(g) error | NaN in T | HE types | NEC range | WEC range |",
+        "|---|---:|---:|---:|---|---|---|---|",
+    ]
     for v_s in VELOCITIES:
-        v_key = str(v_s)
-        lines.append(f"## v_s = {v_s}" + (" (Luminal Threshold)" if v_s == 1.0 else ""))
-        lines.append("")
-
-        # Table header
-        lines.append(
-            "| Metric | g_00 = 0 location | det(g) | "
-            "NaN found | HE types | NEC margin range | WEC margin range |"
-        )
-        lines.append(
-            "|--------|-------------------|--------|"
-            "-----------|----------|-----------------|-----------------|"
-        )
-
-        for metric_name in ["alcubierre", "lentz"]:
-            v_data = results[metric_name].get(v_key, {})
-            det_check = summary["det_g_check"][metric_name][v_key]
-            g00_info = summary["g00_sign_flip"][metric_name][v_key]
-            ec_info = summary["ec_pipeline_status"][metric_name][v_key]
-
-            # g_00 = 0 location
-            g00_r = g00_info["g00_zero_crossing_r"]
-            g00_str = f"r ~ {g00_r:.1f}" if g00_r is not None else "N/A"
-
-            # det(g) status
-            det_str = f"det(g) = -1 (max dev: {det_check['max_deviation_from_minus1']:.1e})"
-
-            # NaN status
-            nan_str = "No" if ec_info["n_nan_stress_energy"] == 0 else "Yes"
-
-            # HE types
-            he_str = ", ".join(str(t) for t in ec_info["he_types_found"])
-
-            # EC margin ranges
-            char_data = v_data.get("characterization", [])
-            if char_data:
-                nec_vals = [pt["nec_margin"] for pt in char_data]
-                wec_vals = [pt["wec_margin"] for pt in char_data]
-                nec_str = f"[{min(nec_vals):.2e}, {max(nec_vals):.2e}]"
-                wec_str = f"[{min(wec_vals):.2e}, {max(wec_vals):.2e}]"
-            else:
-                nec_str = "N/A"
-                wec_str = "N/A"
-
+        key = str(v_s)
+        for name in ("alcubierre", "lentz"):
+            data = results[name][key]
+            det = summary["det_g_check"][name][key]
+            crossing = summary["g00_sign_flip"][name][key]["g00_zero_crossing_r"]
+            ec = summary["ec_pipeline_status"][name][key]
+            radius = f"{crossing:.1f}" if crossing is not None else "none bracketed"
+            he = ", ".join(str(t) for t in ec["he_types_found"])
+            nec = [p["nec_margin"] for p in data["characterization"]]
+            wec = [p["wec_margin"] for p in data["characterization"]]
             lines.append(
-                f"| {metric_name.capitalize()} | {g00_str} | {det_str} | "
-                f"{nan_str} | {he_str} | {nec_str} | {wec_str} |"
+                f"| {name.capitalize()} | {v_s:.1f} | {radius} | "
+                f"{det['max_deviation_from_minus1']:.1e} | "
+                f"{'yes' if ec['n_nan_stress_energy'] else 'no'} | {he} | "
+                f"[{min(nec):.2e}, {max(nec):.2e}] | [{min(wec):.2e}, {max(wec):.2e}] |"
             )
-
-        lines.append("")
-
-        # v_s = 1.0 special note
-        if v_s == 1.0:
-            lines.append(
-                "At the luminal threshold (v_s = 1.0), g_00 = 0 exactly at points "
-                "where f(r) = 1 (bubble center). This is a coordinate degeneracy "
-                "of the zero-shift surface, not a metric degeneracy."
-            )
-            lines.append("")
-
-    # det(g) confirmation section
-    lines.append("## det(g) = -1 Confirmation")
-    lines.append("")
-    lines.append(
-        "For unit-lapse (alpha = 1) and flat-spatial (gamma_ij = delta_ij) ADM warp metrics:"
+    n_det = sum(
+        d["n_points_checked"] for rows in summary["det_g_check"].values() for d in rows.values()
     )
-    lines.append("")
-    lines.append(" det(g) = -alpha^2 * det(gamma) = -1 * 1 = -1")
-    lines.append("")
-    lines.append(
-        "This holds at ALL velocities because neither the lapse nor the spatial "
-        "metric depend on the shift vector magnitude. The shift only enters g_0i "
-        "components but does not affect the determinant of the spatial block."
+    n_ec = sum(len(d["characterization"]) for rows in results.values() for d in rows.values())
+    finite = all(
+        d["ec_margins_all_finite"]
+        for rows in summary["ec_pipeline_status"].values()
+        for d in rows.values()
     )
-    lines.append("")
-
-    det_g_ok = summary["overall"]["det_g_always_minus1"]
-    lines.append(
-        f"**Numerical verification:** det(g) = -1 within tolerance at all "
-        f"{N_RADIAL * len(VELOCITIES) * 2} sampled points: "
-        f"{'CONFIRMED' if det_g_ok else 'FAILED'}"
-    )
-    lines.append("")
-
-    # Scope Claim Evidence
-    lines.append("## Scope Claim Evidence")
-    lines.append("")
-    lines.append(
-        "The Eulerian-frame comparison is restricted to subluminal "
-        "velocities (v_s < 1) on both physical and computational grounds:"
-    )
-    lines.append("")
-    lines.append(
-        "1. **Physical:** When v_s * f(r) > 1, the g_00 component flips sign. "
-        "Coordinate-stationary observers become spacelike in this region. While "
-        "the Eulerian normal n^a remains timelike (alpha = 1), the physical "
-        "interpretation of energy conditions measured by these observers becomes "
-        "ambiguous in a region where the metric signature locally resembles "
-        "Euclidean space in the (t, x) sector."
-    )
-    lines.append("")
-    lines.append(
-        "2. **Computational:** The curvature chain and EC pipeline remain "
-        "numerically functional at all tested velocities (no NaN, finite margins). "
-        "However, the Eulerian EC margins in the g_00 > 0 region reflect "
-        "quantities measured by observers that are no longer timelike, so "
-        "the single-frame comparison loses physical meaning there."
-    )
-    lines.append("")
-    lines.append(
-        "3. **Scope boundary:** the Eulerian comparison applies for v_s < 1, "
-        "where the ADM normal congruence is timelike. At v_s >= 1 the "
-        "frame-independent Hawking-Ellis eigenvalue certifier "
-        "(energy_conditions.frame_free) takes over; see "
-        "validate_superluminal_classification.py."
-    )
-    lines.append("")
-
+    lines += [
+        "",
+        f"Determinant checks cover {n_det} sampled points; EC checks cover {n_ec}. "
+        f"All sampled EC margins are finite: {'yes' if finite else 'no'}. "
+        "The EC search uses eight starts and rapidity cap 5. Ranges are sampled "
+        "extrema, and crossing locations are interpolated from a coarse radial "
+        "scan at (t,x,y,z)=(0,r,0.01,0). Neither provides a continuum error bound.",
+        "",
+    ]
     outpath = os.path.join(RESULTS_DIR, "superluminal_report.md")
     with open(outpath, "w") as f:
         f.write("\n".join(lines))

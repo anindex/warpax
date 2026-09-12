@@ -237,7 +237,7 @@ def generate_worst_observer_figures(figures_dir: str, results_dir: str) -> int:
 
 
 def generate_convergence_figures(figures_dir: str, results_dir: str) -> int:
-    """Generate Richardson convergence log-log plot and table.
+    """Generate the cached grid-study plot and table.
 
     Returns the number of figures generated.
     """
@@ -249,7 +249,7 @@ def generate_convergence_figures(figures_dir: str, results_dir: str) -> int:
         warnings.warn(f"Skipping convergence figures: {json_path} not found", stacklevel=2)
         return 0
 
-    # Log-log convergence plot (NEC)
+    # The plot follows the cached study's descriptive or Richardson schema.
     save_path = os.path.join(figures_dir, "convergence_nec.pdf")
     plot_convergence(json_path, quantity="min_margin_nec", save_path=save_path)
     print(f"  Generated: {save_path}")
@@ -585,7 +585,7 @@ def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> 
     """Generate merged velocity sweep + convergence figure (two panels).
 
     Panel (a): Velocity sweep of min NEC margin (Alcubierre).
-    Panel (b): Richardson convergence log-log plot.
+    Panel (b): Cached uniform-grid diagnostic.
 
     Returns the number of figures generated.
     """
@@ -612,9 +612,9 @@ def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> 
     plot_velocity_sweep(results_dir, "alcubierre", condition="nec", ax=ax1)
     ax1.set_title("(a) Min NEC margin vs velocity", fontsize=9)
 
-    # Panel (b): Convergence
+    # Panel (b): The cached grid study selects its own plotting scale.
     plot_convergence(json_path, quantity="min_margin_nec", ax=ax2, show_fit=False)
-    ax2.set_title(r"(b) Convergence ($25^3$/$50^3$/$100^3$)", fontsize=9)
+    ax2.set_title("(b) Uniform-grid diagnostic", fontsize=9)
 
     fig.tight_layout(pad=1.0)
     save_path = os.path.join(figures_dir, "velocity_convergence_merged.pdf")

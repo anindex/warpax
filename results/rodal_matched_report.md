@@ -1,32 +1,20 @@
-# Rodal Matched-Parameter Feasibility Report
+# Rodal matched-parameter resolution
 
-**Date:** 2026-08-30T20:22:42Z
+Date: 2026-09-12T09:35:27Z. Source: `rodal_matched_resolution.json`.
 
-**Script:** `scripts/run_rodal_matched_resolution.py`
+v_s=0.5, R=1.0, sigma=8.0, domain=[-3,3]^3. Miss percentages count grid points where the Eulerian test passes and the observer search finds a violation, divided by all grid points.
 
-**Parameters:** v_s=0.5, R=1.0, sigma=8.0, domain=[-3,3]^3
+| N | Grid points | NEC miss % | WEC miss % | SEC miss % | DEC miss % | Type I % | Time (s) |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 30 | 27000 | 0.77 | 13.93 | 28.06 | 26.84 | 100.0 | 7.6 |
+| 50 | 125000 | 0.88 | 14.41 | 27.80 | 27.32 | 100.0 | 7.1 |
+| 70 | 343000 | 0.92 | 14.59 | 27.84 | 27.53 | 100.0 | 9.0 |
 
-## Verdict
+All conditions pass the numerical stability test: maximum deviation from the three-grid mean <= 0.5 percentage points (pp) **or** relative deviation <= 5%. Relative deviation is the absolute deviation divided by the mean. This is a resolution check, not a continuum error bound.
 
-**FEASIBLE**: f_miss is stable within +/-5% across resolutions N=30, 50, 70.
-
-## Per-Resolution Results
-
-| N | n_total | NEC_miss% | WEC_miss% | SEC_miss% | DEC_miss% | Type_I_pct | Time (s) |
-|--:|--------:|----------:|----------:|----------:|----------:|-----------:|---------:|
-| 30 | 27000 | 0.77 | 13.93 | 28.06 | 26.84 | 100.0 | 8.0 |
-| 50 | 125000 | 0.88 | 14.41 | 27.80 | 27.32 | 100.0 | 8.5 |
-| 70 | 343000 | 0.92 | 14.59 | 27.84 | 27.53 | 100.0 | 11.1 |
-
-## Stability Analysis
-
-| Condition | Stable | Mean f_miss | Max Deviation |
-|-----------|--------|------------:|--------------:|
-| NEC | Yes | 0.8554 | 0.0994 |
-| WEC | Yes | 14.3100 | 0.0268 |
-| SEC | Yes | 27.8992 | 0.0057 |
-| DEC | Yes | 27.2309 | 0.0142 |
-
-## Note for Paper
-
-Matched parameters (R=1.0, sigma=8.0) produce stable f_miss across resolutions N=30, 50, 70 on the compact [-3,3]^3 domain. These parameters are suitable for the main cross-metric comparison table alongside Alcubierre, Natario, and Van den Broeck.
+| Condition | Mean miss % | Max deviation (pp) | Relative deviation % | Stable |
+|---|---:|---:|---:|---|
+| NEC | 0.8554 | 0.0850 | 9.9376 | yes |
+| WEC | 14.3100 | 0.3841 | 2.6839 | yes |
+| SEC | 27.8992 | 0.1601 | 0.5737 | yes |
+| DEC | 27.2309 | 0.3864 | 1.4190 | yes |

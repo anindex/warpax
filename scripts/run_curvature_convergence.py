@@ -1,23 +1,10 @@
-"""Resolution stability of the fitted curvature-invariant exponents q.
+"""Resolution stability of empirical curvature-invariant speed fits.
 
-The wall-peak Weyl and Ricci invariants scale as ``X = A v_s^q`` on the
-subluminal branch (run_curvature_scaling.py). The exponent q is not merely a
-fit: it is a closed-form theorem. On a flat unit-lapse slice the order-``v_s``
-Riemann tensor is pure gauge for an irrotational shift and survives for a
-vortical one, forcing ``q = 4`` for the irrotational (Rodal) wall and ``q = 2``
-for the vortical (Alcubierre, Natario) walls. This script refits q on the
-wall-resolved graded
-ladder (N = 80, 100, 120, giving 5.9 / 7.6 / 8.9 cells across the 10-90% wall) and
-reports its spread across resolutions, confirming the closed-form value is
-resolution-stable and not a single-grid artifact.
+Refit wall-peak magnitudes to A v_s^q on the same speed window at each
+spatial resolution. The observed exponent spread does not certify a leading
+asymptotic power or a continuum maximum. The invariants exist for all types.
 
-Van den Broeck has no resolved Type-I curvature branch (its wall is
-Type-IV-dominated) and admits no clean single power law; it is reported as such.
-
-Outputs
--------
-- results/curvature_convergence.json
-- ../warpax_arxiv/tables/curvature_convergence.tex
+Outputs: results/curvature_convergence.json and tables/curvature_convergence.tex.
 """
 
 from __future__ import annotations
@@ -40,15 +27,9 @@ RESULTS_DIR = os.path.join(HERE, "..", "results")
 TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 # Subluminal branch used for the exponent fit (three or more points required).
-# The same subluminal window run_curvature_scaling.py fits: this table certifies
-# that table's exponents, and [0.2, 0.5] gave q = 1.97 against its 2.08.
+# Same subluminal window as run_curvature_scaling.py.
 VELOCITIES = [0.1, 0.2, 0.3, 0.5, 0.7, 0.9]
-# Reference exponents retained in the JSON only. They are NOT printed as a
-# "closed form" column: only the q=4 irrotational side has an analytic
-# derivation (the pure-gauge reduction); the q=2 values are empirical fits.
-INVARIANTS = (("weyl_squared", r"Weyl $C^2$"), ("ricci_squared", r"Ricci $|R_{ab}R^{ab}|$"))
-# Closed-form q per metric: irrotational -> 4, vortical -> 2.
-THEORY_Q = {"Rodal": 4.0, "Alcubierre": 2.0, "Natário": 2.0}
+INVARIANTS = (("weyl_squared", r"Weyl $|C^2|$"), ("ricci_squared", r"Ricci $|R_{ab}R^{ab}|$"))
 
 
 def _f(x, nd=2):
@@ -79,9 +60,6 @@ def write_table(fits, out_path):
         first = True
         for key, label in INVARIANTS:
             series = [fits[name][str(n)][key]["q"] for n in ns]
-            # A Type-IV-dominated wall (VdB) has no resolved Type-I curvature branch
-            # and no clean single power law; the fit R^2 stays well below 1. Report it
-            # as such rather than a spurious exponent.
             r2s = [fits[name][str(n)][key].get("r_squared") for n in ns]
             clean = any(r is not None and np.isfinite(r) and r >= 0.99 for r in r2s)
             stab = _stable_q(series)
@@ -89,8 +67,8 @@ def write_table(fits, out_path):
             first = False
             if not clean or all(q is None for q in series):
                 lines.append(
-                    rf"  {mcol} & {label} & \multicolumn{{4}}{{c}}{{no clean "
-                    rf"Type-I branch (Type-IV-dominated wall)}} \\"
+                    rf"  {mcol} & {label} & \multicolumn{{4}}{{c}}{{poor power-law fit "
+                    rf"($R^2_{{\log}}<0.99$)}} \\"
                 )
                 continue
             cells = " & ".join(_f(q) for q in series)
@@ -161,7 +139,6 @@ def main():
             "cluster_a": CLUSTER_A,
             "box": BOX,
             "velocities": args.velocities,
-            "theory_q": THEORY_Q,
             "fits": fits,
             "summary": summary,
         },

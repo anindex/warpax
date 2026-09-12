@@ -36,18 +36,18 @@
       "N": 100,
       "wall_cells": 7.578443672974703,
       "dx_wall": 0.03624136378676279,
-      "frac_type_i": 0.11458040357393057,
-      "frac_type_iv": 0.8854195964260693,
+      "frac_type_i": 0.165625712579735,
+      "frac_type_iv": 0.8343742874202649,
       "wall_n": 12888,
-      "invariant_nec_min": -2.07831234685351,
-      "invariant_nec_min_grid": -2.069325513756189,
+      "invariant_nec_min": -1.9545817720224234,
+      "invariant_nec_min_grid": -1.905437311956479,
       "miss_wec_pct": 0.0,
       "miss_nec_pct": 0.0,
       "miss_dec_pct": 0.0,
-      "E_minus_inv": -0.06468566878258589,
-      "E_minus_eul": -0.6549791813184969,
-      "peak_deficit_inv": 0.4829268896897685,
-      "peak_deficit_eul": 0.49781350499355276
+      "E_minus_inv": -0.07787959715065221,
+      "E_minus_eul": -0.6549791813184968,
+      "peak_deficit_inv": 0.4661076559771372,
+      "peak_deficit_eul": 0.4978135049935526
     },
     {
       "metric": "Van den Broeck",
@@ -94,8 +94,8 @@
       "vs_Alcubierre_eul": 1.0
     },
     "Nat\u00e1rio": {
-      "vs_Alcubierre_inv": 0.10602811825994723,
-      "vs_Alcubierre_eul": 0.07962796010633798
+      "vs_Alcubierre_inv": 0.1098540835241008,
+      "vs_Alcubierre_eul": 0.079627960106338
     },
     "Van den Broeck": {
       "vs_Alcubierre_inv": 0.10617459563833358,

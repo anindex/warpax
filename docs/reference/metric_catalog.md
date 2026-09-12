@@ -1,117 +1,105 @@
 # Metric catalog
 
-warpax ships ten warp/shell drives, nine under ``warpax.metrics`` (Natario,
-Lentz, Rodal, Van den Broeck, WarpShell, Fuchs, S-shell, T-shell,
-Garattini-Zatrimaylov) and Alcubierre under ``warpax.benchmarks``, plus the
-Minkowski and Schwarzschild reference spacetimes (also under
-``warpax.benchmarks``).
+warpax provides ten warp/shell metrics, plus Minkowski and Schwarzschild
+references. Alcubierre is in `warpax.benchmarks`; the other warp metrics are in
+`warpax.metrics`. Parameters and signatures appear below each description.
 
-## Warp drive metrics - ``warpax.metrics``
+## `AlcubierreMetric`
 
-### `AlcubierreMetric`
-
-The original Alcubierre (1994) warp drive: flat lapse, shift along the
-propagation direction with a `tanh`-based top-hat shape function.
-Parameters: `v_s` (warp velocity), `R` (bubble radius), `sigma`
-(wall-sharpness), `x_s` (center).
+Unit lapse, Euclidean spatial metric, and an axial shift with a `tanh` wall.
+Parameters are `v_s`, radius `R`, wall sharpness `sigma`, and center `x_s`.
 
 ::: warpax.benchmarks.AlcubierreMetric
 
-### `RodalMetric`
+## `RodalMetric`
 
-Rodal (2025) construction, globally Type I Hawking-Ellis. Serves as the
-positive-control for warp-wall EC verification: all grid points are Type I,
-unlike Alcubierre which is dominated by Type IV at the wall.
+Rodal's ideal irrotational construction admits a zero-momentum Type-I reduction.
+The implemented radial regularization must be included when bounding its
+normalized null deficit; it is not identically the ideal eigenvalue slack.
 
 ::: warpax.metrics.RodalMetric
 
-### `WarpShellMetric`
+## `WarpShellMetric`
 
-Spherical-shell geometry with $C^1$ / $C^2$ smooth transitions.
-Curvature magnitudes are extreme near the shell boundary; the metric is
-useful as a stress-test of the curvature chain at large Kretschmann values.
+Spherical shell with $C^1$ or $C^2$ transitions. Large curvature near the shell
+boundary makes it a numerical stress test; results depend on the regularization.
 
 ::: warpax.metrics.WarpShellMetric
 
-### `LentzMetric`
+## `LentzMetric`
 
-Lentz (2020) shift-only, positive-energy candidate. See the paper for
-under-resolution caveats, the wall is thinly sampled at low grid
-resolutions.
+A shift-only positive-energy candidate. Its thin wall needs dedicated resolution;
+coarse-grid fractions do not establish continuum energy-condition satisfaction.
 
 ::: warpax.metrics.LentzMetric
 
-### `NatarioMetric`
+## `NatarioMetric`
 
-Natario (2001) zero-expansion variant. The spatial-metric form is
-non-trivial (unlike most warp metrics which keep a flat spatial metric).
+Natário's zero-expansion drive has unit lapse and a Euclidean spatial metric.
+The laboratory shift is $\beta_{\rm lab}=-X(x-v_st e_x)-v_se_x$, including the
+transverse components of the divergence-free field $X$.
 
 ::: warpax.metrics.NatarioMetric
 
-### `VanDenBroeckMetric`
+## `VanDenBroeckMetric`
 
-Van den Broeck (1999) volume-expansion variant. Two-parameter
-nested-warp envelope with an exterior radius `R` and interior radius
-`R_tilde`.
+Nested bubble with a conformal spatial factor, exterior radius `R`, and
+interior radius `R_tilde`.
 
 ::: warpax.metrics.VanDenBroeckMetric
 
-### `FuchsMetric`
+## `FuchsMetric`
 
-Fuchs et al. (2024) constant-velocity physical warp shell
-(arXiv:2405.02709). Iterative Gaussian-kernel smoothing of an
-isotropic-pressure TOV intermediate, with metric functions $a(r)$ and
-$b(r)$ recovered from Carroll Eqs. 5.143 / 5.152 on a uniform radial
-grid. Default factory ``fuchs_default()`` matches the paper parameters
-($R_1 = 10$, $R_2 = 20$, $R_b = 1$, $v_s = 0.02$), with the shell mass solved
-from the constraints rather than set.
+The [Fuchs et al. construction](https://arxiv.org/abs/2405.02709) smooths a shell
+source and reconstructs radial metric functions. `fuchs_default()` uses the
+published boxcar kernel by default; `kernel_type="gaussian"` selects a
+variance-matched alternative. Defaults include $R_1=10$, $R_2=20$, $R_b=1$,
+$v_s=0.02$, and Schwarzschild-radius parameter `r_s_param=6.668692`.
 
-The pre-smoothing analytical intermediate (constant-density shell + TOV
-pressure, steps 1-2 only) is retained in ``warpax.metrics._fuchs_legacy``
-as ``_FuchsAnalytical`` for diagnostic comparison.
+Motion modifies covariant $g_{01}=g_{10}$ only; lapse and contravariant shift
+are recovered from the full metric. The natural-endpoint sigmoid, cubic radial
+spline, and $C^2$ joins are the implementation's regularization. The private
+`_fuchs_legacy._FuchsAnalytical` retains the unsmoothed intermediate for comparison.
 
 ::: warpax.metrics.FuchsMetric
 
-### `SShellMetric`
+## `SShellMetric`
 
-Source-first Class I shell (S-shell). Flow-orthogonal matter ($u^a =
-n^a$), non-flat spatial metric, non-unit lapse, isotropic pressure. Metric
-potentials derived from the Hamiltonian constraint and anisotropic TOV
-equilibrium. Zero shift (no transport utility); serves as a clean baseline
-for constraint satisfaction.
+Source-first, shift-free shell with matter flow normal to the slice. Metric
+potentials follow from the Hamiltonian constraint and TOV equilibrium.
 
 ::: warpax.metrics.SShellMetric
 
-### `TShellMetric`
+## `TShellMetric`
 
-Source-first Class II shell (T-shell). Tilted matter flow with nonzero
-Eulerian momentum density $S_i$. Shift $\beta^x$ derived from the momentum
-constraint (not prescribed). Addresses the Barzegar et al.
-source-consistency critique. Achieves $\epsilon_{\mathcal{H}} \approx 3
-\times 10^{-6}$ with positive EC margins in the deep shell interior.
+Source-first shell with tilted matter and nonzero Eulerian momentum density.
+The momentum constraint determines the shift profile. Constraint residuals and
+full metric-versus-source stress residuals are separate diagnostics.
 
 ::: warpax.metrics.TShellMetric
 
-### `GarattiniMetric`
+## `GarattiniMetric`
 
-Garattini-Zatrimaylov (2025) warp bubble on a de Sitter background. Faithful
-closed-form `.symbolic()` that reduces exactly to Alcubierre at $H=0$, used to
-study how a cosmological background reshapes the energy-condition structure.
+Garattini-Zatrimaylov bubble matched to a de Sitter flow:
+$x_s(t)=(v_s/H)e^{Ht}$ and $v(t)=Hx_s(t)$ for nonzero $H$. This matched
+construction is irrotational and exactly Type I. Report $H$, initial position
+$r_0=v_s/H$, time, shape parameters, and units when comparing it with other metrics.
+The returned stress includes the effective cosmological contribution.
+
+`matched(H=..., r0=...)` sets `v_s=H*r0`. At `H=0`, the implementation has a
+separate Alcubierre branch; this is not a continuous fixed-`v_s` matched limit.
 
 ::: warpax.metrics.GarattiniMetric
 
-## Reference spacetimes - ``warpax.benchmarks``
+## `MinkowskiMetric`
 
-### `MinkowskiMetric`
-
-Pure Minkowski: $g_{ab}=\eta_{ab}=\mathrm{diag}(-1,1,1,1)$. The
-ground-truth sanity check, all curvature tensors vanish.
+$g_{ab}=\mathrm{diag}(-1,1,1,1)$; all curvature vanishes.
 
 ::: warpax.benchmarks.MinkowskiMetric
 
-### `SchwarzschildMetric`
+## `SchwarzschildMetric`
 
-Schwarzschild exterior in standard coordinates, parameterized by the mass
-`M`. Ground-truth non-trivial Ricci-flat curvature; used for cross-validation.
+Schwarzschild exterior in standard coordinates, parameterized by mass `M`.
+Ricci curvature vanishes while Riemann curvature remains nonzero.
 
 ::: warpax.benchmarks.SchwarzschildMetric

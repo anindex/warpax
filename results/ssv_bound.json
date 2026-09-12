@@ -1,5 +1,7 @@
 {
-  "model": "min(rho+p_i) = -C v_s^2 (unit-lapse flat-slice velocity scaling)",
+  "model": "empirical fixed-exponent fit min(rho+p_i) = -C v_s^2",
+  "exact_scope": "quadratic form only when j=0 on a fixed comoving domain; C is numerical",
+  "r_squared_definition": "uncentered: 1-sum((y-C*v_s^2)^2)/sum(y^2)",
   "source": {
     "file": "velocity_sweep.json",
     "config": {
@@ -42,22 +44,52 @@
       "C_two": 0.6393614723694743,
       "D_two": -0.007760002164059855,
       "r_squared_two": 0.9999990003304965,
-      "n": 5
+      "n": 5,
+      "sign_test_speeds": [
+        0.1,
+        0.3,
+        0.5,
+        0.7,
+        0.9,
+        0.99,
+        1.0,
+        1.1,
+        1.3,
+        1.5,
+        2.0,
+        2.5
+      ],
+      "nec_violated_at_all_sampled_speeds": true
     },
     "Nat\u00e1rio": {
-      "C": 8.351172087568347,
-      "r_squared_fixed": 0.9999834162042736,
-      "q_free": 2.2021550213669903,
-      "r_squared_free": 0.9978287027911588,
-      "max_rel_dev": 0.6277817186062482,
-      "max_rel_dev_dense": 0.008924409433475873,
+      "C": 7.832627073245107,
+      "r_squared_fixed": 0.9999416226472942,
+      "q_free": 2.2602046003623877,
+      "r_squared_free": 0.9970084502022104,
+      "max_rel_dev": 0.8667086486570668,
+      "max_rel_dev_dense": 0.027667903858073526,
       "dense_v_s_min": 0.5,
-      "n_type_i_min": 80,
-      "n_type_i_max": 2240,
-      "C_two": 8.48115459295541,
-      "D_two": -0.11412603044203136,
-      "r_squared_two": 0.9999959914024641,
-      "n": 6
+      "n_type_i_min": 128,
+      "n_type_i_max": 3744,
+      "C_two": 8.084684040762987,
+      "D_two": -0.22130871429513843,
+      "r_squared_two": 0.99999537583955,
+      "n": 6,
+      "sign_test_speeds": [
+        0.1,
+        0.3,
+        0.5,
+        0.7,
+        0.9,
+        0.99,
+        1.0,
+        1.1,
+        1.3,
+        1.5,
+        2.0,
+        2.5
+      ],
+      "nec_violated_at_all_sampled_speeds": true
     },
     "Van den Broeck": {
       "C": 0.7202291350719859,
@@ -72,7 +104,22 @@
       "C_two": -1.585933882429632,
       "D_two": 2.024835803525592,
       "r_squared_two": 0.8655546519702273,
-      "n": 6
+      "n": 6,
+      "sign_test_speeds": [
+        0.1,
+        0.3,
+        0.5,
+        0.7,
+        0.9,
+        0.99,
+        1.0,
+        1.1,
+        1.3,
+        1.5,
+        2.0,
+        2.5
+      ],
+      "nec_violated_at_all_sampled_speeds": true
     },
     "Rodal": {
       "C": 0.7679023043550397,
@@ -87,7 +134,22 @@
       "C_two": 0.7679023043550399,
       "D_two": 5.886810469832922e-17,
       "r_squared_two": 1.0,
-      "n": 6
+      "n": 6,
+      "sign_test_speeds": [
+        0.1,
+        0.3,
+        0.5,
+        0.7,
+        0.9,
+        0.99,
+        1.0,
+        1.1,
+        1.3,
+        1.5,
+        2.0,
+        2.5
+      ],
+      "nec_violated_at_all_sampled_speeds": true
     }
   }
 }

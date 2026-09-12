@@ -1,32 +1,11 @@
-"""Velocity scaling of the wall NEC deficit.
+"""Empirical speed fits of sampled Type-I wall NEC slacks.
 
-Santiago, Schuster and Visser proved that any physically reasonable warp drive
-must violate the null energy condition somewhere. That result is an existence and
-sign statement: the deficit is negative. It does not fix a speed law. Here we
-compute the speed dependence for the matched-parameter family. For a unit-lapse,
-spatially flat drive the shift is linear in the warp speed, so the leading wall
-NEC deficit is quadratic,
-
-    min(rho + p_i)  =  - C  v_s^2 ,
-
-with a per-drive coefficient ``C``. We read the frame-independent wall NEC deficit
-from the velocity sweep and fit it for each drive whose Type-I wall branch admits a
-single power law: a fixed-exponent fit has ``R^2`` ~ 1 and the free exponent recovers
-``q ~ 2``. The coefficient ``C`` is the per-drive fingerprint.
-
-Two deviation figures are reported, and the difference between them is the point.
-On an irrotational drive the whole wall is Type I at every speed and the law is
-exact. On a vortical drive the Type-I set is a *residual* of a Type-IV-dominated
-wall, and that residual is sparse at low speed, tens of nodes at ``v_s = 0.1``
-against thousands at ``v_s = 1``. The worst-case deviation is therefore dominated by
-the sparsest speed and measures sampling, not physics; the deviation restricted to
-``v_s >= 0.5``, where the residual is populated, measures the law. We print the
-sparsest Type-I node count alongside both so the reader can tell which is which.
-
-Outputs
--------
-- results/ssv_bound.json
-- ../warpax_arxiv/tables/ssv_bound.tex
+The exact quadratic law requires zero momentum and a fixed comoving domain.
+Alcubierre and Natario fits do not meet that premise. Their deviations may
+reflect both momentum-dependent eigenvalues and sampling of a changing Type-I
+subset; the two effects are not separated here. The integrated speed law is a
+separate result. The SSV NEC conclusion has subsidiary hypotheses and supplies
+no universal pointwise speed law.
 """
 
 from __future__ import annotations
@@ -67,8 +46,7 @@ def _subluminal_deficits(rows, metric):
     return np.array(vs)[order], np.array(def_)[order], np.array(n_i)[order]
 
 
-# Speed above which the Type-I residual of a vortical wall is populated enough for
-# the deviation to be a property of the law rather than of the sampling.
+# A second empirical fit window; this cutoff does not separate numerical and physical effects.
 DENSE_VS = 0.5
 
 
@@ -96,9 +74,7 @@ def fit_bound(vs, deficits, n_type_i=None):
     pred = C * v2
     ss_res = float(np.sum((deficits - pred) ** 2))
     # Through-origin fit (deficit = C v_s^2, no intercept): use the uncentered
-    # total sum of squares. The mean-centered form is only valid for fits with
-    # an intercept and here produces a spurious negative R^2 for poorly-fit
-    # metrics (e.g. the Type-IV-dominated Van den Broeck branch).
+    # total sum of squares; the table defines this uncentered R^2 explicitly.
     ss_tot = float(np.sum(deficits**2))
     r2_fixed = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
     rel_dev = np.abs(deficits - pred) / np.abs(deficits)
@@ -112,8 +88,7 @@ def fit_bound(vs, deficits, n_type_i=None):
     ss_res_l = float(np.sum((ld - pred_l) ** 2))
     ss_tot_l = float(np.sum((ld - np.mean(ld)) ** 2))
     r2_free = 1.0 - ss_res_l / ss_tot_l if ss_tot_l > 0 else 1.0
-    # Two-term fit deficit = C2 v_s^2 + D v_s. D is the momentum correction:
-    # zero for an irrotational shift, nonzero for vortical drives.
+    # An additional empirical two-term fit; D is not an exact momentum coefficient.
     A = np.vstack([v2, vs]).T
     (C2, D), *_ = np.linalg.lstsq(A, deficits, rcond=None)
     pred2 = A @ np.array([C2, D])
@@ -146,7 +121,7 @@ def write_table(fits, out_path):
         r"\begin{tabular}{@{}l ccccc@{}}",
         r"  \toprule",
         r"  Metric & $C$ & dev.\ (all $v_s$) & dev.\ ($v_s\ge0.5$) & $R^2$"
-        r" & NEC $\forall\,v_s$ \\",
+        r" & NEC at sampled $v_s$ \\",
         r"  \midrule",
     ]
 
@@ -156,18 +131,19 @@ def write_table(fits, out_path):
     for name in ORDER:
         fit = fits[name]
         r2 = fit.get("r_squared_fixed")
+        sign = "violated" if fit["nec_violated_at_all_sampled_speeds"] else "not uniform"
         if r2 is not None and np.isfinite(r2) and r2 >= 0.99 and fit.get("C", 0):
             lines.append(
                 f"  {name} & {_f(fit.get('C'))} & {_pct(fit.get('max_rel_dev'))} & "
                 f"{_pct(fit.get('max_rel_dev_dense'))} & "
-                f"{_f(fit.get('r_squared_fixed'), 4)} & violated \\\\"
+                f"{_f(fit.get('r_squared_fixed'), 4)} & {sign} \\\\"
             )
         else:
             # The gate is R^2 >= 0.99, not the existence of Type-I points: Van den
             # Broeck has a Type-I branch, it just admits no single power law.
             lines.append(
-                rf"  {name} & \multicolumn{{4}}{{c}}{{no single power law "
-                rf"($R^2={_f(r2, 2)}$)}} & violated \\"
+                rf"  {name} & \multicolumn{{4}}{{c}}{{no adequate quadratic fit "
+                rf"($R^2={_f(r2, 2)}$)}} & {sign} \\"
             )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
@@ -187,6 +163,13 @@ def main():
     for name in ORDER:
         vs, deficits, n_type_i = _subluminal_deficits(rows, name)
         fit = fit_bound(vs, deficits, n_type_i)
+        sampled = [row for row in rows if row["metric"] == name]
+        fit["sign_test_speeds"] = [row["v_s"] for row in sampled]
+        fit["nec_violated_at_all_sampled_speeds"] = bool(sampled) and all(
+            row["wall_frac_type_iv"] > 0
+            or (row.get("typeI_nec_min") is not None and row["typeI_nec_min"] < 0)
+            for row in sampled
+        )
         fits[name] = fit
         print(
             f"  {name:16s} C={_f(fit['C'])}  q_free={_f(fit['q_free'], 2)}  "
@@ -199,7 +182,9 @@ def main():
         )
 
     out = {
-        "model": "min(rho+p_i) = -C v_s^2 (unit-lapse flat-slice velocity scaling)",
+        "model": "empirical fixed-exponent fit min(rho+p_i) = -C v_s^2",
+        "exact_scope": "quadratic form only when j=0 on a fixed comoving domain; C is numerical",
+        "r_squared_definition": "uncentered: 1-sum((y-C*v_s^2)^2)/sum(y^2)",
         # Provenance: this fit reads the velocity sweep, so it is only as current as
         # the sweep is. Recording the sweep's own config here makes a stale rerun
         # visible in the artifact instead of only in a file mtime.

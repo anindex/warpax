@@ -76,14 +76,14 @@ def _axial_ray(b: float):
     return geo
 
 
-def _anec_along(metric, b: float, span: float) -> float:
+def _anec_along(metric, b: float, span: float, base_samples: int = N_SAMPLES) -> float:
     res = anec(
         metric,
         _axial_ray(b),
         tangent_norm=TANGENT_NORM,
         # Fixed step density: the sample count scales with the span, so a
         # longer window does not silently coarsen the quadrature.
-        n_samples=int(round(N_SAMPLES * span / SPAN0)),
+        n_samples=int(round(base_samples * span / SPAN0)),
         affine_bounds=(0.0, span),
     )
     return float(res.line_integral)
@@ -135,9 +135,25 @@ def main() -> None:
         on_axis = _anec_along(metric, float(B_SCAN[0]), span)
         scan = np.array([_anec_along(metric, float(b), span) for b in B_SCAN])
         j = int(np.argmin(scan))
+        convergence = {}
+        for label, b in (("near_axis", float(B_SCAN[0])), ("minimum_found", float(B_SCAN[j]))):
+            samples = [N_SAMPLES, 2 * N_SAMPLES, 4 * N_SAMPLES]
+            values = [_anec_along(metric, b, span, n) for n in samples]
+            change = abs(values[-1] - values[-2])
+            if change > 1e-8 + 1e-4 * abs(values[-1]):
+                raise RuntimeError(f"{name}: coordinate-ray quadrature not stabilized at b={b}")
+            convergence[label] = {
+                "b": b,
+                "span": span,
+                "samples_per_reference_span": samples,
+                "values": values,
+                "observed_spread": max(values) - min(values),
+                "finest_change": change,
+            }
         per_metric[name] = {
-            "on_axis": on_axis,
-            "min_line_integral": float(scan[j]),
+            "on_axis": convergence["near_axis"]["values"][-1],
+            "selected_ray_convergence": convergence,
+            "min_line_integral": convergence["minimum_found"]["values"][-1],
             "b_at_min": float(B_SCAN[j]),
             "b_bracketed": bool(0 < j < len(B_SCAN) - 1),
             "affine_span": float(span),
@@ -163,12 +179,12 @@ def main() -> None:
             "affine_span_start": SPAN0,
             "n_samples_at_span_start": N_SAMPLES,
             "affine_span_note": (
-                "the window is measured per metric from the ray's own trajectory: "
-                "out to where it leaves r_s = 3, with a factor-2 margin, the same "
-                "rule as run_anec_symplectic.py, so the two ANEC tables in the "
-                "paper share a window. This is a quantified truncation margin, not "
-                "a support theorem: no bound on T_ab k^a k^b outside r_s = 3 is "
-                "computed. See each metric's affine_span"
+                "the window is measured per metric from a coordinate-path probe: "
+                "out to where it leaves r_s = 3, with a factor-2 margin. "
+                "The geodesic calculation uses the same crossing rule on its own "
+                "trajectory, so its endpoints can differ. Neither window supplies "
+                "a bound on T_ab k^a k^b outside r_s = 3. "
+                "See each metric's affine_span"
             ),
             "tangent_norm": TANGENT_NORM,
         },

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-08-30T20:23:49Z",
+    "date": "2026-09-12T09:36:26Z",
     "script": "scripts/run_wall_restricted_analysis.py",
     "grid_resolution": 50,
     "wall_bounds": [
@@ -45,7 +45,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 416,
-      "elapsed_s": 63.694453954696655
+      "elapsed_s": 106.16125082969666
     },
     "rodal": {
       "full_grid": {
@@ -81,7 +81,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 5208,
-      "elapsed_s": 2.5627307891845703
+      "elapsed_s": 2.622621536254883
     },
     "vdb": {
       "full_grid": {
@@ -117,35 +117,35 @@
       },
       "caveat": null,
       "wall_mask_sum": 416,
-      "elapsed_s": 25.956875801086426
+      "elapsed_s": 39.73717761039734
     },
     "natario": {
       "full_grid": {
-        "n_type_i": 40,
+        "n_type_i": 640,
         "n_type_ii": 0,
         "n_type_iii": 0,
-        "n_type_iv": 124960,
+        "n_type_iv": 124360,
         "n_total": 125000,
-        "frac_type_i": 0.00032,
+        "frac_type_i": 0.00512,
         "frac_type_ii": 0.0,
         "frac_type_iii": 0.0,
-        "frac_type_iv": 0.99968,
+        "frac_type_iv": 0.99488,
         "nec_pct_missed": 0.0,
         "wec_pct_missed": 0.0,
-        "sec_pct_missed": 0.0,
+        "sec_pct_missed": 3.2112000000000003,
         "dec_pct_missed": 0.0,
-        "max_imag_eigenvalue": 2.5720227169942933
+        "max_imag_eigenvalue": 2.571576918349198
       },
       "wall_restricted": {
         "n_total": 416,
-        "n_type_i": 40,
+        "n_type_i": 72,
         "n_type_ii": 0,
         "n_type_iii": 0,
-        "n_type_iv": 376,
-        "frac_type_i": 0.09615384615384616,
+        "n_type_iv": 344,
+        "frac_type_i": 0.17307692307692307,
         "frac_type_ii": 0.0,
         "frac_type_iii": 0.0,
-        "frac_type_iv": 0.9038461538461539,
+        "frac_type_iv": 0.8269230769230769,
         "nec_miss_rate": 0.0,
         "wec_miss_rate": 0.0,
         "sec_miss_rate": 0.0,
@@ -153,7 +153,7 @@
       },
       "caveat": null,
       "wall_mask_sum": 416,
-      "elapsed_s": 355.9034683704376
+      "elapsed_s": 522.428258895874
     }
   }
 }

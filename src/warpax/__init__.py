@@ -43,9 +43,9 @@ if os.environ.get("WARPAX_BEARTYPE") == "1":
         ),
     )
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 __author__ = "An T. Le"
-__email__ = "an@robot-learning.de"
+__email__ = "an.thai.le97@gmail.com"
 
 from .certify import CertifyResult, certify
 

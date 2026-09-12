@@ -1,91 +1,49 @@
-# The boundary cost of source consistency
+# Boundary cost of source-consistent shells
 
-This page consolidates the physics of the source-first warp shells and the
-companion note *On the boundary cost of source-consistent warp shells*
-([arXiv:2605.25417](https://arxiv.org/abs/2605.25417)), as certified by warpax
-v1.1.0. For the reproduction recipe and numbers see
-[Reproducing the warp-shell admissibility paper](../how-to/reproduce_warpshell_paper.md).
+The [companion note](https://arxiv.org/abs/2605.25417) studies shell metrics
+constructed from prescribed matter. Its v1.1.1 numerical results and
+reproduction commands are listed in the
+[companion guide](../how-to/reproduce_warpshell_paper.md).
 
-## The question
+Metric-first constructions infer $T_{ab}=G_{ab}/8\pi$ from a chosen metric.
+Source-first constructions instead prescribe matter and solve the Einstein
+constraints. The remaining questions are whether the full stress agrees with
+that source, whether equilibrium holds, and whether the energy conditions hold.
+Small constraint residuals alone do not settle these questions.
 
-Metric-first ("$G$-method") warp drives prescribe $g_{ab}$ and *read off*
-$T_{ab}=G_{ab}/8\pi$, which Barzegar, Buchert & Vigneron argue can yield
-"fantastic" matter with no physical interpretation. The companion note asks the
-inverse: **fix physical matter, solve the Einstein constraints for the metric,
-and ask whether the result can satisfy the energy conditions.** Two
-*source-first* shells answer it:
+| Construction | Source and geometry |
+|---|---|
+| S-shell | Flow orthogonal to the slice; zero shift; metric potentials from the Hamiltonian constraint and TOV equilibrium |
+| T-shell | Tilted matter flow; radial shift profile from the momentum constraint |
+| Fuchs | Smoothed shell construction; the moving metric modifies covariant $g_{01}=g_{10}$, with ADM fields recovered afterward |
 
-- **S-shell** (Class I): a shift-free, isotropic-fluid shell; lapse and radial
-  potential from the Hamiltonian constraint + anisotropic TOV equilibrium.
-- **T-shell** (Class II): a tilted matter flow whose shift $\beta^x(r)$ is the
-  solution of the momentum constraint (an $\ell=1$ vector-harmonic boundary-value
-  problem), not a postulated coordinate ansatz.
+## What the diagnostics establish
 
-Both are graded by a five-criterion **admissibility standard** (regularity,
-constraint satisfaction, explicit matter, frame-independent EC margins, global
-diagnostics).
+Type-I rest-frame slacks give cap-free energy-condition inequalities. The
+all-observer LMI tests also apply at other algebraic types. Bounded-rapidity
+observer searches measure violations within their stated cap; their magnitude
+is not a frame-invariant measure of severity.
 
-## Certification is frame-free
+The companion scans found positive interior slacks and negative DEC slacks near
+source-vacuum transitions. In the tested profile families, the inner-edge
+Type-I deficit changed with the source profile. This finite survey does not
+prove that every smooth profile has a nonzero deficit or that regularity class
+alone fixes its value.
 
-Verdicts use the Hawking-Ellis classification of $T^a{}_b$ with the Type-I
-eigenvalue slacks
-$\mathrm{NEC}=\min_i(\rho+p_i)$, $\mathrm{WEC}=\min(\rho,\min_i(\rho+p_i))$,
-$\mathrm{DEC}=\min_i(\rho-|p_i|)$. These are **exact and cap-free**: the certifier
-builds no Eulerian normal, so it is valid at all warp speeds (including
-$v_s\ge1$). At a Type-I point the worst observer is closed-form,
-$\rho_{\rm obs}(\zeta)=\rho+(\rho+p_i)\sinh^2\zeta$; if some $\rho+p_i<0$ the
-boosted density is unbounded below, so **at non-Type-I points there is no
-invariant margin**: only the algebraic type and the imaginary-eigenvalue scale.
-A bounded-rapidity ($\zeta_{\max}=5$) optimizer survives only as a labelled
-one-sided severity *diagnostic*.
+Tilted T-shell scans also found Type-IV regions near low-density edges and an
+approximately linear dependence of the imaginary eigenvalue scale on matter
+tilt. This is an observed association within that family. Vorticity alone does
+not determine Hawking-Ellis type.
 
-## Three results
+## Averaged and global checks
 
-**1. The bulk is clean; the cost is at the boundary.** Every source-prescribed
-shell is Hawking-Ellis Type-I and energy-condition compliant in the
-matter-filled interior (Fuchs: 0/13 interior probes violate). The single
-observer-independent violation is a **Type-I dominant-energy deficit at the inner
-shell edge**, $\approx-4.4\times10^{-4}$.
+The symplectic integrator computes $\int T_{ab}k^ak^b\,d\lambda$ on a specified
+finite null segment. Positive values on selected rays do not establish ANEC
+on complete geodesics or an entire geodesic family. Step refinement and
+$\max|g(k,k)|$ assess numerical behavior on the retained segment; neither bounds
+omitted tails. The Ford-Roman comparison is a flat-space diagnostic with its
+own sampling assumptions.
 
-**2. The inner-edge floor is a geometric invariant.** That deficit is
-independent of the bubble velocity *and* of the metric smoothing width; it
-depends only on the **regularity class of the source profile**:
-$-4.4\times10^{-4}$ (smoothstep), $-2.2\times10^{-4}$ (parabolic),
-$-1.2\times10^{-4}$ (Bernstein), a factor $\sim3.7$, and no finite-regularity
-polynomial family removes it. It is a cap-free Type-I slack, hence a true
-invariant rather than an optimizer artifact.
-
-**3. Transport carries a change of algebraic type (vorticity $\to$ Type-IV).**
-The T-shell's constraint-derived shift $\beta^i=\beta(r)\hat x^i$ is **not
-curl-free**; its vorticity $\propto\beta'$ drives the stress-energy to
-**Hawking-Ellis Type-IV** (no rest frame) wherever the matter density thins and
-the momentum flux dominates the energy block, i.e. in the low-density transition
-edges. The opened imaginary eigenvalue part is **linear in the matter tilt
-$v_0$** (log-log slope $1.01$, vanishing at $v_0=0$) and is confirmed by the
-three-solver gate. This instantiates, in a source-consistent shell, the
-shift-vorticity $\to$ type control ($f=\kappa\omega$) the certification paper
-establishes for metric-first drives: the boundary cost of transport is a
-transition from Type-I to Type-IV, not merely a larger margin. Likewise the Fuchs
-smoothing halo ($r>R_2$) is Type-IV (22/25 probes); the often-quoted
-$-7.9\times10^{-3}$ there is the $\zeta_{\max}=5$ diagnostic, not an invariant.
-
-## Averaged level
-
-A rigorous symplectic geodesic-integrated ANEC (Tao-2016 extended phase space,
-Yoshida-4; on-cone witness $\lesssim10^{-4}$, versus $O(0.1)$ drift for adaptive
-Runge-Kutta) is **positive for every source-prescribed shell**: Fuchs
-$+1.9\times10^{-3}$, S-shell $+2.9\times10^{-3}$, T-shell $+4.6\times10^{-3}$
-($v_0=0.1$). Only the sign is invariant under $k^a\to\lambda k^a$, and it is
-positive across resolution and impact parameter. So the pointwise
-transition failures need not appear in the average. A full average over a
-geodesic family, and a curved-space (Fewster-type) quantum inequality, remain
-open; the Ford-Roman comparison is an explicitly flat-space estimate.
-
-## Verdict
-
-A $20\times15$ compactness-thickness scan finds **0 of 600** configurations
-strictly admissible in either shell class: source consistency is achievable
-(criteria A-C, E), but the smooth source-vacuum transition exacts an
-energy-condition cost that this family of profiles does not remove. The result
-is consistent with the Lobo-Visser obstruction across the surveyed family; it is
-not a no-go theorem.
+The reported compactness-thickness survey found no configuration satisfying
+all of its admissibility criteria. It constrains the surveyed shell families
+and parameter range; it is not a general no-go theorem for source-first metrics.

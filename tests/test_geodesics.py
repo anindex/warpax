@@ -1014,20 +1014,7 @@ class TestInitialConditionsOnTheNullLocus:
 
 
 class TestNatarioAffineNormalization:
-    """The A4 rescaling factor for the Natario bubble-at-rest convention.
-
-    Metrics in this package do not share a frame convention. Alcubierre, Van den
-    Broeck and Rodal are written in the lab frame and a unit spatial seed already
-    gives ``-g(k, n) = 1``; the Natario shift tends to ``-v_s x_hat`` at infinity
-    and does not. The correction factor is ``1 + v_s``.
-
-    This test exists because the factor was documented as ``1 - v_s`` (equivalently
-    a rescaling by ``1/(1 - v_s)``) while the number actually applied was ``3/2``.
-    At ``v_s = 1/2`` the two agree by coincidence, ``1/(1 - 1/2) = 2`` does not,
-    but the quoted frequency ``2/3`` matches ``1/(1 + v_s)`` and not ``1 - v_s``.
-    Pinning it across several speeds is what makes the coincidence impossible to
-    hide behind.
-    """
+    """The corrected laboratory metric has unit seed frequency at infinity."""
 
     SPEEDS = (0.1, 0.25, 0.5, 0.75, 0.9)
 
@@ -1040,15 +1027,12 @@ class TestNatarioAffineNormalization:
         return float(eulerian_frequency(metric, x0, k))
 
     @pytest.mark.parametrize("v_s", SPEEDS)
-    def test_natario_frequency_is_one_over_one_plus_vs(self, v_s):
+    def test_natario_frequency_is_one_in_lab_far_field(self, v_s):
         freq = self._frequency(NatarioMetric(v_s=v_s, R=1.0, sigma=8.0))
-        assert freq == pytest.approx(1.0 / (1.0 + v_s), rel=1e-9)
-        # and is NOT the previously documented 1 - v_s, except where they coincide
-        if abs((1.0 - v_s) - 1.0 / (1.0 + v_s)) > 1e-9:
-            assert freq != pytest.approx(1.0 - v_s, rel=1e-6)
+        assert freq == pytest.approx(1.0, rel=1e-9)
 
     @pytest.mark.parametrize("v_s", SPEEDS)
-    def test_affine_scale_is_one_plus_vs(self, v_s):
+    def test_affine_scale_is_one_in_lab_far_field(self, v_s):
         from warpax.geodesics.initial_conditions import eulerian_affine_scale
 
         scale = float(
@@ -1058,7 +1042,7 @@ class TestNatarioAffineNormalization:
                 jnp.array([1.0, 0.0, 0.0]),
             )
         )
-        assert scale == pytest.approx(1.0 + v_s, rel=1e-9)
+        assert scale == pytest.approx(1.0, rel=1e-9)
 
     @pytest.mark.parametrize("v_s", SPEEDS)
     def test_lab_frame_metrics_need_no_rescaling(self, v_s):

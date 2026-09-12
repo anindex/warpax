@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "warpax"
-version = "1.4.0"
+version = "1.5.0"
 description = "Observer-robust energy condition verification for warp drive spacetimes"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 authors = [
-    {name = "An T. Le", email = "an@robot-learning.de"}
+    {name = "An T. Le", email = "an.thai.le97@gmail.com"}
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -44,7 +44,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/anindex/warpax"
-Documentation = "https://github.com/anindex/warpax#readme"
+Documentation = "https://github.com/anindex/warpax/tree/main/docs"
 Repository = "https://github.com/anindex/warpax"
 Issues = "https://github.com/anindex/warpax/issues"
 Author = "https://github.com/anindex"
@@ -101,7 +101,9 @@ packages = ["src/warpax"]
 include = [
   "/src",
   "/tests",
+  "/scripts",
   "/examples",
+  "/reproduce_all.sh",
   "/pyproject.toml",
   "/README.md",
   "/CHANGELOG.md",
@@ -165,8 +167,3 @@ max-line-length = 120
 "scripts/**" = ["F841"]
 # Benchmarks: same as scripts
 "benchmarks/**" = ["F841"]
-
-[dependency-groups]
-dev = [
-    "pytest>=9.1.1",
-]

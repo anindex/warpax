@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-08-30T20:22:42Z",
+    "date": "2026-09-12T09:35:27Z",
     "script": "scripts/run_rodal_matched_resolution.py",
     "parameters": {
       "v_s": 0.5,
@@ -46,7 +46,7 @@
       "dec_min": -0.16438382023202686,
       "type_i_count": 27000,
       "type_i_pct": 100.0,
-      "elapsed": 7.9967639446258545
+      "elapsed": 7.572321891784668
     },
     {
       "N": 50,
@@ -65,7 +65,7 @@
       "dec_min": -0.17517070754785968,
       "type_i_count": 125000,
       "type_i_pct": 100.0,
-      "elapsed": 8.458039999008179
+      "elapsed": 7.121064186096191
     },
     {
       "N": 70,
@@ -84,7 +84,7 @@
       "dec_min": -0.17364957317481255,
       "type_i_count": 343000,
       "type_i_pct": 100.0,
-      "elapsed": 11.06529688835144
+      "elapsed": 9.040004968643188
     }
   ],
   "stability": {

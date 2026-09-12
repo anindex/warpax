@@ -216,7 +216,7 @@ def fibonacci_sphere(n_points: int) -> np.ndarray:
 def fibonacci_dec_comparison():
     """Deterministic Fibonacci-lattice DEC comparison for Rodal.
 
-    Compares sampled DEC min vs BFGS min vs algebraic truth.
+    Compares finite observer sampling with the Type-I algebraic DEC test.
     Vectorized with JAX for performance.
     """
     import matplotlib
@@ -242,7 +242,7 @@ def fibonacci_dec_comparison():
     grid = GridSpec(bounds=[(-300, 300)] * 3, shape=(25, 25, 25))
 
     print("\n" + "=" * 70)
-    print("Fibonacci DEC Sampling vs BFGS (Rodal)")
+    print("Fibonacci DEC Sampling vs Type-I Algebraic Test (Rodal)")
     print("=" * 70)
 
     metric = RodalMetric(v_s=v_s, R=100.0, sigma=0.03)
@@ -258,8 +258,8 @@ def fibonacci_dec_comparison():
     cls_results = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
     alg_dec = np.array(jax.vmap(check_dec)(cls_results.rho, cls_results.pressures))
 
-    # BFGS
-    print("Running BFGS...")
+    # The verifier uses its algebraic shortcut at Type-I points.
+    print("Running Type-I verification...")
     ec_bfgs = verify_grid(
         curv.stress_energy,
         curv.metric,
@@ -383,7 +383,7 @@ def fibonacci_dec_comparison():
             f"{r['min_sampled']:>14.6e} {r['elapsed']:>10.1f}"
         )
     print("=" * 70)
-    print(f"BFGS min DEC margin: {float(np.nanmin(bfgs_dec)):.6e}")
+    print(f"Verifier min DEC margin: {float(np.nanmin(bfgs_dec)):.6e}")
     print(f"Algebraic min DEC margin: {float(np.nanmin(alg_dec)):.6e}")
 
     # Plot
@@ -395,10 +395,10 @@ def fibonacci_dec_comparison():
         "o-",
         label="Fibonacci sampling",
     )
-    ax.axhline(100, ls="--", color="green", label=r"BFGS (100\%)")
+    ax.axhline(100, ls="--", color="green", label=r"Type-I algebraic test (100\%)")
     ax.set_xlabel("Number of directions")
     ax.set_ylabel(r"DEC violation detection rate (\%)")
-    ax.set_title("Rodal DEC: Fibonacci Sampling vs BFGS")
+    ax.set_title("Rodal DEC: Fibonacci Sampling")
     ax.legend()
     ax.set_ylim(0, 105)
     fig.tight_layout()
@@ -417,6 +417,7 @@ def fibonacci_dec_comparison():
             "n_points": n_points,
             "n_violations": n_viol,
             "bfgs_min_dec": float(np.nanmin(bfgs_dec)),
+            "reference_method": "Type-I algebraic shortcut; bfgs_min_dec is a legacy field name",
             "alg_min_dec": float(np.nanmin(alg_dec)),
             "results": results,
         },

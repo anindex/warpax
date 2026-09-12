@@ -51,14 +51,6 @@ def _cosh_stretch(u: Float[Array, "N"], u_wall: float, a: float) -> Float[Array,
     :math:`C^1`, the physical spacing is *smallest exactly at the wall*, and the
     two sides are refined symmetrically.
 
-    History. An early revision applied ``tanh``, whose slope is maximal at the
-    wall, so it anti-clustered. The replacement used a single ``sinh`` slice
-    ``(\\sinh(a(u-u_w)) - \\sinh(-a u_w)) / (\\sinh(a(1-u_w)) - \\sinh(-a u_w))``,
-    which clusters correctly but is *not anchored*: it does not fix ``u_wall``,
-    so the densest sampling drifts off the wall. For ``bounds=(-3,3)``,
-    ``wall_radius=1`` it landed at ``x = 1.266`` (a 27% offset) and for
-    ``(-300,300)``, ``R=100`` at ``x = 126.6``. The two-sided form above fixes
-    the wall by construction; see ``tests/test_grids_clustered.py``.
     """
     q = u_wall
     sa = jnp.sinh(a)

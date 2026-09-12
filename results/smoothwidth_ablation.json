@@ -44,7 +44,7 @@
       "n_type_ii": 17,
       "n_type_iii": 15,
       "n_type_iv": 6,
-      "time_s": 15.3
+      "time_s": 15.0
     },
     {
       "smooth_width": 0.06,
@@ -63,7 +63,7 @@
       "n_type_ii": 32,
       "n_type_iii": 15,
       "n_type_iv": 4,
-      "time_s": 7.4
+      "time_s": 8.2
     },
     {
       "smooth_width": 0.12,
@@ -82,7 +82,7 @@
       "n_type_ii": 47,
       "n_type_iii": 15,
       "n_type_iv": 0,
-      "time_s": 10.1
+      "time_s": 12.2
     },
     {
       "smooth_width": 0.24,
@@ -101,7 +101,7 @@
       "n_type_ii": 51,
       "n_type_iii": 15,
       "n_type_iv": 8,
-      "time_s": 7.9
+      "time_s": 9.9
     }
   ]
 }

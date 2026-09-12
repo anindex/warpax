@@ -1,7 +1,7 @@
 {
   "title": "WarpAX: Observer-robust energy condition verification for warp drive spacetimes",
-  "description": "WarpAX uses JAX automatic differentiation to compute exact curvature tensors from analytic warp drive metrics and decides the null, weak, strong and dominant energy conditions over every timelike observer at once, from the positive semidefiniteness of a single 4x4 linear matrix inequality, with a continuous BFGS search over the observer manifold as the independent cross-check. Reported verdicts carry exact rational certificates, and interval branch-and-bound supplies verified continuum enclosures of the worst-case violation.",
-  "version": "1.4.0",
+  "description": "JAX tools for curvature, energy conditions, and geodesics in prescribed spacetimes. Includes numerical LMI tests, observer optimization, exact checks for supplied rational certificates, interval enclosures on supported domains, and source-consistency diagnostics. Finite-segment energy integrals and grid diagnostics carry explicit limits.",
+  "version": "1.5.0",
   "creators": [
     {
       "name": "Le, An T.",

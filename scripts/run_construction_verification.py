@@ -1,39 +1,10 @@
-"""Cross-construction all-observer verification, in two explicitly separate blocks.
+"""Kinematically standardized construction diagnostics and reference parameter sets.
 
-The superseded panel evaluated each construction at *its own*
-parameters and speed, on a single grid, with no per-construction convergence
-evidence, and reported a "wall cells" figure that was neither measured on the
-grid used nor counted per wall normal. None of it was comparable.
-
-This script replaces it with two blocks that are each internally honest:
-
-**matched**, common dimensionless shift kinematics. Fuchs' compliance is
-designed at ``v_s = 0.02`` and Garattini's averaged-condition regime pins
-``v_s = H R``, so the match is made *to them*: every construction runs at
-``v_s = 0.02`` with characteristic wall radius ``R_c = 15`` and 10-90% shift
-width ``W = 4.419943`` (``W/R_c = 0.2947``), the values read off the published
-Fuchs sigmoid. All four then present an identical wall at identical resolution.
-
-**native**, each construction reproduced at its own published parameters, so
-the panel also states what each author actually claimed.
-
-Neither block is called "fully physically matched", because that is impossible:
-Fuchs carries a two-boundary matter shell with compactness ``2M/R_2 = 0.3334``
-where Alcubierre and Rodal have no mass parameter at all, and Garattini
-necessarily carries ``Lambda R^2 = 3 (H R)^2``. Type fractions and single-frame
-miss rates are comparable under common sampling; raw stress severity and energy
-positivity are not like-for-like matter comparisons. Stress margins are reported
-dimensionlessly as ``R_c^2 min(rho + p_i)`` since curvature carries ``1/L^2``.
-
-Sampling uses the exact axisymmetric ``(r, mu)`` reduction, so each level of the
-ladder costs thousands of points rather than millions, and every construction
-gets an independent three-level convergence ladder.
-
-Outputs
--------
-- results/construction_verification.json
-- ../warpax_arxiv/tables/construction_matched.tex
-- ../warpax_arxiv/tables/construction_native.tex
+Each construction has an independent three-grid ladder. The JSON records all
+parameters, units and provenance. Garattini-Zatrimaylov's matched-motion metric
+has exact j=0 and Type I; its fractions use that identity. Numerical labels are
+retained separately for debugging. No matter-content or stress-severity ordering
+is inferred from this panel.
 """
 
 from __future__ import annotations
@@ -61,6 +32,7 @@ from warpax.analysis.construction_adapter import (
 )
 from warpax.analysis.invariant_verification import single_frame_miss
 from warpax.energy_conditions.frame_free import certify_grid_frame_free
+from warpax.energy_conditions.verifier import _eulerian_ec_point
 from warpax.geometry import evaluate_curvature_points
 from warpax.grids import axisymmetric_grid, proper_volume_weights, wall_cells_on_axis
 
@@ -122,18 +94,55 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
     w_wall = w[sel].sum()
 
     nec = np.asarray(ff.nec_margins).ravel()
+    if spec.name == "Garattini":
+        # The matched-motion shift is a gradient. Use its exact Type-I reduction
+        # through the Eulerian normal, avoiding defective eigensolver labels.
+        normal = -np.asarray(gi)[:, :, 0]
+        rho = np.einsum("ni,nij,nj->n", normal, np.asarray(T), normal)
+        pressures = np.linalg.eigvalsh(np.asarray(T)[:, 1:, 1:])
+        nec = rho + pressures[:, 0]
+        row["numerical_type_labels"] = {
+            str(kind): float(w[sel & (he == kind)].sum() / w_wall) for kind in (1, 2, 3, 4)
+        }
+        he = np.ones_like(he)
+        sel = wall & np.isfinite(rho) & np.all(np.isfinite(pressures), axis=1)
+        w_wall = w[sel].sum()
+        row["type_basis"] = (
+            "exact j=0; Eulerian normal timelike eigenvector; symmetric spatial stress"
+        )
+        assert float(metric.H) > 0
+        assert np.isclose(spec.params["r_0"] * float(metric.H), spec.default_speed)
+        row["v_equals_H_r0"] = spec.params["r_0"] * float(metric.H)
+        eulerian = jax.vmap(_eulerian_ec_point)(T, g, gi)
+        margins = {
+            "nec": nec,
+            "wec": np.minimum(rho, nec),
+            "dec": rho - np.max(np.abs(pressures), axis=1),
+        }
+        miss = {}
+        for cond, margin in margins.items():
+            violated = sel & (margin < -1e-10)
+            missed = violated & (np.asarray(eulerian[cond]) >= 0.0)
+            denominator = float(w[violated].sum())
+            miss[cond] = {
+                "miss_rate": float(w[missed].sum()) / denominator if denominator else None,
+                "n_violated": int(violated.sum()),
+            }
+    else:
+        miss = single_frame_miss(T, g, gi, mask=wall, volume_weights=w)
+
     typeI_wall = sel & (he == 1.0) & np.isfinite(nec)
     nec_min = float(np.min(nec[typeI_wall])) if typeI_wall.any() else float("nan")
 
-    # The Eulerian comparison needs a timelike coordinate-stationary congruence.
-    eulerian_valid = float(spec.default_speed) < 1.0
-    miss = single_frame_miss(T, g, gi, mask=wall, volume_weights=w) if eulerian_valid else None
+    # The ADM normal is unit timelike at every speed.
+    eulerian_valid = True
 
     row.update(
         {
             "n_wall_points": int(sel.sum()),
             "frac_type_i": float(w[sel & (he == 1.0)].sum() / w_wall) if w_wall else float("nan"),
             "frac_type_iv": float(w[sel & (he == 4.0)].sum() / w_wall) if w_wall else float("nan"),
+            "frac_type_ii": float(w[sel & (he == 2.0)].sum() / w_wall) if w_wall else float("nan"),
             "invariant_nec_min": nec_min,
             # Curvature carries 1/L^2, so this is the comparable quantity.
             "nec_min_dimensionless": nec_min * spec.wall_radius**2,
@@ -274,7 +283,7 @@ def main() -> None:
                 rows, os.path.join(TABLES_DIR, "construction_matched.tex"), show_speed=False
             )
     if args.mode in ("native", "both"):
-        rows = run_mode(construction_registry(), ladder, "NATIVE published parameters")
+        rows = run_mode(construction_registry(), ladder, "REFERENCE parameter choices")
         payload["native"] = rows
         if not args.smoke:
             write_table(rows, os.path.join(TABLES_DIR, "construction_native.tex"), show_speed=True)

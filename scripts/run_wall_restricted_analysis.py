@@ -275,94 +275,52 @@ def _fmt_miss(value):
 
 
 def save_report(results: dict, start_time: str) -> None:
-    """Persist human-readable wall-restricted summary."""
-    lines: list[str] = []
-    lines.append("# Wall-Restricted Type-IV Analysis Report")
-    lines.append("")
-    lines.append(f"**Date:** {start_time}")
-    lines.append("**Script:** `scripts/run_wall_restricted_analysis.py`")
-    lines.append("**Grid resolution:** 50^3 (per metric; bounds follow run_analysis.py)")
-    lines.append(f"**Wall region:** shape function in [{F_LOW}, {F_HIGH}]")
-    lines.append(f"**Velocity:** v_s = {V_S}")
-    lines.append("")
-
-    lines.append("## Overview")
-    lines.append("")
-    lines.append(
-        "Full-domain Type-IV fractions are computed over the full "
-        "grid, which for large-bubble metrics (Rodal, Lentz) is dominated by "
-        "vacuum. Restricting to the active warp-wall region where the shape "
-        "function lies in [0.1, 0.9] yields fractions that are "
-        "directly physically meaningful. This report shows both quantities "
-        "side-by-side so the scaling between full-grid (vacuum-dominated) "
-        "and wall-restricted (wall-dominated) statistics is transparent."
-    )
-    lines.append("")
-
-    # Per-metric sections
-    for name in WARP_METRICS:
-        r = results[name]
-        full = r["full_grid"]
-        wall = r["wall_restricted"]
-
-        lines.append(f"## {name}")
-        lines.append("")
+    """Render full-grid and wall statistics with their distinct denominators."""
+    lines = [
+        "# Wall-restricted classification and missed violations",
+        "",
+        f"Date: {start_time}. Source: `wall_restricted_analysis.json`.",
+        "",
+        f"v_s={V_S}; 50^3 grid points per metric, with bounds from `run_analysis.py`. "
+        f"The wall mask is {F_LOW} <= f <= {F_HIGH}. "
+        "Type fractions use point counts within the stated region.",
+        "",
+        "| Metric | Grid points | Wall points | Full Type IV % | Wall I / II / III / IV % | Time (s) |",
+        "|---|---:|---:|---:|---|---:|",
+    ]
+    for name, r in results.items():
+        full, wall = r["full_grid"], r["wall_restricted"]
+        types = " / ".join(f"{100 * wall[f'frac_type_{t}']:.2f}" for t in ("i", "ii", "iii", "iv"))
+        lines.append(
+            f"| {name} | {full['n_total']} | {wall['n_total']} | {100 * full['frac_type_iv']:.2f} "
+            f"| {types} | {r['elapsed_s']:.1f} |"
+        )
+    lines += [
+        "",
+        "A missed violation passes the Eulerian test but violates the condition for a searched observer. "
+        "Full-grid percentages divide by all grid points; wall percentages divide "
+        "by wall points with a detected violation of that condition. "
+        "`N/A` means that denominator is zero. These denominators differ.",
+        "",
+        "| Metric | Region | NEC miss % | WEC miss % | SEC miss % | DEC miss % |",
+        "|---|---|---:|---:|---:|---:|",
+    ]
+    for name, r in results.items():
+        full, wall = r["full_grid"], r["wall_restricted"]
+        full_miss = " | ".join(
+            f"{full[f'{c}_pct_missed']:.2f}" for c in ("nec", "wec", "sec", "dec")
+        )
+        wall_miss = " | ".join(
+            _fmt_miss(wall[f"{c}_miss_rate"]).removesuffix("%")
+            for c in ("nec", "wec", "sec", "dec")
+        )
+        lines += [f"| {name} | full grid | {full_miss} |", f"| {name} | wall | {wall_miss} |"]
+    for name, r in results.items():
         if r.get("caveat") == "unresolved_lower_bound":
             lines.append(
-                "**Caveat:** unresolved lower-bound estimate (44x under-resolved wall "
-                "at 50^3 over [-300, 300]^3; L1 feature width ~ 2/sigma at sigma = 8)."
+                f"\n{name}: the tested grid undersamples the wall; these statistics have no continuum error bound.\n"
             )
-            lines.append("")
-
-        lines.append(f"- Wall points (f in [{F_LOW}, {F_HIGH}]): {wall['n_total']}")
-        lines.append(f"- Total grid points: {full['n_total']}")
-        lines.append(
-            f"- Type-IV fraction: full={full['frac_type_iv']:.2%}, wall={wall['frac_type_iv']:.2%}"
-        )
-        lines.append(
-            f"- Type I/II/III/IV wall breakdown: "
-            f"{wall['frac_type_i']:.2%} / {wall['frac_type_ii']:.2%} / "
-            f"{wall['frac_type_iii']:.2%} / {wall['frac_type_iv']:.2%}"
-        )
-        lines.append(
-            f"- Full-grid miss % (Eulerian satisfied, robust violated): "
-            f"NEC={full['nec_pct_missed']:.2f}%, WEC={full['wec_pct_missed']:.2f}%, "
-            f"SEC={full['sec_pct_missed']:.2f}%, DEC={full['dec_pct_missed']:.2f}%"
-        )
-        lines.append(
-            f"- Wall-restricted conditional miss rate: "
-            f"NEC={_fmt_miss(wall['nec_miss_rate'])}, "
-            f"WEC={_fmt_miss(wall['wec_miss_rate'])}, "
-            f"SEC={_fmt_miss(wall['sec_miss_rate'])}, "
-            f"DEC={_fmt_miss(wall['dec_miss_rate'])}"
-        )
-        lines.append(f"- Elapsed: {r['elapsed_s']:.1f}s")
-        lines.append("")
-
-    # Summary table at end
-    lines.append("## Summary Table")
     lines.append("")
-    lines.append(
-        "| Metric | Wall points | Full Type-IV | Wall Type-IV | "
-        "Full DEC miss % | Wall DEC miss | Caveat |"
-    )
-    lines.append(
-        "|--------|-------------|--------------|--------------|"
-        "------------------|----------------|--------|"
-    )
-    for name in WARP_METRICS:
-        r = results[name]
-        full = r["full_grid"]
-        wall = r["wall_restricted"]
-        cav = r.get("caveat") or ""
-        lines.append(
-            f"| {name} | {wall['n_total']} | "
-            f"{full['frac_type_iv']:.2%} | {wall['frac_type_iv']:.2%} | "
-            f"{full['dec_pct_missed']:.2f}% | "
-            f"{_fmt_miss(wall['dec_miss_rate'])} | {cav} |"
-        )
-    lines.append("")
-
     outpath = os.path.join(RESULTS_DIR, "wall_restricted_report.md")
     with open(outpath, "w") as f:
         f.write("\n".join(lines))

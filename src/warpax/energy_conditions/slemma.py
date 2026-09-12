@@ -1,59 +1,42 @@
-"""Exact all-observer energy conditions as one 4x4 linear matrix inequality.
+"""All-observer energy conditions as pointwise linear matrix inequalities.
 
-This decides the NEC, WEC, SEC and DEC over *every* observer at a point, with no
-rapidity cap, no optimizer, no eigen-decomposition of ``T^a_b`` and no
-classification tolerance. It is therefore independent of the Hawking-Ellis type:
-it decides Type II and Type III points, where the eigenvalue route in
-:mod:`.eigenvalue_checks` has no rest frame to work with.
+This module numerically optimizes 4x4 linear matrix inequalities (LMIs) without
+an observer rapidity cap or Hawking-Ellis classification. The reductions are
+exact in mathematics; floating-point margins use :func:`noise_floor` and are
+inconclusive near zero. Exact sufficient certificates are available separately
+in :mod:`.certificate`.
 
-The construction. Let ``{n, e_i}`` be an orthonormal tetrad with ``n`` the unit
-slice normal. Every future timelike observer is ``u = gamma (n + w)`` with
-``|w| < 1``, and every future null direction is ``k = c (n + s)`` with ``|s| = 1``
-and ``c > 0``. Since
+Let ``{n, e_i}`` be an Eulerian orthonormal tetrad. Timelike observers have
+``u = gamma (n + w)``, ``|w| < 1``, and normalized null directions have
+``k = n + s``, ``|s| = 1``. With ``rho = T(n,n)``, ``b_i = -T(n,e_i)``, and
+``S_ij = T(e_i,e_j)``,
 
-    T_ab u^a u^b = gamma^2 q(w),   q(w) = rho - 2 b.w + w^T S w,   gamma^2 > 0,
+    T(u,u) = gamma^2 q(w),   q(w) = rho - 2 b.w + w^T S w.
 
-the *sign* is decided by ``q`` on a compact set, the closed unit ball for the
-timelike conditions, the unit sphere for the null one. No cap is needed, and none
-is used. Here ``rho = T(n,n)``, ``b_i = -T(n,e_i)`` is the momentum density and
-``S_ij = T(e_i,e_j)``.
+Continuity reduces the timelike sign condition to nonnegativity on the closed
+unit ball. The S-lemma applies because ``1 - |w|^2 > 0`` at ``w = 0``:
 
-By the S-lemma (Yakubovich; exact for a single quadratic constraint, and the
-Slater point is ``w = 0``, where ``1 - |w|^2 = 1 > 0``, note this needs nothing
-of ``rho``, so it holds precisely at the exotic points of interest),
+    q >= 0 on the ball  <=>  That + sigma eta >= 0 for some sigma >= 0,
+    eta = diag(-1, 1, 1, 1).
 
-    q(w) >= 0 on the ball  <=>  exists sigma >= 0 with  M(sigma) >= 0 (PSD),
+For NEC, the homogeneous equality constraint ``x^T eta x = 0`` is indefinite.
+The equality S-lemma gives the same PSD test with a multiplier of either sign
+(Xia, Wang, and Sheu, Mathematical Programming 156, 513-547, 2016).
 
-where ``M(sigma)`` is nothing but the tetrad-frame component matrix of the tensor
-``T_ab + sigma g_ab``:
+The four conditions use these forms:
 
-    M(sigma) = That + sigma * eta = [[rho - sigma, -b^T], [-b, S + sigma I]].
+    NEC: sphere form on T
+    WEC: ball form on T
+    SEC: ball form on Theta = T - (1/2) tr_g(T) g
+    DEC: ball forms on both T and -T g^{-1} T.
 
-For the sphere (the NEC) the constraint is an equality; the S-procedure is still
-exact because ``1 - |w|^2`` takes both signs, and the multiplier is free in sign.
+The second DEC form makes ``J^a = -T^a{}_b u^b`` causal or zero. WEC then fixes
+its future orientation when nonzero. The minimum eigenvalue of each affine
+matrix is concave in ``sigma``; a finite ternary search approximates its maximum.
 
-Three of the four conditions are then the *same* primitive on a different tensor:
-
-    NEC(T) : sphere form on T
-    WEC(T) : ball form on T
-    SEC(T) : ball form on Theta = T - (1/2) tr_g(T) g   (SEC is WEC for Theta)
-    DEC(T) : ball form on T *and* on -T^2, where (T^2)_ab = T_ac g^cd T_db.
-
-DEC needs the second inequality because ``J^a = -T^a{}_b u^b`` is causal exactly
-when ``(T^2)(u,u) <= 0``. Future-directedness is then automatic, not a separate
-test: ``T(u,u) = -J.u``, so a causal ``J`` with WEC satisfied is future-directed.
-
-Because ``M`` is affine in ``sigma``, ``lambda_min(M(sigma))`` is *concave*, so
-the certificate search is a one-dimensional concave maximization, a ternary
-search over 4x4 symmetric eigenvalues. No SDP solver and no new dependency.
-
-Scope. This is a *pointwise* statement, ``for all x, exists sigma(x)``. It does
-not lift to a spatial box: one interval LMI would prove the strictly stronger
-``exists sigma, for all x``, which already fails for the saturated family
-``rho = a(x) > 0, b = 0, S = -a(x) I`` where ``sigma = a(x)`` is forced, and
-subdivision does not help. Global coverage over a domain stays with the
-Moore-Skelboe branch and bound in :mod:`.enclosure`, which brackets
-``min_{|w|<=1} q`` directly. Two tools, two jobs; do not conflate them.
+These are pointwise tests. A common multiplier over a spatial box is a stronger
+requirement and can fail even when every point satisfies the condition.
+Spatial enclosures require the separate bounds in :mod:`.enclosure`.
 """
 
 from __future__ import annotations
@@ -67,19 +50,13 @@ from .observer import compute_orthonormal_tetrad
 # eta in the orthonormal tetrad frame; M(sigma) = That + sigma * ETA.
 _ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
-# Ternary search steps. Each step shrinks the bracket by 2/3, so 80 takes a
-# width-1 bracket to ~1e-14 and the margin error is second order there. Against
-# 120 steps over 3000 random tensors, NEC/WEC/SEC agree to 5.3e-15 and DEC to
-# 3.2e-13, both far under noise_floor, at two thirds of the cost.
+# Each ternary step shrinks the multiplier bracket by 2/3.
 _TERNARY_STEPS = 80
 
-# Relative floor below which a negative margin is noise rather than a violation.
-# Set by the residual bracket and the eigvalsh error on M(sigma); see noise_floor.
+# Relative tolerance for inconclusive margins on either side of zero.
 _NOISE_REL = 1e-12
 
-# Absolute floor. Zero: the unclamped bracket collapses to the point 0 at zero
-# tensor scale, where lam_min(0) = 0 exactly. A nonzero term dominates below
-# scale ~1e-6 and reads a violation of 100% of its own scale as inconclusive.
+# A zero absolute floor preserves positive-rescaling covariance.
 _NOISE_ABS = 0.0
 
 # Projected-gradient steps for the violating-observer search in witness_observer.
@@ -102,31 +79,19 @@ def _lmi_margin(
     T_hat: Float[Array, "4 4"],
     sigma_lo: Float[Array, ""],
 ) -> tuple[Float[Array, ""], Float[Array, ""]]:
-    """Maximize the concave ``sigma -> lambda_min(That + sigma eta)``.
+    """Approximate ``max_sigma lambda_min(That + sigma eta)`` by ternary search.
 
-    ``sigma_lo`` is the lower end of the admissible multiplier range: ``0`` for
-    the ball (timelike) conditions, ``-inf`` in effect for the sphere (null) one,
-    which we realize as a symmetric bracket.
+    ``sigma_lo=0`` selects the ball constraint; ``sigma_lo=-inf`` selects
+    the sphere constraint. Returns the candidate ``(sigma_star, margin)``.
 
-    Returns ``(sigma_star, margin)``.
+    The search can underestimate the maximum, and the symmetric eigensolver
+    can err in either direction. Apply :func:`noise_floor` symmetrically;
+    values near zero are inconclusive. This is a numerical estimate, not
+    an exact certificate.
 
-    Two distinct effects blunt this number, and the contract has to survive both.
-    Ternary search *under*-estimates a concave maximum, which biases the result
-    downward; and ``lambda_min`` comes from an eigensolver with backward error of
-    order ``eps * ||M||``, which is unbiased and can push it either way. So the
-    verdict is two-sided against :func:`noise_floor`, not one-sided against zero:
-    ``> +floor`` says satisfied, ``< -floor`` says violated, in between says nothing.
-
-    ``margin >= 0`` does not certify satisfaction outright: the eigensolver error
-    alone can lift a marginally violating tensor above zero, which is why the
-    exact-arithmetic escape in :mod:`.certificate` exists. On the exact vacuum
-    ``T = 0`` the bracket collapses and the search returns exactly ``0``; on a
-    saturated tensor it lands inside the floor.
-
-    The maximum is always attained at finite ``sigma``, so there is no
-    optimizer-at-infinity case to guard against: ``lambda_min(That + sigma eta)``
-    is bounded above by ``That_00 - sigma`` and by ``That_ii + sigma``, hence tends
-    to ``-inf`` in both directions.
+    The maximum occurs at finite ``sigma``: diagonal Rayleigh quotients
+    bound it above by ``That_00 - sigma`` and ``That_ii + sigma``, which
+    tend to ``-inf`` in the respective directions.
     """
     # The bracket must hold the argmax whether or not the LMI is feasible, so it comes
     # from an unconditional bound: lam_min(M(sigma)) <= scale -+ sigma while the maximum
@@ -168,25 +133,12 @@ def _tensor_scale(T_hat: Float[Array, "4 4"]) -> Float[Array, ""]:
 
 
 def _flux_margin_linear(flux: Float[Array, ""], scale: Float[Array, ""]) -> Float[Array, ""]:
-    """Put the ``-T^2`` ball margin back in the units of ``T``, by ``flux / |T|``.
+    """Divide the quadratic flux margin by ``max |That_IJ|``.
 
-    The flux half of the DEC is the ball margin of ``-T^2``, so it is homogeneous
-    of degree *two* in the tensor while the other three margins are degree one.
-    Combining them with a bare ``min`` gave a number whose scaling changed with
-    which constraint binds: on ``T = diag(1, 2, 0, 0)`` scaled by ``c``, the WEC
-    margin ran 0.5, 1, 5 while the raw flux ran -1.5, -6, -150. Signs were
-    unaffected, both vanish at the same tensors, so no verdict ever moved, but a
-    reported "DEC margin" that is quadratic at some points and linear at others is
-    not a margin, and a ranking or scaling fit that crosses the switch compares
-    different powers of the same tensor.
-
-    Dividing by the scale is monotone at fixed ``T`` and vanishes exactly where
-    ``flux`` does, so it changes neither the verdict nor the argmin, only the
-    units. It is preferred to ``sgn(flux) sqrt(|flux|)``, which is also degree one
-    but has unbounded derivative at zero: an absolute error ``1e-12 scale^2`` in
-    ``flux`` would become ``1e-6 scale`` in the margin, six orders above the floor
-    the other three conditions answer to. Under the division the error is
-    ``1e-12 scale``, so one floor covers all four.
+    The resulting margin scales linearly with positive rescalings of ``T``,
+    as do the WEC, SEC, and NEC margins. Its sign is unchanged for nonzero
+    ``T``. At vacuum the denominator is replaced by one and the result is zero.
+    The scale depends on the chosen tetrad; this is not an invariant severity.
     """
     return flux / jnp.where(scale > 0.0, scale, 1.0)
 
@@ -197,32 +149,23 @@ def noise_floor(
     *,
     condition: str = "nec",
 ) -> Float[Array, ""]:
-    """Magnitude below which an LMI margin cannot be read as a violation.
+    """Return the numerical decision tolerance for an LMI margin.
 
-    Two effects set it: the residual ternary bracket, and the ``eigvalsh`` error
-    on ``M(sigma)``, both relative to the scale of the tensor.
+    The floor is ``1e-12 * max |That_IJ|`` for all four conditions. It allows
+    for the residual multiplier bracket and symmetric eigensolver error;
+    it is a numerical policy, not an interval error bound. The DEC flux
+    margin is divided by the tensor scale before comparison with this floor.
 
-    All four conditions now answer to the *same* relative floor. The flux half of
-    the DEC feeds ``-T^2`` to the same search, so its absolute error is
-    ``1e-12 scale^2``; :func:`_flux_margin_linear` divides by ``scale`` before the
-    ``min``, which brings that back to ``1e-12 scale`` alongside the other three.
-    The floor used to carry a ``scale**2`` branch to cover the undivided flux, and
-    that branch was wrong in both directions, too tight below unit scale, too
-    loose above it, since the DEC margin was quadratic only where the flux bound.
-
-    Use as ``margin < -noise_floor(...)`` to decide violation. At saturation, where
-    the multiplier is forced to a single value and the true margin is exactly zero,
-    no float64 search can do better; the exact ``LDL^T`` check on a rational
-    ``sigma`` is the escape hatch (see the certificate).
+    Margins above ``+floor`` indicate satisfaction numerically, margins below
+    ``-floor`` indicate violation, and the intervening band is inconclusive.
+    For :func:`null_deficit`, double this floor because that function returns
+    twice the NEC LMI margin. :mod:`.certificate` can sometimes resolve a
+    marginal case with an exact sufficient certificate.
     """
     if condition not in ("nec", "wec", "sec", "dec"):
         raise ValueError(f"unknown condition {condition!r}")
     T_hat = tetrad_components(T_ab, g_ab)
-    # Clamping the scale at 1 makes the floor ABSOLUTE below unit scale and breaks
-    # covariance under T -> c T: on T = 1e-7 diag(1,2,0,0) the DEC fails by 100% of
-    # its own scale and reads inconclusive against a 1e-12 floor. Relative, plus a
-    # small absolute term for the residual ternary bracket at exact vacuum, where
-    # the true maximum is 0 and the search returns about -6e-22.
+    # Keep the scale unclamped so the tolerance rescales with the tensor.
     return _NOISE_REL * _tensor_scale(T_hat) + _NOISE_ABS
 
 
@@ -230,23 +173,19 @@ def null_deficit(
     T_ab: Float[Array, "4 4"],
     g_ab: Float[Array, "4 4"],
 ) -> Float[Array, ""]:
-    """Worst null contraction at Eulerian normalization, at any algebraic type.
+    """Estimate the least null contraction at Eulerian normalization.
 
-    Returns ``min { T_ab k^a k^b : k null, -g(k, n) = 1 }``, i.e. the minimum of
-    ``q(s) = rho - 2 b.s + s^T S s`` over the unit sphere. This is the
-    type-independent replacement for the rest-frame quantity ``min_i (rho + p_i)``,
-    which exists only at Type I, and for the momentum-plane witness
-    ``rho + S_par - 2|j|``, which only probes one direction.
+    The target is ``min {T(k,k): g(k,k)=0, -g(k,n)=1}``, or equivalently
+    ``min_{|s|=1} q(s)``. This definition applies at every algebraic type and
+    is generally different from the Type-I eigenframe slack
+    ``min_i(rho + p_i)`` or a single momentum-direction witness.
 
-    It needs no separate solver. Lifting ``q`` to the null cone of ``eta`` sends
-    ``s`` with ``|s| = 1`` to ``x = (1, s)/sqrt(2)``, and the rank-one extreme
-    points of the corresponding semidefinite program give
+    In exact arithmetic the equality S-lemma gives
 
-        max_sigma lambda_min(That + sigma eta) = (1/2) min_{|s|=1} q(s),
+        min_{|s|=1} q(s) = 2 max_sigma lambda_min(That + sigma eta).
 
-    so the deficit is exactly twice the NEC margin already computed by
-    :func:`certify_point`. Verified against a dense null-cone scan over random
-    tensors in ``tests/test_slemma.py``.
+    The implementation returns twice the numerical NEC LMI margin. Its
+    numerical tolerance is therefore twice :func:`noise_floor`.
     """
     T_hat = tetrad_components(T_ab, g_ab)
     _, nec = _lmi_margin(T_hat, jnp.asarray(-jnp.inf, dtype=T_hat.dtype))
@@ -257,30 +196,22 @@ def certify_point(
     T_ab: Float[Array, "4 4"],
     g_ab: Float[Array, "4 4"],
 ) -> dict[str, Float[Array, ""]]:
-    """Cap-free all-observer margins for NEC/WEC/SEC/DEC at one point.
+    """Compute numerical cap-free NEC, WEC, SEC, and DEC margins at one point.
 
-    Every margin is the optimal LMI value, valid at every Hawking-Ellis type with
-    no classification and no rapidity cap.
+    NEC, WEC, and SEC use the optimized LMI values. DEC is the smaller of
+    the WEC margin and the flux LMI margin divided by ``max |That_IJ|``.
+    The metric must be Lorentzian with spacelike coordinate slices.
 
-    The decision it supports is *two*-sided and neither side is exact in binary64:
-    ``> +noise_floor(...)`` says the condition holds for every observer,
-    ``< -noise_floor(...)`` says some observer sees it fail, and in between the answer
-    is inconclusive. Thresholding the satisfied side at zero instead, which this
-    docstring used to do, is not sound: ``lambda_min`` from a symmetric eigensolver
-    carries a backward error of order ``eps * ||M||``, so a computed margin can sit
-    just above zero when the true one is just below, and "certified" would then be
-    claimed for a tensor that marginally violates. The floor is what makes the claim
-    honest, and it is deliberately symmetric.
+    Compare each margin with both signs of :func:`noise_floor`: values
+    above the floor indicate numerical satisfaction, values below its
+    negative indicate numerical violation, and the middle band is
+    inconclusive. The tolerance does not turn floating-point estimates
+    into rigorous error bounds. :mod:`.certificate` searches separately
+    for sufficient certificates checked by exact arithmetic.
 
-    Where a verdict is actually needed inside the floor, the escape is exact rather
-    than tighter: :mod:`.certificate` emits a rational multiplier verified by an exact
-    ``LDL^T``, or a rational violating observer verified by exact evaluation. Neither
-    consults a float, and both are what the word "certified" should be reserved for.
-
-    The returned numbers are certification margins, not the observed extrema of
-    the contraction; only their sign carries the exact statement. For the NEC the
-    extremum is available too, as exactly twice this margin: see
-    :func:`null_deficit`.
+    These margins are sign diagnostics, not general observer extrema.
+    The NEC exception is :func:`null_deficit`, which is twice its LMI value
+    at the specified Eulerian normalization.
     """
     T_hat = tetrad_components(T_ab, g_ab)
     zero = jnp.zeros((), dtype=T_hat.dtype)
@@ -298,34 +229,17 @@ def witness_observer(
     T_ab: Float[Array, "4 4"],
     g_ab: Float[Array, "4 4"],
 ) -> Float[Array, "3"]:
-    """A boost 3-vector ``w`` with ``|w| <= 1`` and ``q(w) < 0``, when the WEC fails.
+    """Search for a causal velocity ``w`` with ``|w| <= 1`` and ``q(w) < 0``.
 
-    The previous implementation read ``w = v_spatial / v_0`` off the eigenvector of
-    the most negative eigenvalue of ``M(sigma_star)``, justified by the claim that
-    ``q(w) - sigma (1 - |w|^2) = lambda_min |v|^2 / v_0^2 < 0`` forces ``q(w) < 0``.
-    It does not: ``q(w) = sigma (1 - |w|^2) + lambda_min |v|^2 / v_0^2`` and the
-    first term is ``>= 0`` for ``sigma >= 0`` and ``|w| <= 1``, so the sign is
-    decided only when ``|lambda_min| >= sigma``, which nothing guarantees. It also
-    breaks whenever ``lambda_min`` is repeated, because ``eigh`` then returns an
-    arbitrary basis of the eigenspace: for ``That = diag(1, -3, 10, 10)`` the
-    optimum is ``sigma = 2``, ``M = diag(-1, -1, 12, 12)``, the routine picked
-    ``e_0`` and returned ``w = 0`` with ``q(0) = +1``, presented as a violating
-    observer, while ``w = (-0.999, 0, 0)`` gives ``q = -1.994``.
+    Projected gradient descent uses three starts: both signs of the least
+    spatial eigenvector and the momentum direction. A returned candidate
+    has negative contraction in floating-point arithmetic; an interior
+    velocity represents a timelike observer and a boundary velocity a null
+    direction. Check numerical tolerances or an exact certificate before
+    assigning a verdict near zero.
 
-    Minimize ``q`` directly instead. This does not need the minimum to be global,
-    and it had better not: a quadratic on a ball can carry a local minimizer that
-    is not global, e.g. ``q = -x^2 + x + y^2 + z^2`` has a strict local minimum at
-    ``w = +e_0`` with ``q = 0`` against the global ``-2`` at ``w = -e_0``. The
-    search is one-sided. Any ``w`` with ``|w| <= 1`` and ``q(w) < 0`` exhibits an
-    observer and refutes the condition whatever its optimality status, while
-    satisfaction is certified by a multiplier and is never inferred from a failed
-    search; a descent that stalls at a local minimizer returns NaN, which is a
-    refusal and not a false verdict. Two starts cover the degenerate corners: the
-    lowest eigenvector of ``S`` (which is the answer when ``b = 0``, where a
-    gradient start at the origin would stall) and the momentum direction.
-
-    Returns NaN when no violating observer is found, which is the certified
-    outcome when the WEC holds.
+    Returns NaN if no negative candidate is found. The search need not find
+    a global minimum, so NaN proves neither satisfaction nor saturation.
     """
     T_hat = tetrad_components(T_ab, g_ab)
     rho, b, S = T_hat[0, 0], -T_hat[0, 1:], T_hat[1:, 1:]

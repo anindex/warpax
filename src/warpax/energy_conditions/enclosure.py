@@ -92,12 +92,12 @@ __all__ = [
 
 
 def _c_exp(u):
-    return iv.exp(iv.mpf([u, u]))
+    return iv.exp(iv.mpf(u))
 
 
 def _c_tanh(u):
     """Interval enclosure of ``tanh(u)``; ``u`` appears once, so it is tight."""
-    return 1 - 2 / (_c_exp(2 * u) + 1)
+    return 1 - 2 / (_c_exp(2 * iv.mpf(u)) + 1)
 
 
 def _c_sinh(u):
@@ -119,7 +119,7 @@ def _c_cosh(u):
 def _shape(r, R, sigma):
     """tanh top-hat, written so each occurrence of ``r`` is a separate leaf."""
     return (ad.tanh(sigma * (r + R)) - ad.tanh(sigma * (r - R))) / (
-        ad.constant(2 * _c_tanh(sigma * R))
+        ad.constant(2 * _c_tanh(iv.mpf(sigma) * iv.mpf(R)))
     )
 
 
@@ -170,10 +170,12 @@ def rodal_metric(v_s=0.5, R=1.0, sigma=8.0):
         r = ad.sqrt(r2 + ad.constant(1e-60))
         r_div = ad.sqrt(r2 + ad.constant(1e-12))
         F = _shape(r, R, sigma)
-        num = r * ad.constant(2 * sigma * _c_sinh(R * sigma)) + ad.constant(_c_cosh(R * sigma)) * (
+        argument = iv.mpf(R) * iv.mpf(sigma)
+        denominator = 2 * iv.mpf(sigma) * _c_sinh(argument)
+        num = r * ad.constant(denominator) + ad.constant(_c_cosh(argument)) * (
             ad.log(ad.cosh(sigma * (r - R))) - ad.log(ad.cosh(sigma * (r + R)))
         )
-        G = 1 - num / (r * ad.constant(2 * sigma * _c_sinh(R * sigma)))
+        G = 1 - num / (r * ad.constant(denominator))
         n = [dx / r_div, y / r_div, z / r_div]
         beta = [-v_s * (G * (1 if i == 0 else 0) + (F - G) * n[0] * n[i]) for i in range(3)]
         return _assemble(beta)
@@ -202,19 +204,20 @@ def natario_metric(v_s=0.5, R=1.0, sigma=8.0):
 
     def fn(t, x, y, z):
         dx = x - v_s * t
-        r = ad.sqrt(dx * dx + y * y + z * z + ad.constant(1e-60))
+        r = ad.sqrt(dx * dx + y * y + z * z)
         tp = ad.tanh(sigma * (r + R))
         tm = ad.tanh(sigma * (r - R))
-        norm = ad.constant(2 * _c_tanh(sigma * R))
+        tanh_R_sigma = _c_tanh(iv.mpf(sigma) * iv.mpf(R))
+        norm = ad.constant(2 * tanh_R_sigma)
         n = (1 - (tp - tm) / norm) / 2
         # dn/dr = -sigma (sech^2(sigma(r+R)) - sech^2(sigma(r-R))) / (4 tanh(sigma R))
         #       =  sigma (tp^2 - tm^2)            / (4 tanh(sigma R))
-        dn = (tp * tp - tm * tm) * ad.constant(iv.mpf([sigma, sigma]) / (4 * _c_tanh(sigma * R)))
+        dn = (tp * tp - tm * tm) * ad.constant(iv.mpf(sigma) / (4 * tanh_R_sigma))
         q = dn / r
         beta = [
-            -v_s * (2 * n + q * (y * y + z * z)),
-            v_s * q * dx * y,
-            v_s * q * dx * z,
+            v_s * (2 * n + q * (y * y + z * z) - 1),
+            -v_s * q * dx * y,
+            -v_s * q * dx * z,
         ]
         return _assemble(beta)
 
@@ -241,6 +244,8 @@ def van_den_broeck_metric(v_s=0.5, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5,
 
 def shape_interval(R=1.0, sigma=8.0):
     """Interval enclosure of the tanh top-hat over a 2D box, for the wall mask."""
+    if not (math.isfinite(R) and R > 0 and math.isfinite(sigma) and sigma > 0):
+        raise ValueError("shape_interval requires finite R > 0 and sigma > 0")
 
     def fn(bx, by):
         # Build the radius in interval arithmetic. Endpoints assembled from
@@ -261,8 +266,11 @@ def shape_interval(R=1.0, sigma=8.0):
         r2 = iv.mpf([mpmath.mpf((xlo * xlo + ylo * ylo).a), mpmath.mpf((xhi * xhi + yhi * yhi).b)])
         r = iv.sqrt(r2)
         th = lambda u: 1 - 2 / (iv.exp(2 * u) + 1)
-        return (th(sigma * (r + R)) - th(sigma * (r - R))) / (2 * _c_tanh(sigma * R))
+        return (th(sigma * (r + R)) - th(sigma * (r - R))) / (
+            2 * _c_tanh(iv.mpf(sigma) * iv.mpf(R))
+        )
 
+    fn._radial_tanh_parameters = (R, sigma)
     return fn
 
 
@@ -943,9 +951,26 @@ def tail_bound(metric_fn, shape_fn, x_outer, s_outer, prec=60, wall_mask=(0.1, 0
     enclosed by ``[0, f(r_min)]``. Evaluating the box alone certified only the
     annulus ``r_min <= r <= |corner|``, while the appendix claimed ``r >= 3``.
 
+    ``shape_fn`` must be returned by :func:`shape_interval` with positive finite
+    parameters. The conclusion covers the radial exterior ``r >= r_min``;
+    a caller using it for a rectangular search must ensure that the complement
+    of that search lies in this exterior. ``s_outer`` is nonnegative.
+
     Returns ``(f_lo, f_hi, excluded)``: the certified enclosure of the shape function
     on the exterior, and whether it is provably disjoint from the wall band.
     """
+    if not hasattr(shape_fn, "_radial_tanh_parameters"):
+        raise ValueError("tail_bound requires the monotone tanh shape from shape_interval")
+    if not (
+        len(x_outer) == len(s_outer) == 2
+        and all(math.isfinite(c) for c in (*x_outer, *s_outer))
+        and x_outer[0] <= x_outer[1]
+        and 0 <= s_outer[0] <= s_outer[1]
+        and 0 <= wall_mask[0] <= wall_mask[1] <= 1
+    ):
+        raise ValueError(
+            "tail_bound requires ordered finite extents, s >= 0 and a wall band in [0,1]"
+        )
     # mpmath.iv keeps its OWN precision, so mp.prec alone leaves every interval
     # operation at the 53-bit default.
     mpmath.mp.prec = prec
@@ -953,11 +978,13 @@ def tail_bound(metric_fn, shape_fn, x_outer, s_outer, prec=60, wall_mask=(0.1, 0
     # min |x| over the interval, which is 0 when it straddles the origin;
     # min(|endpoint|) is not that.
     if x_outer[0] <= 0.0 <= x_outer[1]:
-        r_min = 0.0
+        x_min = 0.0
     else:
-        r_min = min(abs(x_outer[0]), abs(x_outer[1]))
-    if s_outer[0] > 0:
-        r_min = math.hypot(r_min, s_outer[0])
+        x_min = min(abs(x_outer[0]), abs(x_outer[1]))
+    # A lower radius gives an upper shape value because this profile decreases.
+    # math.hypot rounds to nearest and can raise the radius above its true value.
+    xi, si = iv.mpf(x_min), iv.mpf(s_outer[0])
+    r_min = mpmath.mpf(iv.sqrt(xi * xi + si * si).a)
     f_at_rmin = shape_fn(iv.mpf([r_min, r_min]), iv.mpf([0.0, 0.0]))
     f_lo, f_hi = 0.0, _hi(f_at_rmin)
     return f_lo, f_hi, bool(f_hi < wall_mask[0] or f_lo > wall_mask[1])

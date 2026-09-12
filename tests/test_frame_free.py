@@ -21,6 +21,26 @@ from warpax.metrics import RodalMetric
 MINKOWSKI = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
 
+@pytest.mark.parametrize("sign", [-1.0, 1.0])
+def test_routed_nec_retains_the_lmi_inconclusive_band(monkeypatch, sign):
+    from warpax.energy_conditions import frame_free
+    from warpax.energy_conditions.slemma import noise_floor
+
+    tensor = jnp.array(
+        [[1.0, 2.0, 0.0, 0.0], [2.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
+    floor = noise_floor(tensor, MINKOWSKI)
+    # Model an LMI solver residual inside its declared inconclusive band.
+    monkeypatch.setattr(
+        frame_free,
+        "certify_point_lmi",
+        lambda T, g: {c: sign * 0.75 * floor for c in ("nec", "wec", "sec", "dec")},
+    )
+    result = certify_grid_frame_free(tensor[None], MINKOWSKI[None])
+    assert int(result.he_types[0]) == 4
+    assert abs(float(result.nec_margins[0])) < float(result.nec_noise_floor[0])
+
+
 def test_minkowski_vacuum_is_type_i():
     """Vacuum (T=0) in Minkowski classifies Type I with ~zero margins."""
     T = jnp.zeros((4, 4))

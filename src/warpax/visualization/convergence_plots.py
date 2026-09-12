@@ -1,7 +1,8 @@
-"""Richardson convergence log-log plots and summary tables.
+"""Uniform-grid sample plots and Richardson convergence plots.
 
 Produces figures showing:
-- Log-log convergence plot with fitted order line
+- Sampled values for descriptive grid studies
+- Log-log convergence plot when Richardson estimates are supplied
 - Convergence summary table
 """
 
@@ -35,8 +36,10 @@ def plot_convergence(
     ax: plt.Axes | None = None,
     show_fit: bool = True,
 ) -> plt.Figure:
-    """Log-log convergence plot from cached convergence data.
+    """Plot a descriptive grid study or a supplied Richardson estimate.
 
+    Data tagged ``observed_grid_spread`` show the sampled quantity against N,
+    with no fitted order or extrapolated error. Otherwise:
     X-axis: grid spacing h = 1/N.
     Y-axis: |Q(h) - Q_extrapolated|.
     Plots data points, optionally with a fitted-order line (see show_fit).
@@ -75,6 +78,26 @@ def plot_convergence(
         return _save_or_return(fig, save_path)
 
     values = qdata["values"]
+    if data.get("summary_method") == "observed_grid_spread":
+        fig, ax = (
+            (ax.figure, ax)
+            if ax is not None
+            else plt.subplots(figsize=(SINGLE_COL, SINGLE_COL * 0.8))
+        )
+        ax.plot(
+            resolutions,
+            values,
+            color=COLORS[0],
+            marker=LINE_STYLES[0]["marker"],
+            markersize=5,
+        )
+        ax.set_xlabel("Grid points per axis N")
+        ax.set_ylabel(f"Sampled {quantity}")
+        ax.set_title(f"Uniform-grid samples: {quantity}")
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout(pad=0.5)
+        return _save_or_return(fig, save_path)
+
     Q_ext = qdata["extrapolated_value"]
     p = qdata["observed_order"]
 
@@ -155,7 +178,8 @@ def plot_convergence_table(
         data = json.load(f)
 
     resolutions = data.get("resolutions", [])
-    quantities = [k for k in data if k not in ("metric", "resolutions")]
+    quantities = [k for k, q in data.items() if isinstance(q, dict) and "values" in q]
+    samples_only = data.get("summary_method") == "observed_grid_spread"
 
     if not quantities:
         fig, ax = plt.subplots(figsize=(SINGLE_COL, 1))
@@ -167,7 +191,9 @@ def plot_convergence_table(
     col_labels = ["Quantity"]
     for N in resolutions:
         col_labels.append(f"N={N}")
-    col_labels.extend(["Extrapolated", "Order p", "Error est."])
+    col_labels.extend(
+        ["Max departure from mean"] if samples_only else ["Extrapolated", "Order p", "Error est."]
+    )
 
     cell_data = []
     for qname in quantities:
@@ -176,6 +202,10 @@ def plot_convergence_table(
             row = [qname]
             for v in qdata["values"]:
                 row.append(f"{v:.4e}")
+            if samples_only:
+                row.append(f"{qdata['max_abs_deviation_from_mean']:.2e}")
+                cell_data.append(row)
+                continue
             row.append(
                 f"{qdata.get('extrapolated_value', 'N/A'):.4e}"
                 if isinstance(qdata.get("extrapolated_value"), (int, float))
@@ -227,7 +257,12 @@ def plot_convergence_table(
             cell.set_edgecolor("#D0D0D0")
             cell.set_linewidth(0.5)
 
-    ax.set_title("Richardson Convergence Summary", fontsize=9, pad=8)
+    title = (
+        "Uniform-grid samples and observed spread"
+        if samples_only
+        else "Richardson Convergence Summary"
+    )
+    ax.set_title(title, fontsize=9, pad=8)
 
     fig.tight_layout(pad=0.5)
     return _save_or_return(fig, save_path)

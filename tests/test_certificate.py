@@ -126,7 +126,7 @@ def test_a_forged_certificate_is_rejected():
 
 
 def test_the_tensor_is_checked_too_not_only_the_certificate():
-    """An auditor supplies both arguments, so both are untrusted.
+    """The caller supplies both arguments, so both are untrusted.
 
     A nonsymmetric T has principal minors that are not the elementary symmetric
     functions of any real spectrum, so is_psd_exact says nothing about it. This one has
@@ -153,13 +153,8 @@ def test_the_tensor_is_checked_too_not_only_the_certificate():
     assert not verify(good, T_ok, np.diag([0.0, 1.0, 1.0, 1.0]))
 
 
-def test_referee_item_b1_type_ii_locus_is_certified_exactly():
-    """The Delta = 0 Type-II point of report item B1 gets a definite exact verdict.
-
-    This is the point the referee constructed to show Types I and IV are not
-    exhaustive. The certificate never forms an eigendecomposition and never asks what
-    the algebraic type is, so the locus is not special to it.
-    """
+def test_type_ii_locus_is_certified_exactly():
+    """A Type-II tensor admits exact NEC and DEC verdicts without classification."""
     T = np.array(
         [[1.0, -1.0, 0.0, 0.0], [-1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.2, 0.0], [0.0, 0.0, 0.0, 0.2]]
     )
@@ -173,8 +168,8 @@ def test_referee_item_b1_type_ii_locus_is_certified_exactly():
     assert kinds["dec"] == "violated"
 
 
-def test_referee_item_b2_type_iv_counterexample_is_certified_violating():
-    """B2's Lorentz-self-adjoint Type-IV tensor with vanishing quartic discriminant."""
+def test_type_iv_zero_discriminant_is_certified_violating():
+    """A Type-IV tensor can violate all conditions with zero quartic discriminant."""
     A = np.array(
         [[0.0, 1.0, 0.0, 0.0], [-1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.3, 0.0], [0.0, 0.0, 0.0, 0.3]]
     )

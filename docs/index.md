@@ -1,59 +1,30 @@
 # warpax
 
-Observer-robust energy condition verification for warp-drive spacetimes. A JAX
-toolkit built around a frame-independent core: an autodiff curvature chain, the
-Hawking-Ellis algebraic classification of $T^a{}_b$, and frame-free,
-all-velocity energy-condition certification from its eigenstructure (with a
-closed-form Type-I worst observer and continuous BFGS optimization retained as a
-one-sided diagnostic at non-Type-I points). It extends to rigorous
-geodesic-integrated ANEC via a structure-preserving symplectic integrator and an
-all-observer verification of published positive-energy constructions.
+warpax is a JAX toolkit for curvature and observer-robust energy-condition
+verification. It combines all-observer algebraic tests, Hawking-Ellis
+classification, bounded observer searches, interval bounds, and finite-segment
+geodesic diagnostics.
 
-## Examples
+## Start here
 
-Numbered scripts under `examples/` in the repository (01-10) with runtime
-estimates and a suggested learning path for new users. See the
-[examples tour](tutorials/examples_tour.md) for a curated walkthrough.
+- [Quickstart](tutorials/quickstart.md)
+- [First curvature computation](tutorials/first_curvature_computation.md)
+- [Examples tour](tutorials/examples_tour.md)
 
-## Tutorials
+## How-to guides
 
-Learning-oriented walkthroughs that start from a clean install.
-
-- [Quickstart](tutorials/quickstart.md) - 5-10 minutes from install to seeing
-  an energy condition violation on the Alcubierre metric.
-- [First curvature computation](tutorials/first_curvature_computation.md) -
-  the full curvature chain on Minkowski, as a warm-up.
-- [Examples tour](tutorials/examples_tour.md) -
-  numbered scripts 01-10 (see also the `examples/` directory in the repository).
-
-## How-To
-
-Task-oriented recipes for readers who know what they want to do.
-
-- [Define a custom warp metric](how-to/custom_metric_tutorial.md)
-- [Interpret EC results](how-to/interpreting_ec_results.md)
-- [Load an external metric](how-to/loading_external_metrics.md)
+- [Define a custom metric](how-to/custom_metric_tutorial.md)
+- [Interpret energy-condition results](how-to/interpreting_ec_results.md)
+- [Load external metric data](how-to/loading_external_metrics.md)
 - [Reproduce the observer-robust paper](how-to/reproduce_observer_robust_paper.md)
-- [Reproduce the warp-shell admissibility paper](how-to/reproduce_warpshell_paper.md)
+- [Reproduce the companion shell study](how-to/reproduce_warpshell_paper.md)
 
-## Reference
+## Reference and background
 
-Lookup-oriented autodoc of the public API, plus the pinned-default catalog.
-
-- [API reference](reference/index.md)
-- [Metric catalog](reference/metric_catalog.md)
-- [Benchmarks](reference/benchmarks.md)
-
-## Explanation
-
-Understanding-oriented background on the mathematics and architecture.
-
-- [Architecture overview](explanation/ARCHITECTURE.md)
-- [Theory: ADM 3+1 and Hawking-Ellis types](explanation/theory.md)
+- [API](reference/index.md), [metrics](reference/metric_catalog.md), [benchmarks](reference/benchmarks.md)
+- [Architecture](explanation/ARCHITECTURE.md)
+- [ADM decomposition and energy conditions](explanation/theory.md)
 - [Boundary cost of source-consistent shells](explanation/boundary_cost.md)
 - [Release notes](explanation/release_notes.md)
 
-## Scripts
-
-- See `scripts/README.md` in the repository for the paper-reproduction and
-  research entry points.
+The repository's `scripts/README.md` lists analysis and reproduction commands.

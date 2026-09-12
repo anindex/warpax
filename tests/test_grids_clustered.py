@@ -1,15 +1,6 @@
-"""The wall-clustered grid must actually refine the wall, on both sides.
+"""The grid anchors its densest sampling at both axial wall crossings.
 
-These pin the two defects fixed in the second revision:
-
-1. the coordinate map was not *anchored*, it clustered, but the densest
-   sampling drifted off the wall (x = 1.266 for a wall at r = 1);
-2. it clustered only toward ``+wall_radius``, so the ``-x`` crossing of the same
-   spherical wall was measurably coarser and fell below the four-cell criterion
-   at the coarsest ladder level.
-
-Building one graded axis costs tens of seconds, so the ladder is built once and
-every property is asserted over it.
+The shared ladder checks symmetric refinement and the four-cell criterion.
 """
 
 from __future__ import annotations
@@ -51,7 +42,7 @@ def test_axis_is_a_graded_map_anchored_on_the_wall(ladder):
 
         mid = 0.5 * (xs[:-1] + xs[1:])
         densest = abs(mid[np.argmin(np.diff(xs))])
-        # One grid interval of tolerance; the pre-fix map missed by 27% of R.
+        # Allow one grid interval of tolerance.
         assert densest == pytest.approx(WALL_R, abs=max(np.min(np.diff(xs)), 0.05)), (
             f"N={n} densest sampling at |x|={densest:.4f}, wall at {WALL_R}"
         )
@@ -68,11 +59,7 @@ def test_both_wall_crossings_clear_four_cells(ladder):
 
 
 def test_refinement_is_monotone_and_beats_a_uniform_grid(ladder):
-    """Golden ladder values for the corrected map, so a regression is loud.
-
-    Pre-fix this ladder read 4.45 / 5.56 / 6.69 on the +x crossing and only
-    3.27 / 4.04 / 4.87 on -x.
-    """
+    """Wall resolution improves at each level and exceeds the uniform-grid value."""
     metric, axes, cells = ladder
     got = [cells[n].cells for n in LADDER]
     assert got == sorted(got), f"refinement is not monotone: {got}"

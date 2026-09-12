@@ -1,13 +1,7 @@
-"""The Fuchs row must be the *published* Fuchs metric.
+"""Published Fuchs sigmoid and Schwarzschild exterior with smooth shell joins.
 
-Two substitutions had crept into the implementation, either of which breaks
-attribution to arXiv:2405.02709:
-
-1. the shift transition used a quintic ``smoothstep`` between ``R_1 + R_b`` and
-   ``R_2 - R_b`` instead of the paper's reciprocal-exponential sigmoid;
-2. the radial interpolation clamped beyond the solved grid, so the exterior was
-   not Schwarzschild, which is precisely what the manuscript's
-   Santiago-Schuster-Visser escape argument rests on.
+The metric changes covariant g01 only. Full tensor and C2-join checks are in
+``test_metric_regularity.py``.
 """
 
 from __future__ import annotations
@@ -38,11 +32,7 @@ def test_sigmoid_saturates_outside_the_shell():
 
 
 def test_published_ten_ninety_crossings():
-    """Closed-form crossings of the paper's sigmoid, to six decimals.
-
-    The superseded quintic smoothstep put them elsewhere, so these values are
-    what ties the reported row to the published construction.
-    """
+    """Closed-form crossings of the published sigmoid, to six decimals."""
     r90 = brentq(lambda r: _S(r) - 0.9, R_1 + 1e-3, 15.0)
     r10 = brentq(lambda r: _S(r) - 0.1, 15.0, R_2 - 1e-3)
     assert r90 == pytest.approx(12.790029, abs=1e-5)

@@ -1,29 +1,12 @@
-"""Rodal wall-thickness sweep, wall-resolved and convergence-certified.
+"""Rodal wall-thickness sweep on a resolved axisymmetric grid.
 
-The superseded sweep used a uniform ``N = 50`` grid on
-``[-300, 300]^3``, so ``dx = 600/49 = 12.24``. Against the exact 10-90% wall
-widths that is
+The shift depends on position through ``x - v_s t``, ``r``, and ``n_x``.
+Rotational symmetry about the propagation axis therefore reduces sampling
+to the ``(r, mu)`` half-plane. Each wall clears four radial cells at every
+resolution; the output records cell counts and convergence across the ladder.
 
-    sigma  = 0.01    0.03    0.1     0.3
-    width  = 174.30  72.53   21.97   7.32
-    cells  = 14.23    5.92    1.79    0.598
-
-and the last two rows sit below the four-cell criterion enforced everywhere else,
-while carrying the top end of the reported trend. Reaching
-four cells at ``sigma = 0.3`` on a uniform Cartesian grid needs ``N >= 329``,
-i.e. 3.6e7 points, which is not affordable with an observer search at every one.
-
-This script instead uses the *exact* axisymmetric reduction (warpax.grids.
-axisymmetric_grid): the Rodal shift depends on position only through
-``x - v_s t``, ``r`` and ``n_x``, so it is invariant under rotations about the
-propagation axis and the ``(r, mu)`` half-plane sweeps the whole orbit space
-without loss. Every sigma then clears four radial cells at every level of a
-three-point ladder, for a few thousand points per run.
-
-Outputs
--------
-- results/rodal_sigma_resolved.json
-- ../warpax_arxiv/tables/rodal_sigma_resolved.tex
+Outputs: results/rodal_sigma_resolved.json and
+../warpax_arxiv/tables/rodal_sigma_resolved.tex.
 """
 
 from __future__ import annotations
@@ -56,7 +39,7 @@ SIGMAS = (0.01, 0.03, 0.1, 0.3)
 LADDER = ((48, 48), (64, 64), (80, 80), (96, 96))
 # Radial clustering strength per sigma. A thin wall inside a wide box needs more
 # stretching; chosen once here so the coarsest ladder level already clears the
-# four-cell floor, and reported in the output so the choice is auditable.
+# four-cell floor, and reported in the output.
 CLUSTER_A = {0.01: 1.0, 0.03: 1.5, 0.1: 3.0, 0.3: 4.5}
 F_LOW, F_HIGH = 0.1, 0.9
 MIN_WALL_CELLS = 4.0

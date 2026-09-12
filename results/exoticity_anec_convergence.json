@@ -1,4 +1,181 @@
 {
+  "grid_axes_provenance": {
+    "sources_sha256": {
+      "src/warpax/__init__.py": "d3b172667e3d95d60289059668d8c2c4678fab1b4f41f2e59bfb9ebd658255bd",
+      "src/warpax/adm/__init__.py": "667f438642235583d724e5efe4904f6a77742990790f25834544b75f439a5a8d",
+      "src/warpax/adm/mass.py": "3a1c40cefb9ca952a7132a26bf392ab0478a25f3ee434aa405bd8eadb8b0612d",
+      "src/warpax/analysis/__init__.py": "b4e378a1aedd90bb7725cd4770939deb533d9b916757346c6523122b87f14ca5",
+      "src/warpax/analysis/comparison.py": "eedaa107ccb82f3077f0e6e220cb2083255c77dae1e3d4454cfbad2c7d93f694",
+      "src/warpax/analysis/construction_adapter.py": "2d0d2dc1af54c35cd92b30f47e7f6a83f1596c691717e36a1157f95089e53377",
+      "src/warpax/analysis/convergence.py": "f4bcf3b100e7aa099e75ee4af58c7ce15161a7b8c31d6e0a90c8b0a0a359514e",
+      "src/warpax/analysis/extrema.py": "77bd99e32d5a38b6775e418eee9dfd240171a926269e57f8a00c8040339b9d8c",
+      "src/warpax/analysis/invariant_verification.py": "92d5b89b1f68da2eea4c387c30985e2b6b3d1d05b43a394c085f9bd95c0855a0",
+      "src/warpax/analysis/kinematic_scalars.py": "e9bf03717b1a22ac2d72edaccda3e1d603121e5afd0d50d2b6f5405f81df5e58",
+      "src/warpax/analysis/shift_kinematics.py": "eb924ea7963aa774074e3efdbfb42fdea09e3b817a9bcc7081debefdb86ca2ab",
+      "src/warpax/analysis/vorticity_type_analytic.py": "f18664d9a43cf3372611cbd8981ec89cead64e756ceb799e795ef6623708a5fc",
+      "src/warpax/averaged/__init__.py": "e8e27631dc967ecd50a7218ff859313a33a51e3c10cbbc80d5f1503012c6dbb6",
+      "src/warpax/averaged/anec.py": "5656832141e7afe2954935c1d8af78fddb02c9ad69baf5cc6482f889ed564463",
+      "src/warpax/averaged/awec.py": "f9e19fc2086ee428b13353a6ac2a148fc8212b60296b57808fe2db11e67ace2a",
+      "src/warpax/benchmarks/__init__.py": "996885a929bfd45b97df75ead124f232696c34ffcd457794551bc01088eaa6b7",
+      "src/warpax/benchmarks/alcubierre.py": "a063e5d8df44603ef3f3c353bc856e5a7db5d0821b7c2ba7ae7d9b20fa37665b",
+      "src/warpax/benchmarks/minkowski.py": "2eb3b0948fc064efe99f8e477cbd0abff4d03e3b295ac6c174919d99310fb2ae",
+      "src/warpax/benchmarks/schwarzschild.py": "17dbedf155d2f93b1581ff567f7477aa34ea7f727c38033ba50745b806fa6242",
+      "src/warpax/bondi/__init__.py": "36bfb67083378a04e68fe2d690edfd2c33dbd093cf5faa32a15383b6ef0e1a44",
+      "src/warpax/bondi/extract.py": "ee5d491f0557d99d72355aa603d7d307d69434ab786157912d76211ead3cf7c3",
+      "src/warpax/bondi/peeling.py": "a02de80706b034b8b97bc58577c96cdeab2a4da6e47e70259482da8fd6ca07ad",
+      "src/warpax/certify.py": "5e0d8d1f1750a052c1197d6068afab0f213a79239cc63d3ae16a674abe879477",
+      "src/warpax/classify/__init__.py": "9267acce1cf53f851afda46ca50cdf9df9b30a1fee20947b6931d6a88c795a88",
+      "src/warpax/classify/bobrick_martire.py": "45d24cec774ca73393720fcc1055f612547105bc94a079be62a2323166809974",
+      "src/warpax/constraints/__init__.py": "a853b1c480305874d98404d4ca3a288285ec24e6aedc36cf5945d2c4517ce2a5",
+      "src/warpax/constraints/_radial_solve.py": "385c2d6938edc61a9b8ce05fe210f859d11c9e3ea36470d9e56e431c4bcb0bc1",
+      "src/warpax/constraints/constraint_solver.py": "2b82acc4e6c070553579cb597d6cddc8ca867579a4879751d6935a9ec0c86796",
+      "src/warpax/constraints/residuals.py": "8fc346e172c50e8e443b257205f92650aab9948414b2973af6b70ad03b58e9ce",
+      "src/warpax/constraints/source_consistency.py": "e3a764980f61fd42ee1e6089e354db63505a6eabb2557f3aab0c2fd1fe1f1bda",
+      "src/warpax/constraints/tshell_solver.py": "089060d3279c2e34f5ecc92cb5ac54e9e0b49c2093a66714a3077dd69b491528",
+      "src/warpax/design/__init__.py": "e116ae36f678d7e6bcc133fdc45c2413800b307939c6e51838fa6e52349071ac",
+      "src/warpax/design/constraints.py": "e9d7c4f5f3aa5dc9a57bf599bb7d197d79cdecf3489aa90bc518cbf235b3192a",
+      "src/warpax/design/metrics.py": "0eb9c72b2f021da7e4402161d33c471f435afd8a624668af39231096118fba9f",
+      "src/warpax/design/objectives.py": "549b78571c9f04c307a097e9d03459d951287cd71e78bd0a4291c33dba38becf",
+      "src/warpax/design/optimizer.py": "55d30a33280da23c458eaaa632cb71057b1be03a6bd6f5978f52bf8f43f61de3",
+      "src/warpax/design/shape_functions.py": "1dd56c3e4070872f0dee231c4dc0e4c306e72a410a06a97ad15d95de2a224691",
+      "src/warpax/energy_conditions/__init__.py": "787c5019c8c91f0d127b71d2e67c267c666cf782041657b0f25f66f0a1f9db09",
+      "src/warpax/energy_conditions/_gen_eig_callback.py": "d566e2b0b9ee74ee6edbce8dc4c7b8cf428c2d407d3531cc04ee892f7f61ca4d",
+      "src/warpax/energy_conditions/_intervalad.py": "b4468b3f589f2335fc4ef5d690e03ae387fe5c43652b0e80abf541588d6bf0fd",
+      "src/warpax/energy_conditions/_intervalcurv.py": "103fffcff272a44e54f05c9aedf226c6446da29dca76527e9aaa3ec866d0e0ce",
+      "src/warpax/energy_conditions/_jet.py": "93a34c06539a5ea42dbdbd30ad2c4029e66bb5a73e1c56c6e0720e78ba47d04b",
+      "src/warpax/energy_conditions/certificate.py": "5d7c91487d2ceee9946d6ccba9ddbd08829a24f2f495e7e0de0eb6fb020daf1f",
+      "src/warpax/energy_conditions/classification.py": "5c88c2ee1bba232e0b0e7b3c97877cda7ac1a92cf43f48f9a50320a69d9f0602",
+      "src/warpax/energy_conditions/classification_mpmath.py": "8af167438ca4adb2acfad5ca244be0bbc636ba8a800cb4c9cb3c4816b16b71c3",
+      "src/warpax/energy_conditions/eigenvalue_checks.py": "931f4399c75323b59e461331e2d288561690babd04e79e1c0239462b3d1329ce",
+      "src/warpax/energy_conditions/enclosure.py": "a2bea41254d0737fad6100af069485240040d64d242a059bec1b73990d33838f",
+      "src/warpax/energy_conditions/filtering.py": "1870da9df14be9730cef4a62c4339c7ff8bbe19a609d00426bdd4ab2b54e87b0",
+      "src/warpax/energy_conditions/frame_free.py": "ac1af2ce16647c381badbc50f9dcd302c893040830a6d0385dc8709ffeb60003",
+      "src/warpax/energy_conditions/interval_lmi.py": "d84385f2b10e4008541cc1b712bcd746255adce3a61c136e655a8527295bcebc",
+      "src/warpax/energy_conditions/observer.py": "d0feb9e760bba92aceb9888c4c97dd90d07b2ae6c55fda9f25a310909d71e550",
+      "src/warpax/energy_conditions/optimization.py": "7a8e7c6e057e6e0574816dfa0701239e987c76da600416f747155039dc267ec8",
+      "src/warpax/energy_conditions/slemma.py": "7692c747a307916400bb8fa76120af1bcdc4def3712c17dff89ffa1510ba0d79",
+      "src/warpax/energy_conditions/sweep.py": "ab08cf2f5fd5c3df5e6143084080f6f4a5d6dbd5303a2f474038fd3060b26d62",
+      "src/warpax/energy_conditions/types.py": "285906a38209df5136972cd029f04f0d85275cb7fe378974f9d7412f8850d3d6",
+      "src/warpax/energy_conditions/verifier.py": "d8da6d1d1c5b81084a6b1a39298c0ab27ff4a9074430931e514847d54265643e",
+      "src/warpax/energy_conditions/worst_observer_analytic.py": "dc32bdf774f45646a6d1149cc88d0db99ed7ef7251b1f09aa21177e5a420f4b0",
+      "src/warpax/geodesics/__init__.py": "152f2d57aab4a81e79a0ce2fe14b010287d3d462ff5a0db48e26c995e610a388",
+      "src/warpax/geodesics/_result_codes.py": "67f76ece7a344afa1f4d4c84b08b1ffc9e2a8e3ba3b575f19480fca4fe914fa4",
+      "src/warpax/geodesics/deviation.py": "ce7b539eea82606c022aec694dfe31e34304875c699927752dfca4f911b5c318",
+      "src/warpax/geodesics/initial_conditions.py": "e5d8be11d9591519c1e9e6994d3bd13a7a3984314d8fd045b343bc64aeb7402c",
+      "src/warpax/geodesics/integrator.py": "a70182d88f466ff5ce6417d8b5b3e65367df4cd92e904761d6789bd609ce8e21",
+      "src/warpax/geodesics/observables.py": "a3977573635e512865c5e10675e6703ac1158f1762a3dbbcad784a17bd7c2508",
+      "src/warpax/geodesics/symplectic.py": "ec742b8e6cfae51cc6bbdd9c266fe0ef6f3ee91b7e1d7aa369a30941c5714270",
+      "src/warpax/geometry/__init__.py": "03c4493530980409771289a476563551da62f3657d6ba22aceccdd14f438d8a8",
+      "src/warpax/geometry/adm_split.py": "cccaaa9e96a8a701abf113c71afcd7fdf79e656fd607ac236c918b62b1849c61",
+      "src/warpax/geometry/geometry.py": "b1fe776743ffd39a7f5d7e0bd7907a9e62d981b8a5e00bc15911f7b26dc2d9e0",
+      "src/warpax/geometry/grid.py": "2aa8966f43875226200b7160b7ee67fe7de13338d293c064b18b6a0c550921e6",
+      "src/warpax/geometry/invariants.py": "0b81c4fe37dcce016d59e99456ff1c4c8faf23765af046bed6618d9b15fc53f8",
+      "src/warpax/geometry/metric.py": "2450377dbbf7bc7cc8156020cb60dccc5a261332031664094642b04c9e424ddc",
+      "src/warpax/geometry/regularity.py": "1744c060a49f14c2397d055dab9149643b249db188be20dea6092e1beb1b6d3b",
+      "src/warpax/geometry/transitions.py": "edd421bf9a55b782a15ba2352162e20276d0c0bea9bb69c9f60cbd9f1d7e68ad",
+      "src/warpax/geometry/types.py": "e2e7a9b9e553995c6d7ad37d81b21f544c45b5e87573d9140790070d7ee04a1d",
+      "src/warpax/grids/__init__.py": "fbef0bcc4e7d27e5e9b5dd8c12c5831ee9be8313b7c5cd59f23c6b4b6ad06381",
+      "src/warpax/grids/_axisymmetric.py": "61fb8b98652be73662c4a83bf0de621f4b3b1d3cd6186913971b95eb60da009f",
+      "src/warpax/grids/_clustered.py": "fa944375ac36cbd9a116cc6df14abe13186939292d172fa4367804805c6ccce7",
+      "src/warpax/grids/_resolution.py": "b97fd1a75b8a4157b95e7a1cd25838f92a47be99056ff54daccff443b398f003",
+      "src/warpax/grids/_volume_weights.py": "5faf745c8497691788b7cd6e77cd5393c3e5948ece3c68aa7e3f4d1ec9bcb99b",
+      "src/warpax/io/__init__.py": "93430f020d99ce6d8deaa595ec18e6656a21d89860ba899ff70d1f872ef7bed3",
+      "src/warpax/io/_interpolated.py": "501181e5d1e4a96ff74b9924f6491952224a98c7583d1a94a053136606f024d0",
+      "src/warpax/io/_interpolation.py": "d81ab03ce63ad66cf2ef009816a0cf267aa645cced2657a1124f1e180a499486",
+      "src/warpax/io/cactus.py": "6a7dcafae9eedad290367f40139c6f41555ff86a2dce6d7eda83e82ead4bdd1a",
+      "src/warpax/io/einfields.py": "13c859a1b51069e3e94e8cc51af7a5aab2453669ca7ab9e3f30e279d2c572194",
+      "src/warpax/io/warpfactory.py": "a9e082cf80d7344a42f23c0c777e3827da2622ce7724ac1390786189d3e011b9",
+      "src/warpax/junction/__init__.py": "f0e187b353163ccaf7b1162789ccc32cec7fc73fa91f5e44d5bbf8657fef65f8",
+      "src/warpax/junction/darmois.py": "85458eb845123f5e4d1ce35e2816da28be0e6e9ba7b410d44238afda2a79a86f",
+      "src/warpax/metrics/__init__.py": "4bd7e688a40f4a8bf9ea36c10a8d2e1085ee6f2e84b3398799547875c06fb3cd",
+      "src/warpax/metrics/_common.py": "5c79763c3da29b3ca5bde99b8d15dc8ab8226ff9b9eee1fbe31aefd92b0242ef",
+      "src/warpax/metrics/_fuchs_legacy.py": "41d5f7ba6f4f8ea0e37ab550a7e8c36acedca4702f9d70bd275aa26b195bd396",
+      "src/warpax/metrics/_interp.py": "d787f35333eab101a4af9a124015a249dc81324bf8ce9bd66a565142ac894a55",
+      "src/warpax/metrics/_tov_scan.py": "b9aaacdecee7a1c57a13d17f66a4ebe292a71ddd8eb828635452e2531db1c59c",
+      "src/warpax/metrics/fuchs_construction.py": "c88951afa872fbb20637ce65529444f4ec33524bbc2f089d167132f2976b5d59",
+      "src/warpax/metrics/garattini.py": "a6e9e968406bde22eca226f0d8db2250b4c5654d1f234f00c77475b41b05f1c3",
+      "src/warpax/metrics/lentz.py": "99cbd3cc4d28c6c37c7e9b1e4d183055b67bbe31b646febeca1feb6b502ab511",
+      "src/warpax/metrics/natario.py": "a34d948a81f3b374bf8ea2263669d899ad6641a004cd3c8fd41aa756e40da886",
+      "src/warpax/metrics/rodal.py": "eab1df5b26e0d8c05e396ae34f8951cd294d590e71aa57670182995f857e3132",
+      "src/warpax/metrics/sshell.py": "619bd327689a8eb14720af2be1c68059f227940c7a139effd4c18a9a7782c549",
+      "src/warpax/metrics/sshell_profiles.py": "793e8d2e5af017047ad7f1ee27725aac5e1e1da6c3e13f2b767946eea9afe713",
+      "src/warpax/metrics/tshell.py": "6d2516815f70374787db24b6f69a5ba22404aac59de60f0d6f3d19685b86221a",
+      "src/warpax/metrics/tshell_profiles.py": "54f3e5926b9ed8a3309dbbc6854e5139fdf3ebde5c44e11d512b4ea0893becbb",
+      "src/warpax/metrics/van_den_broeck.py": "141dcfc00e10348138bb6d161c22515f724137b775da511ebb005c4d793649a2",
+      "src/warpax/metrics/warpshell.py": "d2a937484b2aa6fe288015be66f1f11d378368d5886ec1df78b0ad5babb922ef",
+      "src/warpax/numerics/__init__.py": "f325949c6ee0b50f2b519d4517a30ea4f58aab054db04a34e499deaba41c2a75",
+      "src/warpax/numerics/_constants.py": "54c84888f7d0a4b7f6170823331fd7867335d771c6d104cdcc84218b29fe4add",
+      "src/warpax/numerics/_grid.py": "74df830e963e268f02ba28c00667157584e8afe0d8076496274116e4f4f6b201",
+      "src/warpax/optimization/__init__.py": "ac52568edda9ad62e252129b0b875a4a4cd41edbbffd728184d5aa2af8910580",
+      "src/warpax/optimization/basis.py": "61077b826c08464e001f49ba81e8040d6dae16f05ef489168c337a446eb20426",
+      "src/warpax/optimization/ec_constraints.py": "4123fecad0181d9bc894b0dd7237cf21320b189f21366dd9b37589665664bb12",
+      "src/warpax/optimization/loss.py": "e37ae753395f8314aef704816248ac13c41a2072b33956c6321d05c36fea8b6d",
+      "src/warpax/optimization/optimizer.py": "f7a326e2e4e4ca9bdc0edde8d2e09e77dde2e4069792796e8fcdf945447e4413",
+      "src/warpax/optimization/sweep.py": "2d92ce30b6207c0afc9e9137d4427c9a122a98da1338795db0dc02867913731d",
+      "src/warpax/quantum/__init__.py": "d4f1ec1bab81458fd81ab92fc8209e66832bec1d0a1f646c697de054270990a8",
+      "src/warpax/quantum/ford_roman.py": "164b1c77347d55df89a4653d8db937412795ab60fff6615de4f704b1c1abd319",
+      "src/warpax/tov/__init__.py": "1108256c50148314b1afb9ac35263c4bbaff2c21c42566ce66aeb323ea519b94",
+      "src/warpax/tov/residuals.py": "9cfcd8bf474b3af82402a93e8f87c85707f5148ba1cc04621b392fa27103094a",
+      "src/warpax/transport/__init__.py": "fb944c8610c451707ef471649947f8fc95c6955eb5b8206238f5f11bdcd1bc6b",
+      "src/warpax/transport/diagnostics.py": "7b6333d0a80f5cb3e9be51e9f35a3fdd0596e49551d76fb85833a67824f827d0",
+      "src/warpax/visualization/__init__.py": "d5f38745a5b620191cf9292265848bea2fe5cd11afdec0b6aa1368cf5f95c5e2",
+      "src/warpax/visualization/_style.py": "db875be6478d561487e2bf628188b1d064989d2892614a63f4eb231e82e6286e",
+      "src/warpax/visualization/alignment_plots.py": "df41f08b218836d9c3ddbcf8bacce46913814c431c5de6534b6bf94b3def4c8f",
+      "src/warpax/visualization/common/__init__.py": "6aaba93aa84a442041f012c69a5a54ed34537d71f252c4817ca59d5177d5cc46",
+      "src/warpax/visualization/common/_color.py": "fe88cd63401b6775e78296ab71599b2002e6204e44f24e55303491f37b8415f8",
+      "src/warpax/visualization/common/_conversion.py": "86b8ff98a6a8a9ce7c9a11b8ac7302745e208ce4f0863ff6e89c5f4792ac5a24",
+      "src/warpax/visualization/common/_frame_data.py": "a1217c2014c46f6d59c4053b339f8e3d4b372e038be238551e43b23900c91764",
+      "src/warpax/visualization/common/_physics.py": "c23a6a49b36115631999ab2af74aa6418eaef31e22d2f8e49594616bf2abafb4",
+      "src/warpax/visualization/common/_scenes.py": "1fb0cb94cdecab494431dd29ea0217b91f49bbedb618db82be14203776c52af7",
+      "src/warpax/visualization/comparison_plots.py": "fff9087c62e2318fb492dd10f7c68208b4056f2df63579de3d2cc463966c1832",
+      "src/warpax/visualization/convergence_plots.py": "dd061eb644eb16c709731b0498f1ef12036af817adc5f1e88dd82b0172eaa17f",
+      "src/warpax/visualization/direction_fields.py": "de6f8718bec2afef6b22f1a407f88742102c14468b8a37f6264fe07fa53e71bb",
+      "src/warpax/visualization/geodesic_plots.py": "4c9996977e618d19e001edbd97eece4cd994afb19294f5d576e8ce7ffcfd58a3",
+      "src/warpax/visualization/kinematic_plots.py": "258acacd66a4d3054fd7296a292d25da7c8fb816b8468a410aae1e4b6e27301c",
+      "src/warpax/visualization/manim/__init__.py": "7b46cc8bfc3291656a53cc9fbfe36e152696ce3e533fc0e74c3f0090560ca556",
+      "src/warpax/visualization/manim/_boost_arrows.py": "66a80caa08deb657adb25c539550e628a5b714cbbf3e059c2212fd9b877b903a",
+      "src/warpax/visualization/manim/_boost_rapidity_sweep.py": "771bc809d69f9c6b834235b2e0bb19c0c9412f9ddae0bbcdb98423b46e122739",
+      "src/warpax/visualization/manim/_eulerian_kinematics.py": "b4a97cd77f91965613456361cb9a9f93464c185c961a9fab12900e91407436fd",
+      "src/warpax/visualization/manim/_gif_utils.py": "20c52d8ea6a217b62d5e564aef79714f569bc8560c2a0b7ebed98efae3db415c",
+      "src/warpax/visualization/manim/_heatmap.py": "cb63e41fa2fcee8e645c4896ce7365ecfa6f2ec791b0e5079ad6edf23a6f8068",
+      "src/warpax/visualization/manim/_image_utils.py": "075cee71e04c855767191d1a4d95e2dc6628530389b9c1611db26cb9bd27c91d",
+      "src/warpax/visualization/manim/_kretschmann.py": "da1cabf589b771fa4d1e13c9d44a708f5fee953fcce08f42f0a9eede1f74ab8b",
+      "src/warpax/visualization/manim/_nec_margin.py": "85370a2a4333030803f3a7cf74dc234a7cddde7f787e2b4e05964d3e02837475",
+      "src/warpax/visualization/manim/_scene_utils.py": "9e5cd272133cf7069005b67bc9024214a8dfab3d92d861135fa41b710be1ff8f",
+      "src/warpax/visualization/manim/_split_screen.py": "e92bd1e283712406b1e69ad5d30f73b1b8d66ebf291ce3b84113fdbed7ba06e6",
+      "src/warpax/visualization/manim/_surface.py": "6231beff3360dad0c616aa772614400df0e4f50d3fd5e2d0f17dee9f5e8059b8",
+      "src/warpax/visualization/manim/_velocity_sweep.py": "6877ce2af17249852631bec3bd9bb35ec85345b23c8f68590650b65c6236be4d",
+      "src/warpax/visualization/manim/_wall_velocity_sweep.py": "c873556a04d4908ea344a419202ead9205d1b0b8979824b1dcbff5446bc94c26",
+      "src/warpax/visualization/phase_diagram.py": "37058030b2face730aadecc4f0425a8f691b0813e710d85d1e61b0a32f164625",
+      "src/warpax/visualization/shift_vorticity_plots.py": "f93f1df62567060bf0e5710a65f12b1d6951a2b53cff1f35a9116ad8eba9f35a",
+      "scripts/run_exoticity_anec_convergence.py": "7ae08755c76930c1460f5e36601fc6451ba8742b5d8682468e9147537c92baff",
+      "scripts/run_exoticity_ranking.py": "aa237155ac7175abc8e577105a79a5a196798404405fdabe5bb1a12d2760a0eb",
+      "scripts/_benchmark_grid.py": "e721d621bc2b213b728af73242a207440bc0500368ce276a24db2cdc1f6a7612",
+      "scripts/_json_io.py": "cb3aaa9afcd8d085ccb8d475902256302f62a2efd7931ddbf5e73cc31e0dc9e3"
+    },
+    "configuration": {
+      "grid_N": [
+        80,
+        100,
+        120
+      ],
+      "v_s": 0.5,
+      "family": {
+        "Alcubierre": "AlcubierreMetric(v_s=weak_f64[], R=weak_f64[], sigma=weak_f64[], x_s=weak_f64[])",
+        "Natário": "NatarioMetric(v_s=weak_f64[], R=weak_f64[], sigma=weak_f64[])",
+        "Van den Broeck": "VanDenBroeckMetric(\n  v_s=weak_f64[],\n  R=weak_f64[],\n  sigma=weak_f64[],\n  R_tilde=weak_f64[],\n  alpha_vdb=weak_f64[],\n  sigma_B=weak_f64[]\n)",
+        "Rodal": "RodalMetric(v_s=weak_f64[], R=weak_f64[], sigma=weak_f64[])"
+      },
+      "jax_enable_x64": true,
+      "jax_backend": "cpu"
+    },
+    "packages": {
+      "jax": "0.10.2",
+      "jaxlib": "0.10.2",
+      "numpy": "2.4.6",
+      "equinox": "0.13.8"
+    }
+  },
   "params": {
     "v_s": 0.5,
     "grid_N": [
@@ -6,58 +183,76 @@
       100,
       120
     ],
-    "anec_steps": [
-      8192,
-      16384,
-      32768
-    ],
-    "n_b": 50,
+    "anec_steps": {
+      "Alcubierre": [
+        16384,
+        32768,
+        65536
+      ],
+      "Natário": [
+        16384,
+        32768,
+        65536
+      ],
+      "Van den Broeck": [
+        16384,
+        32768,
+        65536
+      ],
+      "Rodal": [
+        16384,
+        32768,
+        65536
+      ]
+    },
+    "n_b": 1,
+    "ray_selection": "minimum found in the production basin, held fixed across steps",
     "note": "exoticity resolution = spatial grid N (wall-clustered); ANEC resolution = symplectic integrator steps (geodesic, not a spatial grid). matched family R_b=1 sigma=8 for all four drives (Rodal included)."
   },
   "order": [
     "Alcubierre",
-    "Nat\u00e1rio",
+    "Natário",
     "Van den Broeck",
     "Rodal"
   ],
   "anec_affine_window": {
     "Alcubierre": {
-      "affine_span": 43.58203125,
-      "affine_span_covers_crossing": true
+      "affine_span": 43.5849609375,
+      "b": 0.4117341632653061
     },
-    "Nat\u00e1rio": {
-      "affine_span": 32.5625,
-      "affine_span_covers_crossing": true
+    "Natário": {
+      "affine_span": 43.5849609375,
+      "b": 1.429285714285714
     },
     "Van den Broeck": {
-      "affine_span": 47.58984375,
-      "affine_span_covers_crossing": true
+      "affine_span": 47.5927734375,
+      "b": 0.5995537346938775
     },
     "Rodal": {
-      "affine_span": 43.58203125,
-      "affine_span_covers_crossing": true
+      "affine_span": 43.5849609375,
+      "b": 2.572934489795918
     }
   },
   "anec_min_series": {
     "Alcubierre": [
-      -0.14615260868636404,
-      -0.1461526098018351,
-      -0.14615260987147655
+      -0.14622726914333656,
+      -0.14622726914264694,
+      -0.1462272691427341
     ],
-    "Nat\u00e1rio": [
-      -0.7010215639948301,
-      -0.7010216658885948,
-      -0.7010216722563372
+    "Natário": [
+      -0.5403669853435396,
+      -0.5403670311801922,
+      -0.5403670327247743
     ],
     "Van den Broeck": [
-      -0.062185936504320374,
-      -0.06218593655332466,
-      -0.06218593655621523
+      -0.06263352966940215,
+      -0.0626335296707598,
+      -0.06263352967125892
     ],
     "Rodal": [
-      -0.001670698886511693,
-      -0.0016706988760132333,
-      -0.0016706988733708097
+      -0.0016714919772300618,
+      -0.001671491976879675,
+      -0.001671491976789189
     ]
   },
   "exoticity_series": {
@@ -66,20 +261,20 @@
       0.9957199717541106,
       0.9965641874331699
     ],
-    "Nat\u00e1rio": [
-      0.9650759501894725,
-      0.9602471862123908,
-      0.9602371148380712
+    "Natário": [
+      0.9506725296549292,
+      0.9414276959633755,
+      0.9452497568983296
     ],
     "Van den Broeck": [
-      0.7176513858694312,
-      0.7014967368042195,
-      0.7093770231520322
+      0.7192466241600852,
+      0.7030560655777064,
+      0.7109538686958771
     ],
     "Rodal": [
-      0.010455958918655809,
-      0.010455958918655809,
-      0.010455958918655809
+      0.010455833100907821,
+      0.010455833100907821,
+      0.010455833100907821
     ]
   },
   "results": {
@@ -96,65 +291,98 @@
       },
       "anec_min": {
         "values": [
-          -0.14615260868636404,
-          -0.1461526098018351,
-          -0.14615260987147655
+          -0.14622726914333656,
+          -0.14622726914264694,
+          -0.1462272691427341
         ],
-        "spread": 1.185112508128583e-09,
+        "steps": [
+          16384,
+          32768,
+          65536
+        ],
+        "num_steps": [
+          44631,
+          89262,
+          178524
+        ],
+        "spread": 6.89615031745916e-13,
+        "finest_change": 8.715250743307479e-14,
         "stable": true,
-        "verdict": "stability"
+        "verdict": "step_stability"
       }
     },
-    "Nat\u00e1rio": {
+    "Natário": {
       "exoticity": {
         "values": [
-          0.9650759501894725,
-          0.9602471862123908,
-          0.9602371148380712
+          0.9506725296549292,
+          0.9414276959633755,
+          0.9452497568983296
         ],
-        "spread": 0.004838835351401283,
+        "spread": 0.009244833691553711,
         "stable": true,
         "verdict": "stability"
       },
       "anec_min": {
         "values": [
-          -0.7010215639948301,
-          -0.7010216658885948,
-          -0.7010216722563372
+          -0.5403669853435396,
+          -0.5403670311801922,
+          -0.5403670327247743
         ],
-        "spread": 1.08261507092422e-07,
+        "steps": [
+          16384,
+          32768,
+          65536
+        ],
+        "num_steps": [
+          44631,
+          89262,
+          178524
+        ],
+        "spread": 4.738123471348388e-08,
+        "finest_change": 1.5445820178427994e-09,
         "stable": true,
-        "verdict": "stability"
+        "verdict": "step_stability"
       }
     },
     "Van den Broeck": {
       "exoticity": {
         "values": [
-          0.7176513858694312,
-          0.7014967368042195,
-          0.7093770231520322
+          0.7192466241600852,
+          0.7030560655777064,
+          0.7109538686958771
         ],
-        "spread": 0.01615464906521169,
+        "spread": 0.016190558582378833,
         "stable": true,
         "verdict": "stability"
       },
       "anec_min": {
         "values": [
-          -0.062185936504320374,
-          -0.06218593655332466,
-          -0.06218593655621523
+          -0.06263352966940215,
+          -0.0626335296707598,
+          -0.06263352967125892
         ],
-        "spread": 5.1894856467615824e-11,
+        "steps": [
+          16384,
+          32768,
+          65536
+        ],
+        "num_steps": [
+          48735,
+          97470,
+          194940
+        ],
+        "spread": 1.8567647419587274e-12,
+        "finest_change": 4.991146385080469e-13,
         "stable": true,
-        "verdict": "stability"
+        "verdict": "step_stability"
       }
     },
     "Rodal": {
       "exoticity": {
         "values": [
-          0.010455958918655809,
-          0.010455958918655809,
-          0.010455958918655809
+          0.010455833100907821,
+          0.010455833100907821,
+          0.010455833100907821
         ],
         "spread": 0.0,
         "stable": true,
@@ -162,13 +390,24 @@
       },
       "anec_min": {
         "values": [
-          -0.001670698886511693,
-          -0.0016706988760132333,
-          -0.0016706988733708097
+          -0.0016714919772300618,
+          -0.001671491976879675,
+          -0.001671491976789189
         ],
-        "spread": 1.3140883346751675e-11,
+        "steps": [
+          16384,
+          32768,
+          65536
+        ],
+        "num_steps": [
+          44631,
+          89262,
+          178524
+        ],
+        "spread": 4.408728156851671e-13,
+        "finest_change": 9.048599543259872e-14,
         "stable": true,
-        "verdict": "stability"
+        "verdict": "step_stability"
       }
     }
   }

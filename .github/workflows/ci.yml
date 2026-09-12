@@ -10,9 +10,8 @@ on:
 permissions:
   contents: read
 
-# A new push to the same branch supersedes the run in flight.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -21,50 +20,45 @@ env:
   UV_VERSION: "0.10.9"
 
 jobs:
-  # The whole suite on the primary Python. Cross-version compatibility is covered
-  # by the cheaper core job below: version breaks are API and typing breaks, not
-  # physics breaks.
+  # Full test suite on 3.13; core compatibility on 3.12 and 3.14 below.
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+          python-version: "3.13"
 
-      - name: Set up Python 3.13
-        run: uv python install 3.13
-
-      - name: Install package + dev deps
-        run: uv sync --extra dev --extra solver --extra design --extra einfields
+      - name: Install development dependencies
+        run: uv sync --locked --extra dev --extra solver --extra design --extra einfields
 
       - name: Restore JAX compile cache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/warpax/jax
-          key: jax-cache-3.13-${{ hashFiles('pyproject.toml') }}
+          key: jax-${{ runner.os }}-3.13-${{ hashFiles('uv.lock') }}-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'scripts/**/*.py') }}
           restore-keys: |
-            jax-cache-3.13-
+            jax-${{ runner.os }}-3.13-${{ hashFiles('uv.lock') }}-
 
       - name: Test suite
-        run: uv run pytest --maxfail=10
+        run: uv run --no-sync pytest --maxfail=10
 
-      # jaxtyping and beartype annotations are only enforced when this is set, so
-      # without a run under it a wrong shape annotation ships silently.
+      # Exercise the opt-in runtime type checks.
       - name: Beartype smoke (EC modules)
         env:
           WARPAX_BEARTYPE: "1"
-        run: uv run pytest tests/test_classification.py tests/test_ec_verifier.py
+        run: uv run --no-sync pytest tests/test_classification.py tests/test_ec_verifier.py
 
-  # Cross-version compatibility: the certification engine, the frame-free path and
-  # the regression nets. Catches import and typing breakage per version without
-  # running the whole suite three times.
   core-compat:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -74,32 +68,33 @@ jobs:
         python-version: ["3.12", "3.14"]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+          python-version: "${{ matrix.python-version }}"
 
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
-
-      - name: Install package + dev deps
-        run: uv sync --extra dev --extra solver --extra design
+      - name: Install development dependencies
+        run: uv sync --locked --extra dev --extra solver --extra design
 
       - name: Restore JAX compile cache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/warpax/jax
-          key: jax-cache-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
+          key: jax-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('uv.lock') }}-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'scripts/**/*.py') }}
           restore-keys: |
-            jax-cache-${{ matrix.python-version }}-
+            jax-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('uv.lock') }}-
 
       - name: Core test tier
         run: >
-          uv run pytest --maxfail=10
+          uv run --no-sync pytest --maxfail=10
           tests/test_classification.py
           tests/test_frame_free.py
           tests/test_worst_observer_analytic.py
@@ -112,51 +107,53 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+          python-version: "3.12"
 
-      - name: Set up Python 3.12
-        run: uv python install 3.12
-
-      - name: Install package + dev deps
-        run: uv sync --extra dev
+      - name: Install development dependencies
+        run: uv sync --locked --extra dev
 
       - name: Ruff check
-        run: uv run ruff check src/ tests/ scripts/ benchmarks/ examples/
+        run: uv run --no-sync ruff check src/ tests/ scripts/ benchmarks/ examples/
 
       - name: Ruff format check
-        run: uv run ruff format --check src/ tests/ scripts/ benchmarks/ examples/
+        run: uv run --no-sync ruff format --check src/ tests/ scripts/ benchmarks/ examples/
 
       - name: Bash syntax check
         run: bash -n reproduce_all.sh
 
       - name: Script import smoke
-        run: uv run python scripts/run_analysis.py --help
+        run: uv run --no-sync python scripts/run_analysis.py --help
 
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+          python-version: "3.12"
 
-      - name: Set up Python 3.12
-        run: uv python install 3.12
-
-      - name: Install package + docs extra
-        run: uv sync --extra docs --extra design
+      - name: Install documentation dependencies
+        run: uv sync --locked --extra docs --extra design
 
       - name: Build docs with --strict
-        run: uv run mkdocs build --strict
+        run: uv run --no-sync mkdocs build --strict

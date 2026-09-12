@@ -1,19 +1,8 @@
-"""The NEC-violation pattern travels with the bubble, and nothing else moves.
+"""The NEC-violation centroid translates with the Alcubierre bubble.
 
-Section 5 of the observer-robust paper reports this as a coordinate-invariance check
-beside the statement that no convergence order is assumed. It had no script, no test
-and no artifact behind it, which is exactly the provenance gap the rest of the pipeline
-exists to close, so it lives here now: the numbers in the manuscript are the numbers
-this test asserts.
-
-What is checked is that advancing the Alcubierre bubble centre from ``x_s = 0`` to
-``x_s = v_s t = 1``, and carrying the sampling window with it, translates the
-deficit-weighted centroid of the NEC violation by exactly the displacement and moves it
-transversely not at all. What is deliberately NOT checked is agreement of the minimum
-margins: the window includes the bubble centre, where the spherical form of the metric
-carries a removable ``1/r_s`` that the two grids resolve differently, and the minima
-there differ by orders of magnitude. That is a property of sampling a coordinate
-singularity, not of the geometry, and the manuscript no longer claims otherwise.
+Moving the bubble and sampling window by one unit must shift the deficit-weighted
+centroid by the same amount, with no transverse displacement. This checks the
+centroid and sampled counts; it does not compare pointwise minimum margins.
 """
 
 import numpy as np

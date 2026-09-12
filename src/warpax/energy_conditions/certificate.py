@@ -1,49 +1,34 @@
-"""Exact rational certificates for the LMI verdicts, with no floating point.
+"""Sufficient rational certificates for pointwise energy conditions.
 
-:mod:`.slemma` decides every energy condition over every observer from a 4x4 linear
-matrix inequality, which is exact as mathematics but is searched in binary64. This
-module turns each verdict into an object a reader can check by hand in exact
-arithmetic: a rational multiplier for a satisfied condition, a rational observer (or
-observer pair) for a violated one. Nothing here has a tolerance.
+Candidate searches use floating-point hints and may return no certificate.
+Accepted certificates are checked with exact rational arithmetic in coordinate
+components. They establish a condition or its violation for the supplied tensor
+and metric; they do not bound errors in those inputs or spatial variation.
+``Fraction(x)`` preserves the exact value of a supplied binary64 number.
 
-**No tetrad is needed.** The S-lemma is usually written in an orthonormal frame,
-where ``M(sigma) = That + sigma eta`` must be positive semidefinite. But
-``That = e T e^T`` and ``eta = e g e^T`` for the tetrad ``e``, so
-``M(sigma) = e (T + sigma g) e^T`` is *congruent* to the coordinate-basis matrix
-``T_ab + sigma g_ab``, and congruence preserves inertia. Positive semidefiniteness of
-a symmetric bilinear form is therefore a basis-free statement, and the certificate can
-be written directly in the coordinate components the pipeline already has, which is
-what makes it exactly checkable, since an orthonormal tetrad is not a rational object.
+For a rational Lorentzian metric ``g`` and symmetric stress tensor ``T``, a
+satisfaction certificate supplies multipliers making these matrices positive
+semidefinite (PSD):
 
-Certificate of **satisfaction**, a rational ``sigma``:
+    NEC: T + sigma g, with any rational sigma
+    WEC: T + sigma g, with rational sigma >= 0
+    SEC: Theta + sigma g, with rational sigma >= 0
+    DEC: both T + sigma_wec g and -T g^{-1} T + sigma_dec g,
+         with rational sigma_wec, sigma_dec >= 0
 
-    NEC   exists sigma in Q          with T + sigma g  PSD
-    WEC   exists sigma in Q, >= 0    with T + sigma g  PSD
-    SEC   exists sigma in Q, >= 0    with Theta + sigma g  PSD,  Theta = T - (1/2) tr_g(T) g
-    DEC   the WEC certificate, together with one for  -T g^{-1} T
+Here ``Theta = T - (1/2) tr_g(T) g``. Congruence preserves PSD, so checking these
+coordinate matrices requires no orthonormal tetrad.
 
-Certificate of **violation**, a rational observer, from the dual side. The dual of
-``max_sigma lambda_min`` is a positive semidefinite ``X`` with ``<T, X> < 0``, subject
-to the sign constraint on ``<g, X>`` that the multiplier's range imposes:
+A WEC, SEC, or DEC violation certificate gives a rational causal vector ``u``
+with ``A(u,u) < 0`` for the relevant form ``A``. The NEC certificate gives
+rational vectors ``k, l`` and weights ``alpha > 0, beta >= 0`` such that
 
-    WEC/SEC/DEC   a single causal ``u``: ``g(u,u) <= 0`` and ``T(u,u) < 0``. Then
-                  ``X = u u^T`` has ``<g, X> <= 0``, so ``<T + sigma g, X> < 0`` for
-                  every ``sigma >= 0`` and no admissible multiplier can work.
+    alpha g(k,k) + beta g(l,l) = 0,
+    alpha T(k,k) + beta T(l,l) < 0.
 
-    NEC           the multiplier is free in sign, so ``<g, X>`` must vanish *exactly*
-                  and a single vector will not generally do it over Q, a rational
-                  Lorentzian form need not represent zero. A pair does: pick rational
-                  ``k, l`` with ``g(k,k)`` and ``g(l,l)`` of opposite sign and set
-                  ``alpha = |g(l,l)|``, ``beta = |g(k,k)|``. Then
-                  ``X = alpha k k^T + beta l l^T`` is PSD with ``<g, X> = 0`` exactly,
-                  and ``alpha T(k,k) + beta T(l,l) < 0`` rules out every real sigma at
-                  once. Three lines of rational arithmetic to check.
-
-The tensor itself is taken as exact: a binary64 float *is* a rational number, and
-``Fraction(x)`` is its exact value. The certificate therefore says nothing about
-discretization error in ``T``, that is the job of the interval branch and bound in
-:mod:`.enclosure`, and everything about the decision made from it. Those are the two
-separate questions a "tolerance-dependent" verdict conflates.
+The associated PSD matrix ``X = alpha k k^T + beta l l^T`` excludes every
+admissible NEC multiplier. A directly rational null witness is the case
+``beta = 0``. These searches are sufficient and need not find every certificate.
 """
 
 from __future__ import annotations
@@ -60,29 +45,22 @@ Vec = list[Fraction]
 
 _CONDITIONS = ("nec", "wec", "sec", "dec")
 
-# Denominator ladder for rounding the float multiplier back to Q. A certificate with a
-# small denominator is one a reader can retype; the ladder stops at the first that
-# verifies, so saturated points are the only ones that reach the end.
+# Try small rational denominators first; accept candidates only after exact checks.
 _DENOMINATORS = (2, 4, 8, 16, 64, 256, 1024, 10**4, 10**6, 10**9, 10**12)
 
 
 def to_exact(M: Any) -> Mat:
-    """Exact rational copy of a matrix, preserving inputs that are already exact.
+    """Copy matrix entries to exact rational values without an intermediate float.
 
-    A binary64 float *is* a rational number, so ``Fraction(x)`` is its exact value and
-    that conversion loses nothing. What did lose something was going through
-    ``np.asarray(M, dtype=float)`` first: an input already carried as ``Fraction`` or
-    ``int``, or at any precision above binary64, was rounded to binary64 before the
-    exact arithmetic began, so every determinant and PSD test downstream was exact only
-    relative to that snapshot, not to the tensor handed in. Exact inputs now pass
-    through untouched.
+    Existing ``Fraction`` values are retained. Other entries are passed to
+    ``Fraction`` directly, preserving supported integers and binary floats.
     """
     rows = M.tolist() if hasattr(M, "tolist") else M
     return [[x if isinstance(x, Fraction) else Fraction(x) for x in row] for row in rows]
 
 
 def _det(M: Mat) -> Fraction:
-    """Exact determinant by fraction-free Gaussian elimination (Bareiss)."""
+    """Exact determinant by Gaussian elimination with rational arithmetic."""
     n = len(M)
     A = [row[:] for row in M]
     sign = 1
@@ -118,20 +96,15 @@ def _minor_sums(M: Mat) -> list[Fraction]:
 
 
 def is_psd_exact(M: Mat) -> bool:
-    """Exactly decide ``M >= 0`` for a rational symmetric matrix, with no square roots.
+    """Test PSD for a rational symmetric matrix using principal-minor sums.
 
-    A real symmetric matrix has real eigenvalues, and they are all non-negative exactly
-    when every elementary symmetric function of them is non-negative, because
-    ``p(-t) = t^n + e_1 t^(n-1) + ... + e_n`` is then strictly positive for ``t > 0``
-    unless every ``e_k`` vanishes, in which case every eigenvalue is zero. Each ``e_k``
-    is the sum of the ``k x k`` principal minors, so this is 15 determinants for a 4x4
-    and needs no pivoting strategy, unlike an ``LDL^T`` that must cope with a singular
-    positive semidefinite matrix.
+    For symmetric ``M``, the coefficients of ``det(tI + M)`` are the
+    sums of its principal minors. If all coefficients are nonnegative,
+    this polynomial is positive for ``t > 0``, excluding negative
+    eigenvalues of ``M``. The converse follows from nonnegative eigenvalues.
 
-    Symmetry is a precondition, not a check: on a nonsymmetric argument the principal
-    minors are not the elementary symmetric functions of anything real, and the answer
-    is meaningless rather than wrong. :func:`verify` is where that precondition is
-    enforced, because that is the one entry point an untrusted matrix arrives through.
+    This uses 15 principal minors for a 4x4 matrix. Symmetry is a precondition
+    here; :func:`verify` checks it before using this test.
     """
     return all(e_k >= 0 for e_k in _minor_sums(M))
 
@@ -198,12 +171,12 @@ def _inverse(M: Mat) -> Mat:
 
 
 def condition_matrix(T: Mat, g: Mat, condition: str) -> Mat:
-    """The symmetric form whose PSD-ness the multiplier certifies, for one condition.
+    """Return the symmetric form tested by the selected LMI.
 
-    NEC and WEC test ``T`` itself; SEC tests the trace-reversed ``Theta``; the DEC
-    tests ``-T g^{-1} T``, whose non-negativity on the causal cone is exactly the
-    statement that the flux ``J^a = -T^a{}_b u^b`` is causal. The DEC needs the WEC
-    as well, which :func:`certify` handles by requiring both.
+    NEC and WEC use ``T``; SEC uses its trace reversal. DEC uses
+    ``-T g^{-1} T``, whose nonnegativity on the causal cone makes the energy
+    flux causal or zero. Full DEC satisfaction also requires WEC, which
+    :func:`certify` checks separately.
     """
     if condition in ("nec", "wec"):
         return T
@@ -243,22 +216,21 @@ def _admissible_bindings(condition: str) -> frozenset[str]:
 
 
 def find_multiplier(T: Mat, g: Mat, condition: str, sigma_hint: float) -> Fraction | None:
-    """A rational ``sigma`` proving ``condition`` holds, or ``None`` if none is found.
+    """Find a sufficient rational multiplier for the selected LMI, or ``None``.
 
-    The float search supplies the hint; this rounds it down the denominator ladder and
-    also tries the midpoint of the exactly-bracketed feasible interval, which is what
-    succeeds when the hint sits near an endpoint. Returning ``None`` is not a proof of
-    violation, it means the point is saturated (the feasible set is a single, possibly
-    irrational, multiplier) and the violation side must be certified instead.
+    Candidates come from the floating-point hint, tensor entries, and a finite
+    rational search. Feasible candidates are checked exactly. A failed search
+    is inconclusive; it proves neither violation nor saturation. For
+    ``condition="dec"``, this tests flux causality only; full DEC also needs
+    a WEC certificate.
     """
     A = condition_matrix(T, g, condition)
 
     def ok(s: Fraction) -> bool:
         return _sigma_is_admissible(s, condition) and is_psd_exact(_add(A, g, s))
 
-    # At a saturated point the feasible set is one multiplier and no rounding of the
-    # float search lands on it, but that multiplier is in the tensor: try the exact
-    # entries and the half-trace first. Every candidate is a guess; is_psd_exact decides.
+    # Tensor entries and the half-trace can supply exact boundary multipliers
+    # that rounded hints miss. Every candidate still requires the PSD check.
     cands: list[Fraction] = [Fraction(sigma_hint)]
     ginv = _inverse(g)
     half_trace = sum(ginv[a][b] * T[a][b] for a in range(4) for b in range(4)) / 2
@@ -312,11 +284,10 @@ def find_multiplier(T: Mat, g: Mat, condition: str, sigma_hint: float) -> Fracti
 
 
 def _repair_causal(u: Vec, g: Mat) -> Vec | None:
-    """Shrink the spatial part of ``u`` until ``g(u,u) <= 0`` exactly.
+    """Try spatial rescalings of ``u`` until ``g(u,u) <= 0`` holds exactly.
 
-    Rounding a float observer to Q can push a marginally timelike vector outside the
-    cone. Scaling the spatial components toward the time axis moves ``g(u,u)`` down
-    monotonically and leaves the violation intact when it is strict.
+    This finite heuristic need not find a causal vector in general
+    coordinates. Its caller separately checks the negative contraction.
     """
     for _ in range(200):
         if _quad(g, u) <= 0:
@@ -326,15 +297,16 @@ def _repair_causal(u: Vec, g: Mat) -> Vec | None:
 
 
 def find_violating_observer(T: Mat, g: Mat, condition: str, u_hint: Sequence[float]):
-    """A rational witness that ``condition`` fails, or ``None``.
+    """Find a sufficient rational violation witness from a hint, or ``None``.
 
-    For WEC/SEC/DEC one causal ``u`` suffices: ``X = u u^T`` is PSD with
-    ``<g, X> <= 0``, so ``<A + sigma g, X> = A(u,u) + sigma g(u,u) <= A(u,u) < 0`` for
-    every admissible ``sigma >= 0``, and no multiplier can make ``A + sigma g`` PSD.
+    WEC and SEC use a causal vector ``u`` with ``A(u,u) < 0`` for the
+    relevant form. The DEC search uses ``A = -T g^{-1} T`` to test flux
+    causality; :func:`certify` also searches for a WEC violation.
 
-    For the NEC the multiplier is free in sign, so the witness must annihilate ``g``
-    exactly. Returns ``(k, l, alpha, beta)`` with ``alpha g(k,k) + beta g(l,l) = 0``
-    and ``alpha T(k,k) + beta T(l,l) < 0``.
+    For NEC, returns ``(k, l, alpha, beta)`` with nonnegative weights,
+    ``alpha g(k,k) + beta g(l,l) = 0``, and
+    ``alpha T(k,k) + beta T(l,l) < 0``. The finite candidate search may miss
+    a witness, so ``None`` is inconclusive.
     """
     A = condition_matrix(T, g, condition)
     for d in _DENOMINATORS:
@@ -351,9 +323,8 @@ def find_violating_observer(T: Mat, g: Mat, condition: str, u_hint: Sequence[flo
             if _quad(A, u) < 0:
                 return (u, [Fraction(0)] * 4, Fraction(1), Fraction(0))
             continue
-        # A partner of opposite g-sign. One of the four coordinate axes always is:
-        # g is Lorentzian, so it has a timelike and a spacelike direction among them
-        # unless the basis is null-aligned, in which case the sum of two axes works.
+        # Try coordinate axes and pairwise sums for an opposite-sign partner.
+        # This finite set need not contain one for a general Lorentzian metric.
         partners: list[Vec] = []
         for i in range(4):
             e = [Fraction(0)] * 4
@@ -383,14 +354,12 @@ def certify(
     sigma_hint: float | None = None,
     observer_hint: Sequence[float] | None = None,
 ) -> dict[str, Any]:
-    """Exact certificate for one condition at one point.
+    """Search for an exact certificate for one condition at one point.
 
-    ``kind`` is ``"satisfied"``, ``"violated"`` or ``"saturated"``. The first two carry
-    a proof and :func:`verify` checks it. The third carries none: it means neither
-    search found one, which is the expected outcome where the feasible multiplier set
-    is a single, possibly irrational, value, but is also what a search failure looks
-    like. :func:`verify` returns ``False`` on it for exactly that reason, it reports
-    whether an object is a valid proof, and "saturated" is the absence of one.
+    ``kind="satisfied"`` or ``"violated"`` carries a certificate that
+    :func:`verify` can check. The legacy value ``kind="saturated"`` means
+    neither search found a certificate. It does not establish saturation
+    or any energy-condition verdict, and :func:`verify` rejects it.
     """
     if condition not in _CONDITIONS:
         raise ValueError(f"unknown condition {condition!r}")
@@ -413,9 +382,7 @@ def certify(
         }
 
     for c in conds:
-        # The hint must come from the form that is actually being violated. Seeding the
-        # DEC search with a witness minimizing T over the ball found nothing whenever
-        # the WEC held and only the flux failed, which is the entire DEC-specific case.
+        # A DEC witness may violate either the WEC form or the flux form.
         hint = observer_hint if observer_hint is not None else _observer_hint(T, g, c)
         w = find_violating_observer(T, g, c, hint)
         if w is not None:
@@ -444,19 +411,13 @@ def certify(
 
 
 def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
-    """Re-check a certificate from scratch, using nothing but exact arithmetic.
+    """Check a certificate using exact arithmetic on the supplied inputs.
 
-    This is what an auditor runs. It shares no code path with :func:`certify` beyond the
-    rational primitives, and it never consults a float.
-
-    An auditor supplies the tensor as well as the certificate, so both are untrusted and
-    both are checked. Without the shape checks below a forged certificate verifies: for
-    the nonsymmetric ``T = [[1,10,0,0],[-1,1,0,0],[0,0,1,0],[0,0,0,1]]`` with
-    ``g = diag(-1,1,1,1)`` the principal-minor sums are ``4, 16, 24, 11``, all positive,
-    so ``sigma = 0`` passes :func:`is_psd_exact` and a "satisfied" NEC certificate
-    returns True, while the null vector ``k = (1,-1,0,0)`` gives ``T(k,k) = -7``. The
-    S-lemma also needs ``g`` to be the metric it claims to be: a Euclidean or degenerate
-    ``g`` has no null cone for the multiplier to be free over.
+    Checks tensor symmetry, Lorentzian metric inertia, condition bindings,
+    and the required PSD or witness inequalities. Candidate-search hints
+    are not used. ``"saturated"`` is not a certificate and returns ``False``.
+    The certificate dictionary must follow the schema returned by
+    :func:`certify`; malformed entries may raise an exception.
     """
     T, g = to_exact(T_ab), to_exact(g_ab)
     if not _is_symmetric(T) or not _is_symmetric(g) or len(T) != len(g):
@@ -467,8 +428,7 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
     if cond not in _CONDITIONS:
         return False
     if cert["kind"] == "satisfied":
-        # Bind the proof to the claim: a "dec" certificate carrying only the
-        # "nec" multiplier used to verify True.
+        # Require exactly the multipliers needed for the claimed condition.
         if set(cert["sigma"]) != set(_required_lmis(cond)):
             return False
         for c, (num, den) in cert["sigma"].items():
@@ -494,9 +454,7 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
             return alpha * _quad(A, k) + beta * _quad(A, l) < 0
         u = [Fraction(n, d) for n, d in cert["witness"]]
         return _quad(g, u) <= 0 and _quad(A, u) < 0
-    # "saturated" is the ABSENCE of a certificate, not a verdict, and verify() answers
-    # only whether an object is a valid proof. Returning True would verify a forged
-    # saturated claim, and certify() also falls through to it when both searches fail.
+    # Search failure provides no certificate, including under the legacy name.
     return False
 
 
@@ -524,11 +482,12 @@ def _sigma_hint(T_ab: Any, g_ab: Any, condition: str) -> float:
 
 
 def _observer_hint(T: Mat, g: Mat, condition: str) -> list[float]:
-    """A float observer minimizing the *condition's* form, lifted to coordinates.
+    """Construct a numerical witness candidate in coordinate components.
 
-    ``witness_observer`` searches the closed unit ball of boost vectors; for the NEC we
-    want the sphere instead, and a ball minimizer sitting in the interior is useless
-    there, so the null case falls back to the deepest direction of the spatial block.
+    Search the relevant quadratic form on the closed unit velocity ball.
+    If the search fails, try the least-eigenvalue spatial directions and
+    the momentum direction. NEC candidates are projected onto the unit
+    sphere. No global minimum or violation is guaranteed by this hint.
     """
     import jax.numpy as jnp
 
@@ -541,7 +500,7 @@ def _observer_hint(T: Mat, g: Mat, condition: str) -> list[float]:
     if not np.all(np.isfinite(w)) or (condition == "nec" and np.linalg.norm(w) < 1e-12):
         A_hat = np.asarray(tetrad_components(A, gj))
         b, S = -A_hat[0, 1:], A_hat[1:, 1:]
-        # argmin over the sphere of rho - 2 b.s + s^T S s, to leading order.
+        # Try spatial eigenvectors and the momentum direction on the sphere.
         evals, evecs = np.linalg.eigh(S)
         cand = [evecs[:, 0], -evecs[:, 0]]
         if np.linalg.norm(b) > 0:

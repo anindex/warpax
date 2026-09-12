@@ -1,117 +1,102 @@
-# Theory: ADM 3+1 and Hawking-Ellis types
+# Theory: ADM decomposition and energy conditions
 
-A compact primer on the two physics formalisms that warpax uses everywhere.
-Full derivations live in the accompanying paper (arXiv:2602.18023, Sections 2-3).
+warpax uses signature $(-+++)$ and geometric units $G=c=1$.
+The [paper](https://arxiv.org/abs/2602.18023) develops the mathematical tests.
 
-## ADM 3+1 decomposition
+## ADM decomposition and curvature
 
-Every `ADMMetric` subclass supplies three objects:
-
-- **Lapse** $\alpha(t, \vec{x})$ - a scalar.
-- **Shift** $\beta^i(t, \vec{x})$ - a 3-vector.
-- **Spatial metric** $\gamma_{ij}(t, \vec{x})$ - a symmetric $3\times 3$
-  positive-definite tensor.
-
-The full 4-metric is reconstructed as
+An `ADMMetric` supplies lapse $\alpha$, shift $\beta^i$, and a positive-definite
+spatial metric $\gamma_{ij}$. With $\beta_i=\gamma_{ij}\beta^j$,
 
 $$
-g_{ab} \,=\,
-\begin{pmatrix}
--\alpha^2 + \beta_i \beta^i & \beta_j \\[4pt]
+g_{ab}=\begin{pmatrix}
+-\alpha^2+\beta_i\beta^i & \beta_j\\
 \beta_i & \gamma_{ij}
-\end{pmatrix},
+\end{pmatrix},\qquad
+n^a=\alpha^{-1}(1,-\beta^i).
 $$
 
-where $\beta_i = \gamma_{ij} \beta^j$ lowers the shift index. This is the
-standard Arnowitt-Deser-Misner decomposition; see Baumgarte & Shapiro
-(2010) for a textbook treatment.
+The unit normal $n^a$ remains timelike wherever the ADM decomposition is valid,
+including superluminal bubble speeds. A coordinate-stationary vector
+$\partial_t$ need not remain timelike.
 
-warpax's `ADMMetric` base class auto-reconstructs $g_{ab}$ from the
-user-supplied `lapse`, `shift`, and `spatial_metric` - subclasses never
-need to assemble the 4-metric directly.
-
-## Einstein field equations
-
-Given $g_{ab}$, the curvature chain
+`compute_curvature_chain` differentiates the metric automatically and computes
 
 $$
-g_{ab}
-\,\xrightarrow{\partial}\, \Gamma^a{}_{bc}
-\,\xrightarrow{\partial}\, R^a{}_{bcd}
-\,\to\, R_{ab}
-\,\to\, R
-\,\to\, G_{ab}
-\,=\, T_{ab}
+g_{ab}\longrightarrow\Gamma^a{}_{bc}\longrightarrow R^a{}_{bcd}
+\longrightarrow R_{ab}\longrightarrow G_{ab}=8\pi T_{ab}.
 $$
 
-is implemented with JAX forward-mode autodiff (no finite differences). The
-final step $G_{ab} = 8\pi T_{ab}$ reads the stress-energy tensor straight
-off the Einstein tensor in geometric units $G = c = 1$.
+The returned $T_{ab}=G_{ab}/8\pi$ includes any cosmological contribution as
+effective stress. To test material stress with a separately specified
+cosmological constant, use $T^{\rm matter}_{ab}=(G_{ab}+\Lambda g_{ab})/8\pi$.
+Automatic differentiation avoids finite-difference truncation, not roundoff.
 
-See [`compute_curvature_chain`](../reference/index.md) for the full
-signature.
+## Hawking-Ellis types
 
-## Hawking-Ellis types I-IV
+The mixed tensor $T^a{}_b$ has the following canonical structures:
 
-The stress-energy tensor $T^a{}_b$ (mixed index) admits an algebraic
-classification based on the structure of its eigendecomposition
-(Hawking & Ellis 1973, §4.3):
+| Type | Eigenstructure | Example or interpretation |
+|---|---|---|
+| I | Real diagonal form with a timelike eigenvector | Perfect or anisotropic fluid |
+| II | Null Jordan block of size 2 | Null dust is a special case |
+| III | Null Jordan block of size 3 | No timelike rest frame |
+| IV | Complex-conjugate eigenvalue pair | No timelike rest frame |
 
-| Type | Eigenstructure | Physical interpretation |
-|------|---------------|-------------------------|
-| I | Diagonalizable, 4 real eigenvalues, 1 timelike + 3 spacelike | Perfect fluid; anisotropic fluid |
-| II | 2×2 null Jordan block + 2 real eigenvalues | Pure radiation (null dust) |
-| III | 3×3 null Jordan block + 1 real eigenvalue | Rare; pathological |
-| IV | Complex-conjugate pair of eigenvalues | No real timelike eigenvector |
+For Type I, write the rest-frame tensor as $\mathrm{diag}(\rho,p_1,p_2,p_3)$.
+NEC requires every $\rho+p_i\ge0$; WEC adds $\rho\ge0$; SEC requires the NEC
+inequalities and $\rho+\sum_i p_i\ge0$; DEC requires $\rho\ge|p_i|$.
+Along principal axis $i$, an observer at rest-frame rapidity $\zeta$ measures
 
-Type I admits closed-form algebraic energy condition checks on the
-eigenvalues. Types II-IV do **not** - they require a continuous search
-over the timelike observer manifold, which warpax performs via
-Optimistix BFGS over a bounded rapidity parameter.
+$$
+T(u,u)=\rho+(\rho+p_i)\sinh^2\zeta.
+$$
 
-The observer-robust EC check in warpax does not branch on the type. One
-$4\times4$ linear matrix inequality, $\hat T + \sigma\eta \succeq 0$, decides
-NEC, WEC, SEC and DEC over every timelike and null observer at Types I through IV
-alike, with no rapidity cap and no classification tolerance, and each verdict
-carries an exact rational certificate. The Hawking-Ellis type is reported as a
-diagnostic, and the BFGS observer search only displays how severe a violation is.
+If $\rho\ge0$ and $\rho+p_i<0$, the density becomes negative above
+$\sinh^2\zeta=\rho/|\rho+p_i|$ on that axis. This is a directional threshold;
+it does not identify a generic optimizer subject to an Eulerian rapidity cap.
 
-See `warpax.energy_conditions.slemma.certify_point`,
-`warpax.energy_conditions.certificate`, and
-`warpax.energy_conditions.classify_hawking_ellis` for the implementation.
+## Conditions without classification
 
-## Why it matters for warp drives
+In an orthonormal tetrad, let $\eta=\mathrm{diag}(-1,1,1,1)$ and
+$q(w)=\hat T_{00}+2\hat T_{0i}w^i+\hat T_{ij}w^iw^j$.
+The NEC tests $q\ge0$ on $|w|=1$; WEC tests it on $|w|\le1$.
+The corresponding S-lemma conditions are
 
-The Alcubierre-wall region is dominated by **Type IV** stress-energy
-points (complex eigenvalue pairs). An Eulerian-frame only analysis misses
-a large fraction of true NEC / WEC / DEC violations at these points
-because the ADM-normal observer is not the worst-case observer. The
-observer-robust margin strictly bounds the Eulerian margin from below
-(`robust_margin ≤ eulerian_margin`), and the gap is where physical
-violations hide.
+$$
+\hat T+\sigma\eta\succeq0,
+$$
 
-**Shift vorticity controls the type.** Which warp geometries are Type-IV walled is
-fixed by a single quantity: the vorticity of the ADM shift. An irrotational shift
-(Rodal) gives a globally Type-I drive whose all-observer energy conditions are
-decided exactly by the eigenvalues; a shift with nonzero vorticity drives the wall
-to Type IV. The zero-expansion Natario drive, vortical but expansion-free, is
-Type-IV walled, isolating vorticity rather than expansion as the obstruction. In a
-controlled pure-rotation limit the imaginary part of the Type-IV eigenvalue pair is
-linear in the vorticity, `f = κ ω` (`R² = 1`). The same vorticity sets how fast the
-wall curvature grows with warp speed: the wall-peak curvature invariants scale as
-`v_s²` for the vortical walls but `v_s⁴` for the irrotational Rodal wall, because a
-rotational shift contributes a curvature term linear in `v_s` that the irrotational
-drive lacks. Every drive still violates the NEC (the wall deficit
-`min(ρ+p_i) = -C v_s²` saturates the Santiago-Schuster-Visser bound); the
-irrotational drive is the mildest on every boost-invariant axis.
+with free $\sigma$ for NEC and $\sigma\ge0$ for WEC. SEC applies the ball test
+to $T-\tfrac12\mathrm{tr}_g(T)g$. DEC applies it to both $T$ and
+$-Tg^{-1}T$ to enforce future-directed causal energy flux.
+
+These Boolean equivalences are independent of algebraic type and observer
+frame. The numerical LMI margin and normalized null deficit have magnitudes
+that depend on the chosen tetrad. Type-I eigenvalue slacks, Eulerian contractions,
+and capped observer-search minima must not be compared as a single scale.
+Exact rational certificates, when found, certify the supplied tensor entries;
+interval evaluation is needed to include uncertainty in the tensor itself.
+
+## Warp-wall conclusions and limits
+
+The sampled Alcubierre and Natário walls contain Type-IV regions, while the
+ideal zero-momentum Rodal reduction and matched Garattini-Zatrimaylov
+construction admit Type-I stress. Shift vorticity alone is neither a general
+necessary nor sufficient condition for Type IV. Its observed association with
+momentum-dominated wall regions depends on the metric and stress block.
+
+For unit lapse, a time-independent Euclidean spatial metric, fixed profiles,
+and vanishing Eulerian momentum density, pointwise quadratic speed scaling
+can follow exactly from the ADM equations. Other fitted exponents are empirical.
+Integrated negative Eulerian energy establishes WEC failure; a separate null
+argument is needed for NEC. Finite null segments do not establish a
+complete-geodesic averaged null energy condition.
 
 ## References
 
-- Alcubierre, M. (1994). *The warp drive: hyper-fast travel within
-  general relativity*. Class. Quantum Grav. 11, L73.
-- Hawking, S. W., & Ellis, G. F. R. (1973). *The large scale structure
-  of space-time*. Cambridge University Press. §4.3.
-- Baumgarte, T. W., & Shapiro, S. L. (2010). *Numerical Relativity:
-  Solving Einstein's Equations on the Computer*. Cambridge University
-  Press. Chapter 2.
-- The accompanying paper (arXiv:2602.18023) - methodology and benchmark results (Sections 2-5).
+- Hawking and Ellis (1973), *The Large Scale Structure of Space-Time*, §4.3.
+- Baumgarte and Shapiro (2010), *Numerical Relativity*, Chapter 2.
+- Xia, Wang, and Sheu (2016), *S-lemma with equality and its applications*,
+  [Math. Program. 156, 513–547](https://doi.org/10.1007/s10107-015-0907-0).
+- [Observer-robust energy condition verification for warp drive spacetimes](https://arxiv.org/abs/2602.18023).

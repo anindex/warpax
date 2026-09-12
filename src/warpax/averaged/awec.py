@@ -74,8 +74,8 @@ def _tangent_renormalized_timelike(
     """Rescale ``u`` so that ``g_{ab} u^a u^b = -1``.
 
     Returns the rescaled tangent, ``dtau/dlambda = sqrt(-g(u,u))``, and the
-    unnormalised ``g(u,u)`` as a causal witness. Taking ``sqrt(abs(.))``
-    instead accepted a spacelike curve and returned it with ``g(u,u) = +1``.
+    unnormalized ``g(u,u)`` as a causal diagnostic. Spacelike tangents retain
+    their positive norm so the caller can reject them.
     """
     u_sq = jnp.einsum("a,ab,b->", u, g_ab, u)
     rate = jnp.sqrt(jnp.clip(-u_sq, min=0.0))

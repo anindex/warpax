@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "date": "2026-08-30T20:22:22Z",
+    "date": "2026-09-12T09:35:08Z",
     "script": "scripts/run_superluminal_investigation.py",
     "velocities": [
       1.0,
@@ -891,7 +891,7 @@
         "n_g00_positive": 0,
         "g00_zero_crossing_r": null,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 8.425496578216553,
+        "elapsed_s": 7.9374964237213135,
         "wall_analysis_v1": [
           {
             "r": 98.0,
@@ -1834,7 +1834,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 100.27664399092964,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 1.8464980125427246
+        "elapsed_s": 1.947394847869873
       },
       "2.0": {
         "v_s": 2.0,
@@ -2705,7 +2705,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 101.06989795918363,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 1.894331932067871
+        "elapsed_s": 1.9113531112670898
       }
     },
     "lentz": {
@@ -3578,7 +3578,7 @@
         "n_g00_positive": 0,
         "g00_zero_crossing_r": null,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 2.2574713230133057,
+        "elapsed_s": 2.3190271854400635,
         "wall_analysis_v1": [
           {
             "r": 98.0,
@@ -4521,7 +4521,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 100.27664399092964,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 1.9539830684661865
+        "elapsed_s": 1.8631033897399902
       },
       "2.0": {
         "v_s": 2.0,
@@ -5392,7 +5392,7 @@
         "n_g00_positive": 25,
         "g00_zero_crossing_r": 101.06989795918363,
         "n_nan_stress_energy": 0,
-        "elapsed_s": 2.014443874359131
+        "elapsed_s": 1.8769207000732422
       }
     }
   },
@@ -5532,8 +5532,8 @@
     "overall": {
       "det_g_always_minus1": true,
       "any_nan_found": false,
-      "corrected_failure_mode": "g_00 sign flip (v_s * f(r) > 1), NOT det(g) = 0",
-      "physical_interpretation": "When g_00 > 0, no static observers exist in that region. The Eulerian frame (n^a = (1/alpha, 0, 0, 0)) remains timelike because alpha = 1 always, but coordinate-stationary observers become spacelike. EC margins are numerically computable but their physical interpretation in the signature-changed region is questionable."
+      "corrected_failure_mode": "g_00 changes sign when v_s * f(r) > 1; det(g) remains -1",
+      "physical_interpretation": "When g_00 > 0, coordinate-stationary worldlines are spacelike. With ds^2=-alpha^2 dt^2+gamma_ij(dx^i+beta^i dt)(dx^j+beta^j dt), the Eulerian normal n^a=(1,-beta^i)/alpha remains timelike. The metric stays Lorentzian and Eulerian energy-condition measurements remain meaningful."
     }
   }
 }
