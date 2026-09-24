@@ -6,9 +6,9 @@ loading data alone does not validate its derivatives.
 
 | Source | Loader | Fixture |
 |--------|--------|---------|
-| WarpFactory MATLAB `.mat` | `warpax.io.load_warpfactory` | `tests/fixtures/warpfactory/` |
-| EinFields Flax/Orbax | `warpax.io.load_einfield` | `tests/fixtures/einfields/` |
-| Cactus / Einstein Toolkit HDF5 | `warpax.io.load_cactus_slice` | `tests/fixtures/cactus/` |
+| WarpFactory MATLAB `.mat` | `warpax.io.load_warpfactory` | [WarpFactory fixture](https://github.com/anindex/warpax/blob/main/tests/fixtures/warpfactory/README.md) |
+| EinFields Flax/Orbax | `warpax.io.load_einfield` | [EinFields fixture](https://github.com/anindex/warpax/blob/main/tests/fixtures/einfields/README.md) |
+| Cactus / Einstein Toolkit HDF5 | `warpax.io.load_cactus_slice` | [Cactus fixture](https://github.com/anindex/warpax/blob/main/tests/fixtures/cactus/README.md) |
 
 Install the `interop` extra for HDF5/MATLAB data and `einfields` for Orbax:
 

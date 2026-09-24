@@ -47,4 +47,4 @@ The first output is `-1`; the curvature and stress outputs are zero.
 - [Quickstart](quickstart.md) - observer-robust EC on a warp metric in one file.
 - [How-To: custom metrics](../how-to/custom_metric_tutorial.md) - subclass
   `ADMMetric` to plug in your own spacetime.
-- [API reference](../reference/index.md) - autodoc of every public symbol.
+- [API reference](../reference/index.md) - generated documentation for the public modules.

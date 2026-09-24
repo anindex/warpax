@@ -49,7 +49,7 @@ Metrics are Equinox modules, so JIT and `vmap` can act on their parameters.
 | `averaged`, `quantum` | Finite null-energy integrals and flat-space quantum-inequality diagnostics |
 | `grids`, `numerics` | Wall-clustered grids, resolution checks, proper-volume weights, numerical helpers |
 | `analysis`, `classify` | Comparisons, convergence, extrema, shift kinematics, construction adapters |
-| `constraints`, `tov` | Einstein constraints, source residuals, shell solvers, anisotropic equilibrium |
+| `constraints`, `tov` | Einstein constraints, source residuals, legacy shell prescriptions, anisotropic TOV equations |
 | `adm`, `junction`, `bondi` | Asymptotic mass, surface stresses, asymptotic diagnostics |
 | `transport` | Geodesic deviation, observer-dependent blueshift, coordinate-time asymmetry |
 | `optimization`, `design` | Shell parameter sweeps and metric-profile optimization |

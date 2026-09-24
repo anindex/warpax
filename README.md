@@ -9,7 +9,7 @@
 JAX tools for curvature, energy conditions, and geodesics in prescribed
 spacetimes. `warpax` uses automatic differentiation to evaluate the Einstein
 tensor, then tests energy conditions across observer directions.
-See the [changelog](CHANGELOG.md) for version **1.5.0**.
+See the [changelog](CHANGELOG.md) for version **1.5.1**.
 
 ![Alcubierre bubble: Eulerian energy density and normalized null-energy margin](https://raw.githubusercontent.com/anindex/warpax/main/figures/wall_velocity_sweep.gif)
 
@@ -65,7 +65,7 @@ uv run python examples/01_minkowski_sanity.py
 - Timelike and null geodesics, finite-segment energy integrals, tidal effects,
   and quantum-inequality reference diagnostics.
 - Constraint residuals, TOV equilibrium, ADM mass, junction conditions,
-  source-first shell construction, and metric optimization.
+  legacy prescribed-source shell diagnostics, and metric optimization.
 - WarpFactory, EinFields, and Cactus imports; Matplotlib and Manim visualization;
   Bondi flux and Newman–Penrose diagnostics.
 
@@ -86,7 +86,7 @@ quadratic speed law requires zero momentum and fixed profiles and domains.
 ## Documentation
 
 Start with the [quickstart](docs/tutorials/quickstart.md) or
-[numbered examples](examples/README.md). Each metric implements a callable
+[numbered examples](docs/tutorials/examples_tour.md). Each metric implements a callable
 `(4,) -> (4, 4)` from spacetime coordinates to the covariant metric tensor.
 
 | Task | Guide |
@@ -95,12 +95,17 @@ Start with the [quickstart](docs/tutorials/quickstart.md) or
 | Choose or implement a metric | [Catalog](docs/reference/metric_catalog.md), [custom metric](docs/how-to/custom_metric_tutorial.md) |
 | Read results or load data | [Energy-condition results](docs/how-to/interpreting_ec_results.md), [external metrics](docs/how-to/loading_external_metrics.md) |
 | Inspect the API or benchmark it | [API](docs/reference/index.md), [benchmarks](docs/reference/benchmarks.md) |
-| Reproduce the papers | [Observer-robust energy conditions](docs/how-to/reproduce_observer_robust_paper.md), [source-consistent shells](docs/how-to/reproduce_warpshell_paper.md) |
+| Reproduce the papers | [Observer-robust energy conditions](docs/how-to/reproduce_observer_robust_paper.md), [shell calculations and limits](docs/how-to/reproduce_warpshell_paper.md) |
 
 [Example 07](examples/07_custom_warp_metric.py) implements a Gaussian warp metric.
-[Examples 08–10](examples/README.md) cover shape design and shell diagnostics.
+[Examples 08–10](docs/tutorials/examples_tour.md#numbered-examples) cover shape design and shell diagnostics.
+[Example 11](examples/11_elastic_shell.py) reproduces the revised elastic-shell
+equilibrium, frame dragging, cavity tides and central clock shifts. Its
+[datasets and definitions](results/elastic_shell/README.md) live in this
+repository; see the [shell guide](docs/how-to/reproduce_warpshell_paper.md)
+for commands and approximation limits.
 Animation commands and system dependencies are in the
-[examples guide](docs/tutorials/examples_tour.md) and
+[animation instructions](docs/tutorials/examples_tour.md#animations) and
 [render script](scripts/render_all_scenes.py).
 
 ## Checks and reproduction
@@ -128,8 +133,11 @@ Use [CITATION.cff](CITATION.cff) for software metadata and cite the relevant pap
 
 - An T. Le, [Observer-robust energy condition verification for warp drive
   spacetimes](https://arxiv.org/abs/2602.18023) (2026).
-- An T. Le, [On the boundary cost of source-consistent warp
-  shells](https://arxiv.org/abs/2605.25417) (2026).
+- An T. Le, [Relativistic elastic shells: material support and cavity
+  geometry](https://arxiv.org/abs/2605.25417) (2026).
 
-The shell construction and admissibility work belongs to the second paper.
-See [boundary cost](docs/explanation/boundary_cost.md) for its assumptions.
+The observer-robust paper received provisional acceptance by *Classical and
+Quantum Gravity* on September 21, 2026, pending the publisher's final checks.
+Example 11 supplies the elastic-shell numerical calculations. The legacy
+S-/T-shell constructors implement separate prescribed metrics; see the
+[shell guide](docs/how-to/reproduce_warpshell_paper.md) for their limitations.

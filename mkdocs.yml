@@ -86,5 +86,4 @@ nav:
   - Explanation:
       - explanation/ARCHITECTURE.md
       - explanation/theory.md
-      - explanation/boundary_cost.md
-      - explanation/release_notes.md
+  - Release history: https://github.com/anindex/warpax/blob/main/CHANGELOG.md

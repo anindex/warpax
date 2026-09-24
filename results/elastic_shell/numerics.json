@@ -1,0 +1,389 @@
+{
+  "isotropic_inner_pressure": [
+    {
+      "rtol": 1e-08,
+      "p_inner": 7.537464035127601e-07
+    },
+    {
+      "rtol": 1e-10,
+      "p_inner": 7.537464031195989e-07
+    },
+    {
+      "rtol": 1e-12,
+      "p_inner": 7.537464030994097e-07
+    }
+  ],
+  "cluster": {
+    "mass": 1,
+    "R1": 10,
+    "R2": 20,
+    "cavity_lapse": 0.9306453329320783,
+    "max_2m_over_r": 0.1074176635965668,
+    "max_pt_over_rho": 0.03008620583659402
+  },
+  "elastic": [
+    {
+      "rtol": 1e-07,
+      "max_step": 1.0,
+      "inner_radius": 9.985293129501958,
+      "outer_radius": 19.983177241631576,
+      "mass": 0.029296781485569467,
+      "inner_nt": 1.0014728531558668,
+      "outer_traction": -2.117582368135751e-22,
+      "min_DEC": 1.000707312828254e-06,
+      "max_compactness": 0.0029321444864668037,
+      "radial_longitudinal_speed_squared_range": [
+        0.3333339621335216,
+        0.3334383234927172
+      ]
+    },
+    {
+      "rtol": 1e-09,
+      "max_step": 0.5,
+      "inner_radius": 9.985293128939068,
+      "outer_radius": 19.983177242341927,
+      "mass": 0.029296781485575484,
+      "inner_nt": 1.0014728532123218,
+      "outer_traction": 2.117582368135751e-22,
+      "min_DEC": 1.0007073127983561e-06,
+      "max_compactness": 0.0029321444863631752,
+      "radial_longitudinal_speed_squared_range": [
+        0.3333339621334687,
+        0.33343832354486075
+      ]
+    },
+    {
+      "rtol": 1e-11,
+      "max_step": 0.1,
+      "inner_radius": 9.985293128921189,
+      "outer_radius": 19.983177242361556,
+      "mass": 0.029296781485575542,
+      "inner_nt": 1.0014728532141148,
+      "outer_traction": 0.0,
+      "min_DEC": 1.0007073127975294e-06,
+      "max_compactness": 0.0029321444863603012,
+      "radial_longitudinal_speed_squared_range": [
+        0.3333339621334672,
+        0.33343832354571473
+      ]
+    }
+  ],
+  "elastic_collocation": {
+    "max_state_difference": 1.1318945780658396e-11,
+    "max_rms_residual": 9.735145842949928e-11,
+    "boundary_residuals": [
+      0.0,
+      -2.1175823681357508e-16,
+      -2.1175823681357508e-16,
+      1.4094628242311558e-17
+    ]
+  },
+  "mass_and_clock": {
+    "ADM_mass": 0.029296781485574026,
+    "Komar_mass": 0.029296781485588338,
+    "proper_material_energy": 0.029321541317788434,
+    "reference_rest_energy": 0.029321531433504733,
+    "binding_to_reference": 2.4749947930707145e-05,
+    "leading_weak_binding": 2.4739808365397327e-05,
+    "cavity_lapse": 0.9981133788336494,
+    "Komar_relative_error": 4.884981308350689e-13,
+    "scope": "Independent quadratures on the collocation solution; no interval remainder for the weak-coupling expansion."
+  },
+  "linear_rotation": {
+    "cavity_dragging_over_varpi": 0.0025149597740750096,
+    "angular_momentum_over_varpi": 5.185848309043712,
+    "scope": "First-order response about the spherical BVP; no finite-rotation remainder."
+  },
+  "weak_cavity_comparison": {
+    "leading_redshift": 0.0018849555921538756,
+    "leading_dragging": 0.002513274122871834,
+    "dragging_over_redshift": 1.3330496969562775,
+    "redshift_relative_correction": 0.0008836145550006336,
+    "dragging_relative_correction": 0.0006706993032854491,
+    "scope": "Comparison at chi=1e-4, beta=2; not a bound on the asymptotic remainder."
+  },
+  "radial_diagnostic": {
+    "sampled_minimum_frequency_bound": 0.0017823516504886885,
+    "scope": "Sampled sufficient radial criterion; not a continuum stability bound."
+  },
+  "constrained_mass_hessian": {
+    "first_variation": -2.353360176314967e-16,
+    "endpoint_hessian": 0.00010658139463467822,
+    "radial_form": 0.00010658139463468252,
+    "relative_difference": 4.0308640388871456e-14,
+    "scope": "Numerical cross-check of the finite-gravity mass Hessian; proof is in the appendix."
+  },
+  "compatible_radial_data": [
+    {
+      "amplitude": 0.02,
+      "mass": 0.029297239805436567,
+      "mass_increase": 4.583198625410234e-07,
+      "mass_increase_over_amplitude_squared": 0.0011457996563525585,
+      "endpoint_residual": -1.2836953722228372e-15,
+      "outer_collar_mass_error": 1.2871648191747909e-15,
+      "face_tractions": [
+        -2.117582368135751e-22,
+        -2.117582368135751e-22
+      ],
+      "sampled_min_DEC": 1.000707312797773e-06,
+      "scope": "Numerical construction of nonzero radial data with static collars and a solved mass constraint. Smoothness and all-order compatibility are written arguments; this is not an evolution or interval certificate."
+    },
+    {
+      "amplitude": 0.01,
+      "mass": 0.029296896069747506,
+      "mass_increase": 1.1458417347939842e-07,
+      "mass_increase_over_amplitude_squared": 0.0011458417347939842,
+      "endpoint_residual": -8.326672684688674e-17,
+      "outer_collar_mass_error": 8.326672684688674e-17,
+      "face_tractions": [
+        -2.117582368135751e-22,
+        -2.117582368135751e-22
+      ],
+      "sampled_min_DEC": 1.0007073127977732e-06,
+      "scope": "Numerical construction of nonzero radial data with static collars and a solved mass constraint. Smoothness and all-order compatibility are written arguments; this is not an evolution or interval certificate."
+    },
+    {
+      "amplitude": 0.005,
+      "mass": 0.0292968101318815,
+      "mass_increase": 2.8646307471957844e-08,
+      "mass_increase_over_amplitude_squared": 0.0011458522988783137,
+      "endpoint_residual": -3.469446951953614e-18,
+      "outer_collar_mass_error": 3.469446951953614e-18,
+      "face_tractions": [
+        -2.117582368135751e-22,
+        -2.117582368135751e-22
+      ],
+      "sampled_min_DEC": 1.0007073127977732e-06,
+      "scope": "Numerical construction of nonzero radial data with static collars and a solved mass constraint. Smoothness and all-order compatibility are written arguments; this is not an evolution or interval certificate."
+    }
+  ],
+  "centrifugal_collocation": {
+    "scope": "Independent collocation at 28 discrete parameter triples, including the tidal sign reversal; leading coefficients only.",
+    "cases": [
+      {
+        "beta": 1.8,
+        "bulk_ratio": 0.18,
+        "shear_ratio": 0.09,
+        "profile_relative_error": 1.6770955717533606e-12,
+        "moment_relative_error": 4.05046948393344e-12,
+        "clock_scaled_error": 6.422508436787413e-13
+      },
+      {
+        "beta": 1.8,
+        "bulk_ratio": 0.18,
+        "shear_ratio": 0.1,
+        "profile_relative_error": 2.0402403213338814e-12,
+        "moment_relative_error": 4.862335710377187e-12,
+        "clock_scaled_error": 1.0073608371152832e-12
+      },
+      {
+        "beta": 1.8,
+        "bulk_ratio": 0.18,
+        "shear_ratio": 0.11,
+        "profile_relative_error": 2.4028436630398856e-12,
+        "moment_relative_error": 6.070281788999251e-12,
+        "clock_scaled_error": 1.1973647168038651e-12
+      },
+      {
+        "beta": 1.8,
+        "bulk_ratio": 0.2,
+        "shear_ratio": 0.09,
+        "profile_relative_error": 1.6708115961597457e-12,
+        "moment_relative_error": 3.3130005948643143e-12,
+        "clock_scaled_error": 6.077450893565531e-13
+      },
+      {
+        "beta": 1.8,
+        "bulk_ratio": 0.2,
+        "shear_ratio": 0.1,
+        "profile_relative_error": 1.8368947711242632e-12,
+        "moment_relative_error": 4.470105385795409e-12,
+        "clock_scaled_error": 1.078496534825036e-12
+      },
+      {
+        "beta": 1.8,
+        "bulk_ratio": 0.2,
+        "shear_ratio": 0.11,
+        "profile_relative_error": 2.1968875825786637e-12,
+        "moment_relative_error": 5.690995629056286e-12,
+        "clock_scaled_error": 1.2826927238581236e-12
+      },
+      {
+        "beta": 1.8,
+        "bulk_ratio": 0.22,
+        "shear_ratio": 0.09,
+        "profile_relative_error": 1.6596680640058119e-12,
+        "moment_relative_error": 3.011492574207316e-12,
+        "clock_scaled_error": 6.011493810256204e-13
+      },
+      {
+        "beta": 1.8,
+        "bulk_ratio": 0.22,
+        "shear_ratio": 0.1,
+        "profile_relative_error": 1.665341003417624e-12,
+        "moment_relative_error": 4.352887902782808e-12,
+        "clock_scaled_error": 8.156777596783348e-13
+      },
+      {
+        "beta": 1.8,
+        "bulk_ratio": 0.22,
+        "shear_ratio": 0.11,
+        "profile_relative_error": 1.981663806216261e-12,
+        "moment_relative_error": 5.229230067625405e-12,
+        "clock_scaled_error": 1.3675359250812805e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.18,
+        "shear_ratio": 0.09,
+        "profile_relative_error": 2.8849050084998854e-12,
+        "moment_relative_error": 5.3437370088709174e-12,
+        "clock_scaled_error": 1.2930240980406483e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.18,
+        "shear_ratio": 0.1,
+        "profile_relative_error": 3.3381914734369223e-12,
+        "moment_relative_error": 7.219775181097678e-12,
+        "clock_scaled_error": 1.5886938622305913e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.18,
+        "shear_ratio": 0.11,
+        "profile_relative_error": 3.5739060490261243e-12,
+        "moment_relative_error": 8.085526986581015e-12,
+        "clock_scaled_error": 1.946387120172331e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.2,
+        "shear_ratio": 0.09,
+        "profile_relative_error": 2.696246287755902e-12,
+        "moment_relative_error": 4.905438219442192e-12,
+        "clock_scaled_error": 1.3853384397417602e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.2,
+        "shear_ratio": 0.1,
+        "profile_relative_error": 3.136526212634355e-12,
+        "moment_relative_error": 6.7725959531169665e-12,
+        "clock_scaled_error": 1.6900031641240392e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.2,
+        "shear_ratio": 0.11,
+        "profile_relative_error": 3.4768084276044116e-12,
+        "moment_relative_error": 8.145049552803825e-12,
+        "clock_scaled_error": 2.191695131208906e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.22,
+        "shear_ratio": 0.09,
+        "profile_relative_error": 2.531165254330514e-12,
+        "moment_relative_error": 4.869661380227986e-12,
+        "clock_scaled_error": 1.0382487613906264e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.22,
+        "shear_ratio": 0.1,
+        "profile_relative_error": 2.949305108093554e-12,
+        "moment_relative_error": 6.307320260340409e-12,
+        "clock_scaled_error": 1.8029793411805275e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.22,
+        "shear_ratio": 0.11,
+        "profile_relative_error": 3.2740009775715387e-12,
+        "moment_relative_error": 7.913381444399963e-12,
+        "clock_scaled_error": 2.1174613998614e-12
+      },
+      {
+        "beta": 2.2,
+        "bulk_ratio": 0.18,
+        "shear_ratio": 0.09,
+        "profile_relative_error": 3.74542132540703e-12,
+        "moment_relative_error": 5.932773564959041e-12,
+        "clock_scaled_error": 1.5862923010041605e-12
+      },
+      {
+        "beta": 2.2,
+        "bulk_ratio": 0.18,
+        "shear_ratio": 0.1,
+        "profile_relative_error": 4.007958774415617e-12,
+        "moment_relative_error": 7.294354907003121e-12,
+        "clock_scaled_error": 1.8599736796714115e-12
+      },
+      {
+        "beta": 2.2,
+        "bulk_ratio": 0.18,
+        "shear_ratio": 0.11,
+        "profile_relative_error": 4.298624291327118e-12,
+        "moment_relative_error": 8.531085922480517e-12,
+        "clock_scaled_error": 2.078369168367628e-12
+      },
+      {
+        "beta": 2.2,
+        "bulk_ratio": 0.2,
+        "shear_ratio": 0.09,
+        "profile_relative_error": 3.697672512899473e-12,
+        "moment_relative_error": 5.7595646743040136e-12,
+        "clock_scaled_error": 1.783105820821855e-12
+      },
+      {
+        "beta": 2.2,
+        "bulk_ratio": 0.2,
+        "shear_ratio": 0.1,
+        "profile_relative_error": 3.956071616350638e-12,
+        "moment_relative_error": 7.196163442993874e-12,
+        "clock_scaled_error": 2.0884699048934626e-12
+      },
+      {
+        "beta": 2.2,
+        "bulk_ratio": 0.2,
+        "shear_ratio": 0.11,
+        "profile_relative_error": 4.222398007327577e-12,
+        "moment_relative_error": 8.734835862119275e-12,
+        "clock_scaled_error": 2.3234025123225013e-12
+      },
+      {
+        "beta": 2.2,
+        "bulk_ratio": 0.22,
+        "shear_ratio": 0.09,
+        "profile_relative_error": 3.5818420211330615e-12,
+        "moment_relative_error": 5.281490935518418e-12,
+        "clock_scaled_error": 1.9518550976837066e-12
+      },
+      {
+        "beta": 2.2,
+        "bulk_ratio": 0.22,
+        "shear_ratio": 0.1,
+        "profile_relative_error": 3.837915608313347e-12,
+        "moment_relative_error": 7.025856072392661e-12,
+        "clock_scaled_error": 2.246470719727302e-12
+      },
+      {
+        "beta": 2.2,
+        "bulk_ratio": 0.22,
+        "shear_ratio": 0.11,
+        "profile_relative_error": 4.163167261072819e-12,
+        "moment_relative_error": 8.646672164227431e-12,
+        "clock_scaled_error": 2.6030243962420725e-12
+      },
+      {
+        "beta": 2.0,
+        "bulk_ratio": 0.4,
+        "shear_ratio": 0.4,
+        "profile_relative_error": 9.085591669836319e-12,
+        "moment_relative_error": 5.868325526769847e-11,
+        "clock_scaled_error": 8.695064046426181e-12
+      }
+    ]
+  }
+}

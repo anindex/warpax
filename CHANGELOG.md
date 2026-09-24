@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.5.1] - 2026-09-24
+
+- Added example 11 for the revised Einstein–elastic shell: two free vacuum
+  faces, static support and redshift, linear frame dragging, and leading
+  centrifugal tides and clock shifts for two material responses.
+- Moved the shell profiles, response coefficients, numerical comparisons,
+  and data definitions into `results/elastic_shell/`. The example runs without
+  the manuscript checkout; the paper's figures use the same data.
+- Updated the shell reproduction guide and separated these calculations
+  from the legacy S-/T-shell prescriptions.
+- Corrected Alcubierre and Rodal central profile derivatives, observer-threshold diagnostics and
+  visualization labels; removed the artificial centre mask.
+- Removed obsolete shell experiments, duplicate render entry points and
+  redundant tests. Updated citations and numerical interpretation.
+
 ## [1.5.0] - 2026-09-12
 
 - Corrected the Natário laboratory shift and Fuchs covariant metric, with smooth
@@ -40,8 +55,16 @@ sweeps, and the Garattini–Zatrimaylov metric.
 First stable release: autodiff curvature, Hawking–Ellis classification, observer
 optimization, source-first shells, external metric loaders, and metric design.
 
-[Pre-1.0 history](docs/explanation/release_notes.md).
+## Pre-1.0 history
 
+| Version | Changes |
+|---|---|
+| 0.4 | Bernstein S-/T-shell profiles, constraint-derived potentials, compactness/thickness sweeps, separate analytical and smoothed Fuchs constructions, Lentz axis handling. |
+| 0.3 | ADM split, source-consistency and TOV residuals, two-sided Israel junctions, ADM surface integrals, geodesic transport diagnostics. |
+| 0.2 | Generalized eigenvalue fallback, bounded observer optimization, metric-design API, averaged-energy and quantum-inequality diagnostics, external metric readers. |
+| 0.1 | Autodiff curvature, six warp metrics, classification and observer optimization, Diffrax geodesics. Accompanied [arXiv:2602.18023](https://arxiv.org/abs/2602.18023). |
+
+[1.5.1]: https://github.com/anindex/warpax/releases/tag/v1.5.1
 [1.5.0]: https://github.com/anindex/warpax/releases/tag/v1.5.0
 [1.4.0]: https://github.com/anindex/warpax/releases/tag/v1.4.0
 [1.3.0]: https://github.com/anindex/warpax/releases/tag/v1.3.0

@@ -12,6 +12,12 @@ their jaxtyping shapes, such as `Float[Array, "4 4"]`.
 
 ## warpax.metrics
 
+The S-/T-shell docstrings retain historical labels such as "source-first" and
+"constraint-derived". Their implemented prescriptions have boundary-matching
+and momentum-equation defects, described in the
+[shell guide](../how-to/reproduce_warpshell_paper.md). These constructors do not
+implement the separate Einstein–elastic revision.
+
 ::: warpax.metrics
     options:
       show_root_heading: false

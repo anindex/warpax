@@ -14,8 +14,8 @@ Parameters are `v_s`, radius `R`, wall sharpness `sigma`, and center `x_s`.
 ## `RodalMetric`
 
 Rodal's ideal irrotational construction admits a zero-momentum Type-I reduction.
-The implemented radial regularization must be included when bounding its
-normalized null deficit; it is not identically the ideal eigenvalue slack.
+An even series near the origin keeps Cartesian derivatives finite. Numerical
+roundoff and series error still matter when enclosing normalized null deficits.
 
 ::: warpax.metrics.RodalMetric
 
@@ -28,7 +28,7 @@ boundary makes it a numerical stress test; results depend on the regularization.
 
 ## `LentzMetric`
 
-A shift-only positive-energy candidate. Its thin wall needs dedicated resolution;
+A shift-only profile based on the Lentz proposal. Its thin wall needs dedicated resolution;
 coarse-grid fractions do not establish continuum energy-condition satisfaction.
 
 ::: warpax.metrics.LentzMetric
@@ -65,16 +65,21 @@ spline, and $C^2$ joins are the implementation's regularization. The private
 
 ## `SShellMetric`
 
-Source-first, shift-free shell with matter flow normal to the slice. Metric
-potentials follow from the Hamiltonian constraint and TOV equilibrium.
+Legacy shift-free shell generated from a prescribed density and an inward TOV
+integration. Its nonnegative isotropic pressure cannot match a regular empty
+inner cavity without surface stress. It is a metric diagnostic, not the
+Einstein–elastic equilibrium of the elastic-shell paper. See the
+[shell guide](../how-to/reproduce_warpshell_paper.md).
 
 ::: warpax.metrics.SShellMetric
 
 ## `TShellMetric`
 
-Source-first shell with tilted matter and nonzero Eulerian momentum density.
-The momentum constraint determines the shift profile. Constraint residuals and
-full metric-versus-source stress residuals are separate diagnostics.
+Legacy tilted-source prescription. Its scalar radial shift reduction does not
+solve the full Cartesian-vector momentum constraint; the spatial Einstein
+equations and constitutive stress also require separate agreement. A Type-IV
+metric-derived stress cannot represent its prescribed perfect fluid. See the
+[shell guide](../how-to/reproduce_warpshell_paper.md).
 
 ::: warpax.metrics.TShellMetric
 
@@ -99,7 +104,7 @@ $g_{ab}=\mathrm{diag}(-1,1,1,1)$; all curvature vanishes.
 
 ## `SchwarzschildMetric`
 
-Schwarzschild exterior in standard coordinates, parameterized by mass `M`.
+Schwarzschild exterior in isotropic Cartesian coordinates, parameterized by mass `M`.
 Ricci curvature vanishes while Riemann curvature remains nonzero.
 
 ::: warpax.benchmarks.SchwarzschildMetric

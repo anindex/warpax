@@ -4,60 +4,55 @@ Run scripts from the repository root. See the
 [paper reproduction guide](../docs/how-to/reproduce_observer_robust_paper.md)
 for stage order and scientific limits.
 
-## Start here
-
-The public API provides cap-free pointwise energy-condition tests:
-
-```python
-from warpax import certify
-from warpax.metrics import RodalMetric
-r = certify(RodalMetric(v_s=2.0, R=1.0, sigma=8.0))
-```
-
-`results/` is local. Table paths refer to the sibling `warpax_arxiv/tables/`;
+Scripts write to `results/`. Table paths refer to the sibling `warpax_arxiv/tables/`;
 figures are generated locally or in that manuscript tree, depending on the script.
-
-| Script | Produces | Paper artifact |
-|--------|----------|----------------|
-| `run_velocity_sweep.py` | `tables/velocity_type_structure.tex`, `figures/velocity_type_structure.pdf`, `figures/rodal_invariant_margins.pdf` | Type/EC structure across the luminal transition |
-| `run_invariant_verification.py` | `tables/invariant_benchmark.tex` | Invariant all-observer verification (single-frame miss, E_-) |
-| `validate_superluminal_classification.py` | `results/superluminal_gate*` | Type-IV trustworthiness check (3-solver + 50-digit) |
-| `run_matched_benchmark.py` | `tables/missed_wall_restricted.tex`, `tables/convergence_per_metric.tex` | Matched wall-resolved benchmark + per-metric convergence |
-| `run_shift_vorticity.py` | `tables/shift_vorticity.tex`, `figures/shift_vorticity.pdf`, `results/shift_vorticity.json` | Shift-vorticity decomposition and sampled type association; reads `velocity_sweep.json` |
-
-For cross-metric refinement, start with `run_matched_benchmark.py` and
-`run_velocity_sweep.py`; the other scripts below cover specific diagnostics.
+The reproduction guide owns the [generated table and figure mappings](../docs/how-to/reproduce_observer_robust_paper.md#generated-table-catalog).
 
 ## Pipeline (`reproduce_all.sh`)
 
 ### Core computation
 
-| Script | Output |
-|--------|--------|
-| `run_anec_retained.py` | `results/anec/retained.json` (finite coordinate-path null-energy integrals) |
-| `run_anec_symplectic.py` | `results/anec/retained_symplectic.json`, `tables/anec_symplectic.tex` (finite geodesic integrals, selected-ray step refinement and null-norm drift) |
-| `run_quantum_inequality.py` | `results/quantum/ford_roman.json`, `tables/averaged_quantum.tex`, `figures/averaged_quantum.pdf` (Ford-Roman quantum-inequality diagnostic, reads `run_anec_retained.py`) |
-| `run_construction_verification.py` | `results/construction_verification.json`, `tables/construction_matched.tex`, `tables/construction_native.tex` (cross-construction all-observer verification; under-resolved walls carry cell counts only) |
-| `run_rodal_sigma_resolved.py` | `results/rodal_sigma_resolved.json`, `tables/rodal_sigma_resolved.tex` (wall-resolved Rodal sigma sweep on the exact axisymmetric reduction) |
-| `run_enclosures.py` | `results/enclosures.json`, `tables/enclosures.tex` (certified global interval enclosures of the wall null deficit; hours, opt-in stage) |
-| `run_classifier_error_rate.py` | `results/classifier_error_rate.json` (Jordan displacement exponents and LMI/classifier comparison) |
-| `run_exoticity_ranking.py` | `results/exoticity_ranking.json`, `tables/exoticity_ranking.tex`, `tables/scaling_laws.tex` (specified-slice composite and empirical speed fits; reads velocity and finite-ray data) |
-| `derive_vorticity_type.py` | `results/vorticity_type_analytic.json` (restricted vorticity model and empirical cross-metric comparisons) |
-| `run_curvature_scaling.py` | `results/curvature_scaling.json`, `tables/curvature_scaling.tex`, `figures/curvature_scaling.pdf` (empirical speed fits of wall curvature invariants) |
-| `run_ssv_bound.py` | `results/ssv_bound.json`, `tables/ssv_bound.tex` (pointwise wall deficits and speed fits; reads `run_velocity_sweep.py`) |
-| `run_analysis.py` | `results/comparison_table.json` |
-| `run_convergence.py` | `results/convergence_data.json` |
-| `run_kinematic_scalars.py` | kinematic scalar NPZ/JSON under `results/` |
-| `run_geodesics.py` | `results/geodesic_scaling.json` |
-| `run_clustered_convergence.py` | `results/clustered_convergence_*.json` |
-| `run_diagnostic_convergence.py` | `tables/diagnostic_convergence.tex`, `results/diagnostic_convergence.json` (N=80/100/120 sampled fractions, miss-rate spreads, and polished extrema) |
-| `run_curvature_convergence.py` | `tables/curvature_convergence.tex`, `results/curvature_convergence.json` (N=80/100/120 stability of fitted curvature exponents) |
+The rows follow `run_core` in [reproduce_all.sh](../reproduce_all.sh).
+Labels match its console output.
+
+| Stage | Script | Output and purpose |
+|---|---|---|
+| K1 | `run_velocity_sweep.py` | `results/velocity_sweep.json`, `tables/velocity_type_structure.tex`, three velocity-summary/type/margin PDFs (type and energy-condition structure across the luminal transition) |
+| K2 | `run_invariant_verification.py` | `results/invariant_verification.json`, `tables/invariant_benchmark.tex` (all-observer verification, single-frame miss, and E_-) |
+| K3 | `validate_superluminal_classification.py` | `results/superluminal_gate*` (Type-IV comparison using three solvers and 50-digit arithmetic) |
+| K4 | `run_matched_benchmark.py` | `tables/missed_wall_restricted.tex`, `tables/convergence_per_metric.tex` (matched wall-resolved benchmark and per-metric convergence) |
+| K5 | `run_shift_vorticity.py` | `tables/shift_vorticity.tex`, `figures/shift_vorticity.pdf`, `results/shift_vorticity.json` (shift-vorticity decomposition and sampled type association; reads `velocity_sweep.json`) |
+| K6 | `run_anec_retained.py` | `results/anec/retained.json` (finite coordinate-path null-energy integrals) |
+| K6b | `run_anec_symplectic.py` | `results/anec/retained_symplectic.json`, `tables/anec_symplectic.tex` (finite geodesic integrals, selected-ray step refinement and null-norm drift) |
+| K7 | `run_quantum_inequality.py` | `results/quantum/ford_roman.json`, `tables/averaged_quantum.tex`, `figures/averaged_quantum.pdf` (Ford-Roman quantum-inequality diagnostic, reads `run_anec_retained.py`) |
+| K8 | `run_construction_verification.py` | `results/construction_verification.json`, `tables/construction_matched.tex`, `tables/construction_native.tex` (cross-construction all-observer verification; under-resolved walls carry cell counts only) |
+| K9 | `run_exoticity_ranking.py` | `results/exoticity_ranking.json`, `tables/exoticity_ranking.tex`, `tables/scaling_laws.tex` (specified-slice composite and empirical speed fits; reads velocity and finite-ray data) |
+| K10 | `derive_vorticity_type.py` | `results/vorticity_type_analytic.json` (restricted vorticity model and empirical cross-metric comparisons) |
+| K11 | `run_curvature_scaling.py` | `results/curvature_scaling.json`, `tables/curvature_scaling.tex`, `figures/curvature_scaling.pdf` (empirical speed fits of wall curvature invariants) |
+| K12 | `run_ssv_bound.py` | `results/ssv_bound.json`, `tables/ssv_bound.tex` (pointwise wall deficits and speed fits; reads `run_velocity_sweep.py`) |
+| K13 | `run_delta_crosscheck.py` | `results/delta_crosscheck.json` (algebraic `Delta < 0` label vs the eigensolver Type-IV label) |
+| K14 | `run_integrated_negative_energy.py` | `results/integrated_negative_energy.json`, `tables/integrated_volume.tex` (specified-slice negative-energy volume) |
+| K15 | `run_rodal_sigma_resolved.py` | `results/rodal_sigma_resolved.json`, `tables/rodal_sigma_resolved.tex` (wall-resolved Rodal sigma sweep on the exact axisymmetric reduction) |
+| K16 | `run_classifier_error_rate.py` | `results/classifier_error_rate.json` (Jordan displacement exponents and LMI/classifier comparison) |
+| K16b | `run_type_transitions.py` | `results/type_transitions.json`, `tables/type_transition.tex` (analytic families across the Type-II locus) |
+| K16c | `run_lmi_agreement.py` | `results/lmi_agreement.json`, `tables/lmi_typefree.tex` (type-free LMI versus type-based decisions) |
+| K16d | `run_closing_speed.py` | `results/closing_speed.json`, `tables/closing_speed.tex` (momentum-channel closing speed; reads `velocity_sweep.json`) |
+| K16e | `run_interval_lmi_spotcheck.py` | `results/interval_lmi_spotcheck.json`, `tables/interval_lmi_spotcheck.tex` (12 point verdicts enclosed from the metric) |
+| K16f | `run_interval_lmi_census.py` | `results/interval_lmi_census.json`, `tables/interval_lmi_census.tex` (all four conditions on sampled wall points) |
+| K17 | `emit_paper_numbers.py` | `../warpax_arxiv/paper_numbers.tex` (macros from cached results) |
+| 1/8 | `run_analysis.py` | `results/comparison_table.json` |
+| 2/8 | `run_convergence.py` | `results/convergence_data.json` |
+| 3/8 | `run_kinematic_scalars.py` | kinematic scalar NPZ/JSON under `results/` |
+| 4/8 | `run_geodesics.py` | `results/geodesic_scaling.json` |
+| 5/8 | `run_clustered_convergence.py` | `results/clustered_convergence_*.json` |
+| 6/8 | `run_diagnostic_convergence.py` | `tables/diagnostic_convergence.tex`, `results/diagnostic_convergence.json` (N=80/100/120 sampled fractions, miss-rate spreads, and polished extrema) |
+| 7/8 | `run_exoticity_anec_convergence.py` | `tables/extra_convergence.tex` (composite and selected finite-integral convergence) |
+| 8/8 | `run_curvature_convergence.py` | `tables/curvature_convergence.tex`, `results/curvature_convergence.json` (N=80/100/120 stability of fitted curvature exponents) |
 
 ### Ablations
 
 | Script | Output |
 |--------|--------|
-| `run_c1_vs_c2_comparison.py` | `results/c1_vs_c2_comparison.json` |
 | `run_nstarts_ablation.py` | `results/nstarts_ablation.json` |
 | `run_zeta_sensitivity.py` | zeta sensitivity JSON under `results/` |
 | `rodal_dec_ablation.py` | Rodal DEC ablation under `results/` |
@@ -65,7 +60,6 @@ For cross-metric refinement, start with `run_matched_benchmark.py` and
 | `run_wall_resolution.py` | `results/wall_resolution.json` |
 | `run_sampling_comparison.py` | `results/sampling_comparison.json` |
 | `run_smoothwidth_ablation.py` | `results/smoothwidth_ablation.json` |
-| `run_worst_observer_alignment.py` | alignment JSON under `results/` |
 | `run_missed_detection_comparison.py` | `results/missed_detection_comparison.json` |
 | `run_superluminal_investigation.py` | `results/superluminal_characterization.json` |
 | `run_rodal_matched_resolution.py` | `results/rodal_matched_resolution.json` |
@@ -79,26 +73,22 @@ For cross-metric refinement, start with `run_matched_benchmark.py` and
 |--------|--------|
 | `reproduce_figures.py` | `figures/*.pdf` |
 | `generate_vdb_comparison_figures.py` | Van den Broeck comparison figures |
-| `emit_diagnostic_tables.py` | `tables/{missed_uniform,nstarts,convergence_richardson}.tex` from cached `results/*.json` |
+| `emit_diagnostic_tables.py` | Diagnostic tables from cached `results/*.json`; see the reproduction guide for filenames |
+| `write_manifest.py` | `results/MANIFEST.txt` (cached-grid SHA-256 hashes and sizes) |
 
-## Other analyses and companion calculations
+### Optional stages
 
-See the [companion guide](../docs/how-to/reproduce_warpshell_paper.md) for
-shell results and current calculation commands.
+| Stage | Script | Output and purpose |
+|---|---|---|
+| `enclosures` (E1) | `run_enclosures.py` | `results/enclosures.json`, `tables/enclosures.tex` (global wall-null-deficit brackets; can take hours) |
+| `gate` | `check_paper_numbers.py` | Manuscript number and source checks; requires matching manuscript inputs |
 
-| Script | Output |
-|--------|--------|
-| `verify_fuchs.py` | `results/fuchs_verification_report.json` |
-| `verify_proposals.py` | `results/proposals_verification_report.json` |
-| `run_sshell_sweep.py` | S-shell sweep under `results/` |
-| `run_integrated_negative_energy.py` | `tables/integrated_volume.tex` (slice-integrated negative-energy volume vs `v_s`) |
-| `run_delta_crosscheck.py` | `results/delta_crosscheck.json` (algebraic `Delta < 0` label vs the eigensolver Type-IV label) |
-| `run_exoticity_anec_convergence.py` | `tables/extra_convergence.tex` (composite and selected finite-integral convergence) |
-| `run_error_budget.py` | `results/error_budget.json` (sign robustness of the T-shell boundary DEC deficit across resolution, velocity and source-profile family) |
-| `run_criterion_e_verification.py` | Criterion E (global) verification |
-| `run_tshell_convergence.py` | T-shell convergence study |
-| `run_tshell_kterm_angular.py` | T-shell angular k-term |
-| `run_v0_ablation.py` | T-shell matter-tilt ablation |
+## Elastic shells
+
+[Example 11](../examples/11_elastic_shell.py) reproduces the elastic-shell
+numerics. The [shell guide](../docs/how-to/reproduce_warpshell_paper.md)
+gives the commands and the [data definitions](../results/elastic_shell/README.md)
+specify units and approximation limits.
 
 The cross-metric comparison covers Alcubierre, Natario, Van den Broeck, and Rodal.
 WarpShell and Lentz remain implemented as metrics but are not part of the paper's
@@ -108,9 +98,7 @@ matched quantitative comparison (their thin walls are not resolved at common par
 
 | Script | Notes |
 |--------|-------|
-| `render_all_scenes.py` | Manim scene batch (see README) |
-| `render_manim_scenes.sh` | Shell wrapper for Manim |
-| `generate_showcase.py` | Delegates to render pipeline |
+| `render_all_scenes.py` | Manim scene batch; see the [animation instructions](../docs/tutorials/examples_tour.md#animations) |
 
 ## Shared helpers
 
