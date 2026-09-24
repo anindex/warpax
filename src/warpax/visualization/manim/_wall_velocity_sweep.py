@@ -131,8 +131,8 @@ class WallAndVelocitySweep(ThreeDScene):
         # Alcubierre (rho_Eul and the NEC margin), so use one-sided depth scales
         # (deepest -> 0): a diverging +/- scale would imply a positive half the
         # data never reaches.
-        # The grid samples the bubble centre, where the regularity floor returns
-        # ~-7e12; a raw min would set the whole scale from that one artefact.
+        # Percentile limits keep weak wall structure visible; values outside
+        # the displayed range saturate the colormap.
         ed_clim = (compute_global_clim(all_frames, "energy_density", percentile=1.0)[0], 0.0)
         nec_clim = (
             compute_global_clim(all_frames, "nec_margin_sweep", percentile=1.0)[0],
@@ -143,7 +143,7 @@ class WallAndVelocitySweep(ThreeDScene):
         # steepest wall a single flat colour.
         nec_linthresh = auto_linthresh(abs(nec_clim[0]))
 
-        # Auto-exaggeration for embedding
+        # Vertical scale for the scalar surface.
         exag = compute_auto_exaggeration(all_frames, "energy_density", linthresh=ed_linthresh)
 
         # z_extent for heatmap positioning

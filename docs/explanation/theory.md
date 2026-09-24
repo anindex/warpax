@@ -3,6 +3,27 @@
 warpax uses signature $(-+++)$ and geometric units $G=c=1$.
 The [paper](https://arxiv.org/abs/2602.18023) develops the mathematical tests.
 
+## Tensor conventions and units
+
+Coordinates are ordered `(t,x,y,z)`. Tensor indices occupy the trailing array
+axes; spatial grid axes come first. `CurvatureResult` stores
+`metric[a,b]` as $g_{ab}$, `christoffel[a,b,c]` as $\Gamma^a{}_{bc}$,
+`riemann[a,b,c,d]` as $R^a{}_{bcd}$, and covariant Ricci, Einstein and stress
+tensors. The curvature convention is
+
+$$
+R^a{}_{bcd}=\partial_c\Gamma^a{}_{bd}-\partial_d\Gamma^a{}_{bc}
++\Gamma^a{}_{ec}\Gamma^e{}_{bd}-\Gamma^a{}_{ed}\Gamma^e{}_{bc},
+\qquad R_{bd}=R^a{}_{bad}.
+$$
+
+Choose a physical length unit $L_0$. Numerical lengths, times and geometrized
+masses convert by $L_0$, $L_0/c$ and $c^2L_0/G_N$, respectively.
+Multiply orthonormal stress components by $c^4/(G_NL_0^2)$ to obtain energy
+density or pressure. Ricci scalar and Kretschmann scalar convert by $L_0^{-2}$
+and $L_0^{-4}$. Coordinate components can carry additional units when the
+coordinates include dimensionless angles.
+
 ## ADM decomposition and curvature
 
 An `ADMMetric` supplies lapse $\alpha$, shift $\beta^i$, and a positive-definite

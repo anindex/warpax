@@ -2,18 +2,10 @@
 
 ## [1.5.1] - 2026-09-24
 
-- Added example 11 for the revised Einstein–elastic shell: two free vacuum
-  faces, static support and redshift, linear frame dragging, and leading
-  centrifugal tides and clock shifts for two material responses.
-- Moved the shell profiles, response coefficients, numerical comparisons,
-  and data definitions into `results/elastic_shell/`. The example runs without
-  the manuscript checkout; the paper's figures use the same data.
-- Updated the shell reproduction guide and separated these calculations
-  from the legacy S-/T-shell prescriptions.
-- Corrected Alcubierre and Rodal central profile derivatives, observer-threshold diagnostics and
-  visualization labels; removed the artificial centre mask.
-- Removed obsolete shell experiments, duplicate render entry points and
-  redundant tests. Updated citations and numerical interpretation.
+- Corrected Alcubierre and Rodal curvature near the bubble centre and
+  weak-energy-condition boost thresholds.
+- Added elastic-shell equilibrium, redshift, frame dragging, and leading
+  centrifugal tides and central clock shifts.
 
 ## [1.5.0] - 2026-09-12
 

@@ -7,8 +7,8 @@ geodesic diagnostics.
 
 ## Start here
 
-- [Quickstart](tutorials/quickstart.md)
-- [First curvature computation](tutorials/first_curvature_computation.md)
+- [First curvature computation](tutorials/first_curvature_computation.md): flat space and Schwarzschild vacuum
+- [Quickstart](tutorials/quickstart.md): energy conditions at a warp-wall point
 - [Examples tour](tutorials/examples_tour.md)
 
 ## How-to guides

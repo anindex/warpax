@@ -13,8 +13,10 @@ See the [changelog](CHANGELOG.md) for version **1.5.1**.
 
 ![Alcubierre bubble: Eulerian energy density and normalized null-energy margin](https://raw.githubusercontent.com/anindex/warpax/main/figures/wall_velocity_sweep.gif)
 
-*Alcubierre wall and speed sweep. Height and color use a signed logarithmic
-scale; each frame is a separate metric evaluation.*
+*Alcubierre wall and speed sweep. Wireframe height shows Eulerian energy density;
+the lower plane shows the smallest normalized null contraction among 312 sampled
+directions. Both use signed logarithmic scales. Each frame is a separate
+constant-speed metric, and the height is a scalar plot, not a spatial embedding.*
 
 ## Install and run
 
@@ -37,6 +39,12 @@ print(result.invariant_nec_min)  # Minimum over sampled wall Type-I points.
 The grid is a quick demonstration. Resolve the wall and vary the grid before
 interpreting extrema or type fractions. Geometric units are `G = c = 1`, with
 metric signature `(-,+,+,+)` and float64 enabled at import.
+
+For a general GR starting point, the [curvature tutorial](docs/tutorials/first_curvature_computation.md)
+checks Minkowski space and Schwarzschild vacuum against analytical results.
+The same curvature pipeline accepts custom metrics. The
+[conventions](docs/explanation/theory.md#tensor-conventions-and-units) specify
+index order, curvature sign and physical units.
 
 For development and the examples:
 
@@ -141,3 +149,11 @@ Quantum Gravity* on September 21, 2026, pending the publisher's final checks.
 Example 11 supplies the elastic-shell numerical calculations. The legacy
 S-/T-shell constructors implement separate prescribed metrics; see the
 [shell guide](docs/how-to/reproduce_warpshell_paper.md) for their limitations.
+
+## Questions and contributions
+
+For a numerical discrepancy, [open an issue](https://github.com/anindex/warpax/issues)
+with the metric and parameters, evaluation point or grid, expected identity,
+tolerances and a minimal runnable example. Contributions of metrics should include
+their coordinate domain, conventions, source reference and an independent
+curvature or stress-energy check.
