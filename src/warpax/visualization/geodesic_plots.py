@@ -41,9 +41,8 @@ def plot_tidal_evolution(
     """Plot tidal eigenvalue evolution along a geodesic trajectory.
 
     Renders the 3 spatial tidal eigenvalues as a function of proper time (or
-    coordinate time). A vertical dashed line is placed at the approximate
-    bubble wall crossing, detected as the proper time of peak total tidal
-    magnitude.
+    coordinate time). A vertical dashed line marks the peak total tidal
+    magnitude; its location need not coincide with a bubble wall.
 
     Parameters
     ----------
@@ -102,14 +101,16 @@ def plot_tidal_evolution(
                 linewidth=1.2,
             )
 
-    # Detect bubble wall crossing: peak of total tidal magnitude
+    # Mark the peak of total tidal magnitude.
     if eigs.ndim == 2:
         total_tidal = np.sum(np.abs(eigs), axis=1)
     else:
         total_tidal = np.abs(eigs)
     peak_idx = np.argmax(total_tidal)
     if total_tidal[peak_idx] > 1e-10:  # Only mark if there is a real signal
-        ax.axvline(tau[peak_idx], color="gray", linestyle="--", alpha=0.7, label="Bubble wall")
+        ax.axvline(
+            tau[peak_idx], color="gray", linestyle="--", alpha=0.7, label="Peak tidal magnitude"
+        )
 
     ax.set_xlabel(r"Proper time $\tau$")
     ax.set_ylabel("Tidal eigenvalue")

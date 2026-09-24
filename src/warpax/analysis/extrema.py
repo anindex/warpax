@@ -1,25 +1,10 @@
-"""Continuous extremum polishing via nested local grid refinement.
+"""Local extremum search by repeated grid refinement.
 
-The stress-energy tensor here is autodiff-exact pointwise (``jax.jacfwd``), so a
-grid-sampled extremum (the minimum NEC/DEC margin, or the maximum Type-IV
-imaginary eigenvalue ``max|Im lambda|``) is only a *sampling* estimate. It
-undershoots the true continuous extremum of a smooth field by an
-``O(Delta x^2)`` grid-alignment gap that does NOT admit a clean Richardson order
-(the gap oscillates with grid alignment; aliasing). Richardson-extrapolating a
-grid-sampled min/max is therefore unsound.
-
-This module removes the gap instead of extrapolating it. Starting from the
-coarse-grid ``argmin``/``argmax`` seed, it evaluates the exact tensor on a small
-local grid, recentres on the local extremum, shrinks the window, and repeats.
-Because every evaluation is exact, the limit is the continuum extremum of the
-seeded basin to the requested tolerance, a value independent of the ladder
-resolution, and (when the caller seeds from the most extreme sample and clamps to
-it) guaranteed at least as extreme as every grid sample. It is a high-accuracy
-local refinement, not a global-optimality proof; grid spacing enters only as a
-search control, never as a discretization error.
-
-The field extractor is caller-supplied (e.g. wrapping
-``certify_grid_frame_free``) so this stays generic over the diagnostic.
+Starting from a supplied seed, evaluate the field on a local grid, recenter
+on its sampled extremum and shrink the window. The result is the best value
+found in this search. Neither a small change between levels nor automatic
+differentiation bounds floating-point error, missed extrema or the global
+continuum optimum. The caller supplies the field and any domain mask.
 """
 
 from __future__ import annotations
@@ -59,12 +44,12 @@ def refine_extremum(
     t: float = 0.0,
     compute_invariants: bool = False,
 ) -> dict:
-    """Polish a grid-seeded spatial extremum to its exact continuous value.
+    """Refine a grid-seeded spatial extremum numerically.
 
     Parameters
     ----------
     metric : MetricSpecification
-        The warp-drive metric (its curvature chain is autodiff-exact).
+        The warp-drive metric (its curvature chain is autodifferentiated).
     seed_xyz : (3,) array-like
         Coarse-grid ``argmin``/``argmax`` location (the basin seed).
     field_fn : callable
@@ -91,7 +76,7 @@ def refine_extremum(
     Returns
     -------
     dict
-        ``value`` (exact extremum), ``coord`` ((3,) location), ``levels_used``,
+        ``value`` (best sampled value), ``coord`` ((3,) location), ``levels_used``,
         ``last_delta`` (final value change), and ``history``.
     """
     if mode not in ("min", "max"):

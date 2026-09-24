@@ -11,6 +11,68 @@ from warpax.metrics.natario import NatarioMetric, _natario_dn_dr, _natario_n
 from warpax.metrics.rodal import RodalMetric
 
 
+def test_shared_shape_cartesian_center_and_join():
+    """The even profile has an isotropic Hessian and no artificial central source."""
+    from warpax.benchmarks import AlcubierreMetric
+    from warpax.geometry import compute_curvature_chain
+    from warpax.metrics._common import alcubierre_shape
+
+    for sigma in (1.0, 8.0):
+        profile = lambda x: alcubierre_shape(jnp.sqrt(x @ x + 1e-60), 1.0, sigma)
+        expected = -2 * sigma**2 / np.cosh(sigma) ** 2
+        np.testing.assert_allclose(
+            jax.hessian(profile)(jnp.zeros(3)), expected * np.eye(3), rtol=1e-12, atol=1e-15
+        )
+        # Both exact forms must agree in value and derivatives at their join.
+        outer = lambda r: (
+            (jnp.tanh(sigma * (r + 1)) - jnp.tanh(sigma * (r - 1))) / (2 * jnp.tanh(sigma))
+        )
+        actual = lambda r: alcubierre_shape(r, 1.0, sigma)
+        for _ in range(3):
+            for r in (0.499 / sigma, 0.501 / sigma):
+                np.testing.assert_allclose(actual(r), outer(r), rtol=1e-8, atol=1e-14)
+            actual, outer = jax.grad(actual), jax.grad(outer)
+    metric = AlcubierreMetric()
+    center = compute_curvature_chain(metric, jnp.zeros(4)).stress_energy
+    nearby = compute_curvature_chain(metric, jnp.array([0.0, 1e-6, 0.0, 0.0])).stress_energy
+    np.testing.assert_allclose(center, nearby, rtol=1e-8, atol=1e-14)
+
+
+def test_rodal_origin_derivatives_and_irrotationality():
+    """Check derivatives, not only finiteness, at the removable origin and join."""
+    import mpmath as mp
+
+    from warpax.metrics.rodal import _rodal_G
+
+    R, sigma, v = 2.0, 1.5, 0.5
+    metric = RodalMetric(R=R, sigma=sigma, v_s=v)
+    h = -(sigma**2) / (3 * np.cosh(sigma * R) ** 2)
+    expected = np.zeros((3, 3, 3))
+    for a in range(3):
+        for i in range(3):
+            for j in range(3):
+                expected[a, i, j] = (
+                    -2 * v * h * ((a == 0) * (i == j) + (i == 0) * (a == j) + (j == 0) * (a == i))
+                )
+    actual = jax.jacfwd(jax.jacfwd(metric.shift))(jnp.zeros(4))[:, 1:, 1:]
+    np.testing.assert_allclose(actual, expected, rtol=1e-13, atol=1e-16)
+    with mp.workdps(60):
+        exact = lambda r: (
+            (mp.log(mp.cosh(sigma * (r + R))) - mp.log(mp.cosh(sigma * (r - R))))
+            / (2 * sigma * r * mp.tanh(sigma * R))
+        )
+        numerical = lambda r: _rodal_G(r, R, sigma)
+        for order in range(3):
+            for r in (1e-8, 0.0099 / sigma, 0.0101 / sigma):
+                np.testing.assert_allclose(
+                    numerical(r), float(mp.diff(exact, mp.mpf(r), order)), rtol=2e-6, atol=1e-12
+                )
+            numerical = jax.grad(numerical)
+    for r in (0.0, 1e-8, 1e-6, 0.0099 / sigma, 0.0101 / sigma, 2.0):
+        dshift = jax.jacfwd(metric.shift)(jnp.array([0.0, r, r / 2, r / 3]))[:, 1:]
+        np.testing.assert_allclose(dshift, dshift.T, atol=2e-12)
+
+
 def test_rodal_full_symbolic_and_rest_lab_tensor_agreement():
     metric = RodalMetric(v_s=0.6, R=2.0, sigma=1.5)
     symbolic = metric.symbolic()
@@ -38,7 +100,6 @@ def test_rodal_full_symbolic_and_rest_lab_tensor_agreement():
         rest = adm_to_full_metric(jnp.array(1.0), -jnp.asarray(X), jnp.eye(3))
         ideal = evaluate(*point)
         np.testing.assert_allclose(ideal, jacobian.T @ rest @ jacobian, atol=2e-14)
-        # The numerical angular projector has a 1e-12 squared-radius floor.
         np.testing.assert_allclose(metric(jnp.asarray(point)), ideal, rtol=1e-11, atol=1e-12)
         assert abs(ideal[0, 2]) > 1e-3 and abs(ideal[0, 3]) > 1e-3
     tangent = jnp.array([1.0, v, 0.0, 0.0])

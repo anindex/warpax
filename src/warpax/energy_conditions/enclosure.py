@@ -160,15 +160,12 @@ def alcubierre_metric(v_s=0.5, R=1.0, sigma=8.0):
 
 
 def rodal_metric(v_s=0.5, R=1.0, sigma=8.0):
-    """Irrotational Rodal drive, lab-frame standardization (paper Appendix F)."""
+    """Analytic Rodal profile on boxes away from r=0, without a Taylor approximation."""
 
     def fn(t, x, y, z):
         dx = x - v_s * t
         r2 = dx * dx + y * y + z * z
-        # Two floors, matching metrics/rodal.py: the tight one for the profile
-        # values, the coarser one in the direction divisor.
-        r = ad.sqrt(r2 + ad.constant(1e-60))
-        r_div = ad.sqrt(r2 + ad.constant(1e-12))
+        r = ad.sqrt(r2)
         F = _shape(r, R, sigma)
         argument = iv.mpf(R) * iv.mpf(sigma)
         denominator = 2 * iv.mpf(sigma) * _c_sinh(argument)
@@ -176,7 +173,7 @@ def rodal_metric(v_s=0.5, R=1.0, sigma=8.0):
             ad.log(ad.cosh(sigma * (r - R))) - ad.log(ad.cosh(sigma * (r + R)))
         )
         G = 1 - num / (r * ad.constant(denominator))
-        n = [dx / r_div, y / r_div, z / r_div]
+        n = [dx / r, y / r, z / r]
         beta = [-v_s * (G * (1 if i == 0 else 0) + (F - G) * n[0] * n[i]) for i in range(3)]
         return _assemble(beta)
 

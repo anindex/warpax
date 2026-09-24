@@ -1,4 +1,4 @@
-"""NECMargin2D: observer-robust NEC margin heatmap with contour overlays.
+"""NECMargin2D: sampled NEC margin heatmap with contour overlays.
 
 2D z=0 slice of the worst-case null contraction min_k T_ab k^a k^b over a dense
 null sphere, with the null rays normalized to the local Eulerian frame
@@ -83,7 +83,7 @@ def _contour_to_vmobject(
 
 
 class NECMargin2D(Scene):
-    """2D heatmap of observer-robust NEC margins with bubble contour overlay.
+    """2D heatmap of sampled NEC margins with bubble contour overlay.
 
     One-sided violation-depth colormap (margin <= 0), graded NEC-depth contours,
     the f = 0.5 bubble wall, and the null-normalization convention k·n_Eul = −1.
@@ -193,7 +193,7 @@ class NECMargin2D(Scene):
             bubble_contour_paths.append(bc)
 
         title_text = Text(
-            "Observer-Robust NEC Margin",
+            "Sampled NEC margin (312 directions)",
             font_size=28,
             color=WHITE,
             weight="LIGHT",
@@ -205,7 +205,7 @@ class NECMargin2D(Scene):
         # Null-vector normalization makes the depth well-posed (the min over null
         # directions of T_ab k^a k^b is only defined up to k's frequency).
         normalization = MathTex(
-            r"\min_{k}\, T_{ab}\,k^a k^b,\quad k\cdot n_{\rm Eul} = -1",
+            r"\min_{1\leq j\leq312}\, T_{ab}\,k_j^a k_j^b,\quad k_j\cdot n_{\rm Eul} = -1",
             font_size=26,
             color=WHITE,
         )

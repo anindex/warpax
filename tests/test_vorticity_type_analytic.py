@@ -1,10 +1,9 @@
-"""Tests for the vorticity -> Type-IV analytic mechanism (f = kappa * omega)."""
+"""Restricted rotational-family checks and empirical slope diagnostics."""
 
 from __future__ import annotations
 
 import json
 import os
-from itertools import pairwise
 
 import jax.numpy as jnp
 import numpy as np
@@ -15,8 +14,6 @@ from warpax.analysis.shift_kinematics import compute_shift_kinematics
 from warpax.analysis.vorticity_type_analytic import (
     excess_over_pure_rotation,
     fit_kappa,
-    imaginary_part_estimate,
-    typeIV_threshold,
 )
 from warpax.energy_conditions.classification import classify_hawking_ellis
 from warpax.geometry.geometry import compute_curvature_chain
@@ -25,7 +22,7 @@ from warpax.metrics import NatarioMetric
 
 
 class _RotationShift(ADMMetric):
-    """Pure-rotation shift: zero expansion/shear, tunable vorticity."""
+    """Localized rotational shift with zero expansion and nonzero wall shear."""
 
     c: float = 0.1
     w: float = 1.0
@@ -56,12 +53,6 @@ class _RotationShift(ADMMetric):
 
 
 class TestEstimator:
-    def test_estimator_sanity(self):
-        # f = kappa*omega: zero at zero vorticity, monotone in omega
-        vals = [imaginary_part_estimate(w, kappa=0.06) for w in (0.0, 0.1, 0.2, 0.4)]
-        assert vals[0] == 0.0
-        assert all(b > a for a, b in pairwise(vals))
-
     def test_fit_recovers_kappa(self):
         omega = np.array([0.05, 0.1, 0.2, 0.4])
         imag = 0.0597 * omega
@@ -69,13 +60,9 @@ class TestEstimator:
         assert np.isclose(fit["kappa"], 0.0597, rtol=1e-6)
         assert fit["r_squared"] > 0.999999
 
-    def test_threshold_positive(self):
-        assert typeIV_threshold(kappa=0.06) > 0.0
-        assert typeIV_threshold(kappa=0.0) == float("inf")
-
 
 class TestMechanism:
-    """The physics: pure vorticity flips Type I -> Type IV, linearly in omega."""
+    """The sampled family changes momentum, shear and vorticity together."""
 
     def _omega_imag_type(self, c):
         pt = jnp.array([0.0, 0.5, 0.5, 0.0])

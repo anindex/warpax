@@ -508,7 +508,7 @@ class _ArrowFieldScene(Scene):
         status_row = VGroup(
             Dot(radius=0.08, color=dot_color),
             Text(
-                f"{ec} {'violated' if violated else 'satisfied'} (z=0 slice)",
+                f"{ec}: {'violation found' if violated else 'none found'} (sampled slice)",
                 font_size=14,
                 color=dot_color,
                 weight="LIGHT",
@@ -528,8 +528,8 @@ class _ArrowFieldScene(Scene):
             matter = rho2d > 1e-6 * (float(np.nanmax(rho2d)) + 1e-30)
             t4 = float(np.mean((he2d == 4.0)[matter])) if matter.any() else 0.0
             wec_note = Text(
-                "ρ_Eul ≤ 0   ·   worst over unbounded boosts → −∞ (≡ NEC)   ·   "
-                f"wall matter ~{t4 * 100:.0f}% Type-IV "
+                "ρ_Eul ≤ 0   ·   NEC violation permits T(u,u) → −∞   ·   "
+                f"sampled matter ~{t4 * 100:.0f}% Type-IV "
                 "(no rest frame ⇒ rest-frame margin & ζ_th undefined)",
                 font_size=11,
                 color=YELLOW,
@@ -589,7 +589,7 @@ class WorstCaseNullDirections(_ArrowFieldScene):
     quantity = "nec"
     title = "Worst-Case Null Direction (NEC)"
     ec_label = r"\text{NEC}"
-    arrow_desc = "worst null direction; length = |min T k k|"
+    arrow_desc = "sampled minimizing null direction; length = |min T k k|"
 
 
 class WorstCaseBoostDirections(_ArrowFieldScene):

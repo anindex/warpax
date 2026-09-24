@@ -1,4 +1,4 @@
-"""EulerianVsWorstCaseNEC: Eulerian 6-null vs worst-case NEC margin panels.
+"""EulerianVsWorstCaseNEC: Eulerian 6-null vs sampled NEC margin panels.
 
 Usage: manim render -ql --format mp4 \\
     src/warpax/visualization/manim/_split_screen.py EulerianVsWorstCaseNEC
@@ -73,15 +73,7 @@ def _build_eulerian_frames(
     grid_shape: tuple[int, int, int] = (31, 31, 31),
     bounds: list[tuple[float, float]] | None = None,
 ):
-    """Build FrameData list with exact Eulerian-observer NEC margins.
-
-    Uses ``compute_eulerian_ec`` (the single normal-observer baseline:
-    ``min`` over the six axis-aligned null rays of the Eulerian tetrad) rather
-    than ``verify_grid`` (whose ``nec_margin`` is already the observer-robust
-    worst-case). This makes the left panel a true Eulerian baseline, distinct
-    from the dense observer-robust worst-case in the right panel, the gap
-    between them is exactly what observer-robust verification buys.
-    """
+    """Minimum over six axis-aligned null directions in the Eulerian tetrad."""
     import equinox as eqx
     import jax
 
@@ -122,7 +114,6 @@ def _build_eulerian_frames(
         nec_eul = np.asarray(ec["nec"]).reshape(grid_shape)
         energy_density = eulerian_energy_density_grid(curv.stress_energy, curv.metric_inv)
 
-        nec_eul = _mask_bubble_centre(nec_eul, grid_spec)
         scalar_fields = {
             "nec_margin": nec_eul,
             "energy_density": energy_density,
@@ -157,31 +148,13 @@ def _build_eulerian_frames(
     return frames
 
 
-def _mask_bubble_centre(field, grid_spec, radius: float = 0.15):
-    """NaN the coordinate-singular bubble centre out of *field*.
-
-    The spherical form carries a removable ``1/r_s`` at ``r_s = 0``, where the
-    autodiff regularity floor returns about ``-7e12``. That is a coordinate
-    artefact, not a violation, and on an odd grid it is sampled exactly. Left in,
-    it clips to the deepest colour and reads as the strongest violation in the
-    frame. ``frame_to_rgba`` maps NaN to 0, the satisfied end of the scale.
-    """
-    import numpy as _np
-
-    x, y, z = grid_spec.meshgrid
-    r = _np.sqrt(_np.asarray(x) ** 2 + _np.asarray(y) ** 2 + _np.asarray(z) ** 2)
-    out = _np.array(field, dtype=float, copy=True)
-    out[r < radius] = _np.nan
-    return out
-
-
 def _build_robust_frames(
     metric_name: str = "Alcubierre",
     v_s_values: list[float] | None = None,
     grid_shape: tuple[int, int, int] = (31, 31, 31),
     bounds: list[tuple[float, float]] | None = None,
 ):
-    """Build FrameData list with observer-robust NEC margins."""
+    """Build FrameData list with sampled NEC margins."""
     from warpax.benchmarks import AlcubierreMetric
     from warpax.geometry import GridSpec
     from warpax.visualization.common import build_ec_frame_sequence
@@ -200,20 +173,14 @@ def _build_robust_frames(
         v_s_values=v_s_values,
         progress=True,
     )
-    for frame in frames:
-        for name in ("nec_margin_sweep", "nec_margin"):
-            if name in frame.scalar_fields:
-                frame.scalar_fields[name] = _mask_bubble_centre(
-                    frame.scalar_fields[name], grid_spec
-                )
     return frames
 
 
 class EulerianVsWorstCaseNEC(Scene):
-    """Eulerian-frame vs worst-case NEC margin split-screen comparison.
+    """Eulerian-frame vs sampled NEC margin split-screen comparison.
 
     Left: NEC margin over the 6 axis-aligned Eulerian-frame nulls. Right:
-    worst-case over a dense null sphere (k·n_Eul = −1). One-sided depth colormap,
+    minimum over 312 sampled null directions (k·n_Eul = −1). One-sided depth colormap,
     shared color legend, contour annotations, clean parameter display.
     """
 
@@ -381,7 +348,7 @@ class EulerianVsWorstCaseNEC(Scene):
         ]
 
         title_text = Text(
-            "Eulerian vs Observer-Robust NEC Margin",
+            "Eulerian vs Sampled NEC margin (312 directions)",
             font_size=24,
             color=WHITE,
             weight="LIGHT",
@@ -409,7 +376,7 @@ class EulerianVsWorstCaseNEC(Scene):
         left_label.move_to(left_center + UP * (self.panel_height / 2 + 0.3))
 
         right_label = Text(
-            "Observer-Robust",
+            "Sampled minimum",
             font_size=22,
             color=WHITE,
             weight="LIGHT",
@@ -427,7 +394,7 @@ class EulerianVsWorstCaseNEC(Scene):
         left_sub.move_to(left_center + DOWN * (self.panel_height / 2 + 0.25))
 
         right_sub = MathTex(
-            r"\min_{\hat{k}\in S^2}\, T_{ab}k^a k^b,\ \ k\cdot n_{\rm Eul}=-1",
+            r"\min_{1\leq j\leq312}\, T_{ab}k_j^a k_j^b,\ \ k_j\cdot n_{\rm Eul}=-1",
             font_size=20,
             color=YELLOW,
         )

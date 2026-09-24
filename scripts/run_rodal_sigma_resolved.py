@@ -67,7 +67,7 @@ def run_one(sigma: float, n_r: int, n_mu: int) -> dict:
     sel = wall & np.isfinite(he)
     w_wall = w[sel].sum()
 
-    # Unconditional (whole sampled ball) and wall-restricted (conditional) miss.
+    # Conditional miss rates over the full sampled ball and within the wall.
     grid_miss = single_frame_miss(T, g, gi, volume_weights=w)
     wall_miss = single_frame_miss(T, g, gi, mask=wall, volume_weights=w)
 

@@ -197,7 +197,7 @@ def write_table(results, out_path):
         "% The step verdict uses the finest pair: delta <= 1e-8 + 1e-4*abs(I_finest).",
         r"\begin{tabular}{@{}l ccc l l l@{}}",
         r"  \toprule",
-        r"  & \multicolumn{4}{c}{Exoticity index ($N$)}"
+        r"  & \multicolumn{4}{c}{Composite diagnostic ($N$)}"
         r" & \multicolumn{2}{c}{Selected finite ray} \\",
         r"  \cmidrule(lr){2-5}\cmidrule(lr){6-7}",
         f"  Metric & {GRID_N[0]} & {GRID_N[1]} & {GRID_N[2]} & verdict & "

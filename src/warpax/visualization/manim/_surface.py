@@ -1,8 +1,8 @@
-"""FrameData-to-Manim Surface bridge for 2+1D embedding diagrams.
+"""FrameData-to-Manim Surface bridge for 2+1D scalar surface plots.
 
 Converts an equatorial slice of a FrameData scalar field into a Manim
 ``Surface`` where the z-coordinate encodes the field value (warped
-embedding diagram).
+scalar surface plot).
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ def framedata_to_surface(
     resolution: tuple[int, int] | None = None,
     linthresh: float | None = None,
 ) -> Surface:
-    """Convert a FrameData equatorial slice to a Manim Surface (embedding diagram).
+    """Convert a FrameData equatorial slice to a Manim Surface (scalar surface plot).
 
     Parameters
     ----------

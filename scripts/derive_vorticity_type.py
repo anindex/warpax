@@ -1,35 +1,13 @@
-"""Vorticity -> Type-IV mechanism: f = kappa * omega.
+"""Restricted rotational-shift diagnostics and full-tensor comparisons.
 
-Establishes, numerically and in a controlled limit, that the imaginary part of
-the Hawking-Ellis Type-IV eigenvalue pair of ``T^a_b`` is *linear in the shift
-vorticity* for the unit-lapse, flat-slice warp family:
+A localized rotation scales momentum, shear and shift vorticity together.
+Fit its imaginary eigenvalue magnitude against the vorticity magnitude,
+then compare the fitted slope with four prescribed warp metrics. The fit
+is empirical and does not isolate a vorticity cause of Type IV.
 
-  1. Controlled family: a localized rotation ``beta = c (-y, x, 0) * env(r)``
-     has expansion exactly zero and, at the sample point, a FIXED shear-to-
-     vorticity ratio ``sigma/omega = 1/3`` and ``omega^2 = (9/8) c^2 env^2``
-     (both independent of ``c``, so the sweep scales shear and vorticity
-     together and cannot by itself separate them; the exact statement that
-     isolates the vorticity is Lemma jcurl, ``j = curl(beta)/2``, proved to all
-     orders). Sweeping ``c`` shows
-     ``max|Im lambda|`` proportional to ``omega`` (fit ``kappa``, ``R^2 ~ 1``)
-     and the type flips Type I (c=0) -> Type IV (c>0).
-
-  2. Cross-metric validation: at matched wall points, the irrotational Rodal
-     drive (omega ~ 0) is Type I with ``Im ~ 0``, while Natario/Alcubierre/VdB
-     (omega > 0) are Type IV with ``Im`` tracking ``kappa * omega``. Each
-     cross-metric entry also records the shift expansion ``theta``, shear
-     ``sigma``, shear-to-vorticity ratio, and the excess ``Im / (kappa*omega)``
-     over the pure-rotation prediction.
-
-This supplies the analytic *mechanism* behind Rodal's empirical irrotational ->
-global-Type-I result (arXiv:2512.18008) and Santiago-Schuster-Visser's
-irrotational-implies-Type-I lemma: vorticity is the control parameter for the
-Type-IV imaginary eigenvalue.
-
-Outputs
--------
-- results/vorticity_type_analytic.json
-- ../warpax_arxiv/figures/vorticity_type_mechanism.pdf  (best-effort)
+The momentum-aligned block prediction is compared with the full spectrum;
+transverse stress couplings can invalidate that reduction. Results go to
+results/vorticity_type_analytic.json and the sibling manuscript tables.
 """
 
 from __future__ import annotations
@@ -174,7 +152,7 @@ def cross_metric(kappa: float) -> dict:
 
 
 def _eulerian_decomp(T_ab, g_ab, g_inv):
-    """Eulerian energy density, momentum magnitude, and longitudinal stress."""
+    """Eulerian density, momentum magnitude, and stress along resolved momentum."""
     n_low = jnp.array([-1.0, 0.0, 0.0, 0.0])
     n_up = g_inv @ n_low
     n_up = n_up / jnp.sqrt(jnp.abs(n_low @ n_up))
@@ -189,25 +167,27 @@ def _eulerian_decomp(T_ab, g_ab, g_inv):
         jhat = j_up / np.sqrt(max(j2, 1e-300))
         S_par = float(jhat @ (g_ab @ ((proj @ (T_mixed @ proj)) @ jhat)))
     else:
-        S_par = 0.0
+        S_par = None  # The momentum direction is undefined at zero momentum.
     return rho, jmag, S_par
 
 
 def discriminant_at(metric, point):
     """Momentum-density discriminant Delta = (rho+S_par)^2 - 4|j|^2 at a point.
 
-    Delta < 0 is SUFFICIENT for Type IV in the momentum plane, not necessary:
-    the transverse channel can go complex on its own, which is why this script's
-    own Van den Broeck row has Delta = +1.1e-2 and Im(lambda) = 0.058. The
-    ``iff`` this said is the two-dimensional statement, not the four.
-    Im(lambda) = 1/2 sqrt(-Delta) holds on the momentum plane.
+    The 2x2 compression has imaginary part sqrt(-Delta)/2 when Delta < 0.
+    Its eigenvalues are those of the full tensor only when the transverse
+    couplings vanish. At unresolved momentum, the direction and Delta are
+    undefined; the zero-momentum block has no imaginary part.
     """
     res = compute_curvature_chain(metric, point)
     rho, jmag, S_par = _eulerian_decomp(res.stress_energy, res.metric, res.metric_inv)
-    denom = abs(rho + S_par)
-    ratio = 2.0 * jmag / denom if denom > 1e-30 else float("inf")
-    Delta = (rho + S_par) ** 2 - 4.0 * jmag**2
-    im_pred = 0.5 * float(np.sqrt(-Delta)) if Delta < 0 else 0.0
+    if S_par is None:
+        ratio, Delta, im_pred = 0.0, None, 0.0
+    else:
+        denom = abs(rho + S_par)
+        ratio = 2.0 * jmag / denom if denom > 1e-30 else float("inf")
+        Delta = (rho + S_par) ** 2 - 4.0 * jmag**2
+        im_pred = 0.5 * float(np.sqrt(-Delta)) if Delta < 0 else 0.0
     Tm = np.asarray(res.metric_inv @ res.stress_energy)
     im_meas = float(np.max(np.abs(np.linalg.eigvals(Tm).imag)))
     return {
@@ -228,8 +208,8 @@ def write_table(cross, out_path):
     lines = [
         r"\begin{tabular}{l c c c c}",
         r"  \toprule",
-        r"  Metric & Wall type & $2|j|/|\rho+S_\parallel|$ & "
-        r"$\operatorname{Im}\lambda$ & $\tfrac12\sqrt{-\Delta}$ \\",
+        r"  Metric & Wall type & $2|j|/|\rho_n+S_\parallel|$ & "
+        r"$\operatorname{Im}\lambda$ & $\tfrac12\sqrt{\max(0,-\Delta)}$ \\",
         r"  \midrule",
     ]
     for k in order:

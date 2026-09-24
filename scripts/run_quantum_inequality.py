@@ -146,8 +146,8 @@ def _write_table(anec: dict, qi: dict) -> None:
         r"  & \multicolumn{2}{c}{Finite-segment $\int T_{ab}k^ak^b\,\dd\lambda$}"
         r" & \multicolumn{2}{c}{Short-window estimate} \\",
         r"  \cmidrule(lr){2-3}\cmidrule(lr){4-5}",
-        r"  Metric & on-axis & min found ($b^\ast$) & $R_b^2\rho_{\rm static,min}$"
-        r" & $c_{\rm short}$ \\",
+        r"  Metric & $b=0.001$ & min found ($b^\ast$) & $R_b^2\rho_{\rm static,min}$"
+        r" & $c_{\rm metric}$ \\",
         r"  \midrule",
     ]
     for name in ORDER:

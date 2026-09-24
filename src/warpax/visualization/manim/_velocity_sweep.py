@@ -72,7 +72,7 @@ class VelocitySweep(ThreeDScene):
 
     Dual-layer layout (matching WallAndVelocitySweep):
 
-    - Upper: translucent wireframe embedding (Eulerian energy density rho_Eul,
+    - Upper: translucent wireframe scalar surface (Eulerian energy density rho_Eul,
       <= 0 everywhere -> one-sided blue depth scale)
     - Lower: flat colored slab (nec_margin_sweep, one-sided violation-depth
       ``nec_depth`` colormap)

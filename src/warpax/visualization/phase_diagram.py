@@ -1,4 +1,4 @@
-"""EC-admissible coordinate shift as a function of shell design parameters.
+"""Sampled coordinate shift as a function of shell design parameters.
 
 Figures for the design-space sweep: transport heatmap, EC boundary with
 hatching, contour isolines, and annotated optimum.
@@ -76,7 +76,7 @@ def _annotate_optimum(
     transport: NDArray,
     ec_feasible: NDArray,
 ) -> None:
-    """Mark the global optimum (max transport in EC-admissible region)."""
+    """Mark the sampled maximum (max transport in region passing sampled EC tests)."""
     masked = np.where(ec_feasible, transport, -np.inf)
     if np.all(np.isinf(masked)):
         return
@@ -119,7 +119,7 @@ def plot_phase_diagram(
     title: str | None = None,
     save_path: str | None = None,
 ) -> plt.Figure | None:
-    r"""EC-admissible transport vs shell design parameters.
+    r"""Sampled shift diagnostic vs shell design parameters.
 
     Parameters
     ----------
@@ -195,7 +195,7 @@ def plot_phase_diagram(
         ax.set_title(title, fontsize=11)
 
     legend_handles = [
-        Patch(facecolor="white", edgecolor="black", hatch="///", label="EC-violated"),
+        Patch(facecolor="white", edgecolor="black", hatch="///", label="Sampled EC violation"),
         plt.Line2D(
             [0],
             [0],
@@ -204,7 +204,7 @@ def plot_phase_diagram(
             markerfacecolor="#E69F00",
             markeredgecolor="black",
             markersize=12,
-            label="Optimum",
+            label="Sampled maximum",
         ),
     ]
     ax.legend(

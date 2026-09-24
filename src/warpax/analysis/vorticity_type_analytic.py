@@ -1,34 +1,15 @@
-r"""Analytic mechanism: shift vorticity sources the Hawking-Ellis Type-IV pair.
+r"""Empirical slope diagnostics for a restricted rotational shift family.
 
-Rodal (arXiv:2512.18008) showed *empirically* that an irrotational warp shift
-yields a globally Type-I stress-energy and that adding vorticity destroys it.
-Santiago-Schuster-Visser supply the irrotational-implies-Type-I lemma for the
-unit-lapse, flat-slice (``alpha = 1``, ``gamma_ij = delta_ij``) drive family.
-This module establishes the *mechanism* of the converse: the imaginary part
-``f`` of the Type-IV eigenvalue pair ``{-rho +/- i f, p_1, p_2}`` (Martin-Moruno
-& Visser, PRD 103 124003) is, at leading order in the wall gradient, *linear in
-the shift vorticity*,
+For unit lapse and a fixed Euclidean spatial metric, Eulerian momentum
+involves second spatial derivatives of the shift. Shift curl alone does
+not determine Hawking--Ellis type. A localized rotation varies momentum,
+shear and vorticity together; its fitted imaginary-eigenvalue slope is a
+family-specific diagnostic, not a general Type-IV criterion.
 
-.. math::
-
-    f \;=\; \kappa \, \omega \,, \qquad \omega = \sqrt{\omega^2}\,,
-
-with a wall-geometry coefficient ``kappa``. A localized, divergence-free rotational
-shift (zero expansion, nonzero wall shear) realizes this limit: the wall extrinsic
-curvature (the symmetric shift gradient) sources the Eulerian momentum density
-``|j|``, whose dominance ``2|j| > |rho + S_par|`` opens the complex pair that admits
-no rest frame, the imaginary eigenvalue. Across the rotational drives ``|j|`` and
-the reported shift vorticity both scale with the rotation rate, so ``f`` tracks the
-vorticity empirically. ``f -> 0`` as ``omega -> 0``, recovering Type I; a spatially
-uniform (rigid) rotation has no wall gradient and is flat, ``kappa = 0``.
-
-This is a sufficient-direction / controlled-limit mechanism, not a full converse:
-for general (non-flat-slice) shells the link remains numerical. The numeric
-validation against Natario/Alcubierre/VdB (vorticity, Type IV) versus Rodal
-(irrotational, Type I) is in ``scripts/derive_vorticity_type.py``. The
-cross-metric excess of the measured ``f`` over ``kappa * omega``, largest for
-the high-shear, zero-expansion Natario wall, quantifies the wall-geometry
-dependence of ``kappa`` and points to a subleading shear coupling.
+The momentum-aligned 2x2 stress block has a complex pair when
+``4*j**2 > (rho + S_parallel)**2``. Applying this reduction to a full tensor
+requires the transverse couplings to vanish. The scripts compare the
+restricted prediction with the full eigenspectrum.
 """
 
 from __future__ import annotations
@@ -41,7 +22,7 @@ _IMAG_FLOOR = 1e-10
 
 
 def imaginary_part_estimate(omega: float, kappa: float) -> float:
-    r"""Leading-order Type-IV imaginary eigenvalue part ``f = kappa * omega``.
+    r"""Fitted imaginary eigenvalue estimate ``f = kappa * omega``.
 
     Parameters
     ----------
@@ -73,10 +54,10 @@ def excess_over_pure_rotation(
 
 
 def typeIV_threshold(kappa: float, imag_floor: float = _IMAG_FLOOR) -> float:
-    r"""Vorticity above which the wall is Type IV: ``omega* = imag_floor / kappa``.
+    r"""Threshold of the fitted scalar estimate: ``omega* = imag_floor / kappa``.
 
-    Below ``omega*`` the imaginary part is within the classifier's real-spectrum
-    tolerance and the point reads as Type I; above it, the complex pair appears.
+    This compares ``kappa*omega`` with the supplied absolute floor; it is not
+    an algebraic-type test for a general stress tensor.
     """
     if kappa <= 0.0:
         return float("inf")

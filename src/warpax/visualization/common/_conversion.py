@@ -25,12 +25,12 @@ def eulerian_energy_density_grid(
     The future-directed Eulerian observer is the unit normal to constant-t
     slices: ``n^a = (1/alpha, -beta^i/alpha)`` with
     ``alpha = 1/sqrt(-g^{00})``. For zero shift (Schwarzschild, Minkowski)
-    this reduces to ``T_{00}``; for warp metrics with non-trivial beta
+    this reduces to ``T_{00}/alpha**2``; for warp metrics with non-trivial beta
     (Alcubierre, Natario, ...) the proper density differs from the bare
     covariant component.
     """
     g_inv_00 = metric_inv[..., 0, 0]
-    alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv_00, 1e-30))
+    alpha = 1.0 / jnp.sqrt(jnp.where(g_inv_00 < 0, -g_inv_00, jnp.nan))
     n_up = jnp.stack(
         [
             1.0 / alpha,
@@ -150,7 +150,7 @@ def eulerian_wec_fields(
         zeta_th = np.where(
             violated & (rho > 0.0),
             np.arcsinh(np.sqrt(np.maximum(ratio, 0.0))),
-            np.where(violated, 0.0, np.inf),
+            np.where((rho < -atol) | violated, 0.0, np.inf),
         )
     zeta_th = np.where(np.isfinite(rho), zeta_th, np.nan)
 
@@ -175,14 +175,14 @@ def _extract_coordinates(grid_spec: "GridSpec") -> tuple[np.ndarray, np.ndarray,
 # ``T_00_covariant`` exposes the bare covariant component for advanced viewers.
 _CURVATURE_COLORMAPS: dict[str, str] = {
     "ricci_scalar": "RdBu_r",
-    "kretschmann": "inferno",
-    "ricci_squared": "inferno",
-    "weyl_squared": "inferno",
+    "kretschmann": "RdBu_r",
+    "ricci_squared": "RdBu_r",
+    "weyl_squared": "RdBu_r",
     "energy_density": "RdBu_r",
     "T_00_covariant": "RdBu_r",
 }
 
-_DIVERGING_CURVATURE_FIELDS = {"ricci_scalar", "energy_density", "T_00_covariant"}
+_DIVERGING_CURVATURE_FIELDS = set(_CURVATURE_COLORMAPS)
 
 
 def freeze_curvature(

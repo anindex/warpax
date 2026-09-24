@@ -188,7 +188,9 @@ def build_frame_sequence(
 ) -> list:
     """Build a sequence of FrameData from velocity profiles or explicit values.
 
-    Uses ``eqx.tree_at`` to swap ``v_s`` without JIT recompilation.
+    Each frame evaluates a separate constant-speed metric. This is a parameter
+    sweep, not an accelerating solution; derivatives of ``v_s_fn`` do not enter
+    the curvature. Uses ``eqx.tree_at`` to swap ``v_s``.
 
     Parameters
     ----------
@@ -436,9 +438,9 @@ def build_ec_frame_sequence(
 
         colormaps = {
             "ricci_scalar": "RdBu_r",
-            "kretschmann": "inferno",
-            "ricci_squared": "inferno",
-            "weyl_squared": "inferno",
+            "kretschmann": "RdBu_r",
+            "ricci_squared": "RdBu_r",
+            "weyl_squared": "RdBu_r",
             "energy_density": "RdBu_r",
             "T_00_covariant": "RdBu_r",
             "wec_margin_sweep": "RdBu_r",
@@ -449,6 +451,9 @@ def build_ec_frame_sequence(
             colormaps["shape_function"] = "viridis"
 
         diverging = {
+            "kretschmann",
+            "ricci_squared",
+            "weyl_squared",
             "ricci_scalar",
             "energy_density",
             "T_00_covariant",

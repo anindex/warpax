@@ -17,8 +17,8 @@ For each metric and resolution we record:
 The wall DEC-miss rate is a non-smooth thresholded volume fraction, so the
 convergence table reports its grid stability spread across the wall-resolved
 ladder, NOT a Richardson order. The smooth wall extrema (min NEC/DEC margin,
-max|Im lambda|) are certified exactly, by continuous polishing of the exact
-tensor, in the per-diagnostic table (run_diagnostic_convergence.py).
+max|Im lambda|) are refined numerically by local grid searches in the
+per-diagnostic table (run_diagnostic_convergence.py).
 
 Outputs
 -------
@@ -191,8 +191,8 @@ def write_convergence_table(
 
     The wall DEC miss rate is a (non-smooth) thresholded volume fraction, so it
     carries a stability spread, not a Richardson order. The smooth wall extrema
-    (min NEC/DEC margin, max|Im lambda|) are certified separately and exactly by
-    continuous polishing in the per-diagnostic table; no assumed O(h^2) order is
+    (min NEC/DEC margin, max|Im lambda|) are refined separately by
+    local grid searches in the per-diagnostic table; no assumed O(h^2) order is
     reported for any quantity here.
     """
     wall_cell_map = wall_cell_map or {}

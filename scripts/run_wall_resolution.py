@@ -117,9 +117,9 @@ def main():
             cells = wall_width / dx
             resolved = cells >= 4.0
             notes = (
-                "Autodiff computes exact curvature at each point; "
+                "Autodiff avoids finite-difference truncation; "
                 "wall resolution affects spatial sampling density, "
-                "not curvature accuracy"
+                "while floating-point curvature errors remain"
             )
         elif m["shape_function"] == "hermite":
             # WarpShell: smooth_width = 0.12 * (R_2 - R_1)

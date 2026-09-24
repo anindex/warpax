@@ -2,9 +2,9 @@
 
 Dual-layer 3D scene. At fixed geometry (v_s = 0.5) it sweeps a single +x timelike
 boost over rapidity zeta in [0, 5] and shows the energy density that boosted
-observer measures. The violation deepens as cosh^2(zeta) and diverges to -inf as
-zeta -> inf (so the worst-case over *unbounded* boosts equals the NEC); the
-zeta_max = 5 cap is a display choice, annotated in the scene.
+observer measures. The energy-flux term is retained in this Eulerian tetrad.
+Along a direction with negative null contraction the density diverges to
+-infinity as zeta grows. The zeta_max = 5 cap is a display choice.
 
 Usage: manim render -ql --format mp4 \\
     src/warpax/visualization/manim/_boost_rapidity_sweep.py BoostRapiditySweep
@@ -78,7 +78,7 @@ class BoostRapiditySweep(ThreeDScene):
 
     Dual-layer layout (matching WallAndVelocitySweep):
 
-    - Upper: translucent wireframe embedding (Eulerian energy density rho_Eul,
+    - Upper: translucent wireframe scalar surface (Eulerian energy density rho_Eul,
       <= 0 everywhere -> one-sided blue depth scale)
     - Lower: flat colored slab (boosted-observer WEC margin, which changes sign
       across the slice -> symmetric diverging scale)
@@ -316,7 +316,7 @@ class BoostRapiditySweep(ThreeDScene):
             font_size=14,
             color="#3B4CC0",
         )
-        wec_hi = MathTex(r"\text{satisfied}", font_size=14, color="#B40426")
+        wec_hi = MathTex(r"T(u,u)\geq0", font_size=14, color="#B40426")
         wec_bar_row = VGroup(wec_lo, wec_strips, wec_hi).arrange(
             RIGHT,
             buff=0.06,
@@ -364,7 +364,7 @@ class BoostRapiditySweep(ThreeDScene):
 
         # The deepening is boost amplification, unbounded in ζ.
         boost_note = Text(
-            "ρ_obs(ζ) = ρ + (ρ+p_x) sinh²ζ  →  −∞   (worst over all boosts ≡ NEC)",
+            "ρ_obs = T̂₀₀ cosh²ζ + 2T̂₀ₓ sinhζ coshζ + T̂ₓₓ sinh²ζ",
             font_size=13,
             color=YELLOW,
             weight="LIGHT",

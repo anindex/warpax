@@ -1,28 +1,14 @@
-"""Independent all-observer verification of warp-drive positive-energy claims.
+"""Wall-restricted energy-condition diagnostics at matched metric parameters.
 
-At matched family parameters (R=1, sigma=8) on wall-clustered grids, and using
-ONLY the frame-independent eigenstructure of T^a_b, we report, wall-restricted
-and volume-weighted, for each metric:
+At R=1, sigma=8, evaluate type fractions, Type-I eigenvalue slacks,
+Eulerian miss rates and specified-slice negative-energy integrals on the
+wall-clustered grid. Rest-frame slacks and Eulerian contractions have
+different meanings and must not be ranked on a common magnitude scale.
+Local extremum refinement supplies a numerical estimate, not a bound.
+The Eulerian normal remains timelike at any speed for valid ADM data.
 
-  - Hawking-Ellis Type-I / Type-IV fractions (a Type-IV wall has no rest frame
-    and no invariant energy density: the positive-energy question is ill-posed
-    there);
-  - the invariant peak NEC margin min(rho+p_i) over Type-I points;
-  - the *single-frame miss*: fraction of all-observer violations the Eulerian
-    frame does not see (Eulerian margin >= 0);
-  - the integrated exotic-matter content E_- (invariant Type-I and Eulerian);
-  - peak proper-energy-deficit reduction factors vs Alcubierre.
-
-This is the live demonstration that single-frame, single-velocity positive-energy
-claims (e.g. Rodal arXiv:2512.18008, verified Eulerian-only at v/c=1) require an
-all-observer cross-check. The Eulerian baseline is timelike only at v_s < 1, so
-the verification runs subluminally (the regime in which such claims are stated); the
-companion velocity sweep extends the invariant quantities through v_s >= 1.
-
-Outputs
--------
-- results/invariant_verification.json
-- ../warpax_arxiv/tables/invariant_benchmark.tex
+Outputs: results/invariant_verification.json and the sibling manuscript's
+invariant_benchmark.tex table.
 """
 
 from __future__ import annotations
@@ -90,10 +76,7 @@ def verify_metric(name, v_s, N):
     exotic = integrated_exotic_content(T, g, gi, vol_w, mask=mask)
     peaks = peak_proper_energy_deficit(T, g, gi, mask=mask_flat)
 
-    # Invariant peak NEC deficit min(rho+p_i) over Type-I wall points, polished to
-    # its EXACT continuous value (the grid sample only bounds it from above; the
-    # true minimum is resolution-independent, obtained by local refinement of the
-    # exact tensor).
+    # Refine the sampled Type-I minimum locally; this supplies no continuum bound.
     nec_inv = np.asarray(ff.nec_margins).ravel()
     typeI_wall = mask_flat & (np.asarray(ff.he_types).ravel() == 1.0) & np.isfinite(nec_inv)
     nec_min_grid = float(np.min(nec_inv[typeI_wall])) if typeI_wall.any() else float("nan")

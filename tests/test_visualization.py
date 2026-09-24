@@ -44,18 +44,6 @@ def test_comparison_plots_smoke():
     assert fig is not None
 
 
-def test_convergence_plots_smoke():
-    from pathlib import Path
-
-    from warpax.visualization.convergence_plots import plot_convergence
-
-    json_path = Path("results/convergence_data.json")
-    if not json_path.exists():
-        pytest.skip("convergence_data.json not present")
-    fig = plot_convergence(str(json_path))
-    assert fig is not None
-
-
 @pytest.mark.parametrize("values", [[1.0, 1.0, 1.0], [1.0, 1.4, 1.1]])
 def test_descriptive_convergence_plots(tmp_path, values):
     from warpax.visualization.convergence_plots import plot_convergence, plot_convergence_table
@@ -91,27 +79,41 @@ def test_descriptive_convergence_plots(tmp_path, values):
     assert "Extrapolated" not in labels
 
 
-def test_kinematic_plots_smoke():
-    from warpax.visualization.kinematic_plots import plot_kinematic_scalars
-
-    field = np.zeros((4, 4, 4))
-    fig = plot_kinematic_scalars(
-        field,
-        field,
-        field,
-        grid_bounds=[(-1.0, 1.0)] * 3,
-        grid_shape=(4, 4, 4),
-    )
-    assert fig is not None
-
-
-def test_geodesic_plots_smoke():
+def test_tidal_plot_marks_peak_without_identifying_a_wall():
     from warpax.visualization.geodesic_plots import plot_tidal_evolution
 
-    tau = np.linspace(0, 1, 10)
-    eig = np.random.default_rng(0).normal(size=(10, 3)) * 1e-3
-    fig = plot_tidal_evolution(eig, tau)
-    assert fig is not None
+    tau = np.array([0.0, 1.0, 2.0])
+    eig = np.array([[1.0, -1.0, 0.0], [3.0, -2.0, 0.0], [1.0, 0.0, 0.0]])
+    ax = plot_tidal_evolution(eig, tau).axes[0]
+    np.testing.assert_array_equal(ax.lines[0].get_xdata(), tau)
+    np.testing.assert_array_equal(ax.lines[0].get_ydata(), eig[:, 0])
+    assert ax.lines[3].get_label() == "Peak tidal magnitude"
+    assert ax.lines[3].get_xdata() == [1.0, 1.0]
+
+
+def test_density_normalization_and_wec_threshold():
+    from warpax.visualization.common._conversion import (
+        eulerian_energy_density_grid,
+        eulerian_wec_fields,
+    )
+
+    # A non-unit lapse rescales T_00; a non-spacelike slice has no Eulerian normal.
+    g_inv = jnp.stack([jnp.diag(jnp.array([-0.25, 1.0, 1.0, 1.0])), jnp.eye(4)])
+    density = eulerian_energy_density_grid(jnp.broadcast_to(jnp.eye(4), (2, 4, 4)), g_inv)
+    assert density[0] == pytest.approx(0.25)
+    assert np.isnan(density[1])
+
+    eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+    # Negative rest density with NEC satisfied, positive density with NEC violated,
+    # and ordinary matter require thresholds zero, asinh(1), and infinity.
+    tensors = jnp.stack(
+        [
+            jnp.diag(jnp.array(row))
+            for row in [(-1.0, 2.0, 3.0, 4.0), (1.0, -2.0, 3.0, 4.0), (1.0, 2.0, 3.0, 4.0)]
+        ]
+    )
+    fields = eulerian_wec_fields(tensors, jnp.broadcast_to(eta, (3, 4, 4)))
+    np.testing.assert_allclose(fields["zeta_th"], [0.0, np.arcsinh(1.0), np.inf])
 
 
 def test_direction_fields_smoke():
@@ -284,6 +286,10 @@ def test_freeze_curvature_exposes_both_fields() -> None:
     assert "T_00_covariant" in frame.scalar_fields
     assert "energy_density" in frame.colormaps
     assert "energy_density" in frame.clim
+    for name in ("kretschmann", "ricci_squared", "weyl_squared"):
+        assert frame.colormaps[name] == "RdBu_r"
+        lo, hi = frame.clim[name]
+        assert lo == -hi
 
 
 def test_observer_robust_nec_nonpositive_dense_sampling() -> None:

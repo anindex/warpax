@@ -172,17 +172,6 @@ def main():
             nec_margin = np.asarray(eul["nec"]).reshape(grid_spec.shape)
             print(f"    Eulerian EC: {time.time() - t0:.1f}s")
 
-        # Exclude the exact coordinate center, where the C-infinity
-        # regularization guard (epsilon ~ 1e-12 inside r_s) dominates the
-        # autodiff derivatives and produces a spurious O(1/epsilon) margin.
-        # Only odd N samples the center; the mask is empty otherwise.
-        axes = [np.linspace(lo, hi, n) for (lo, hi), n in zip(bounds, grid_spec.shape, strict=True)]
-        X, Y, Z = np.meshgrid(*axes, indexing="ij")
-        core = (X * X + Y * Y + Z * Z) < 1e-12
-        if core.any():
-            nec_margin = np.where(core, np.nan, nec_margin)
-            print(f"    Excluded {int(core.sum())} regularized-core point(s) at r=0")
-
         # Extract convergence quantities
         q_min = compute_convergence_quantity(nec_margin, "min_margin")
         q_l2 = compute_convergence_quantity(nec_margin, "l2_violation", cell_volume=cell_vol)
@@ -208,6 +197,7 @@ def main():
         Path(inspect.getfile(metric_class)).resolve(),
         Path(inspect.getfile(compute_convergence_quantity)).resolve(),
         Path(inspect.getfile(_eulerian_ec_point)).resolve(),
+        Path(__file__).resolve().parents[1] / "src/warpax/metrics/_common.py",
     ]
     if args.full_100:
         source_paths.append(Path(inspect.getfile(compare_eulerian_vs_robust)).resolve())
@@ -229,7 +219,6 @@ def main():
             "t": 0.0,
             "bounds": bounds,
             "endpoint_inclusive": True,
-            "coordinate_core_exclusion_r_squared_lt": 1e-12,
             "volume_rule": "uniform coordinate cell volume times the sample sum",
         },
         "violation_roundoff_gate": "margin < -1e-10 * max(abs(negative finite margins))",

@@ -85,7 +85,7 @@ SCENES = [
     (
         "src/warpax/visualization/manim/_velocity_sweep.py",
         "VelocitySweep",
-        "Quasi-static velocity sweep (v_s 0.1->0.99)",
+        "Constant-speed metric sequence (v_s 0.1->0.99)",
     ),
     (
         "src/warpax/visualization/manim/_boost_rapidity_sweep.py",
@@ -96,12 +96,12 @@ SCENES = [
     (
         "src/warpax/visualization/manim/_nec_margin.py",
         "NECMargin2D",
-        "Observer-robust NEC margin (k.n_Eul = -1)",
+        "Sampled NEC minimum (k.n_Eul = -1)",
     ),
     (
         "src/warpax/visualization/manim/_split_screen.py",
         "EulerianVsWorstCaseNEC",
-        "Eulerian 6-null vs worst-case NEC split-screen",
+        "6 versus 312 sampled null directions",
     ),
     (
         "src/warpax/visualization/manim/_boost_arrows.py",
@@ -111,7 +111,7 @@ SCENES = [
     (
         "src/warpax/visualization/manim/_boost_arrows.py",
         "WorstCaseBoostDirections",
-        "Worst-case boost over the bounded WEC margin + threshold rapidity",
+        "Eulerian density and Type-I principal boost directions",
     ),
     (
         "src/warpax/visualization/manim/_eulerian_kinematics.py",

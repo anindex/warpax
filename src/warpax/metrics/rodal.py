@@ -1,8 +1,8 @@
 """Rodal irrotational warp drive metric.
 
 Rodal, GRG 58:1, 2026 (arXiv:2512.18008). The ideal shift derives from
-a scalar potential and has Hawking-Ellis Type-I stress-energy. The numerical
-radius regularizations below do not preserve exact irrotationality.
+a scalar potential and has Hawking-Ellis Type-I stress-energy. Near the
+origin, an even Taylor expansion avoids cancellation in its derivatives.
 
 ADM: ``alpha = 1``, ``gamma_ij = delta_ij``, ``beta^i`` from radial
 profile ``F(r)`` and angular profile ``G(r)`` (lab frame:
@@ -11,8 +11,8 @@ profile ``F(r)`` and angular profile ``G(r)`` (lab frame:
     beta = -v_s * [G(r_s) * x_hat + (F(r_s) - G(r_s)) * n_x * n]
 
 with ``n = (dx, y, z) / r_s``. Manifestly regular at ``r_s = 0`` since
-``F - G -> 0``. The 0/0 form of ``g_paper(0)`` is handled by the analytic
-limit ``Delta'(0) = -2*sigma*tanh(sigma*R)``.
+``F - G = O(r_s**2)``. The Cartesian implementation evaluates
+``(F-G)/r_s**2`` directly at the origin.
 
 """
 
@@ -39,44 +39,34 @@ def _stable_logcosh(x: Float[Array, "..."]) -> Float[Array, "..."]:
     return abs_x + jnp.log1p(jnp.exp(-2.0 * abs_x)) - jnp.log(2.0)
 
 
+def _rodal_profiles(r_squared, R, sigma):
+    """Return G and (F-G)/r², using d(rG)/dr=F at the removable origin.
+
+    For |sigma*r| < 0.01, integrate the even F series through order eight.
+    Evaluate the complementary expressions away from zero so inactive
+    branches also have finite autodiff derivatives.
+    """
+    e = jnp.exp(-jnp.abs(sigma * R))
+    s = (2 * e / (1 + e**2)) ** 2
+    c2, c4 = -s, s**2 - s / 3
+    c6, c8 = -(s**3) + 2 * s**2 / 3 - 2 * s / 45, s**4 - s**3 + s**2 / 5 - s / 315
+    x2 = jnp.minimum(sigma**2 * r_squared, 1e-4)
+    G_center = 1 + x2 * (c2 / 3 + x2 * (c4 / 5 + x2 * (c6 / 7 + x2 * c8 / 9)))
+    H_center = sigma**2 * (2 * c2 / 3 + x2 * (4 * c4 / 5 + x2 * (6 * c6 / 7 + x2 * 8 * c8 / 9)))
+    r = jnp.sqrt(jnp.maximum(r_squared, 1e-4 / sigma**2))
+    G_outer = (_stable_logcosh(sigma * (r + R)) - _stable_logcosh(sigma * (r - R))) / (
+        2 * sigma * r * jnp.tanh(sigma * R)
+    )
+    H_outer = (alcubierre_shape(r, R, sigma) - G_outer) / r**2
+    center = sigma**2 * r_squared < 1e-4
+    return jnp.where(center, G_center, G_outer), jnp.where(center, H_center, H_outer)
+
+
 def _rodal_g_paper(
     r: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
 ) -> Float[Array, "..."]:
-    """Paper-convention irrotational angular profile g(r) from Rodal Eq. (42).
-
-    Rewritten as:
-        g_paper(r) = 1 + cosh(R*sigma) * (log_ratio / r) / (2*sigma*sinh(R*sigma))
-
-    where log_ratio = stable_logcosh(sigma*(r-R)) - stable_logcosh(sigma*(r+R)).
-
-    For small r, log_ratio/r has the 0/0 removable form. The analytic limit is
-        lim_{r->0} log_ratio / r = Delta'(0) = -2*sigma*tanh(sigma*R)
-    which gives g_paper(0) = 0 exactly for all R*sigma.
-
-    g_paper(0) = 0, g_paper(inf) = 1. (Paper co-moving frame convention.)
-    """
-    # Radius floor for numerical evaluation; the small-radius branch follows below.
-    r_safe = jnp.sqrt(r**2 + 1e-60)
-
-    # Numerically stable log-cosh difference (Delta)
-    a = sigma * (r_safe - R)
-    b = sigma * (r_safe + R)
-    log_ratio = _stable_logcosh(a) - _stable_logcosh(b)
-
-    sinh_R_sigma = jnp.sinh(R * sigma)
-    cosh_R_sigma = jnp.cosh(R * sigma)
-
-    # Analytic limit: lim_{r->0} log_ratio / r = -2*sigma*tanh(sigma*R)
-    limit_ratio = -2.0 * sigma * jnp.tanh(sigma * R)
-    log_ratio_over_r = jnp.where(
-        r < 1e-8,
-        limit_ratio,
-        log_ratio / r_safe,
-    )
-
-    # g_paper = 1 + cosh(R*sigma) * (log_ratio/r) / (2*sigma*sinh(R*sigma))
-    g_paper = 1.0 + cosh_R_sigma * log_ratio_over_r / (2.0 * sigma * sinh_R_sigma)
-    return g_paper
+    """Paper-convention angular profile: g_paper(0)=0, g_paper(infinity)=1."""
+    return 1.0 - _rodal_G(r, R, sigma)
 
 
 def _rodal_G(
@@ -86,7 +76,7 @@ def _rodal_G(
 
     G(0) = 1, G(inf) = 0. Matches Alcubierre far-field convention.
     """
-    return 1.0 - _rodal_g_paper(r, R, sigma)
+    return _rodal_profiles(r**2, R, sigma)[0]
 
 
 class RodalMetric(ADMMetric):
@@ -120,30 +110,8 @@ class RodalMetric(ADMMetric):
         t, x, y, z = coords
         dx = x - self.v_s * t
         r_s_sq = dx**2 + y**2 + z**2
-        # Tight floor for value precision; coarser floor in the divisor
-        # below keeps ``\\partial_i n_j`` finite at the bubble center,
-        # because ``\\partial n_x / \\partial dx = 1 / r_div`` blows up
-        # as ``r_div \\to 0`` even though n_x itself is finite.
-        r_safe = jnp.sqrt(r_s_sq + 1e-60)
-        r_div = jnp.sqrt(r_s_sq + 1e-12)
-
-        F_val = alcubierre_shape(r_safe, self.R, self.sigma)
-        G_val = _rodal_G(r_safe, self.R, self.sigma)
-
-        n_x = dx / r_div
-        n_y = y / r_div
-        n_z = z / r_div
-
-        # Direct Cartesian shift: beta = -v_s * [G * x_hat + (F-G) * n_x * n].
-        # F(0) = G(0) = 1 so the (F-G) * n_x * n_j contributions vanish
-        # at the origin; the coarser ``r_div`` floor keeps autodiff
-        # bounded while ``r_safe`` carries the physical radial value.
-        diff_FG = F_val - G_val
-        beta_x = -self.v_s * (G_val + diff_FG * n_x * n_x)
-        beta_y = -self.v_s * (diff_FG * n_x * n_y)
-        beta_z = -self.v_s * (diff_FG * n_x * n_z)
-
-        return jnp.array([beta_x, beta_y, beta_z])
+        G, H = _rodal_profiles(r_s_sq, self.R, self.sigma)
+        return -self.v_s * (G * jnp.array([1.0, 0.0, 0.0]) + H * dx * jnp.array([dx, y, z]))
 
     @jaxtyped(typechecker=beartype)
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
@@ -167,10 +135,8 @@ class RodalMetric(ADMMetric):
         gives ``beta_lab = -X - v_s*e_x`` in our plus-sign convention.
         The center value and derivatives require their analytic limits.
 
-        This represents the ideal profile; it omits the radius floors and
-        small-radius branch in the numerical implementation. Agreement away
-        from that regularized region is numerical, not an exact identity
-        between the symbolic and regularized metrics.
+        The numerical implementation uses an even Taylor expansion near the
+        removable origin; elsewhere it evaluates this analytic profile.
         """
         t, x, y, z = sp.symbols("t x y z", real=True)
         v_s = sp.Symbol("v_s", real=True)

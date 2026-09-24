@@ -1,7 +1,8 @@
-"""EC-admissible transport over the shell design space.
+"""Sampled energy-condition diagnostics for the legacy T-shell prescription.
 
-Sweeps (compactness, thickness) for T-shell and generates
-a publication-quality phase diagram and 2x2 summary figure.
+Sweeps (compactness, thickness) and draws the resulting diagnostic margins.
+Passing those tests does not establish source closure or an elastic
+equilibrium. Example 11 implements the revised Einstein--elastic shell.
 
     .venv/bin/python examples/10_phase_diagram.py          # 8x6 demo (~5 min)
     .venv/bin/python examples/10_phase_diagram.py --full    # 20x15 (~1 hour)
@@ -43,7 +44,7 @@ def main():
         n_thickness = 6
         n_probes = 10
         n_ec_starts = 4
-        print("DEMO sweep (8x6). Use --full for paper quality.")
+        print("DEMO sweep (8x6). Use --full for a larger sampled grid.")
 
     sweep_path = str(output_dir / "sweep_results.npz")
     result = sweep_transport(
@@ -64,7 +65,7 @@ def main():
 
     n_feasible = sum(1 for pt in result.points if pt.ec_feasible)
     n_total = len(result.points)
-    print(f"\nSweep complete: {n_feasible}/{n_total} EC-admissible")
+    print(f"\nSweep complete: {n_feasible}/{n_total} pass the sampled EC tests")
 
     admissible = [pt for pt in result.points if pt.ec_feasible]
     if admissible:
@@ -76,11 +77,9 @@ def main():
             f"M={best.mass:.2f}"
         )
     else:
-        # The negative result is the point: a source-consistent shell carries an
-        # energy-condition deficit everywhere in this design space. Report how
-        # close it gets, so the boundary cost is a number rather than a verdict.
+        # Report the sampled margin without inferring a universal shell bound.
         closest = max(result.points, key=lambda pt: pt.worst_ec_margin)
-        print("  None admissible. Closest approach:")
+        print("  No sampled case passed. Closest approach:")
         print(
             f"    C={closest.compactness:.3f}, "
             f"dR/R={closest.thickness_ratio:.3f}, "

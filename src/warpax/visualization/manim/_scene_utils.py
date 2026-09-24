@@ -266,7 +266,7 @@ def compute_auto_exaggeration(
     field_name: str,
     linthresh: float | None = None,
 ) -> float:
-    """Compute the exaggeration factor for embedding surfaces.
+    """Compute the vertical scale for scalar surfaces.
 
     Uses ``0.3 * extent / max_warp`` where ``max_warp`` is the global
     maximum absolute value of the equatorial slice across all frames.
@@ -387,7 +387,7 @@ def make_conventions_caption(extra: str = "") -> Text:
 
     States the unit/signature/slice conventions a relativist needs to read the
     figure unambiguously: geometric units, metric signature, the rendered
-    spatial slice, and that each frame is a static metric (a parameter sweep,
+    spatial slice, and that each frame evaluates a prescribed metric (a parameter sweep,
     not a time evolution). Caller positions it (e.g. ``cap.to_edge(DOWN)``).
 
     Parameters
@@ -397,7 +397,7 @@ def make_conventions_caption(extra: str = "") -> Text:
     """
     base = (
         "G = c = 1   ·   signature (−,+,+,+)   ·   T_ab = G_ab/(8π)   ·   "
-        "z = 0 slice   ·   static metric per frame   ·   [ρ, T_ab] = 1/length²"
+        "z = 0 slice   ·   parameter sweep   ·   [ρ, T_ab] = 1/length²"
     )
     text = base if not extra else f"{base}   ·   {extra}"
     cap = Text(text, font_size=13, color=WHITE, weight="LIGHT")

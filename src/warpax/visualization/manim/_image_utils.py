@@ -143,11 +143,8 @@ def compute_symlog_clim(
         ``(vmin, vmax, linthresh)`` symmetric color limits and the
         (possibly adjusted) linear threshold.
     """
-    # Pool the finite slice data across all frames and use robust percentile
-    # limits. Raw min/max let a single near-singular grid point (e.g. the
-    # Eulerian NEC can blow up to ~-1e13 near the bubble centre) hijack the
-    # whole scale and wash the structure out, the 0.5/99.5 percentiles reject
-    # such blow-ups while keeping the true wall-region extremes.
+    # Use the same 0.5/99.5 percentile limits across all frames. Values beyond
+    # the limits saturate the colormap; these limits are not field extrema.
     pooled: list = []
     for frame in frames:
         if field_name not in frame.scalar_fields:

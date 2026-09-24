@@ -18,7 +18,8 @@ x_center = x_s + v_s t is the co-moving bubble position (x_s is the offset at t=
 Ground truth for Eulerian observers:
     rho_Euler = -(v_s^2 / (32 pi)) * (df/dr_s)^2 * (y^2 + z^2) / r_s^2
 
-This is always <= 0, confirming WEC/NEC violation.
+This is negative off the axis in a nontrivial wall, establishing WEC violation.
+NEC violation requires a separate null contraction.
 """
 
 from __future__ import annotations

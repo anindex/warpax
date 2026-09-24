@@ -10,7 +10,7 @@ numerical status for each wall diagnostic:
   a Heaviside indicator). It is NOT a valid Richardson target; we report its
   grid stability spread across the wall-resolved ladder.
 - Wall max|Im lambda|, min(rho+p_i), min(rho-|p_i|): grid-sampled EXTREMA of
-  smooth autodiff-exact fields. A grid-sampled extremum undershoots the true
+  smooth autodifferentiated fields. A grid-sampled extremum undershoots the true
   continuous extremum by an O(dx^2) grid-alignment gap that does not admit a
   clean Richardson order (aliasing). We report a basin-local polished value,
   obtained by local refinement (warpax.analysis.extrema.refine_extremum),

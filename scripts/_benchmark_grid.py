@@ -4,7 +4,7 @@ The matched cross-metric benchmark holds the physical parameters common
 (R_b = 1, sigma = 8) and evaluates every retained metric on ONE graded-grid
 family so that "common parameters, common grid" is true by construction rather
 than by coincidence across scattered literals. Because the tensor is
-autodiff-exact pointwise, the wall-cell count governs only the sampling of the
+autodifferentiated pointwise, the wall-cell count governs only the sampling of the
 discrete summaries, not the accuracy of the field.
 
 Grid family (anchored two-sided sinh stretch, densest exactly at the wall and
@@ -16,10 +16,8 @@ symmetric about the centre; see grids/_clustered.py):
     a uniform grid of the same N (3.6 / 4.5 / 5.4), every level clearing the
     four-cell criterion (WALL_CELL_FLOOR).
 
-Extrema (min NEC/DEC margin, max|Im lambda|) are polished to the continuum with
-warpax.analysis.extrema.refine_extremum (seeded from the deepest ladder sample),
-so they are resolution-independent; only the (non-smooth) volume fractions carry a
-grid stability spread across the ladder.
+Local searches refine sampled extrema. Their resolution dependence and the
+spreads of thresholded fractions are numerical diagnostics, not error bounds.
 """
 
 from __future__ import annotations

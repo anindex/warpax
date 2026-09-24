@@ -36,17 +36,17 @@
       ]
     ],
     "endpoint_inclusive": true,
-    "coordinate_core_exclusion_r_squared_lt": 1e-12,
     "volume_rule": "uniform coordinate cell volume times the sample sum"
   },
   "violation_roundoff_gate": "margin < -1e-10 * max(abs(negative finite margins))",
   "spread_definition": "max(abs(Q_i - mean(Q))) from unrounded samples",
   "interpretation": "Observed grid sensitivity only; no fitted order, extrapolated minimum or continuum error bound.",
   "source_sha256": {
-    "scripts/run_convergence.py": "21f31aa86374542c4f81af810cb3db25d903e237a39537e3f6dc7b4991d48a00",
-    "src/warpax/benchmarks/alcubierre.py": "a063e5d8df44603ef3f3c353bc856e5a7db5d0821b7c2ba7ae7d9b20fa37665b",
+    "scripts/run_convergence.py": "63e1a98ab1b87ff8776bfd8f884926537a632c681181a2a603e32bacddf9d335",
+    "src/warpax/benchmarks/alcubierre.py": "22fdd24ca4df5ae0d2eb74649e7843a9067f1b0814c3556785216ad8ad26a358",
     "src/warpax/analysis/convergence.py": "f4bcf3b100e7aa099e75ee4af58c7ce15161a7b8c31d6e0a90c8b0a0a359514e",
-    "src/warpax/energy_conditions/verifier.py": "d8da6d1d1c5b81084a6b1a39298c0ab27ff4a9074430931e514847d54265643e"
+    "src/warpax/energy_conditions/verifier.py": "d8da6d1d1c5b81084a6b1a39298c0ab27ff4a9074430931e514847d54265643e",
+    "src/warpax/metrics/_common.py": "21d9f498e18d11d9a3566b771fc3bc5be735834f936adadd8cad3eb17b874b6c"
   },
   "min_margin_nec": {
     "values": [
@@ -59,20 +59,20 @@
   },
   "l2_violation_nec": {
     "values": [
-      0.7509611164875749,
-      0.765783751225439,
-      0.7289277549056602
+      0.750961116487828,
+      0.7657837512254699,
+      0.7289277549056642
     ],
-    "mean": 0.7485575408728913,
-    "max_abs_deviation_from_mean": 0.019629785967231084
+    "mean": 0.7485575408729873,
+    "max_abs_deviation_from_mean": 0.01962978596732312
   },
   "integrated_violation_nec": {
     "values": [
-      1.5901768630057724,
-      1.720639772500074,
-      1.6517517123017829
+      1.5901770288439694,
+      1.7206397932298485,
+      1.651751714893005
     ],
-    "mean": 1.6541894492692097,
-    "max_abs_deviation_from_mean": 0.0664503232308642
+    "mean": 1.6541895123222743,
+    "max_abs_deviation_from_mean": 0.06645028090757421
   }
 }
