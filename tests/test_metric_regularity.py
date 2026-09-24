@@ -156,7 +156,8 @@ def test_fuchs_covariant_adm_symbolic_and_stationary_agreement():
         coords = jnp.array(point)
         g = np.asarray(metric(coords))
         a, _ = metric._potentials(jnp.linalg.norm(coords[1:]))
-        assert g[0, 0] == -np.exp(2 * float(a))
+        # NumPy and XLA exp can differ by a few float64 ulps across platforms.
+        np.testing.assert_allclose(g[0, 0], -np.exp(2 * float(a)), rtol=1e-14, atol=0)
         assert g[0, 2] == g[0, 3] == 0.0
         assert g[0, 1] == -metric.v_s * metric.shape_function_value(coords)
         reconstructed = adm_to_full_metric(
