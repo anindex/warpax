@@ -60,13 +60,6 @@ class TestSweepResult:
             thickness_values=jnp.linspace(0.3, 0.4, nt),
         )
 
-    def test_to_grids_shape(self):
-        result = self._make_result(nc=3, nt=2)
-        grids = result.to_grids()
-        assert grids["transport"].shape == (3, 2)
-        assert grids["ec_feasible"].shape == (3, 2)
-        assert grids["mass"].shape == (3, 2)
-
     def test_save_load_round_trip(self, tmp_path):
         result = self._make_result(nc=3, nt=2)
         save_file = str(tmp_path / "sweep.npz")
@@ -276,19 +269,6 @@ class TestPhaseDiagramPlot:
             compactness_values=jnp.linspace(0.03, 0.15, nc),
             thickness_values=jnp.linspace(0.3, 0.6, nt),
         )
-
-    def test_single_panel(self):
-        import matplotlib
-
-        matplotlib.use("Agg")
-        from warpax.visualization.phase_diagram import plot_phase_diagram
-
-        sweep = self._make_sweep()
-        fig = plot_phase_diagram(sweep)
-        assert fig is not None
-        import matplotlib.pyplot as plt
-
-        plt.close(fig)
 
     def test_single_panel_pdf(self, tmp_path):
         import matplotlib

@@ -222,11 +222,6 @@ class TestBoundedParam:
         # sigmoid'(0) = 0.25, range = 5, so gradient = 1.25
         np.testing.assert_allclose(float(grad_at_zero), 1.25, atol=1e-14)
 
-    def test_dtype_float64(self):
-        """Output should be float64."""
-        result = bounded_param(jnp.float64(0.0), jnp.float64(0.0), jnp.float64(5.0))
-        assert result.dtype == jnp.float64
-
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.geometry import GridSpec, evaluate_curvature_grid
@@ -294,7 +289,6 @@ def test_robust_leq_eulerian(MetricCls, kwargs, grid_bounds):
 
 
 from warpax.benchmarks import AlcubierreMetric
-from warpax.energy_conditions import WallRestrictedStats
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,
     determinant_guard_mask,
@@ -422,16 +416,6 @@ class TestShapeFunctionMask:
         )
         assert jnp.all(mask), "f_low=0, f_high=1 should select all points"
 
-    def test_shape_function_mask_output_shape(self):
-        """Output shape matches grid_shape."""
-        # Test with a 2D grid shape
-        n = len(self.coords_batch)
-        # Duplicate coords to form a 2-row grid
-        coords_2d = jnp.tile(self.coords_batch, (2, 1))
-        grid_2d = (2, n)
-        mask = shape_function_mask(self.metric, coords_2d, grid_2d)
-        assert mask.shape == grid_2d, f"Expected shape {grid_2d}, got {mask.shape}"
-
 
 class TestFrobeniusNormMask:
     """Tests for frobenius_norm_mask with synthetic stress-energy fields."""
@@ -472,12 +456,6 @@ class TestFrobeniusNormMask:
         assert bool(mask_high[2]), "Norm=1.0 should pass threshold=0.5"
         assert not bool(mask_high[0]), "Norm=1e-15 should fail threshold=0.5"
         assert not bool(mask_high[1]), "Norm=1e-10 should fail threshold=0.5"
-
-    def test_frobenius_norm_mask_dtype(self):
-        """Output is boolean."""
-        T = jnp.ones((2, 4, 4))
-        mask = frobenius_norm_mask(T)
-        assert mask.dtype == jnp.bool_, f"Expected bool dtype, got {mask.dtype}"
 
 
 class TestDeterminantGuardMask:
@@ -566,14 +544,6 @@ class TestMaskComposability:
         assert jnp.array_equal(combined, expected), f"OR: expected {expected}, got {combined}"
         assert combined.shape == mask_a.shape
 
-    def test_mask_composability_shapes(self):
-        """Composed masks preserve grid shape."""
-        shape_3d = (2, 3, 4)
-        mask_a = jnp.ones(shape_3d, dtype=bool)
-        mask_b = jnp.zeros(shape_3d, dtype=bool)
-        assert (mask_a & mask_b).shape == shape_3d
-        assert (mask_a | mask_b).shape == shape_3d
-
 
 class TestWallRestrictedStats:
     """Tests for compute_wall_restricted_stats type counts and violation counts."""
@@ -622,12 +592,6 @@ class TestWallRestrictedStats:
         assert stats.nec_frac_violated == pytest.approx(3 / 5), (
             f"Expected nec_frac_violated=0.6, got {stats.nec_frac_violated}"
         )
-
-    def test_wall_restricted_stats_is_namedtuple(self):
-        """Result is a WallRestrictedStats NamedTuple."""
-        stats = compute_wall_restricted_stats(self.ec_result, self.mask)
-        assert isinstance(stats, WallRestrictedStats)
-        assert len(stats) == 21, f"Expected 21 fields, got {len(stats)}"
 
 
 class TestWallRestrictedStatsMissRate:

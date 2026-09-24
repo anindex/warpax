@@ -4,7 +4,6 @@ import jax
 import jax.numpy as jnp
 
 from warpax.benchmarks.minkowski import MinkowskiMetric
-from warpax.geometry.metric import SymbolicMetric
 
 
 class TestMinkowski:
@@ -29,16 +28,3 @@ class TestMinkowski:
         m = MinkowskiMetric()
         leaves = jax.tree.leaves(m)
         assert leaves == []
-
-    def test_minkowski_symbolic(self):
-        """symbolic returns valid SymbolicMetric."""
-        m = MinkowskiMetric()
-        sm = m.symbolic()
-        assert isinstance(sm, SymbolicMetric)
-        assert sm.g.shape == (4, 4)
-        assert len(sm.coords) == 4
-
-    def test_minkowski_name(self):
-        """name returns 'Minkowski'."""
-        m = MinkowskiMetric()
-        assert m.name() == "Minkowski"

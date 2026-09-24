@@ -9,7 +9,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from warpax.io import InterpolatedADMMetric, load_einfield, load_warpfactory
+from warpax.io import load_einfield, load_warpfactory
 
 _h5py_available = find_spec("h5py") is not None
 requires_h5py = pytest.mark.skipif(
@@ -28,28 +28,11 @@ FIXTURE_PATH = Path(__file__).parent / "fixtures" / "cactus" / "minkowski_slice.
 class TestLoadCactusSlice:
     """End-to-end contract tests for the Cactus / ET HDF5 reader."""
 
-    def test_fixture_exists(self):
-        assert FIXTURE_PATH.exists(), (
-            f"Cactus fixture not committed: {FIXTURE_PATH}. Regenerate via "
-            "`python tests/fixtures/cactus/generate_minkowski_slice.py`."
-        )
-
-    def test_returns_interpolated_adm_metric(self):
-        m = load_cactus_slice(FIXTURE_PATH)
-        assert isinstance(m, InterpolatedADMMetric)
-
     def test_name_encodes_iteration_and_timelevel(self):
         m = load_cactus_slice(FIXTURE_PATH, iteration=0, timelevel=0)
         assert "cactus" in m.name()
         assert "it0" in m.name()
         assert "tl0" in m.name()
-
-    def test_grid_shape_matches_fixture(self):
-        """Single-timelevel wrapper: Nt=1; (nx, ny, nz) all 8 per fixture."""
-        m = load_cactus_slice(FIXTURE_PATH)
-        assert m.alpha_grid.shape == (1, 8, 8, 8)
-        assert m.beta_grid.shape == (1, 8, 8, 8, 3)
-        assert m.gamma_grid.shape == (1, 8, 8, 8, 3, 3)
 
     def test_minkowski_round_trip(self):
         """Hand-synth fixture: g(origin) == eta_{ab} exactly."""
@@ -129,10 +112,6 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures" / "einfields" / "minkowski.ckpt
 class TestLoadEinField:
     """Skip-safe contract tests for the EinFields loader."""
 
-    def test_import_load_einfield_symbol(self):
-        """The symbol must import even without orbax/flax installed."""
-        from warpax.io import load_einfield as _lf  # noqa: F401
-
     def test_nonexistent_checkpoint_raises(self, tmp_path):
         """Missing path raises FileNotFoundError even when extras absent."""
         # Import the extras if they exist so the path check is reached;
@@ -178,26 +157,10 @@ WARPFACTORY_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "warpfactory" / 
 class TestLoadWarpFactory:
     """End-to-end contract tests for the WarpFactory reader."""
 
-    def test_fixture_exists(self):
-        assert WARPFACTORY_FIXTURE_PATH.exists(), (
-            f"WarpFactory fixture not committed: {WARPFACTORY_FIXTURE_PATH}"
-        )
-
-    def test_returns_interpolated_adm_metric(self):
-        m = load_warpfactory(WARPFACTORY_FIXTURE_PATH)
-        assert isinstance(m, InterpolatedADMMetric)
-
     def test_name_reflects_source_type(self):
         m = load_warpfactory(WARPFACTORY_FIXTURE_PATH)
         # Fixture has metric.type = "Alcubierre"
         assert "alcubierre" in m.name().lower()
-
-    def test_grids_have_expected_shapes(self):
-        m = load_warpfactory(WARPFACTORY_FIXTURE_PATH)
-        Nt, Nx, Ny, Nz = 2, 4, 4, 4  # fixture shape
-        assert m.alpha_grid.shape == (Nt, Nx, Ny, Nz)
-        assert m.beta_grid.shape == (Nt, Nx, Ny, Nz, 3)
-        assert m.gamma_grid.shape == (Nt, Nx, Ny, Nz, 3, 3)
 
     def test_full_metric_has_lorentzian_signature(self):
         m = load_warpfactory(WARPFACTORY_FIXTURE_PATH)

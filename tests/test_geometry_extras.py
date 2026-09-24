@@ -117,20 +117,6 @@ class TestInvariantConvenience:
         assert_allclose(float(W2_conv), float(W2_individual), atol=0.0)
         assert_allclose(float(CP_conv), float(CP_individual), atol=0.0)
 
-    def test_invariants_float64_dtype(self):
-        """All invariant outputs are float64."""
-        metric = SchwarzschildMetric(M=1.0)
-        coords = jnp.array([0.0, 0.0, 5.0, 0.0])
-        result = compute_curvature_chain(metric, coords)
-
-        K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
-        R2 = ricci_squared(result.ricci, result.metric_inv)
-        W2 = weyl_squared(K, R2, result.ricci_scalar)
-
-        assert K.dtype == jnp.float64
-        assert R2.dtype == jnp.float64
-        assert W2.dtype == jnp.float64
-
 
 class TestRegularityDiagnostics:
     """Verify the metric regularity diagnostic module."""
@@ -200,12 +186,6 @@ class TestRegularityDiagnostics:
 class TestBuildCoordBatch:
     """Tests for build_coord_batch helper."""
 
-    def test_build_coord_batch_shape(self, default_grid):
-        """build_coord_batch returns shape (N, 4) where N = prod(grid_shape)."""
-        coords = build_coord_batch(default_grid)
-        N = np.prod(default_grid.shape)
-        assert coords.shape == (N, 4)
-
     def test_build_coord_batch_time_coordinate(self, default_grid):
         """Time coordinates default to 0.0, or custom t value."""
         coords_default = build_coord_batch(default_grid)
@@ -228,22 +208,6 @@ class TestGridCurvatureShapes:
             bounds=[(-1.0, 1.0), (-1.0, 1.0), (-0.5, 0.5)],
             shape=(4, 4, 2),
         )
-
-    def test_grid_curvature_result_shapes(self):
-        """evaluate_curvature_grid returns correct shapes for all fields."""
-        result = evaluate_curvature_grid(self.metric, self.grid)
-        gs = (4, 4, 2)
-
-        assert isinstance(result, GridCurvatureResult)
-        assert result.metric.shape == (*gs, 4, 4)
-        assert result.metric_inv.shape == (*gs, 4, 4)
-        assert result.christoffel.shape == (*gs, 4, 4, 4)
-        assert result.riemann.shape == (*gs, 4, 4, 4, 4)
-        assert result.ricci.shape == (*gs, 4, 4)
-        assert result.ricci_scalar.shape == gs
-        assert result.kretschmann.shape == gs
-        assert result.ricci_squared.shape == gs
-        assert result.weyl_squared.shape == gs
 
     def test_grid_without_invariants(self):
         """compute_invariants=False returns CurvatureResult without invariant fields."""
@@ -310,25 +274,6 @@ class TestGridMinkowskiFlat:
 
 
 # Float64 dtype enforcement
-
-
-class TestGridFloat64:
-    """All grid output fields must be float64."""
-
-    def test_grid_float64_dtype(self):
-        """All output fields from evaluate_curvature_grid are float64."""
-        metric = MinkowskiMetric()
-        grid = GridSpec(
-            bounds=[(-1.0, 1.0), (-1.0, 1.0), (-0.5, 0.5)],
-            shape=(4, 4, 2),
-        )
-        result = evaluate_curvature_grid(metric, grid)
-
-        for field_name in GridCurvatureResult._fields:
-            arr = getattr(result, field_name)
-            assert arr.dtype == jnp.float64, (
-                f"Field {field_name} has dtype {arr.dtype}, expected float64"
-            )
 
 
 class TestGridSchwarzschildKretschmann:

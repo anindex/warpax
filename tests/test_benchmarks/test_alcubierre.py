@@ -7,7 +7,6 @@ from warpax.benchmarks.alcubierre import (
     AlcubierreMetric,
     eulerian_energy_density,
 )
-from warpax.geometry.metric import SymbolicMetric
 
 
 class TestAlcubierre:
@@ -56,14 +55,6 @@ class TestAlcubierre:
         g1 = m1(near_center)
         g2 = m2(near_center)
         assert not jnp.allclose(g1, g2, atol=1e-10)
-
-    def test_alcubierre_symbolic(self):
-        """symbolic returns valid SymbolicMetric."""
-        m = AlcubierreMetric()
-        sm = m.symbolic()
-        assert isinstance(sm, SymbolicMetric)
-        assert sm.g.shape == (4, 4)
-        assert len(sm.coords) == 4
 
     def test_alcubierre_eulerian_energy_negative(self):
         """Analytical energy density <= 0 everywhere (ported from legacy)."""

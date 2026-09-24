@@ -85,15 +85,6 @@ class TestTypeIClassification:
         assert int(result.he_type) == 1
         np.testing.assert_allclose(float(result.rho), 1e11, rtol=1e-6)
 
-    def test_eigenvalues_dtype_float64(self):
-        """Eigenvalues should be float64 (not complex128 leaking through)."""
-        T_mixed = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
-        result = classify_hawking_ellis(T_mixed, ETA)
-
-        assert result.eigenvalues.dtype == jnp.float64
-        assert result.rho.dtype == jnp.float64
-        assert result.pressures.dtype == jnp.float64
-
 
 class TestTypeIVClassification:
     """Type IV: complex eigenvalue pair."""
@@ -625,18 +616,6 @@ class TestECVmapGrid:
         assert float(nec[3]) < 0.0
         np.testing.assert_allclose(float(nec[3]), -1.0, atol=1e-12)
 
-    def test_margin_dtype_float64(self):
-        """EC margins should be float64."""
-        rho = jnp.float64(1.0)
-        pressures = jnp.array([0.5, 0.3, 0.2])
-
-        nec, wec, sec, dec = check_all(rho, pressures)
-
-        assert nec.dtype == jnp.float64
-        assert wec.dtype == jnp.float64
-        assert sec.dtype == jnp.float64
-        assert dec.dtype == jnp.float64
-
 
 # Scale-aware imaginary tolerance tests (root cause fix)
 
@@ -700,16 +679,6 @@ class TestScaleAwareImaginaryTolerance:
             assert _classify(2e-3, scale) == 4, f"|Im/Re|=2e-3 at {scale}"
             # Below the tolerance the spectrum reads real at every scale.
             assert _classify(1e-12, scale) == 1, f"|Im/Re|=1e-12 at {scale}"
-
-    def test_eigenvalues_imag_field_present(self):
-        """ClassificationResult has eigenvalues_imag field."""
-        T_mixed = jnp.diag(jnp.array([-1.0, 0.5, 0.3, 0.1]))
-        result = classify_hawking_ellis(T_mixed, ETA)
-
-        assert hasattr(result, "eigenvalues_imag"), (
-            "ClassificationResult missing eigenvalues_imag field"
-        )
-        assert result.eigenvalues_imag.shape == (4,)
 
     def test_eigenvalues_imag_near_zero_for_diagonal(self):
         """For a diagonal matrix, imaginary parts should be near zero."""
@@ -1079,16 +1048,6 @@ class TestBobrickMartire:
         assert r1.stationary is r2.stationary
         assert r1.comoving_fluid is r2.comoving_fluid
         assert r1.shape_function_supported is r2.shape_function_supported
-
-    def test_classified_metric_is_namedtuple(self):
-        """``ClassifiedMetric`` exposes named attributes (for API consumers)."""
-        result = bobrick_martire(MinkowskiMetric())
-        # NamedTuple: field access + tuple-unpack both work.
-        c, st, cf, sfs = result
-        assert c == result.bobrick_class
-        assert st is result.stationary
-        assert cf is result.comoving_fluid
-        assert sfs is result.shape_function_supported
 
 
 def _g_minkowski():

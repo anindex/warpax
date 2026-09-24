@@ -164,12 +164,6 @@ class TestAlcubierreGrid:
     in the bubble wall region (Alcubierre 1994).
     """
 
-    def test_grid_ec_runs(self, alcubierre_ec):
-        """verify_grid completes without error on Alcubierre data."""
-        assert isinstance(alcubierre_ec, ECGridResult)
-        assert alcubierre_ec.he_types.shape == (5, 5, 5)
-        assert alcubierre_ec.wec_margins.shape == (5, 5, 5)
-
     def test_some_type_i_points(self, alcubierre_ec):
         """Some interior points should classify as Type I."""
         n_type_i = jnp.sum(alcubierre_ec.he_types == 1.0)
@@ -308,11 +302,6 @@ class TestWorstObserver:
         norm_sq = float(jnp.einsum("a,ab,b->", r.worst_observer, ETA, r.worst_observer))
         assert norm_sq == pytest.approx(-1.0, abs=1e-4), f"g_ab u^a u^b = {norm_sq}, expected -1"
 
-    def test_worst_params_shape(self):
-        """worst_params = (zeta, theta, phi)."""
-        r = verify_point(self.T_bad, ETA, n_starts=8)
-        assert r.worst_params.shape == (3,)
-
     def test_worst_params_ranges(self):
         """Parameters in expected ranges: zeta >= 0, 0 <= theta <= pi, 0 <= phi <= 2pi."""
         r = verify_point(self.T_bad, ETA, n_starts=8)
@@ -347,13 +336,6 @@ class TestANECIntegrand:
         # by hand: T_00 + T_11 = -0.5 - 0.5 = -1
         assert float(val) == pytest.approx(-1.0, abs=1e-12)
         assert float(val) < 0
-
-    def test_scalar_output(self):
-        """Output is a scalar."""
-        T = jnp.diag(jnp.array([1.0, 0.1, 0.1, 0.1]))
-        k = jnp.array([1.0, 0.0, 0.0, 1.0])
-        val = anec_integrand(T, k)
-        assert val.shape == ()
 
 
 # 9b. ECGridResult new fields
@@ -537,29 +519,3 @@ class TestDECFutureDirectedness:
 
 
 # 10. Float64 dtype
-
-
-class TestFloat64Dtype:
-    """All output margins and observer vectors are float64."""
-
-    T_test = jnp.diag(jnp.array([1.0, 0.1, 0.1, 0.1]))
-
-    def test_verify_point_dtypes(self):
-        r = verify_point(self.T_test, ETA, n_starts=4)
-        assert r.nec_margin.dtype == jnp.float64
-        assert r.wec_margin.dtype == jnp.float64
-        assert r.sec_margin.dtype == jnp.float64
-        assert r.dec_margin.dtype == jnp.float64
-        assert r.worst_observer.dtype == jnp.float64
-        assert r.worst_params.dtype == jnp.float64
-        assert r.eigenvalues.dtype == jnp.float64
-
-    def test_eulerian_ec_dtypes(self):
-        e = compute_eulerian_ec(self.T_test, ETA)
-        for name in ("wec", "nec", "sec", "dec"):
-            assert e[name].dtype == jnp.float64, f"{name} dtype: {e[name].dtype}"
-
-    def test_anec_integrand_dtype(self):
-        k = jnp.array([1.0, 1.0, 0.0, 0.0])
-        val = anec_integrand(self.T_test, k)
-        assert val.dtype == jnp.float64

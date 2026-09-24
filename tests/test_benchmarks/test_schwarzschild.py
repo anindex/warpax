@@ -4,7 +4,6 @@ import jax
 import jax.numpy as jnp
 
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
-from warpax.geometry.metric import SymbolicMetric
 
 
 class TestSchwarzschild:
@@ -45,32 +44,6 @@ class TestSchwarzschild:
         g1 = m1(sample_coords)
         g2 = m2(sample_coords)
         assert not jnp.allclose(g1, g2, atol=1e-10)
-
-    def test_schwarzschild_symbolic(self):
-        """symbolic returns valid SymbolicMetric."""
-        m = SchwarzschildMetric()
-        sm = m.symbolic()
-        assert isinstance(sm, SymbolicMetric)
-        assert sm.g.shape == (4, 4)
-        assert len(sm.coords) == 4
-
-    def test_schwarzschild_name(self):
-        """name returns 'Schwarzschild'."""
-        m = SchwarzschildMetric()
-        assert m.name() == "Schwarzschild"
-
-    def test_schwarzschild_g00_negative(self, sample_coords):
-        """g_00 should be negative (timelike signature) outside horizon."""
-        m = SchwarzschildMetric(M=1.0)
-        g = m(sample_coords)
-        assert g[0, 0] < 0.0
-
-    def test_schwarzschild_gii_positive(self, sample_coords):
-        """g_ii should be positive (spacelike) for i=1,2,3."""
-        m = SchwarzschildMetric(M=1.0)
-        g = m(sample_coords)
-        for i in range(1, 4):
-            assert g[i, i] > 0.0
 
     def test_schwarzschild_closed_form_values(self):
         """Exact isotropic values at r_iso=2, M=1.

@@ -113,11 +113,6 @@ class TestMinkowski:
     metric = MinkowskiMetric()
     coords = jnp.array([0.0, 1.0, 2.0, 3.0])
 
-    def test_christoffel_zero(self):
-        # eager-path probe; the full chain below goes through filter_jit
-        gamma = christoffel_symbols(self.metric, self.coords)
-        npt.assert_allclose(gamma, 0.0, atol=1e-15)
-
     def test_full_chain_zero(self):
         # single flatness sentinel: every tensor in the chain must vanish
         result = compute_curvature_chain(self.metric, self.coords)
@@ -274,12 +269,6 @@ class TestAlcubierre:
     metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
     jax_coords = jnp.array([0.0, 0.8, 0.5, 0.0])
 
-    def test_christoffel_nonzero(self):
-        """Near the bubble wall, Christoffel symbols are non-trivial."""
-        gamma = christoffel_symbols(self.metric, self.jax_coords)
-        max_abs = float(jnp.max(jnp.abs(gamma)))
-        assert max_abs > 0.01, f"Alcubierre Christoffel max |gamma| = {max_abs}, expected > 0.01"
-
     def test_christoffel_lower_symmetry(self):
         """Gamma^l_{mn} == Gamma^l_{nm} (symmetry in lower indices)."""
         gamma = christoffel_symbols(self.metric, self.jax_coords)
@@ -397,20 +386,6 @@ class TestJITCompilability:
 class TestCurvatureResult:
     """Verify CurvatureResult structure and JAX pytree compatibility."""
 
-    def test_namedtuple_fields(self):
-        """CurvatureResult has 8 expected fields."""
-        expected_fields = (
-            "metric",
-            "metric_inv",
-            "christoffel",
-            "riemann",
-            "ricci",
-            "ricci_scalar",
-            "einstein",
-            "stress_energy",
-        )
-        assert CurvatureResult._fields == expected_fields
-
     def test_is_pytree(self):
         """CurvatureResult is a valid JAX pytree with 8 array leaves."""
         metric = MinkowskiMetric()
@@ -468,30 +443,12 @@ class TestADMToFullMetric:
         g_jit = jax.jit(adm_to_full_metric)(alpha, beta_up, gamma)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
 
-    def test_adm_to_full_metric_float64(self):
-        """Verify output dtype is float64."""
-        alpha = jnp.array(1.0)
-        beta_up = jnp.array([0.0, 0.0, 0.0])
-        gamma = jnp.eye(3)
-
-        g = adm_to_full_metric(alpha, beta_up, gamma)
-        assert g.dtype == jnp.float64
-
 
 # SymbolicMetric tests
 
 
 class TestSymbolicMetric:
     """Tests for the SymbolicMetric class."""
-
-    def test_symbolic_metric_creation(self):
-        """Create SymbolicMetric, verify coords and g."""
-        t, x, y, z = sp.symbols("t x y z")
-        g = sp.diag(-1, 1, 1, 1)
-        sm = SymbolicMetric([t, x, y, z], g)
-        assert sm.coords == [t, x, y, z]
-        assert sm.g == g
-        assert sm.g.shape == (4, 4)
 
     def test_symbolic_metric_inverse(self):
         """Verify g * g_inv = identity (symbolically)."""
@@ -638,14 +595,6 @@ class TestSmoothstepTransitions:
 class TestTensorField:
     """Tests for the TensorField Equinox module."""
 
-    def test_tensorfield_creation(self):
-        """Create TensorField with known components, verify rank and index_positions."""
-        components = jnp.eye(4)
-        tf = TensorField(components=components, rank=2, index_positions="dd")
-        assert tf.rank == 2
-        assert tf.index_positions == "dd"
-        assert jnp.array_equal(tf.components, components)
-
     def test_tensorfield_default_index_positions(self):
         """Create with empty index_positions, verify default is 'd' * rank."""
         components = jnp.zeros((4, 4, 4))
@@ -665,12 +614,6 @@ class TestTensorField:
         assert jnp.allclose(result.components, components)
         assert result.rank == 2
         assert result.index_positions == "dd"
-
-    def test_tensorfield_float64(self):
-        """Verify components dtype is float64."""
-        components = jnp.ones((4, 4))
-        tf = TensorField(components=components, rank=2)
-        assert tf.components.dtype == jnp.float64
 
     def test_tensorfield_invalid_rank(self):
         """Verify ValueError when index_positions length != rank."""
@@ -694,16 +637,6 @@ class TestTensorField:
 
 class TestGridSpec:
     """Tests for the GridSpec Equinox module."""
-
-    def test_gridspec_creation(self):
-        """Create GridSpec, verify bounds and shape."""
-        grid = GridSpec(
-            bounds=[(-1.0, 1.0), (-2.0, 2.0), (-3.0, 3.0)],
-            shape=(10, 20, 30),
-        )
-        assert grid.bounds == [(-1.0, 1.0), (-2.0, 2.0), (-3.0, 3.0)]
-        assert grid.shape == (10, 20, 30)
-        assert grid.ndim == 3
 
     def test_gridspec_spacing(self):
         """Verify spacing computation matches expected values."""

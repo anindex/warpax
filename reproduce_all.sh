@@ -97,11 +97,13 @@ if [ "$KEEP_CACHE" = false ] && [ -z "$STAGE_ONLY" -o "$STAGE_ONLY" = "core" ]; 
     echo "============================================================"
     echo " Step 0: Clearing cached results and figures"
     echo "============================================================"
-    find "${RESULTS_DIR}" -name '*.npz' -delete 2>/dev/null || true
+    find "${RESULTS_DIR}" -name '*.npz' ! -path "${RESULTS_DIR}/elastic_shell/*" -delete
     # enclosures.json belongs to the `enclosures` stage, which this case does NOT
     # run: a branch-and-bound over four drives is hours of search. Nothing else
     # rebuilds it, so keep it and let `--stage enclosures` own it.
-    find "${RESULTS_DIR}" -name '*.json' ! -name 'enclosures.json' -delete 2>/dev/null || true
+    # Elastic coefficients are required input, not a regenerable CQG cache.
+    find "${RESULTS_DIR}" -name '*.json' ! -name 'enclosures.json' \
+        ! -path "${RESULTS_DIR}/elastic_shell/*" -delete
     find "${RESULTS_DIR}" -name '*.tex' -delete 2>/dev/null || true
     find "${FIGURES_DIR}" -name '*.pdf' -delete 2>/dev/null || true
     echo " Cleared results/ and figures/*.pdf (enclosures.json kept: --stage enclosures owns it)"
@@ -260,40 +262,32 @@ run_ablation() {
     echo "============================================================"
 
     echo ""
-    echo "[1/8] run_c1_vs_c2_comparison.py C1 vs C2 WarpShell comparison"
-    $PYTHON "${SCRIPT_DIR}/scripts/run_c1_vs_c2_comparison.py"
-
-    echo ""
-    echo "[2/8] run_nstarts_ablation.py N-starts ablation"
+    echo "[1/7] run_nstarts_ablation.py N-starts ablation"
     $PYTHON "${SCRIPT_DIR}/scripts/run_nstarts_ablation.py"
 
     echo ""
-    echo "[3/8] run_zeta_sensitivity.py Zeta sensitivity"
+    echo "[2/7] run_zeta_sensitivity.py Zeta sensitivity"
     $PYTHON "${SCRIPT_DIR}/scripts/run_zeta_sensitivity.py"
 
     echo ""
-    echo "[4/8] rodal_dec_ablation.py Rodal DEC ablation"
+    echo "[3/7] rodal_dec_ablation.py Rodal DEC ablation"
     $PYTHON "${SCRIPT_DIR}/scripts/rodal_dec_ablation.py"
 
     echo ""
-    echo "[5/8] run_warpshell_convergence.py WarpShell convergence"
+    echo "[4/7] run_warpshell_convergence.py WarpShell convergence"
     $PYTHON "${SCRIPT_DIR}/scripts/run_warpshell_convergence.py"
 
     echo ""
-    echo "[6/8] run_wall_resolution.py Wall resolution analysis"
+    echo "[5/7] run_wall_resolution.py Wall resolution analysis"
     $PYTHON "${SCRIPT_DIR}/scripts/run_wall_resolution.py"
 
     echo ""
-    echo "[7/8] run_sampling_comparison.py Fibonacci vs BFGS comparison"
+    echo "[6/7] run_sampling_comparison.py Fibonacci vs BFGS comparison"
     $PYTHON "${SCRIPT_DIR}/scripts/run_sampling_comparison.py"
 
     echo ""
-    echo "[8/8] run_smoothwidth_ablation.py Smooth width ablation"
+    echo "[7/7] run_smoothwidth_ablation.py Smooth width ablation"
     $PYTHON "${SCRIPT_DIR}/scripts/run_smoothwidth_ablation.py"
-
-    echo ""
-    echo "[+] run_worst_observer_alignment.py Worst observer alignment"
-    $PYTHON "${SCRIPT_DIR}/scripts/run_worst_observer_alignment.py"
 
     echo ""
     echo "[+] run_missed_detection_comparison.py Missed detection comparison"

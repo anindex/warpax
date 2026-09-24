@@ -5,7 +5,6 @@ Every printed number traces to results/*.json and cannot drift:
 - tables/missed_uniform.tex        <- results/comparison_table.json (v_s = 0.5)
 - tables/type_breakdown.tex        <- results/wall_restricted_analysis.json
 - tables/nstarts.tex               <- results/nstarts_ablation.json
-- tables/c1_vs_c2.tex              <- results/c1_vs_c2_comparison.json
 - tables/convergence_richardson.tex <- results/convergence_data.json
 
 Read-only on results/: reruns of the upstream analysis scripts refresh the
@@ -159,34 +158,6 @@ def emit_nstarts() -> None:
     _write("nstarts.tex", lines)
 
 
-def emit_c1_vs_c2() -> None:
-    rows = _load("c1_vs_c2_comparison.json")["rows"]
-    lines = [
-        "\\begin{tabular}{c cc cc cc cc}",
-        "\\hline\\hline",
-        "$v_s$ & \\multicolumn{2}{c}{Type I (\\%)} & \\multicolumn{2}{c}{Type IV (\\%)}"
-        " & \\multicolumn{2}{c}{$\\min\\;m_{\\mathrm{NEC}}$}"
-        " & \\multicolumn{2}{c}{$\\max|d^3\\alpha/dx^3|$} \\\\",
-        " & C1 & C2 & C1 & C2 & C1 & C2 & C1 & C2 \\\\",
-        "\\hline",
-    ]
-    for r in rows:
-        cells = [
-            f"{r['v_s']}",
-            _pct(r["c1_pct_type_i"]),
-            _pct(r["c2_pct_type_i"]),
-            _pct(r["c1_pct_type_iv"]),
-            _pct(r["c2_pct_type_iv"]),
-            _sci(r["c1_min_nec_robust"], 2),
-            _sci(r["c2_min_nec_robust"], 2),
-            _sci(r["c1_max_d3_lapse"], 2),
-            _sci(r["c2_max_d3_lapse"], 2),
-        ]
-        lines.append("  " + " & ".join(cells) + " \\\\")
-    lines += ["\\hline\\hline", "\\end{tabular}"]
-    _write("c1_vs_c2.tex", lines)
-
-
 def emit_convergence() -> None:
     c = _load("convergence_data.json")
     res = c["resolutions"]
@@ -228,7 +199,6 @@ def main():
     emit_missed_uniform()
     emit_type_breakdown()
     emit_nstarts()
-    emit_c1_vs_c2()
     emit_convergence()
 
 

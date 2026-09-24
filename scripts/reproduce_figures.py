@@ -2,7 +2,7 @@
 
 Single-command figure generator. Most figure sets load cached .npz/.json
 results from results/ and only render PDF figures into figures/. A few sets
-(c1_vs_c2, rodal_dec_ablation, fibonacci_dec, shift_vorticity) recompute their
+(rodal_dec_ablation, fibonacci_dec, shift_vorticity) recompute their
 data by invoking standalone scripts via subprocess.
 
 Usage
@@ -15,7 +15,7 @@ Selective regeneration:
     python scripts/reproduce_figures.py --only velocity_convergence observer
 
 Available figure sets: comparison, velocity_convergence, velocity, observer,
-    convergence, kinematic, missed, geodesic, alignment, c1_vs_c2,
+    convergence, kinematic, missed, geodesic,
     rodal_dec_ablation, fibonacci_dec, shift_vorticity, velocity_summary
 """
 
@@ -39,7 +39,6 @@ from warpax.visualization._style import DOUBLE_COL, apply_style
 apply_style()
 
 from warpax.geometry.types import GridSpec
-from warpax.visualization.alignment_plots import plot_alignment_histogram
 from warpax.visualization.comparison_plots import (
     plot_comparison_panel,
     plot_comparison_table,
@@ -465,37 +464,6 @@ def generate_geodesic_figures(figures_dir: str, results_dir: str) -> int:
     return count
 
 
-def generate_alignment_figures(figures_dir: str, results_dir: str) -> int:
-    """Generate worst-observer alignment angle histograms.
-
-    Returns the number of figures generated.
-    """
-    _ensure_dir(figures_dir)
-
-    npz_path = os.path.join(results_dir, "alignment_rodal.npz")
-    data = _load_npz(npz_path)
-    if data is None:
-        return 0
-
-    velocities = data["velocities"]
-    angle_arrays: dict[float, np.ndarray] = {}
-    for v_s in velocities:
-        key = f"angles_vs{v_s}"
-        if key in data:
-            angle_arrays[float(v_s)] = np.asarray(data[key])
-
-    if not angle_arrays:
-        warnings.warn("alignment_rodal.npz has no angle arrays", stacklevel=2)
-        return 0
-
-    fig = plot_alignment_histogram(angle_arrays)
-    save_path = os.path.join(figures_dir, "worst_observer_alignment.pdf")
-    fig.savefig(save_path, format="pdf", bbox_inches="tight", dpi=300)
-    plt.close(fig)
-    print(f"  Generated: {save_path}")
-    return 1
-
-
 # Standalone-script figure wrappers
 # These figures require computation (not just cached data). The wrapper
 # functions call the standalone scripts via subprocess so that
@@ -520,17 +488,6 @@ def _run_standalone_script(script_name, figures_dir, *extra_args):
             print(f"  stderr: {stderr_tail}")
         return 0
     return 1
-
-
-def generate_c1_vs_c2_figure(figures_dir, results_dir):
-    """Generate C1 vs C2 WarpShell comparison figure."""
-    expected = os.path.join(figures_dir, "c1_vs_c2_margins.pdf")
-    _run_standalone_script("run_c1_vs_c2_comparison.py", figures_dir)
-    if os.path.isfile(expected):
-        print(f"  Generated: {expected}")
-        return 1
-    print(f"  WARNING: {expected} not produced")
-    return 0
 
 
 def generate_rodal_dec_ablation_figure(figures_dir, results_dir):
@@ -635,8 +592,6 @@ FIGURE_SETS = {
     "kinematic": generate_kinematic_figures,
     "missed": generate_missed_violations_figure,
     "geodesic": generate_geodesic_figures,
-    "alignment": generate_alignment_figures,
-    "c1_vs_c2": generate_c1_vs_c2_figure,
     "rodal_dec_ablation": generate_rodal_dec_ablation_figure,
     "fibonacci_dec": generate_fibonacci_dec_figure,
     "shift_vorticity": generate_shift_vorticity_figure,
