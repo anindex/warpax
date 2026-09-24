@@ -63,7 +63,6 @@ from warpax.visualization.manim._scene_utils import (
 from warpax.visualization.manim._surface import (
     auto_linthresh,
     framedata_to_surface,
-    symlog_height,
 )
 
 
@@ -117,11 +116,11 @@ class VelocitySweep(ThreeDScene):
 
         # Build axes from energy_density range across all frames
         axes = make_axes_for_frames(all_frames, "energy_density", linthresh=ed_linthresh)
+        axes.scale(0.85)
 
         # Global color limits (prevents flickering). rho_Eul and the NEC margin
         # are both <= 0 for Alcubierre -> one-sided depth scales (deepest -> 0).
-        # The grid samples the bubble centre, where the regularity floor returns
-        # ~-7e12; a raw min would set the whole scale from that one artefact.
+        # Percentile limits keep weak structure visible; larger values saturate.
         ed_clim = (compute_global_clim(all_frames, "energy_density", percentile=1.0)[0], 0.0)
         nec_clim = (
             compute_global_clim(all_frames, "nec_margin_sweep", percentile=1.0)[0],
@@ -132,10 +131,6 @@ class VelocitySweep(ThreeDScene):
 
         # Auto-exaggeration for embedding
         exag = compute_auto_exaggeration(all_frames, "energy_density", linthresh=ed_linthresh)
-
-        # z_extent for heatmap positioning
-        max_abs = float(np.max(np.abs(symlog_height(np.asarray(ed_clim), ed_linthresh))))
-        z_extent = max_abs * exag * 1.3
 
         title_text = Text(
             "Alcubierre Velocity Sweep",
@@ -175,7 +170,7 @@ class VelocitySweep(ThreeDScene):
                 frame,
                 "nec_margin_sweep",
                 axes,
-                z_offset=-z_extent * 0.85,
+                z_offset=axes.z_range[0],  # Below the full surface, including colour-clipped tails.
                 resolution=(48, 48),
                 colormap="nec_depth",
                 linthresh=nec_linthresh,
@@ -334,7 +329,8 @@ class VelocitySweep(ThreeDScene):
         caption.to_edge(DOWN, buff=0.06)
         self.add_fixed_in_frame_mobjects(caption)
 
-        self.add(axes, embedding, heatmap)
+        # Draw the lower slab first so it cannot cover the translucent wireframe.
+        self.add(axes, heatmap, embedding)
         self.begin_ambient_camera_rotation(rate=0.015, about="theta")
         self.play(
             frame_idx.animate.set_value(n_total - 1),

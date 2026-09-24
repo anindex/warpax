@@ -117,6 +117,7 @@ class BoostRapiditySweep(ThreeDScene):
 
         # Build axes from energy_density range (static curvature reference)
         axes = make_axes_for_frames(all_frames, "energy_density")
+        axes.scale(0.9)
 
         # Global color limits (prevents flickering). rho_Eul is non-positive, so a
         # one-sided depth scale is right for it. The boosted WEC margin is NOT:
@@ -131,10 +132,6 @@ class BoostRapiditySweep(ThreeDScene):
 
         # Auto-exaggeration for embedding
         exag = compute_auto_exaggeration(all_frames, "energy_density")
-
-        # z_extent for heatmap positioning
-        max_abs = max(abs(ed_clim[0]), abs(ed_clim[1]))
-        z_extent = max_abs * exag * 1.3
 
         title_text = Text(
             "Alcubierre: Boosted-Observer Energy Density",
@@ -168,7 +165,7 @@ class BoostRapiditySweep(ThreeDScene):
                 frame,
                 "wec_margin_sweep",
                 axes,
-                z_offset=-z_extent * 0.85,
+                z_offset=axes.z_range[0],  # Below the full surface, including colour-clipped tails.
                 resolution=(48, 48),
                 # Signed field: nec_depth is a one-sided ramp and would collapse
                 # the satisfied half onto one colour.
@@ -382,7 +379,8 @@ class BoostRapiditySweep(ThreeDScene):
         caption.to_edge(DOWN, buff=0.06)
         self.add_fixed_in_frame_mobjects(caption)
 
-        self.add(axes, embedding, heatmap, arrow)
+        # Draw the lower slab first so it cannot cover the translucent wireframe.
+        self.add(axes, heatmap, embedding, arrow)
         self.play(
             frame_idx.animate.set_value(n_total - 1),
             run_time=19,

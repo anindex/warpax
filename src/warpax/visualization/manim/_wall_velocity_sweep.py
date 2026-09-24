@@ -65,7 +65,6 @@ from warpax.visualization.manim._scene_utils import (
 from warpax.visualization.manim._surface import (
     auto_linthresh,
     framedata_to_surface,
-    symlog_height,
 )
 
 
@@ -126,6 +125,7 @@ class WallAndVelocitySweep(ThreeDScene):
             coord_range=(-2, 2),
             linthresh=ed_linthresh,
         )
+        axes.scale(0.9)
 
         # Global color limits (prevents flickering). Both fields are <= 0 for
         # Alcubierre (rho_Eul and the NEC margin), so use one-sided depth scales
@@ -145,10 +145,6 @@ class WallAndVelocitySweep(ThreeDScene):
 
         # Vertical scale for the scalar surface.
         exag = compute_auto_exaggeration(all_frames, "energy_density", linthresh=ed_linthresh)
-
-        # z_extent for heatmap positioning
-        max_abs = float(np.max(np.abs(symlog_height(np.asarray(ed_clim), ed_linthresh))))
-        z_extent = max_abs * exag * 1.3
 
         title_text = Text(
             "Alcubierre Bubble: NEC Margin",
@@ -187,7 +183,7 @@ class WallAndVelocitySweep(ThreeDScene):
                 frame,
                 "nec_margin_sweep",
                 axes,
-                z_offset=-z_extent * 0.85,
+                z_offset=axes.z_range[0],  # Below the full surface, including colour-clipped tails.
                 resolution=(48, 48),
                 colormap="nec_depth",
                 linthresh=nec_linthresh,
@@ -391,7 +387,8 @@ class WallAndVelocitySweep(ThreeDScene):
         caption.to_edge(DOWN, buff=0.06)
         self.add_fixed_in_frame_mobjects(caption)
 
-        self.add(axes, embedding, heatmap)
+        # Draw the lower slab first so it cannot cover the translucent wireframe.
+        self.add(axes, heatmap, embedding)
         self.begin_ambient_camera_rotation(rate=0.008, about="theta")
         self.play(
             frame_idx.animate.set_value(n_total - 1),
