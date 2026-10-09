@@ -301,8 +301,8 @@ class EulerianKinematics2D(Scene):
             global_clim_theta[0],
             global_clim_theta[1],
             global_clim_theta[2],
-            "θ = −K  (expansion of n^a)",
-            bar_width=1.5,
+            "θ = −Tr K  (units: length⁻¹)",
+            bar_width=2.8,
         )
 
         # σ² contour legend,

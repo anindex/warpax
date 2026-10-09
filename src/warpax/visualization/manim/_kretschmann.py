@@ -1,9 +1,8 @@
 """KretschmannInvariant2D: observer-independent curvature invariant heatmap.
 
 The Kretschmann scalar ``K = R_{abcd} R^{abcd}`` is a coordinate- and
-observer-independent measure of spacetime curvature (the tidal magnitude a dust
-particle would feel), unlike the frame-dependent energy density and energy
-conditions. For the Alcubierre bubble it is sign-indefinite (it dips strongly
+observer-independent measure of spacetime curvature.
+For the Alcubierre bubble it is sign-indefinite (it dips strongly
 negative on the wall), so a diverging (SymLog) scale centred at 0 reads best.
 
 Usage: manim render -ql --format mp4 \\
@@ -83,9 +82,7 @@ class KretschmannInvariant2D(Scene):
     """2D heatmap of the Kretschmann invariant K = R_abcd R^abcd (v_s sweep).
 
     Observer-independent curvature, diverging dark-midpoint (SymLog) colormap, the f = 0.5 bubble
-    wall overlay, and a units annotation ([K] = 1/length^4). Complements the
-    observer-dependent energy-condition scenes by showing the true invariant
-    tidal magnitude.
+    wall overlay, and a units annotation ([K] = 1/length^4).
     """
 
     def construct(self) -> None:
@@ -113,8 +110,8 @@ class KretschmannInvariant2D(Scene):
         )
 
         grid_spec = GridSpec(
-            bounds=[(-3, 3), (-3, 3), (-3, 3)],
-            shape=(31, 31, 31),
+            bounds=[(-3, 3), (-3, 3), (0, 0)],
+            shape=(241, 241, 1),
         )
 
         metric = AlcubierreMetric(v_s=v_start)
@@ -126,6 +123,7 @@ class KretschmannInvariant2D(Scene):
             grid_spec,
             v_s_values=v_values,
             compute_invariants=True,
+            batch_size=2048,
             progress=True,
         )
         # Attach the real shape function so the f = 0.5 wall overlay is exact.
@@ -194,7 +192,8 @@ class KretschmannInvariant2D(Scene):
             global_clim[0],
             global_clim[1],
             global_clim[2],
-            "K = R_abcd R^abcd  (signed; [K] = 1/length⁴)",
+            "Signed curvature (units: length⁻⁴)",
+            bar_width=2.8,
         )
         color_legend.to_corner(UR, buff=0.3).shift(DOWN * 0.7)
         color_legend_group = Group(

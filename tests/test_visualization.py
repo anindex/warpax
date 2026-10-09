@@ -371,6 +371,29 @@ def test_observer_robust_nec_nonpositive_dense_sampling() -> None:
     assert nec_coarse.max() > nec_dense.max() + 1e-3
 
 
+def test_nec_comparison_adds_directions_in_the_same_frame():
+    pytest.importorskip("manim")
+    from warpax.visualization.manim._split_screen import (
+        _build_eulerian_frames,
+        _build_robust_frames,
+    )
+
+    kwargs = {
+        "v_s_values": [0.5],
+        "grid_shape": (33, 33, 1),
+        "bounds": [(-2, 2), (-2, 2), (0, 0)],
+    }
+    axes = _build_eulerian_frames(**kwargs)[0]
+    sampled = _build_robust_frames(**kwargs)[0]
+    np.testing.assert_allclose(
+        axes.scalar_fields["energy_density"], sampled.scalar_fields["energy_density"], atol=1e-12
+    )
+    six = axes.scalar_fields["nec_margin"]
+    dense = sampled.scalar_fields["nec_margin_sweep"]
+    assert np.all(dense <= six + 1e-12)
+    assert np.max(six - dense) > 1e-3
+
+
 def test_ec_frames_expose_real_shape_function() -> None:
     """EC frames carry the true f(r_s) field, not a circular fallback (B3)."""
     from warpax.benchmarks import AlcubierreMetric

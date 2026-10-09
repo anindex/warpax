@@ -67,6 +67,23 @@ Check each script header before running it.
 
 ## Animations
 
+The four GIFs show different diagnostics computed from the same Alcubierre metric:
+
+| Animation | Scientific purpose |
+|---|---|
+| [Expansion and energy](https://raw.githubusercontent.com/anindex/warpax/main/figures/wall_velocity_sweep.gif) | Separates the signed expansion field from non-positive Eulerian energy density as wall steepness and speed change. |
+| [Expansion and shear](https://raw.githubusercontent.com/anindex/warpax/main/figures/eulerian_kinematics.gif) | Shows volume expansion and shear of the Eulerian congruence, with zero vorticity and contours of the actual bubble profile. |
+| [NEC direction sampling](https://raw.githubusercontent.com/anindex/warpax/main/figures/eulerian_vs_worstcase_nec.gif) | Compares six axis directions with 312 angular samples in the same Eulerian tetrad, using a shared scale and displaying the extra violation depth found. |
+| [Kretschmann invariant](https://raw.githubusercontent.com/anindex/warpax/main/figures/kretschmann_invariant.gif) | Shows the signed scalar curvature contraction independently of an observer choice. It is not a tidal-force magnitude. |
+
+These are reproducible parameter sweeps, not dynamical simulations. The NEC
+samples use $k\cdot n_{\rm Eul}=-1$; a negative contraction demonstrates a
+violation, while non-negative samples do not certify every null direction.
+The GIFs illustrate the package's diagnostics; numerical tests and certificates
+provide the validation.
+The metric, expansion and Eulerian density are defined in equations (8), (11)
+and (19) of [Alcubierre's original paper](https://arxiv.org/abs/gr-qc/0009013).
+
 Install the `manim` extra for animated scenes. The renderer uses FFmpeg for
 GIF conversion and LaTeX for mathematical labels. The headline wireframes and
 2D scenes use Cairo; the other 3D scenes use an OpenGL/EGL context.

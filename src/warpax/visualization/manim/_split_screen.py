@@ -31,6 +31,7 @@ from manim import (
 )
 from matplotlib.colors import LinearSegmentedColormap
 
+from warpax.visualization.common._physics import make_velocity_sweep
 from warpax.visualization.manim._image_utils import (
     compute_symlog_clim,
 )
@@ -106,6 +107,7 @@ def _build_eulerian_frames(
             metric_t,
             grid_spec,
             compute_invariants=True,
+            batch_size=2048,
         )
         T_flat = curv.stress_energy.reshape(n_points, 4, 4)
         g_flat = curv.metric.reshape(n_points, 4, 4)
@@ -171,6 +173,7 @@ def _build_robust_frames(
         metric,
         grid_spec,
         v_s_values=v_s_values,
+        batch_size=2048,
         progress=True,
     )
     return frames
@@ -188,8 +191,8 @@ class EulerianVsWorstCaseNEC(Scene):
     n_frames: int = 12
     v_start: float = 0.1
     v_end: float = 0.99
-    grid_shape: tuple[int, int, int] = (45, 45, 45)
-    bounds: tuple[tuple[float, float], ...] = ((-3, 3), (-3, 3), (-3, 3))
+    grid_shape: tuple[int, int, int] = (241, 241, 1)
+    bounds: tuple[tuple[float, float], ...] = ((-3, 3), (-3, 3), (0, 0))
     panel_height: float = 3.8
     panel_width: float = 4.0
     run_time: float = 12.0
@@ -198,7 +201,7 @@ class EulerianVsWorstCaseNEC(Scene):
         self.camera.background_color = COLORS_3B1B["background"]
         cmap_name = "nec_depth"
 
-        v_values = list(np.linspace(self.v_start, self.v_end, self.n_frames))
+        v_values = make_velocity_sweep(self.v_start, self.v_end, self.n_frames)
 
         eulerian_frames = _build_eulerian_frames(
             metric_name=self.metric_name,
@@ -245,10 +248,8 @@ class EulerianVsWorstCaseNEC(Scene):
             data_2d = np.nan_to_num(data_2d, nan=0.0)
             vmin, vmax, lt = clim
 
-            # Upsample 8x for smooth contours, transposed so imshow(origin="lower")
-            # draws x horizontal and y vertical, matching frame_to_rgba. Bilinear,
-            # not bicubic, which rings on the sharp wall into a visible checkerboard.
-            up = _ndzoom(data_2d.T, 8, order=1)
+            upscale = max(1, int(np.ceil(360 / max(data_2d.shape))))
+            up = _ndzoom(data_2d.T, upscale, order=1)
             norm = mcolors.SymLogNorm(linthresh=lt, vmin=vmin, vmax=vmax)
             cmap = _mpl.colormaps[cmap_name]
             rgba = cmap(norm(up))  # float [0,1]
@@ -299,7 +300,7 @@ class EulerianVsWorstCaseNEC(Scene):
                     dtype=float,
                 )
                 sf_2d = np.clip(np.nan_to_num(sf_2d, nan=0.0), 0.0, 1.0)
-                sf_up = _ndzoom(sf_2d.T, 8, order=1)  # match panel orientation
+                sf_up = _ndzoom(sf_2d.T, upscale, order=1)
                 ax.contour(
                     x_c,
                     y_c,
@@ -348,7 +349,7 @@ class EulerianVsWorstCaseNEC(Scene):
         ]
 
         title_text = Text(
-            "Eulerian vs Sampled NEC margin (312 directions)",
+            "NEC directional sampling: 6 vs 312",
             font_size=24,
             color=WHITE,
             weight="LIGHT",
@@ -368,7 +369,7 @@ class EulerianVsWorstCaseNEC(Scene):
 
         # Panel labels
         left_label = Text(
-            "Eulerian",
+            "6 axis directions",
             font_size=22,
             color=WHITE,
             weight="LIGHT",
@@ -376,7 +377,7 @@ class EulerianVsWorstCaseNEC(Scene):
         left_label.move_to(left_center + UP * (self.panel_height / 2 + 0.3))
 
         right_label = Text(
-            "Sampled minimum",
+            "312 angular samples",
             font_size=22,
             color=WHITE,
             weight="LIGHT",
@@ -387,14 +388,14 @@ class EulerianVsWorstCaseNEC(Scene):
 
         # Sub-labels
         left_sub = MathTex(
-            r"\text{Eulerian-frame nulls (6 axes)}",
+            r"m_6 = \min_{\text{6 axis nulls}} T_{ab}k^a k^b",
             font_size=20,
             color=YELLOW,
         )
         left_sub.move_to(left_center + DOWN * (self.panel_height / 2 + 0.25))
 
         right_sub = MathTex(
-            r"\min_{1\leq j\leq312}\, T_{ab}k_j^a k_j^b,\ \ k_j\cdot n_{\rm Eul}=-1",
+            r"m_{312} = \min_{1\leq j\leq312} T_{ab}k_j^a k_j^b",
             font_size=20,
             color=YELLOW,
         )
@@ -404,14 +405,31 @@ class EulerianVsWorstCaseNEC(Scene):
 
         # Vertical divider
         divider = Line(
-            UP * (self.panel_height / 2 + 0.5),
-            DOWN * (self.panel_height / 2 + 0.1),
+            panel_shift_down + UP * (self.panel_height / 2),
+            panel_shift_down + DOWN * (self.panel_height / 2),
             color=WHITE,
             stroke_width=1.5,
         )
         self.add(divider)
 
         frame_idx = ValueTracker(0)
+        gap_labels = [
+            MathTex(
+                rf"\max_{{\rm grid}}(m_6-m_{{312}}) = "
+                rf"{np.max(left.scalar_fields['nec_margin'] - right.scalar_fields['nec_margin_sweep']):.3f}",
+                font_size=23,
+                color=YELLOW,
+            ).move_to([0, 2.7, 0])
+            for left, right in zip(eulerian_frames, robust_frames, strict=True)
+        ]
+        gap_display = always_redraw(
+            lambda: gap_labels[max(0, min(int(frame_idx.get_value()), n_total - 1))].copy()
+        )
+        sampling_note = MathTex(
+            r"k\cdot n_{\rm Eul}=-1\quad\text{in both panels; finite samples, not a certificate}",
+            font_size=19,
+        ).move_to([0, 2.23, 0])
+        self.add(gap_display, sampling_note)
 
         def _make_left():
             idx = max(0, min(int(frame_idx.get_value()), n_total - 1))
@@ -454,7 +472,7 @@ class EulerianVsWorstCaseNEC(Scene):
             shared_clim[1],
             shared_clim[2],
             "NEC margin (shared; negative = violation)",
-            bar_width=1.4,
+            bar_width=3.2,
         )
         color_legend.to_edge(DOWN, buff=0.5)
         cl_bg = BackgroundRectangle(

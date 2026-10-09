@@ -22,6 +22,7 @@ from manim import (
     UP,
     Group,
     ImageMobject,
+    MathTex,
     Text,
     ThreeDScene,
     ValueTracker,
@@ -37,6 +38,7 @@ from warpax.visualization.manim._image_utils import frame_to_rgba
 from warpax.visualization.manim._scene_utils import (
     compute_auto_exaggeration,
     compute_global_clim,
+    format_metric_equation,
     make_axes_for_frames,
 )
 from warpax.visualization.manim._surface import auto_linthresh, symlog_height
@@ -60,31 +62,53 @@ class WallAndVelocitySweep(ThreeDScene):
         self.set_camera_orientation(phi=65 * DEGREES, theta=-60 * DEGREES)
         title = Text("Alcubierre bubble: expansion and energy", font_size=30)
         title.to_edge(UP, buff=0.22)
+        equation = format_metric_equation("Alcubierre").scale(0.7)
+        equation.move_to([0, 3.08, 0])
         subtitle = Text(
             "Fixed-center parameter sweep  |  motion direction: +x",
-            font_size=19,
+            font_size=17,
             color="#BAC4D5",
-        ).next_to(title, DOWN, buff=0.16)
-        self.add_fixed_in_frame_mobjects(title, subtitle)
+        ).move_to([0, 2.62, 0])
+        self.add_fixed_in_frame_mobjects(title, equation, subtitle)
 
         labels = [
-            ("Expansion θ", "Positive behind; negative ahead", -3.5, "#EF8A62"),
-            ("Eulerian energy density ρ", "Non-positive; zero on the motion axis", 3.5, "#67A9CF"),
+            (
+                "Expansion",
+                r"\theta = \nabla_a n^a = -\mathrm{Tr}\,K",
+                "Positive behind; negative ahead",
+                -3.5,
+                "#EF8A62",
+            ),
+            (
+                "Eulerian energy density",
+                r"\rho_{\rm Eul} = T_{ab}n^a n^b \leq 0",
+                "Non-positive; zero on the motion axis",
+                3.5,
+                "#67A9CF",
+            ),
         ]
-        for name, detail, x, color in labels:
-            heading = Text(name, font_size=25, color=color).move_to([x, 2.25, 0])
-            explanation = Text(detail, font_size=17).move_to([x, 1.85, 0])
-            self.add_fixed_in_frame_mobjects(heading, explanation)
+        for name, formula, detail, x, color in labels:
+            heading = Text(name, font_size=24, color=color).move_to([x, 1.8, 0])
+            definition = MathTex(formula, font_size=24, color=color).move_to([x, 1.33, 0])
+            explanation = Text(detail, font_size=17).move_to([x, -2.05, 0])
+            self.add_fixed_in_frame_mobjects(heading, definition, explanation)
 
         axes_list = []
         scales = []
         thresholds = []
         screen_right = np.array([np.sqrt(3) / 2, 0.5, 0.0])
+        screen_up = np.array(
+            [
+                -0.5 * np.cos(65 * DEGREES),
+                np.sqrt(3) / 2 * np.cos(65 * DEGREES),
+                np.sin(65 * DEGREES),
+            ]
+        )
         for field, side in [("theta", -1), ("energy_density", 1)]:
             maximum = max(abs(v) for v in compute_global_clim(frames, field))
             threshold = auto_linthresh(maximum)
             axes = make_axes_for_frames(frames, field, coord_range=(-2, 2), linthresh=threshold)
-            axes.scale(0.68).shift(side * 3.45 * screen_right)
+            axes.scale(0.68).shift(side * 3.45 * screen_right - 0.4 * screen_up)
             axes_list.append(axes)
             scales.append(compute_auto_exaggeration(frames, field, linthresh=threshold))
             thresholds.append(threshold)
@@ -103,16 +127,21 @@ class WallAndVelocitySweep(ThreeDScene):
             )
             for frame in frames
         ]
-        nec_image = ImageMobject(nec_images[0]).set(height=1.45).move_to([0, -2.1, 0])
-        nec_label = Text("NEC: brighter = more negative", font_size=16).move_to([0, -3.03, 0])
-        self.add_fixed_in_frame_mobjects(nec_image, nec_label)
+        nec_image = ImageMobject(nec_images[0]).set(height=1.25).move_to([0, -2.13, 0])
+        nec_label = MathTex(
+            r"m_{\rm NEC} = \min_{1\leq j\leq312} T_{ab}k_j^a k_j^b,"
+            r"\quad k_j\!\cdot n=-1",
+            font_size=22,
+        ).move_to([0, -3.06, 0])
+        nec_key = Text("NEC: brighter = more negative", font_size=16).move_to([3.5, -2.62, 0])
+        self.add_fixed_in_frame_mobjects(nec_image, nec_label, nec_key)
 
         footer = Text(
             "Scalar heights, signed log scales; not a spatial embedding or time evolution",
             font_size=18,
             color="#BAC4D5",
         ).to_edge(DOWN, buff=0.12)
-        units = Text("G = c = R = 1; z = 0; 312 normalized null samples", font_size=15)
+        units = Text("G = c = R = 1; z = 0; signature (−,+,+,+)", font_size=15)
         units.next_to(footer, UP, buff=0.12)
         self.add_fixed_in_frame_mobjects(footer, units)
 
@@ -124,7 +153,7 @@ class WallAndVelocitySweep(ThreeDScene):
             mesh = self._wireframe(frames[0], field, axes, scale, threshold)
             meshes.append(mesh)
 
-        counters = Text("", font_size=24, color="#FFDB70")
+        counters = MathTex(r"\sigma=1.0\quad v_s=0.50", font_size=25, color="#FFDB70")
         self.add_fixed_in_frame_mobjects(counters)
         current_index = -1
 
@@ -144,14 +173,16 @@ class WallAndVelocitySweep(ThreeDScene):
                 strict=True,
             ):
                 mesh.become(self._wireframe(frame, field, axes, scale, threshold))
-            nec_image.become(ImageMobject(nec_images[index]).set(height=1.45).move_to([0, -2.1, 0]))
-            status = "  |  flat spacetime" if frame.v_s == 0 else ""
+            nec_image.become(
+                ImageMobject(nec_images[index]).set(height=1.25).move_to([0, -2.13, 0])
+            )
+            status = r"\quad\text{flat spacetime}" if frame.v_s == 0 else ""
             counters.become(
-                Text(
-                    f"σ = {sigmas[index]:.1f}    v_s = {frame.v_s:.2f}{status}",
-                    font_size=24,
+                MathTex(
+                    rf"\sigma = {sigmas[index]:.1f}\quad v_s = {frame.v_s:.2f}{status}",
+                    font_size=25,
                     color="#FFDB70",
-                ).move_to([0, 2.8, 0])
+                ).move_to([0, 2.2, 0])
             )
             self.camera.add_fixed_in_frame_mobjects(counters, nec_image)
 

@@ -20,6 +20,9 @@ fixed signed logarithmic scales. Each frame is a separate constant-speed metric
 centered at the origin; the final zero-speed frame is flat spacetime. These are
 scalar plots, not a spatial embedding or a simulation of acceleration.*
 
+The [animation guide](docs/tutorials/examples_tour.md#animations) explains the
+complementary shear, directional-sampling and curvature views.
+
 ## Install and run
 
 Python 3.12 or newer:

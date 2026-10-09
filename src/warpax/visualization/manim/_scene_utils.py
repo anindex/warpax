@@ -343,8 +343,8 @@ def make_colorbar_legend(
 
     Replaces the hand-typed 5-swatch "-"/"+" strips. The bar IS
     the colormap (sampled uniformly in norm space) and the tick labels state the
-    actual value->colour mapping at the SymLog-significant points (vmin,
-    +/-linthresh, 0, vmax), so a reader can recover magnitudes despite the
+    actual value->colour mapping at non-overlapping SymLog-significant points
+    (endpoints and zero take priority), so a reader can recover magnitudes despite the
     symmetric-log compression. Returns a ``Group`` (mixes an ImageMobject bar
     with VMobject ticks); position it with ``.to_corner(...)``.
     """
@@ -361,10 +361,16 @@ def make_colorbar_legend(
         if abs(v) < 1e-30:
             return "0"
         a = abs(v)
-        return f"{v:.2g}" if 1e-2 <= a < 1e3 else f"{v:.0e}"
+        label = f"{v:.2g}" if 1e-2 <= a < 1e3 else f"{v:.0e}"
+        if "e" in label:
+            mantissa, exponent = label.split("e")
+            return rf"{mantissa}\times10^{{{int(exponent)}}}"
+        return label
 
     marks = VGroup()
-    for value, frac in colorbar_tick_fractions(vmin, vmax, linthresh):
+    ticks = colorbar_tick_fractions(vmin, vmax, linthresh)
+    ticks.sort(key=lambda tick: (tick[0] not in (vmin, vmax, 0.0), tick[0]))
+    for value, frac in ticks:
         x = (frac - 0.5) * bar_width
         tick = Line(
             [x, -bar_height / 2, 0],
@@ -374,6 +380,12 @@ def make_colorbar_legend(
         )
         lbl = MathTex(_fmt(value), font_size=16, color=WHITE)
         lbl.next_to(tick, DOWN, buff=0.03)
+        if any(
+            lbl.get_left()[0] < mark[1].get_right()[0] + 0.08
+            and lbl.get_right()[0] > mark[1].get_left()[0] - 0.08
+            for mark in marks
+        ):
+            continue
         marks.add(VGroup(tick, lbl))
 
     title_mob = Text(title, font_size=15, color=WHITE, weight="LIGHT")
