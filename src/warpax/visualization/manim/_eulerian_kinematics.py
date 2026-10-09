@@ -73,8 +73,8 @@ class EulerianKinematics2D(Scene):
         animation_duration = 12.0
         hold_duration = 1.0
 
-        grid_n = 31  # odd: index N//2 is exactly z = 0
-        grid_bounds = [(-3, 3), (-3, 3), (-3, 3)]
+        grid_n = 241
+        grid_bounds = [(-3, 3), (-3, 3), (0, 0)]
 
         img_height = config.frame_height - 2.2
         img_width = img_height
@@ -92,7 +92,7 @@ class EulerianKinematics2D(Scene):
             make_velocity_sweep,
         )
 
-        grid_spec = GridSpec(bounds=grid_bounds, shape=(grid_n, grid_n, grid_n))
+        grid_spec = GridSpec(bounds=grid_bounds, shape=(grid_n, grid_n, 1))
         v_values = make_velocity_sweep(v_start, v_end, n_frames)
         metric = AlcubierreMetric(v_s=v_start)
 
@@ -115,6 +115,7 @@ class EulerianKinematics2D(Scene):
                 metric_v,
                 grid_spec,
                 t=0.0,
+                batch_size=2048,
             )
             theta_np = np.asarray(theta_grid)
             sigma_sq_np = np.asarray(sigma_sq_grid)

@@ -1,18 +1,5 @@
-"""WallAndVelocitySweep: Alcubierre wall-steepness sweep then velocity turn-off.
-
-Dual-layer 3D scene: sweeps the wall-steepness sigma (1 -> 16) at fixed v_s, then
-ramps the velocity down (0.5 -> 0.01). Each frame is a static metric snapshot (a
-quasi-static parameter sweep, not a time evolution).
-
-Usage: manim render -ql --format mp4 \\
-    src/warpax/visualization/manim/_wall_velocity_sweep.py WallAndVelocitySweep
-"""
-
 from __future__ import annotations
 
-# Fork-safety: manim spawns ffmpeg while JAX's thread pool is live, which deadlocks
-# on fork under Python 3.14. As a render entrypoint, set the gRPC fork handlers and
-# drop the CUDA probe before the imports below pull JAX in; skipped if JAX is live.
 import os as _os
 import sys as _sys
 
@@ -32,438 +19,199 @@ import numpy as np
 from manim import (
     DEGREES,
     DOWN,
-    LEFT,
-    RIGHT,
-    UL,
     UP,
-    UR,
-    WHITE,
-    YELLOW,
-    DecimalNumber,
-    FadeOut,
-    MathTex,
-    Rectangle,
+    Group,
+    ImageMobject,
     Text,
     ThreeDScene,
     ValueTracker,
     VGroup,
-    always_redraw,
+    VMobject,
     linear,
 )
 
-from warpax.visualization.manim._heatmap import framedata_to_heatmap
+from warpax.benchmarks import AlcubierreMetric
+from warpax.geometry import GridSpec
+from warpax.visualization.common._physics import build_ec_frame_sequence, make_velocity_sweep
+from warpax.visualization.manim._image_utils import frame_to_rgba
 from warpax.visualization.manim._scene_utils import (
-    COLORS_3B1B,
-    cap_recursion_for_3d_render,
     compute_auto_exaggeration,
     compute_global_clim,
-    format_metric_equation,
-    frame_getter,
     make_axes_for_frames,
-    make_violation_indicator,
 )
-from warpax.visualization.manim._surface import (
-    auto_linthresh,
-    framedata_to_surface,
-)
+from warpax.visualization.manim._surface import auto_linthresh, symlog_height
 
 
 class WallAndVelocitySweep(ThreeDScene):
-    """Alcubierre quasi-static sweep: wall-steepness sigma then velocity turn-off.
-
-    Dual-layer layout:
-
-    - Upper: translucent wireframe scalar surface (Eulerian energy density rho_Eul,
-      <= 0 everywhere -> one-sided blue depth scale)
-    - Lower: flat colored slab (nec_margin_sweep, one-sided violation-depth
-      ``nec_depth`` colormap)
-
-    Live parameter counters, defining equation overlay, and violation
-    status indicator. All HUD elements are placed in non-overlapping
-    zones.
-    """
+    GRID_N = 321
 
     def construct(self) -> None:
-        cap_recursion_for_3d_render()  # py3.14 + 3D Cairo: avoid C-stack segfault
-
-        from warpax.geometry import GridSpec
-
-        # Tighter domain to focus on bubble wall structure
         grid_spec = GridSpec(
-            bounds=[(-2, 2), (-2, 2), (-2, 2)],
-            shape=(31, 31, 31),
+            bounds=[(-2, 2), (-2, 2), (0, 0)],
+            shape=(self.GRID_N, self.GRID_N, 1),
         )
-
         sigma_frames = self._build_sigma_frames(grid_spec)
-        rampdown_frames = self._build_rampdown_frames(grid_spec)
-        all_frames = sigma_frames + rampdown_frames
-
-        n_sigma = len(sigma_frames)
-        n_total = len(all_frames)
-
-        # Sigma values array for parameter display updater
-        sigma_values = np.linspace(1.0, 16.0, n_sigma)
-
-        self.set_camera_orientation(
-            phi=70 * DEGREES,
-            theta=-45 * DEGREES,
+        speed_frames = self._build_rampdown_frames(grid_spec)
+        frames = sigma_frames + speed_frames[1:]
+        sigmas = np.concatenate(
+            [np.linspace(1.0, 16.0, len(sigma_frames)), np.full(len(speed_frames) - 1, 16.0)]
         )
+        self.camera.background_color = "#10121B"
+        self.set_camera_orientation(phi=65 * DEGREES, theta=-60 * DEGREES)
+        title = Text("Alcubierre bubble: expansion and energy", font_size=30)
+        title.to_edge(UP, buff=0.22)
+        subtitle = Text(
+            "Fixed-center parameter sweep  |  motion direction: +x",
+            font_size=19,
+            color="#BAC4D5",
+        ).next_to(title, DOWN, buff=0.16)
+        self.add_fixed_in_frame_mobjects(title, subtitle)
 
-        # rho_Eul grows by ~10^3 over the sweep (a weak sigma=1 wall to a steep
-        # sigma=16 one) and then decays by the same factor as v_s is turned off.
-        # One linear height scale would therefore be set by the single steepest
-        # frame and leave every other frame flat, so the embedding height is
-        # symlog with the knee three decades below the global maximum.
-        ed_linthresh = auto_linthresh(
-            max(abs(v) for v in compute_global_clim(all_frames, "energy_density"))
-        )
+        labels = [
+            ("Expansion θ", "Positive behind; negative ahead", -3.5, "#EF8A62"),
+            ("Eulerian energy density ρ", "Non-positive; zero on the motion axis", 3.5, "#67A9CF"),
+        ]
+        for name, detail, x, color in labels:
+            heading = Text(name, font_size=25, color=color).move_to([x, 2.25, 0])
+            explanation = Text(detail, font_size=17).move_to([x, 1.85, 0])
+            self.add_fixed_in_frame_mobjects(heading, explanation)
 
-        # Build axes from energy_density range across ALL frames
-        axes = make_axes_for_frames(
-            all_frames,
-            "energy_density",
-            coord_range=(-2, 2),
-            linthresh=ed_linthresh,
-        )
-        axes.scale(0.9)
+        axes_list = []
+        scales = []
+        thresholds = []
+        screen_right = np.array([np.sqrt(3) / 2, 0.5, 0.0])
+        for field, side in [("theta", -1), ("energy_density", 1)]:
+            maximum = max(abs(v) for v in compute_global_clim(frames, field))
+            threshold = auto_linthresh(maximum)
+            axes = make_axes_for_frames(frames, field, coord_range=(-2, 2), linthresh=threshold)
+            axes.scale(0.68).shift(side * 3.45 * screen_right)
+            axes_list.append(axes)
+            scales.append(compute_auto_exaggeration(frames, field, linthresh=threshold))
+            thresholds.append(threshold)
+            x_label = Text("+x", font_size=19).move_to(axes.c2p(2.3, 0, 0))
+            self.add_fixed_orientation_mobjects(x_label)
+            self.add(axes)
 
-        # Global color limits (prevents flickering). Both fields are <= 0 for
-        # Alcubierre (rho_Eul and the NEC margin), so use one-sided depth scales
-        # (deepest -> 0): a diverging +/- scale would imply a positive half the
-        # data never reaches.
-        # Percentile limits keep weak wall structure visible; values outside
-        # the displayed range saturate the colormap.
-        ed_clim = (compute_global_clim(all_frames, "energy_density", percentile=1.0)[0], 0.0)
-        nec_clim = (
-            compute_global_clim(all_frames, "nec_margin_sweep", percentile=1.0)[0],
-            0.0,
-        )
-        # The NEC margin spans the same ~10^3 as rho_Eul, so the slab gets the
-        # same symlog treatment: a linear ramp would leave every frame but the
-        # steepest wall a single flat colour.
-        nec_linthresh = auto_linthresh(abs(nec_clim[0]))
-
-        # Vertical scale for the scalar surface.
-        exag = compute_auto_exaggeration(all_frames, "energy_density", linthresh=ed_linthresh)
-
-        title_text = Text(
-            "Alcubierre Bubble: NEC Margin",
-            font_size=22,
-            color=WHITE,
-            weight="LIGHT",
-        )
-        equation = format_metric_equation("Alcubierre")
-        equation.scale(0.65)
-        header = VGroup(title_text, equation).arrange(DOWN, buff=0.15)
-        header.to_edge(UP, buff=0.2)
-        self.add_fixed_in_frame_mobjects(header)
-        self.add(header)
-
-        frame_idx = ValueTracker(0)
-        at_frame = frame_getter(frame_idx, n_total)
-
-        def _make_surface():
-            """Wireframe embedding surface: always energy_density."""
-            frame = all_frames[at_frame()].with_clim("energy_density", ed_clim)
-            return framedata_to_surface(
-                frame,
-                "energy_density",
-                axes,
-                exaggeration=exag,
-                resolution=(32, 32),
-                linthresh=ed_linthresh,
-            )
-
-        def _make_heatmap():
-            """Flat heatmap: nec_margin_sweep, one-sided violation-depth ramp."""
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_total - 1))
-            frame = all_frames[idx].with_clim("nec_margin_sweep", nec_clim)
-            return framedata_to_heatmap(
+        nec_min = compute_global_clim(frames, "nec_margin_sweep")[0]
+        nec_threshold = auto_linthresh(abs(nec_min))
+        nec_images = [
+            frame_to_rgba(
                 frame,
                 "nec_margin_sweep",
-                axes,
-                z_offset=axes.z_range[0],  # Below the full surface, including colour-clipped tails.
-                resolution=(48, 48),
-                colormap="nec_depth",
-                linthresh=nec_linthresh,
+                (nec_min, 0.0, nec_threshold),
+                cmap_name="nec_depth",
             )
+            for frame in frames
+        ]
+        nec_image = ImageMobject(nec_images[0]).set(height=1.45).move_to([0, -2.1, 0])
+        nec_label = Text("NEC: brighter = more negative", font_size=16).move_to([0, -3.03, 0])
+        self.add_fixed_in_frame_mobjects(nec_image, nec_label)
 
-        embedding = always_redraw(_make_surface)
-        heatmap = always_redraw(_make_heatmap)
+        footer = Text(
+            "Scalar heights, signed log scales; not a spatial embedding or time evolution",
+            font_size=18,
+            color="#BAC4D5",
+        ).to_edge(DOWN, buff=0.12)
+        units = Text("G = c = R = 1; z = 0; 312 normalized null samples", font_size=15)
+        units.next_to(footer, UP, buff=0.12)
+        self.add_fixed_in_frame_mobjects(footer, units)
 
-        # Build aligned rows: label = value
-        v_label = MathTex(r"v_s", font_size=32, color=WHITE)
-        v_eq = MathTex(r"=", font_size=32, color=WHITE)
-        v_num = DecimalNumber(
-            0.5,
-            num_decimal_places=2,
-            font_size=32,
-            color=YELLOW,
-        )
-        v_row = VGroup(v_label, v_eq, v_num).arrange(RIGHT, buff=0.1)
+        tracker = ValueTracker(0)
+        meshes = []
+        for field, axes, scale, threshold in zip(
+            ["theta", "energy_density"], axes_list, scales, thresholds, strict=True
+        ):
+            mesh = self._wireframe(frames[0], field, axes, scale, threshold)
+            meshes.append(mesh)
 
-        s_label = MathTex(r"\sigma", font_size=32, color=WHITE)
-        s_eq = MathTex(r"=", font_size=32, color=WHITE)
-        s_num = DecimalNumber(
-            1.0,
-            num_decimal_places=1,
-            font_size=32,
-            color=YELLOW,
-        )
-        s_row = VGroup(s_label, s_eq, s_num).arrange(RIGHT, buff=0.1)
+        counters = Text("", font_size=24, color="#FFDB70")
+        self.add_fixed_in_frame_mobjects(counters)
+        current_index = -1
 
-        # Stack with = signs aligned
-        param_block = VGroup(v_row, s_row).arrange(
-            DOWN,
-            buff=0.15,
-            aligned_edge=LEFT,
-        )
-        param_block.to_corner(UL, buff=0.5)
-
-        # Register every leaf mobject individually so ThreeDScene keeps
-        # them pinned to the camera frame.
-        self.add_fixed_in_frame_mobjects(
-            v_label,
-            v_eq,
-            v_num,
-            s_label,
-            s_eq,
-            s_num,
-        )
-
-        def _update_sigma(mob):
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_total - 1))
-            s_val = sigma_values[idx] if idx < n_sigma else 16.0
-            new_mob = DecimalNumber(
-                s_val,
-                num_decimal_places=1,
-                font_size=32,
-                color=YELLOW,
+        def update_frame(_mob):
+            nonlocal current_index
+            index = min(int(tracker.get_value()), len(frames) - 1)
+            if index == current_index:
+                return
+            current_index = index
+            frame = frames[index]
+            for mesh, field, axes, scale, threshold in zip(
+                meshes,
+                ["theta", "energy_density"],
+                axes_list,
+                scales,
+                thresholds,
+                strict=True,
+            ):
+                mesh.become(self._wireframe(frame, field, axes, scale, threshold))
+            nec_image.become(ImageMobject(nec_images[index]).set(height=1.45).move_to([0, -2.1, 0]))
+            status = "  |  flat spacetime" if frame.v_s == 0 else ""
+            counters.become(
+                Text(
+                    f"σ = {sigmas[index]:.1f}    v_s = {frame.v_s:.2f}{status}",
+                    font_size=24,
+                    color="#FFDB70",
+                ).move_to([0, 2.8, 0])
             )
-            new_mob.move_to(mob)
-            mob.become(new_mob)
-            # Re-register so new leaf glyphs stay fixed-in-frame
-            self.add_fixed_in_frame_mobjects(mob)
+            self.camera.add_fixed_in_frame_mobjects(counters, nec_image)
 
-        def _update_v(mob):
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_total - 1))
-            v_val = 0.5 if idx < n_sigma else all_frames[idx].v_s
-            new_mob = DecimalNumber(
-                v_val,
-                num_decimal_places=2,
-                font_size=32,
-                color=YELLOW,
-            )
-            new_mob.move_to(mob)
-            mob.become(new_mob)
-            # Re-register so new leaf glyphs stay fixed-in-frame
-            self.add_fixed_in_frame_mobjects(mob)
-
-        s_num.add_updater(_update_sigma)
-        v_num.add_updater(_update_v)
-
-        # Eulerian energy density legend: one-sided (rho_Eul <= 0 everywhere),
-        # deepest-negative blue -> white at 0. No false "+" half (the Alcubierre
-        # Eulerian density is strictly non-positive).
-        ed_colors = ["#2166AC", "#67A9CF", "#A9C9E0", "#D1E5F0", "#F7F7F7"]
-        ed_strips = VGroup(
-            *[
-                Rectangle(
-                    width=0.28,
-                    height=0.10,
-                    fill_color=c,
-                    fill_opacity=0.95,
-                    stroke_width=0.3,
-                    stroke_color=WHITE,
-                )
-                for c in ed_colors
-            ]
-        ).arrange(RIGHT, buff=0)
-        ed_title = Text(
-            "Eulerian energy density (wireframe height, log; ≤ 0)",
-            font_size=16,
-            color=WHITE,
-            weight="LIGHT",
-        )
-        ed_lo = MathTex(r"\text{most }-", font_size=14, color="#2166AC")
-        ed_hi = MathTex(r"0", font_size=14, color=WHITE)
-        ed_bar_row = VGroup(ed_lo, ed_strips, ed_hi).arrange(
-            RIGHT,
-            buff=0.06,
-        )
-        ed_field = MathTex(r"\rho_{\rm Eul}", font_size=22, color=WHITE)
-        ed_top_row = VGroup(ed_field, ed_title).arrange(
-            RIGHT,
-            buff=0.12,
-        )
-        ed_legend = VGroup(ed_top_row, ed_bar_row).arrange(
-            DOWN,
-            buff=0.08,
-            aligned_edge=LEFT,
-        )
-
-        # NEC margin legend: one-sided violation-depth ramp (matches the slab).
-        nec_colors = ["#CFE0FF", "#7FA0FF", "#3B4CC0", "#27306E", "#15151F"]
-        nec_strips = VGroup(
-            *[
-                Rectangle(
-                    width=0.28,
-                    height=0.10,
-                    fill_color=c,
-                    fill_opacity=0.95,
-                    stroke_width=0.3,
-                    stroke_color=WHITE,
-                )
-                for c in nec_colors
-            ]
-        ).arrange(RIGHT, buff=0)
-        nec_title = Text(
-            "NEC margin (≤ 0; negative = violation)",
-            font_size=16,
-            color=WHITE,
-            weight="LIGHT",
-        )
-        nec_lo = MathTex(
-            r"\text{deepest}",
-            font_size=14,
-            color="#7FA0FF",
-        )
-        nec_hi = MathTex(r"0", font_size=14, color=WHITE)
-        nec_bar_row = VGroup(nec_lo, nec_strips, nec_hi).arrange(
-            RIGHT,
-            buff=0.06,
-        )
-        # Violation dot from indicator
-        from manim import Dot  # local import for type clarity
-
-        violation_ind = make_violation_indicator("nec_margin_sweep")
-        dot_mob: Dot = violation_ind[0]  # type: ignore[assignment]
-        dot_mob.scale(0.7)
-        nec_field = VGroup(dot_mob, nec_title).arrange(
-            RIGHT,
-            buff=0.1,
-        )
-        nec_legend = VGroup(nec_field, nec_bar_row).arrange(
-            DOWN,
-            buff=0.08,
-            aligned_edge=LEFT,
-        )
-
-        # Stack both legends, right-aligned in UR corner
-        legend_group = VGroup(ed_legend, nec_legend).arrange(
-            DOWN,
-            buff=0.25,
-            aligned_edge=LEFT,
-        )
-        legend_group.to_corner(UR, buff=0.35).shift(DOWN * 1.0)
-
-        def _update_violation(mob):
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_total - 1))
-            frame = all_frames[idx]
-            if "nec_margin_sweep" in frame.scalar_fields:
-                mid_z = frame.grid_shape[2] // 2
-                nec_min = float(np.min(frame.scalar_fields["nec_margin_sweep"][:, :, mid_z]))
-                if nec_min < 0:
-                    dot_mob.set_color(COLORS_3B1B["violation_red"])
-                else:
-                    dot_mob.set_color(COLORS_3B1B["safe_green"])
-            else:
-                dot_mob.set_color(WHITE)
-
-        dot_mob.add_updater(_update_violation)
-        self.add_fixed_in_frame_mobjects(legend_group)
-
-        # GR-conventions footer: states geometric units, signature, the rendered
-        # slice, and that each frame is a static metric (quasi-static sweep).
-        from warpax.visualization.manim._scene_utils import make_conventions_caption
-
-        caption = make_conventions_caption()
-        if caption.width > 8.0:
-            caption.scale_to_fit_width(8.0)
-        caption.to_edge(DOWN, buff=0.06)
-        self.add_fixed_in_frame_mobjects(caption)
-
-        # Draw the lower slab first so it cannot cover the translucent wireframe.
-        self.add(axes, heatmap, embedding)
-        self.begin_ambient_camera_rotation(rate=0.008, about="theta")
-        self.play(
-            frame_idx.animate.set_value(n_total - 1),
-            run_time=25,
-            rate_func=linear,
-        )
-        self.stop_ambient_camera_rotation()
-
-        # Fade out header before outro
-        self.play(FadeOut(header), run_time=0.5)
-        self.wait(2)  # Outro freeze frame
+        plots = Group(*meshes, counters, nec_image)
+        plots.add_updater(update_frame)
+        self.add(plots, tracker)
+        update_frame(tracker)
+        self.wait(1)
+        self.play(tracker.animate.set_value(len(frames) - 1), run_time=18, rate_func=linear)
+        self.wait(2)
 
     @staticmethod
-    def _build_sigma_frames(grid_spec, n_frames: int = 45):
-        """Build EC-enriched FrameData sweeping sigma from 1.0 to 16.0.
-
-        Uses ``build_ec_frame_sequence`` so every frame includes both
-        ``energy_density`` and ``nec_margin_sweep``, enabling the
-        dual-layer display from frame 0.
-        """
-        from warpax.benchmarks import AlcubierreMetric
-        from warpax.visualization.common._physics import (
-            build_ec_frame_sequence,
+    def _wireframe(frame, field, axes, scale, threshold):
+        values = frame.scalar_fields[field][:, :, 0]
+        height = symlog_height(values, threshold) * scale
+        origin = axes.c2p(0, 0, 0)
+        points = (
+            origin
+            + frame.x[:, :, 0, None] * (axes.c2p(1, 0, 0) - origin)
+            + frame.y[:, :, 0, None] * (axes.c2p(0, 1, 0) - origin)
+            + height[:, :, None] * (axes.c2p(0, 0, 1) - origin)
         )
+        mesh = VGroup()
+        indices = np.linspace(0, values.shape[0] - 1, 41, dtype=int)
+        middle = values.shape[0] // 2
+        for index in indices:
+            for line, samples in [
+                (points[index], values[index]),
+                (points[:, index], values[:, index]),
+            ]:
+                for part in [slice(0, middle + 1), slice(middle, None)]:
+                    color = "#EF8A62" if field == "theta" and samples[part].sum() > 0 else "#67A9CF"
+                    mesh.add(
+                        VMobject(
+                            stroke_color=color, stroke_width=0.8, stroke_opacity=0.85
+                        ).set_points_as_corners(line[part])
+                    )
+        return mesh
 
-        sigma_values = np.linspace(1.0, 16.0, n_frames)
-
-        # Build one batch per sigma value (each is a single-frame sequence)
+    @staticmethod
+    def _build_sigma_frames(grid_spec, n_frames: int = 25):
         frames = []
-        try:
-            from tqdm.auto import tqdm
-
-            iterator = tqdm(
-                sigma_values,
-                desc="Sigma sweep (EC)",
-                unit="frame",
+        for sigma in np.linspace(1.0, 16.0, n_frames):
+            frames.extend(
+                build_ec_frame_sequence(
+                    AlcubierreMetric(v_s=0.5, sigma=float(sigma)),
+                    grid_spec,
+                    v_s_values=[0.5],
+                    batch_size=2048,
+                    progress=False,
+                )
             )
-        except ImportError:
-            iterator = sigma_values
-
-        for sigma_val in iterator:
-            metric = AlcubierreMetric(v_s=0.5, sigma=float(sigma_val))
-            batch = build_ec_frame_sequence(
-                metric,
-                grid_spec,
-                v_s_values=[0.5],
-                t_values=[0.0],
-                progress=False,
-            )
-            frames.append(batch[0])
-
         return frames
 
     @staticmethod
-    def _build_rampdown_frames(grid_spec, n_frames: int = 45):
-        """Build EC-enriched FrameData for velocity ramp-down (v_s: 0.5 -> 0.01).
-
-        Uses ``build_ec_frame_sequence`` so that ramp-down frames include
-        ``nec_margin_sweep`` alongside ``energy_density``.
-        """
-        from warpax.benchmarks import AlcubierreMetric
-        from warpax.visualization.common._physics import (
-            build_ec_frame_sequence,
-            rampdown_profile,
-        )
-
-        metric = AlcubierreMetric(v_s=0.5, sigma=16.0)
-
-        t_values = list(np.linspace(0.0, 1.0, n_frames))
-        v_values = [max(rampdown_profile(t, v_max=0.5), 0.01) for t in t_values]
-
+    def _build_rampdown_frames(grid_spec, n_frames: int = 25):
         return build_ec_frame_sequence(
-            metric,
+            AlcubierreMetric(v_s=0.5, sigma=16.0),
             grid_spec,
-            v_s_values=v_values,
-            t_values=t_values,
+            v_s_values=make_velocity_sweep(0.5, 0.0, n_frames),
+            batch_size=2048,
             progress=True,
         )

@@ -80,7 +80,7 @@ SCENES = [
     (
         "src/warpax/visualization/manim/_wall_velocity_sweep.py",
         "WallAndVelocitySweep",
-        "Alcubierre bubble: rho_Eul + NEC margin (wall-steepness then velocity sweep)",
+        "Alcubierre expansion, Eulerian density and sampled NEC (fixed-center parameter sweep)",
     ),
     (
         "src/warpax/visualization/manim/_velocity_sweep.py",
@@ -157,7 +157,7 @@ def find_mp4(
 
 # Cairo's recursive 3D projection segfaults on the heavy 32x32 + 48x48 surfaces,
 # so these scenes render with ``--renderer=opengl`` under EGL. 2D keeps Cairo.
-_OPENGL_SCENES = frozenset({"WallAndVelocitySweep", "VelocitySweep", "BoostRapiditySweep"})
+_OPENGL_SCENES = frozenset({"VelocitySweep", "BoostRapiditySweep"})
 
 
 def render_scene(
@@ -264,7 +264,11 @@ def convert_to_gif(mp4_path: Path, scene_class: str = "") -> Path | None:
     # Import from the project package
     from warpax.visualization.manim._gif_utils import mp4_to_gif
 
-    settings = _GIF_SETTINGS_3D if scene_class in _OPENGL_SCENES else _GIF_SETTINGS
+    settings = (
+        _GIF_SETTINGS_3D
+        if scene_class in _OPENGL_SCENES or scene_class == "WallAndVelocitySweep"
+        else _GIF_SETTINGS
+    )
     try:
         gif_path = mp4_to_gif(mp4_path, **settings)
         logger.info("GIF: %s", gif_path)

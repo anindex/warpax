@@ -422,6 +422,11 @@ def build_ec_frame_sequence(
         worst_wec = np.asarray(jnp.min(wec_margins, axis=-1).reshape(grid_spec.shape))
         worst_nec = np.asarray(jnp.min(nec_margins, axis=-1).reshape(grid_spec.shape))
         energy_density = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
+        alpha = 1.0 / jnp.sqrt(-result.metric_inv[..., 0, 0])
+        spatial_inv = jnp.linalg.inv(result.metric[..., 1:, 1:])
+        theta = np.asarray(
+            alpha * jnp.einsum("...ij,...ij->...", spatial_inv, result.christoffel[..., 0, 1:, 1:])
+        )
         T_00_covariant = np.asarray(result.stress_energy[..., 0, 0])
         f_grid = _shape_function_grid(metric_t, grid_spec, t)
 
@@ -431,6 +436,7 @@ def build_ec_frame_sequence(
             "ricci_squared": np.asarray(result.ricci_squared),
             "weyl_squared": np.asarray(result.weyl_squared),
             "energy_density": energy_density,
+            "theta": theta,
             "T_00_covariant": T_00_covariant,
             "wec_margin_sweep": worst_wec,
             "nec_margin_sweep": worst_nec,
@@ -442,6 +448,7 @@ def build_ec_frame_sequence(
             "ricci_squared": "RdBu_r",
             "weyl_squared": "RdBu_r",
             "energy_density": "RdBu_r",
+            "theta": "RdBu_r",
             "T_00_covariant": "RdBu_r",
             "wec_margin_sweep": "RdBu_r",
             "nec_margin_sweep": "RdBu_r",
@@ -456,6 +463,7 @@ def build_ec_frame_sequence(
             "weyl_squared",
             "ricci_scalar",
             "energy_density",
+            "theta",
             "T_00_covariant",
             "wec_margin_sweep",
             "nec_margin_sweep",

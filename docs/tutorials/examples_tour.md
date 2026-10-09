@@ -68,8 +68,8 @@ Check each script header before running it.
 ## Animations
 
 Install the `manim` extra for animated scenes. The renderer uses FFmpeg for
-GIF conversion, LaTeX for mathematical labels, Cairo for 2D scenes and an
-OpenGL/EGL context for the 3D scenes.
+GIF conversion and LaTeX for mathematical labels. The headline wireframes and
+2D scenes use Cairo; the other 3D scenes use an OpenGL/EGL context.
 
 ```bash
 pip install -e ".[manim]"
@@ -80,7 +80,7 @@ python scripts/render_all_scenes.py --quality h --skip-gif
 `--output-dir` selects the media directory. The
 [render script](https://github.com/anindex/warpax/blob/main/scripts/render_all_scenes.py)
 lists scene names and options. The numerical fields use JAX on CPU by default;
-3D rendering still requires an OpenGL context.
+`VelocitySweep` and `BoostRapiditySweep` require an OpenGL context.
 
 ## Further reading
 

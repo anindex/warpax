@@ -11,12 +11,14 @@ spacetimes. `warpax` uses automatic differentiation to evaluate the Einstein
 tensor, then tests energy conditions across observer directions.
 See the [changelog](CHANGELOG.md) for version **1.5.1**.
 
-![Alcubierre bubble: Eulerian energy density and normalized null-energy margin](https://raw.githubusercontent.com/anindex/warpax/main/figures/wall_velocity_sweep.gif)
+![Alcubierre bubble: expansion, Eulerian energy density and normalized null-energy margin](https://raw.githubusercontent.com/anindex/warpax/main/figures/wall_velocity_sweep.gif)
 
-*Alcubierre wall and speed sweep. Wireframe height shows Eulerian energy density;
-the lower plane shows the smallest normalized null contraction among 312 sampled
-directions. Both use signed logarithmic scales. Each frame is a separate
-constant-speed metric, and the height is a scalar plot, not a spatial embedding.*
+*Alcubierre wall and speed sweep. Left: expansion behind the bubble and contraction
+ahead. Right: non-positive Eulerian energy density. The inset shows the smallest
+normalized null contraction among 312 sampled directions. Heights and colors use
+fixed signed logarithmic scales. Each frame is a separate constant-speed metric
+centered at the origin; the final zero-speed frame is flat spacetime. These are
+scalar plots, not a spatial embedding or a simulation of acceleration.*
 
 ## Install and run
 

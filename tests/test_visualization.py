@@ -154,6 +154,52 @@ def test_symlog_height_keeps_ordering_and_opens_the_dynamic_range() -> None:
     assert symlog_ratio > 0.25
 
 
+def test_headline_sweep_stays_centered_and_reaches_flat_spacetime():
+    pytest.importorskip("manim")
+    from warpax.analysis.kinematic_scalars import compute_kinematic_scalars_grid
+    from warpax.benchmarks import AlcubierreMetric
+    from warpax.benchmarks.alcubierre import eulerian_energy_density
+    from warpax.visualization.manim._wall_velocity_sweep import WallAndVelocitySweep
+
+    grid = GridSpec(bounds=[(-2, 2), (-2, 2), (0, 0)], shape=(33, 33, 1))
+    frames = WallAndVelocitySweep._build_rampdown_frames(grid, n_frames=3)
+    assert [frame.v_s for frame in frames] == [0.5, 0.25, 0.0]
+    for frame in frames:
+        assert frame.t == 0.0
+        rho = frame.scalar_fields["energy_density"]
+        theta = frame.scalar_fields["theta"]
+        expected = eulerian_energy_density(frame.x, frame.y, frame.z, v_s=frame.v_s, sigma=16)
+        np.testing.assert_allclose(rho, expected, atol=1e-12)
+        np.testing.assert_allclose(rho, rho[::-1], atol=1e-12)
+        np.testing.assert_allclose(theta, -theta[::-1], atol=1e-12)
+        if frame.v_s > 0:
+            assert theta[8, 16, 0] > 0
+            assert theta[24, 16, 0] < 0
+    expected_theta, _, _ = compute_kinematic_scalars_grid(AlcubierreMetric(v_s=0.5, sigma=16), grid)
+    np.testing.assert_allclose(frames[0].scalar_fields["theta"], expected_theta, atol=1e-12)
+    for name, values in frames[-1].scalar_fields.items():
+        if name != "shape_function":
+            np.testing.assert_array_equal(values, np.zeros_like(values))
+
+
+def test_headline_grid_resolves_the_thinnest_energy_wall():
+    pytest.importorskip("manim")
+    from warpax.benchmarks.alcubierre import eulerian_energy_density
+    from warpax.visualization.manim._image_utils import bilinear_sampler
+    from warpax.visualization.manim._wall_velocity_sweep import WallAndVelocitySweep
+
+    axis = np.linspace(-2, 2, WallAndVelocitySweep.GRID_N)
+    x, y = np.meshgrid(axis, axis, indexing="ij")
+    rho = np.asarray(eulerian_energy_density(x, y, np.zeros_like(x), sigma=16))
+    sample = bilinear_sampler(axis, axis, rho)
+    angles = np.linspace(0, 2 * np.pi, 401)
+    exact = np.asarray(
+        eulerian_energy_density(np.cos(angles), np.sin(angles), np.zeros_like(angles), sigma=16)
+    )
+    interpolated = np.array([sample(np.cos(a), np.sin(a)) for a in angles])
+    assert np.max(np.abs(interpolated - exact)) / np.max(np.abs(exact)) < 0.025
+
+
 def test_dark_diverge_colormaps_register() -> None:
     """All four ``dark_diverge_*`` colormaps register without error."""
     pytest.importorskip("manim")
