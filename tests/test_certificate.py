@@ -1,4 +1,8 @@
-"""The exact certificates must agree with the float LMI wherever the LMI is decisive."""
+"""The exact certificates must agree with the float LMI wherever the LMI is decisive.
+
+``_DRAWS`` is one draw set shared by all four conditions, with the float side of
+the comparison taken in a single batched trace.
+"""
 
 from __future__ import annotations
 
@@ -20,8 +24,9 @@ from warpax.energy_conditions.certificate import (
 )
 from warpax.energy_conditions.slemma import certify_point, noise_floor
 
-ETA = np.diag([-1.0, 1.0, 1.0, 1.0])
-MINKOWSKI = jnp.asarray(ETA)
+from ._helpers import ETA as MINKOWSKI
+
+ETA = np.asarray(MINKOWSKI)
 CONDITIONS = ("nec", "wec", "sec", "dec")
 
 
@@ -32,8 +37,6 @@ def _sym(A):
 
 _certify_batch = jax.jit(jax.vmap(certify_point, in_axes=(0, None)))
 
-# One draw set, shared by all four conditions, with the float side of the
-# comparison taken in a single batched trace.
 _rng = np.random.default_rng(7)
 _A = _rng.normal(size=(24, 4, 4))
 _DRAWS = jnp.asarray(0.5 * (_A + np.swapaxes(_A, 1, 2)))
@@ -51,7 +54,7 @@ def test_is_psd_exact_matches_numpy_on_random_symmetric():
         A = _sym(rng.normal(size=(4, 4)))
         want = bool(np.linalg.eigvalsh(A)[0] >= -1e-12)
         got = is_psd_exact(to_exact(A))
-        if abs(np.linalg.eigvalsh(A)[0]) > 1e-9:  # skip the boundary
+        if abs(np.linalg.eigvalsh(A)[0]) > 1e-9:
             assert got == want, A
 
 
@@ -59,7 +62,7 @@ def test_is_psd_exact_on_a_singular_psd_matrix():
     """A rank-deficient PSD matrix defeats an unpivoted LDL^T; principal minors do not."""
     A = np.diag([1.0, 0.0, 2.0, 0.0])
     assert is_psd_exact(to_exact(A))
-    A[0, 1] = A[1, 0] = 1.0  # now indefinite: the 2x2 minor is -1
+    A[0, 1] = A[1, 0] = 1.0
     assert not is_psd_exact(to_exact(A))
 
 
@@ -104,8 +107,15 @@ def test_certificates_agree_with_the_float_lmi(condition):
 
 
 def test_a_forged_certificate_is_rejected():
-    """verify() must be a real check, not a rubber stamp."""
-    T = np.diag([1.0, -3.0, 0.0, 0.0])  # NEC fails
+    """verify() must be a real check, not a rubber stamp.
+
+    A witness pair that does not annihilate g must be rejected, because a
+    nonzero <g, X> leaves a multiplier free to absorb it: with k made timelike
+    while the partner keeps weight zero, <g, X> = alpha g(k,k) < 0, so the pair
+    still shows T is negative somewhere, but only on the causal cone, which is
+    the WEC and not the NEC.
+    """
+    T = np.diag([1.0, -3.0, 0.0, 0.0])
     good = certify(T, ETA, "nec")
     assert good["kind"] == "violated" and verify(good, T, ETA)
 
@@ -115,11 +125,6 @@ def test_a_forged_certificate_is_rejected():
     forged.pop("witness_pair", None)
     assert not verify(forged, T, ETA)
 
-    # And a witness pair that does not annihilate g must be rejected, because a
-    # nonzero <g, X> leaves a multiplier free to absorb it. Here k is made timelike
-    # while the partner keeps weight zero, so <g, X> = alpha g(k,k) < 0: the pair
-    # still shows T is negative somewhere, but only on the causal cone, which is the
-    # WEC and not the NEC.
     bad = dict(good)
     bad["witness_pair"] = [[[2, 1], [1, 1], [0, 1], [0, 1]], [[0, 1], [0, 1], [0, 1], [0, 1]]]
     assert not verify(bad, T, ETA)
@@ -132,7 +137,9 @@ def test_the_tensor_is_checked_too_not_only_the_certificate():
     functions of any real spectrum, so is_psd_exact says nothing about it. This one has
     minor sums 4, 16, 24, 11, every one positive, and so passed the PSD test at
     sigma = 0 and carried a "satisfied" NEC certificate, while the null vector
-    k = (1,-1,0,0) gives T(k,k) = -7.
+    k = (1,-1,0,0) gives T(k,k) = -7. A symmetric tensor against a metric that
+    is not Lorentzian is refused as well: the S-lemma's multiplier is free in
+    sign because the null cone is a real cone, and a Euclidean g has none.
     """
     T_forged = np.array(
         [[1.0, 10.0, 0.0, 0.0], [-1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
@@ -142,9 +149,6 @@ def test_the_tensor_is_checked_too_not_only_the_certificate():
     stamp = {"condition": "nec", "kind": "satisfied", "sigma": {"nec": [0, 1]}}
     assert not verify(stamp, T_forged, ETA)
 
-    # A symmetric tensor against a metric that is not Lorentzian is refused as well:
-    # the S-lemma's multiplier is free in sign because the null cone is a real cone,
-    # and a Euclidean g has none.
     T_ok = np.diag([3.0, 1.0, 1.0, 1.0])
     good = certify(T_ok, ETA, "nec")
     assert verify(good, T_ok, ETA)
@@ -164,7 +168,7 @@ def test_type_ii_locus_is_certified_exactly():
         assert verify(cert, T, ETA), (c, cert)
         assert cert["kind"] != "saturated", (c, cert)
         kinds[c] = cert["kind"]
-    assert kinds["nec"] == "satisfied"  # the margin is exactly zero, and attained
+    assert kinds["nec"] == "satisfied"
     assert kinds["dec"] == "violated"
 
 
@@ -234,13 +238,11 @@ def test_every_canonical_form_certifies_and_reverifies():
 
     Moved here from a module __main__ block that never ran.
     """
-    eta = np.diag([-1.0, 1.0, 1.0, 1.0])
     cases = {
         "perfect fluid, all hold": np.diag([2.0, 0.5, 0.5, 0.5]),
         "DEC fails (rho < |p|)": np.diag([1.0, 2.0, 0.0, 0.0]),
         "NEC fails": np.diag([1.0, -3.0, 0.0, 0.0]),
-        # Lorentz-self-adjoint, Type IV, vanishing quartic discriminant.
-        "Type IV (D4=0)": eta
+        "Type IV (Lorentz-self-adjoint, D4=0)": ETA
         @ np.array(
             [
                 [0.0, 1.0, 0.0, 0.0],
@@ -249,8 +251,7 @@ def test_every_canonical_form_certifies_and_reverifies():
                 [0.0, 0.0, 0.0, 0.3],
             ]
         ),
-        # The Type-II locus, Delta = 0 with j != 0.
-        "Type II (locus)": np.array(
+        "Type II (Delta=0, j!=0 locus)": np.array(
             [
                 [1.0, -1.0, 0.0, 0.0],
                 [-1.0, 1.0, 0.0, 0.0],
@@ -263,5 +264,5 @@ def test_every_canonical_form_certifies_and_reverifies():
     for name, T in cases.items():
         assert np.allclose(T, T.T), name
         for c in _CONDITIONS:
-            cert = certify(T, eta, c)
-            assert verify(cert, T, eta), f"{name}/{c}: certificate did not verify"
+            cert = certify(T, ETA, c)
+            assert verify(cert, T, ETA), f"{name}/{c}: certificate did not verify"

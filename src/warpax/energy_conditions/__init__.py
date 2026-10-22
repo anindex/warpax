@@ -1,7 +1,7 @@
 """Observer-robust energy-condition verification (pure JAX).
 
 Two-tier strategy: Hawking-Ellis classification plus exact eigenvalue
-margins for Type I points, Optimistix BFGS over the observer manifold
+margins for Type I points, Optimiztix BFGS over the observer manifold
 for all four conditions. Eulerian-frame margins are available
 separately for clean single-frame comparisons.
 
@@ -100,7 +100,6 @@ from .worst_observer_analytic import (
 )
 
 __all__ = [
-    # Types
     "ClassificationResult",
     "ECGridResult",
     "ECPointResult",
@@ -108,46 +107,36 @@ __all__ = [
     "FrameFreeGridResult",
     "OptimizationResult",
     "WallRestrictedStats",
-    # Verifier
     "anec_integrand",
-    # Observer
     "boost_vector_to_params",
-    # Analytic worst observer
     "boosted_energy_density",
     "bounded_param",
-    # Frame-free (all-velocity) certification
     "certify_grid_frame_free",
     "certify_point_frame_free",
-    # S-lemma LMI: all four conditions at any Hawking-Ellis type, no tolerance
     "certify_point_lmi",
-    # Eigenvalue checks
     "check_all",
     "check_dec",
     "check_dec_typeI_eigenvalue_bound",
     "check_nec",
     "check_sec",
     "check_wec",
-    # Classification
     "classify_hawking_ellis",
     "classify_hawking_ellis_mpmath",
     "classify_mixed_tensor",
     "classify_with_solver",
     "compute_eulerian_ec",
     "compute_orthonormal_tetrad",
-    # Filtering
     "compute_wall_restricted_stats",
     "cross_validate_sweep",
     "determinant_guard_mask",
     "eigenvalues_mpmath",
     "frobenius_norm_mask",
     "make_angular_observers",
-    # Observer sweep
     "make_rapidity_observers",
     "noise_floor",
     "null_deficit",
     "null_from_angles",
     "null_from_stereo",
-    # Optimization
     "optimize_dec",
     "optimize_nec",
     "optimize_point",

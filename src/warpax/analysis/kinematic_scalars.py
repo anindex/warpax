@@ -19,11 +19,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jax import lax
 from jaxtyping import Array, Float
 
+from warpax.energy_conditions.observer import eulerian_normal
 from warpax.geometry import christoffel_symbols
 from warpax.geometry.grid import build_coord_batch
 from warpax.geometry.types import GridSpec
@@ -41,7 +43,8 @@ def compute_kinematic_scalars(
         omega^2 = 0 (hypersurface-orthogonal)
 
     K_{ij} = -alpha * Gamma^0_{ij} where Gamma are the 4D Christoffel
-    symbols and alpha = 1/sqrt(-g^{00}).
+    symbols and ``alpha = 1/sqrt(-g^{00})`` from :func:`eulerian_normal`, so
+    every scalar is NaN where the slice is not spacelike.
 
     Parameters
     ----------
@@ -56,38 +59,27 @@ def compute_kinematic_scalars(
         ``(theta, sigma_sq, omega_sq)`` expansion, shear scalar
         squared, vorticity scalar squared.
     """
-    # Metric and its inverse
     g = metric_fn(coords)
     g_inv = jnp.linalg.inv(g)
 
-    # Christoffel symbols Gamma^lam_{mu nu}
     gamma = christoffel_symbols(metric_fn, coords)
 
-    # ADM lapse: alpha = 1 / sqrt(-g^{00}); floor against CTC / numerical noise.
-    alpha = 1.0 / jnp.sqrt(jnp.maximum(-g_inv[0, 0], 1e-30))
+    alpha, _ = eulerian_normal(g_inv)
 
-    # Extrinsic curvature: K_{ij} = -alpha * Gamma^0_{ij} for spatial i,j
-    # gamma[0, 1:, 1:] = Gamma^0_{ij} for i,j = 1,2,3
-    K_ij = -alpha * gamma[0, 1:, 1:]  # (3, 3)
+    K_ij = -alpha * gamma[0, 1:, 1:]
 
-    # Spatial metric gamma_{ij} and its inverse
-    gamma_ij = g[1:, 1:]  # (3, 3) spatial part of full metric
-    gamma_inv = jnp.linalg.inv(gamma_ij)  # gamma^{ij}
+    gamma_ij = g[1:, 1:]
+    gamma_inv = jnp.linalg.inv(gamma_ij)
 
-    # Trace: K = gamma^{ij} K_{ij}
     K_trace = jnp.einsum("ij,ij->", gamma_inv, K_ij)
 
-    # Expansion: theta = -K
     theta = -K_trace
 
-    # K^{ij} = gamma^{ik} gamma^{jl} K_{kl}
     K_up = jnp.einsum("ik,jl,kl->ij", gamma_inv, gamma_inv, K_ij)
 
-    # Shear-squared: sigma^2 = K_{ij} K^{ij} - (1/3) K^2
     K_ij_K_up = jnp.einsum("ij,ij->", K_ij, K_up)
     sigma_sq = K_ij_K_up - (1.0 / 3.0) * K_trace**2
 
-    # Vorticity: identically zero for Eulerian observers
     omega_sq = jnp.array(0.0)
 
     return theta, sigma_sq, omega_sq
@@ -122,25 +114,22 @@ def compute_kinematic_scalars_grid(
         ``(theta_grid, sigma_sq_grid, omega_sq_grid)`` each with
         shape ``(*grid_shape,)``.
     """
-    coords_flat = build_coord_batch(grid_spec, t=t)  # (N, 4)
+    coords_flat = build_coord_batch(grid_spec, t=t)
+    results_flat = _kinematic_points(metric_fn, coords_flat, batch_size)
     grid_shape = grid_spec.shape
+    theta_grid = results_flat[:, 0].reshape(grid_shape)
+    sigma_sq_grid = results_flat[:, 1].reshape(grid_shape)
+    omega_sq_grid = results_flat[:, 2].reshape(grid_shape)
+    return theta_grid, sigma_sq_grid, omega_sq_grid
+
+
+@eqx.filter_jit
+def _kinematic_points(metric_fn, coords, batch_size):
+    """Jitted point-map of :func:`compute_kinematic_scalars` over ``(N, 4)`` coords."""
 
     def point_fn(c: Float[Array, "4"]):
-        theta, sigma_sq, omega_sq = compute_kinematic_scalars(metric_fn, c)
-        return jnp.stack([theta, sigma_sq, omega_sq])
+        return jnp.stack(compute_kinematic_scalars(metric_fn, c))
 
     if batch_size is not None:
-        results_flat = lax.map(point_fn, coords_flat, batch_size=batch_size)
-    else:
-        results_flat = jax.vmap(point_fn)(coords_flat)
-
-    # results_flat has shape (N, 3)
-    theta_flat = results_flat[:, 0]
-    sigma_sq_flat = results_flat[:, 1]
-    omega_sq_flat = results_flat[:, 2]
-
-    theta_grid = theta_flat.reshape(grid_shape)
-    sigma_sq_grid = sigma_sq_flat.reshape(grid_shape)
-    omega_sq_grid = omega_sq_flat.reshape(grid_shape)
-
-    return theta_grid, sigma_sq_grid, omega_sq_grid
+        return lax.map(point_fn, coords, batch_size=batch_size)
+    return jax.vmap(point_fn)(coords)

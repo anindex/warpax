@@ -48,7 +48,7 @@ def eigenvalues_mpmath(
     with mpmath.workdps(precision):
         M = mpmath.matrix(T_safe.tolist())
         evals, _ = mpmath.eig(M)
-        return tuple(evals)  # type: ignore[return-value]
+        return tuple(evals)
 
 
 def _no_verdict(precision: int) -> dict[str, Any]:
@@ -68,6 +68,7 @@ def _no_verdict(precision: int) -> dict[str, Any]:
         "precision": precision,
         "cond_V": float("inf"),
         "uncertain": True,
+        "uncertain_reason": "non_finite",
     }
 
 
@@ -106,7 +107,7 @@ def classify_hawking_ellis_mpmath(
     -------
     dict with keys
         - ``he_type`` : int in {1, 2, 3, 4}
-        - ``all_real`` : bool (passes two-tier imaginary check)
+        - ``all_real`` : bool (``|Im lambda| < tol * scale``)
         - ``near_vacuum`` : bool
         - ``n_timelike``, ``n_null`` : int (only meaningful for real spectra)
         - ``n_unique`` : int (distinct real eigenvalues under tol*scale)
@@ -118,15 +119,26 @@ def classify_hawking_ellis_mpmath(
           condition number ``sigma_max(V) / sigma_min(V)`` via
           ``mpmath.svd``; possibly ``float('inf')`` for exact-defective
           inputs or SVD failure)
-        - ``uncertain`` : bool (``cond_V > 10 ** (precision / 2)``
-          per Demmel 1997 Thm 4.4; True flags precision loss > half-digit,
-          NOT a wrong classification - this is a known limitation of float64)
+        - ``uncertain`` : bool. True when ``cond_V > 10 ** (precision / 2)``
+          (Demmel 1997 Thm 4.4, reason ``"cond_V"``) or when the spectrum
+          carries a split ``0 < |Im lambda| < rounding_split`` or a gap
+          ``rounding_floor < gap < rounding_split`` with ``rounding_split =
+          scale * eps64 ** (1/3)`` and ``rounding_floor = scale * 1e-12``
+          (reason ``"input_rounding_split"``): the 50-digit solve resolves the
+          stored float64 matrix, and a ``J_3`` block rounded into float64 is
+          already split by ``O(eps ** (1/3))`` about ``6e-6`` before this
+          function sees it. The floor keeps a diagonalizable repeated
+          eigenvalue split only by float64 rounding (gap ``~1e-16``, e.g. a
+          boosted perfect fluid) from being flagged; a Jordan block ``J_m``
+          splits by ``O(eps ** (1/m))``, at least ``1.5e-8`` for ``m >= 2``.
+          Neither flag means the verdict is wrong; both mean float64 input
+          cannot support it.
+        - ``uncertain_reason`` : ``"cond_V"``, ``"input_rounding_split"`` or
+          ``None``
     """
     if T_mixed.shape != (4, 4) or g_ab.shape != (4, 4):
         raise ValueError(f"Expected (4, 4) matrices, got T={T_mixed.shape}, g={g_ab.shape}")
 
-    # No verdict on non-finite input, matching classification.py. Zeroing it
-    # here returned he_type=1, near_vacuum=True for a NaN tensor.
     if not np.all(np.isfinite(T_mixed)) or not np.all(np.isfinite(g_ab)):
         return _no_verdict(precision)
 
@@ -142,29 +154,19 @@ def classify_hawking_ellis_mpmath(
         max_real_abs = max(abs(r) for r in evals_real)
         max_imag_abs = max(abs(i) for i in evals_imag)
 
-        # Same scale-covariant threshold as the float64 path, and the same
-        # removal of the relative tier.
         max_T_abs = float(np.max(np.abs(T_safe)))
         scale = max(max_real_abs, max_T_abs, 1e-300)
         all_real = all(abs(i) < tol * scale for i in evals_imag)
 
-        # Vacuum gate uses the modulus (matches float64): a purely imaginary
-        # spectrum is Type IV, not vacuum. The tensor test the float64 path
-        # carries was missing here, so a nilpotent Segre [3,1] core, the
-        # paper's own general Type III, was labelled vacuum at any amplitude.
         max_mod_abs = max(
             float(mpmath.sqrt(r * r + i * i)) for r, i in zip(evals_real, evals_imag, strict=True)
         )
         near_vacuum = (max_mod_abs < tol) and (max_T_abs == 0.0)
 
-        # Degeneracy count on real parts (matches float64 logic).
         sorted_re = sorted(evals_real)
         gaps = [sorted_re[i + 1] - sorted_re[i] for i in range(3)]
         n_unique = 1 + sum(1 for gap in gaps if gap > tol * scale)
 
-        # Causal character: only meaningful when spectrum is real. For
-        # complex spectra we skip causal analysis and defer to the
-        # all_real / near_vacuum verdict.
         if all_real and not near_vacuum:
             n_timelike, n_null = _causal_counts(evecs, g_ab, tol)
         else:
@@ -172,9 +174,6 @@ def classify_hawking_ellis_mpmath(
 
         is_type_iv = (not all_real) and (not near_vacuum)
         is_type_i = (all_real and n_timelike >= 1 and n_null == 0) or near_vacuum
-        # Type II and Type III are separated by the SIZE of the Jordan block, not by the
-        # number of distinct eigenvalues: the generic Type III, Segre [3,1], has two. The
-        # discriminator is the defect, 1 for [2,1,1] and 2 for [3,1].
         defect = (
             _jordan_defect(M, evals, tol * scale, precision)
             if (all_real and not near_vacuum and n_null >= 1)
@@ -191,10 +190,16 @@ def classify_hawking_ellis_mpmath(
         else:
             he_type = 2
 
-        # Bauer-Fike eigenvector-matrix sensitivity diagnostic
-        # (threshold cond_V > 10**(precision/2), Demmel 1997 Thm 4.4).
-        # mpmath-only: meaningful only at >= 50-digit precision.
         cond_V, uncertain = _cond_V_mpmath(evecs, precision)
+        rounding_split = scale * (2.2e-16) ** (1.0 / 3.0)
+        rounding_floor = scale * 1e-12
+        rounding_uncertain = (0.0 < max_imag_abs < rounding_split) or any(
+            rounding_floor < gap < rounding_split for gap in gaps
+        )
+        uncertain_reason = (
+            "cond_V" if uncertain else ("input_rounding_split" if rounding_uncertain else None)
+        )
+        uncertain = uncertain or rounding_uncertain
 
     return {
         "he_type": he_type,
@@ -208,8 +213,9 @@ def classify_hawking_ellis_mpmath(
         "eigenvalues_real": evals_real,
         "eigenvalues_imag": evals_imag,
         "precision": precision,
-        "cond_V": cond_V,  # Bauer-Fike condition number
-        "uncertain": uncertain,  # cond_V > 10^(precision/2)
+        "cond_V": cond_V,
+        "uncertain": uncertain,
+        "uncertain_reason": uncertain_reason,
     }
 
 
@@ -264,7 +270,6 @@ def verify_classification_at_points(
 
     mp_types = np.zeros((n,), dtype=np.int32)
     max_imag = np.zeros((n,), dtype=np.float64)
-    # per-point Bauer-Fike diagnostic arrays
     cond_V_per_point = np.zeros((n,), dtype=np.float64)
     uncertain_mask = np.zeros((n,), dtype=np.bool_)
 
@@ -309,8 +314,9 @@ def _cond_V_mpmath(evecs: mpmath.matrix, precision: int) -> tuple[float, bool]:
     ``uncertain=True`` is ``cond_V > 10 ** (precision / 2)`` per Demmel 1997
     Thm 4.4 Bauer-Fike (half-digit precision-loss rule).
 
-    For exact-Jordan-defective inputs (``sigma_min = 0``) or any SVD failure,
-    returns ``(float('inf'), True)`` - fail-safe uncertain.
+    For exact-Jordan-defective inputs (``sigma_min = 0``, or
+    ``sigma_min < 10 ** (-precision - 5)``, treated as exactly zero) or any SVD
+    failure, returns ``(float('inf'), True)`` - fail-safe uncertain.
 
     Notes
     -----
@@ -341,7 +347,6 @@ def _cond_V_mpmath(evecs: mpmath.matrix, precision: int) -> tuple[float, bool]:
         S_list = [S[i] for i in range(len(S))]
         sigma_max = S_list[0]
         sigma_min = S_list[-1]
-        # Treat numerically-zero sigma_min as exact-defective
         if sigma_min == 0 or abs(sigma_min) < mpmath.mpf(10) ** (-precision - 5):
             cond_V = float("inf")
         else:
@@ -395,9 +400,9 @@ def _causal_counts(evecs: mpmath.matrix, g_ab: np.ndarray, tol: float) -> tuple[
     Mirrors the float64 classifier's causal-character accounting. For
     the real-spectrum branch only; complex spectra short-circuit to
     Type IV before this helper is consulted. Uses a relative-sign
-    threshold (normalized by ``max |v^T g v|``) so scale-aware sign
-    discrimination holds at metrics with ``|g_{ij}|/|g_{00}| >> 1``;
-    the scale floors at 1.0 to preserve Minkowski-scale behavior.
+    threshold (normalized by ``max |v^T g v|``, not clamped at 1.0, matching
+    the gate in :mod:`.classification`) so scale-aware sign discrimination
+    holds at metrics with ``|g_{ij}|/|g_{00}| >> 1``.
 
     Parameters
     ----------
@@ -421,7 +426,6 @@ def _causal_counts(evecs: mpmath.matrix, g_ab: np.ndarray, tol: float) -> tuple[
                 quad += g_ab[a, b] * v[a] * v[b]
         quads.append(quad)
 
-    # Relative, not clamped at 1.0: see the same gate in classification.py.
     scale = max((abs(q) for q in quads), default=0.0)
     if scale == 0.0:
         return 0, len(quads)

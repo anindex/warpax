@@ -52,12 +52,11 @@ def make_rapidity_observers(
     """
     zetas = jnp.linspace(0.0, zeta_max, n_rapidity)
 
-    # Fixed directions: along x (theta=pi/2, phi=0), y (theta=pi/2, phi=pi/2), z (theta=0, phi=0)
     directions = jnp.array(
         [
-            [jnp.pi / 2, 0.0],  # +x
-            [jnp.pi / 2, jnp.pi / 2],  # +y
-            [0.0, 0.0],  # +z
+            [jnp.pi / 2, 0.0],
+            [jnp.pi / 2, jnp.pi / 2],
+            [0.0, 0.0],
         ]
     )[:n_directions]
 
@@ -112,6 +111,7 @@ def _point_sweep_wec(
     return jax.vmap(eval_one)(obs_params)
 
 
+@jax.jit
 def sweep_wec_margins(
     T_field: Float[Array, "N 4 4"],
     g_field: Float[Array, "N 4 4"],
@@ -152,6 +152,7 @@ def _point_sweep_nec(
     return jax.vmap(eval_one)(obs_params)
 
 
+@jax.jit
 def sweep_nec_margins(
     T_field: Float[Array, "N 4 4"],
     g_field: Float[Array, "N 4 4"],
@@ -215,18 +216,19 @@ def sweep_all_margins(
     dict[str, Float[Array, "N K"]]
         Dictionary with keys ``"wec"``, ``"nec"``, ``"sec"`` mapping to
         (N, K) margin arrays.
+
+    WEC is ``T_ab u^a u^b`` over timelike observers; NEC is ``T_ab k^a k^b`` over
+    null directions, using only the ``(theta, phi)`` columns of
+    ``observer_params``; SEC is ``(T_ab - T g_ab / 2) u^a u^b`` with
+    ``T = g^{ab} T_ab``.
     """
-    # WEC: T_{ab} u^a u^b for timelike observers
     wec = sweep_wec_margins(T_field, g_field, observer_params)
 
-    # NEC: T_{ab} k^a k^b for null directions
-    # Use (theta, phi) columns from observer_params (zeta irrelevant for null)
-    nec_params = observer_params[:, 1:]  # (K, 2)
+    nec_params = observer_params[:, 1:]
     nec = sweep_nec_margins(T_field, g_field, nec_params)
 
-    # SEC: (T_{ab} - 0.5 T g_{ab}) u^a u^b for timelike observers
-    T_trace = jnp.einsum("nab,nab->n", g_inv_field, T_field)  # (N,)
-    sec_tensor = T_field - 0.5 * T_trace[:, None, None] * g_field  # (N, 4, 4)
+    T_trace = jnp.einsum("nab,nab->n", g_inv_field, T_field)
+    sec_tensor = T_field - 0.5 * T_trace[:, None, None] * g_field
     sec = jax.vmap(_point_sweep_sec, in_axes=(0, 0, None))(sec_tensor, g_field, observer_params)
 
     return {"wec": wec, "nec": nec, "sec": sec}
@@ -275,6 +277,11 @@ def cross_validate_sweep(
         - ``mean_relative_error``: float
         - ``sign_agreement_fraction``: float
         - ``sweep_worse_count``: int
+
+    Sign agreement counts points where both margins share a sign or both are
+    within ``1e-12`` of zero; ``sweep_worse_count`` counts points where both are
+    negative and the sweep is shallower; the relative error uses BFGS as reference
+    and is absolute when ``|bfgs| <= 1e-12``.
     """
     from .optimization import optimize_wec
 
@@ -284,15 +291,12 @@ def cross_validate_sweep(
     N = T_field.shape[0]
     n_validation_points = min(n_validation_points, N)
 
-    # Select random grid points
     key, subkey = jax.random.split(key)
     indices = jax.random.choice(subkey, N, shape=(n_validation_points,), replace=False)
 
-    # Compute sweep margins at validation points
-    sweep_margins = sweep_wec_margins(T_field, g_field, observer_params)  # (N, K)
-    sweep_mins = jnp.min(sweep_margins, axis=-1)  # (N,) worst across observers
+    sweep_margins = sweep_wec_margins(T_field, g_field, observer_params)
+    sweep_mins = jnp.min(sweep_margins, axis=-1)
 
-    # Collect validation results
     sign_agree = 0
     sweep_worse = 0
     rel_errors = []
@@ -313,15 +317,12 @@ def cross_validate_sweep(
         bfgs_min = float(bfgs_result.margin)
         sweep_min = float(sweep_mins[idx])
 
-        # Sign agreement: both agree on violation (negative) or satisfaction (positive)
         if (sweep_min < 0) == (bfgs_min < 0) or (abs(sweep_min) < 1e-12 and abs(bfgs_min) < 1e-12):
             sign_agree += 1
 
-        # Sweep missed deeper violation (sweep_min > bfgs_min when both negative)
         if bfgs_min < 0 and sweep_min > bfgs_min:
             sweep_worse += 1
 
-        # Relative error (use BFGS as reference)
         if abs(bfgs_min) > 1e-12:
             rel_err = abs(sweep_min - bfgs_min) / abs(bfgs_min)
         else:

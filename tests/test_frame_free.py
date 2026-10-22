@@ -30,7 +30,6 @@ def test_routed_nec_retains_the_lmi_inconclusive_band(monkeypatch, sign):
         [[1.0, 2.0, 0.0, 0.0], [2.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
     )
     floor = noise_floor(tensor, MINKOWSKI)
-    # Model an LMI solver residual inside its declared inconclusive band.
     monkeypatch.setattr(
         frame_free,
         "certify_point_lmi",
@@ -53,13 +52,13 @@ def test_minkowski_vacuum_is_type_i():
 def test_perfect_fluid_margins_exact():
     """Type-I perfect fluid: margins equal the eigenvalue inequalities."""
     rho, p = 1.0, 0.5
-    T = jnp.diag(jnp.array([rho, p, p, p]))  # T_{ab}, energy density T_tt=rho
+    T = jnp.diag(jnp.array([rho, p, p, p]))
     out = certify_point_frame_free(T, MINKOWSKI)
     assert int(out["he_type"]) == 1
     assert float(out["rho"]) == pytest.approx(rho, abs=1e-9)
-    assert float(out["nec"]) == pytest.approx(rho + p, abs=1e-9)  # 1.5
-    assert float(out["wec"]) == pytest.approx(min(rho, rho + p), abs=1e-9)  # 1.0
-    assert float(out["dec"]) == pytest.approx(rho - abs(p), abs=1e-9)  # 0.5
+    assert float(out["nec"]) == pytest.approx(rho + p, abs=1e-9)
+    assert float(out["wec"]) == pytest.approx(min(rho, rho + p), abs=1e-9)
+    assert float(out["dec"]) == pytest.approx(rho - abs(p), abs=1e-9)
     assert float(out["sec"]) == pytest.approx(min(rho + p, rho + 3 * p), abs=1e-9)
 
 
@@ -76,10 +75,10 @@ def test_negative_pressure_violates():
 
 def test_type_iv_certifies_nec_violation():
     """A complex-eigenvalue T^a_b is Type IV; the Eulerian null witness certifies
-    NEC violation in closed form (cap-free), replacing the old NaN margins."""
-    # T_{ab} with a (t,x) block giving |T_tx| > |T_tt+T_xx|/2 -> complex pair.
-    # Eulerian decomposition: rho=1, |j|=2, S_par=1 -> Delta=(rho+S_par)^2-4|j|^2
-    # = 4-16 = -12 < 0 (Type IV) and witness = rho+S_par-2|j| = 2-4 = -2.
+    NEC violation in closed form (cap-free). The (t,x) block has
+    |T_tx| > |T_tt+T_xx|/2, a complex pair; Eulerian decomposition rho=1,
+    |j|=2, S_par=1 gives Delta = (rho+S_par)^2 - 4|j|^2 = -12 < 0 (Type IV)
+    and witness = rho + S_par - 2|j| = -2."""
     T = jnp.array(
         [
             [1.0, 2.0, 0.0, 0.0],
@@ -101,16 +100,16 @@ def test_conformal_type_iv_positive_witness_uses_lmi():
     """A Type-IV point whose momentum witness is >= 0 (conformal pair, not
     momentum-sourced) takes every margin from the LMI.
 
-    It used to take ``-|Im lambda|`` instead. That sentinel was always negative, so
-    every such point was reported violating whatever its stress-energy, true, by
-    Martin-Moruno & Visser, but true by fiat, and at Type III (``imag = 0``) the
-    reported number was a hard-coded ``-1e-30``. Deciding them on their own merits
-    turns the unconditional-violation theorem into a test of the pipeline.
+    A ``-|Im lambda|`` sentinel is always negative, so every such point would be
+    reported violating whatever its stress-energy, true by Martin-Moruno &
+    Visser but true by fiat. Deciding them on their own merits turns the
+    unconditional-violation theorem into a test of the pipeline. The NEC slot
+    carries the full null deficit, which is twice the LMI margin.
     """
     from warpax.energy_conditions.frame_free import _exact_margins
 
     he = jnp.float64(4.0)
-    witness = jnp.float64(0.5)  # momentum plane is not the source
+    witness = jnp.float64(0.5)
     nan = jnp.float64(jnp.nan)
     lmi = {
         "nec": jnp.float64(-0.7),
@@ -119,7 +118,6 @@ def test_conformal_type_iv_positive_witness_uses_lmi():
         "dec": jnp.float64(-1.1),
     }
     nec, wec, sec, dec = _exact_margins(he, nan, nan, nan, nan, witness, lmi)
-    # The NEC slot carries the full null deficit, which is twice the LMI margin.
     assert float(nec) == pytest.approx(-1.4)
     assert float(wec) == pytest.approx(-0.8)
     assert float(sec) == pytest.approx(-0.9)
@@ -150,7 +148,7 @@ def test_type_ii_nec_is_not_read_off_the_momentum_witness():
     """Regression: the Eulerian witness cannot decide the NEC at Type II.
 
     For the canonical block ``(mu, f, p_2, p_3) = (0, 1, -2, 0)`` the witness is
-    exactly zero, which the old code reported as a satisfied NEC, while
+    exactly zero, which must not be read as a satisfied NEC, because
     ``k = (1, 0, 1, 0)`` gives ``T_ab k^a k^b = -1``. The witness only probes the
     momentum plane; this violation lives in the transverse channel.
     """
@@ -164,7 +162,7 @@ def test_type_ii_nec_is_not_read_off_the_momentum_witness():
     assert float(witness) == pytest.approx(0.0, abs=1e-12)
 
     k = jnp.array([1.0, 0.0, 1.0, 0.0])
-    assert float(k @ MINKOWSKI @ k) == pytest.approx(0.0, abs=1e-12)  # k is null
+    assert float(k @ MINKOWSKI @ k) == pytest.approx(0.0, abs=1e-12)
     assert float(k @ T @ k) == pytest.approx(-1.0)
 
     out = certify_point_frame_free(T, MINKOWSKI, solver="standard")
@@ -185,11 +183,10 @@ def test_grid_matches_verify_grid_typeI_margins():
 
     he = np.asarray(ff.he_types).ravel()
     typeI = he == 1.0
-    assert typeI.mean() > 0.99  # Rodal is ~100% Type I
+    assert typeI.mean() > 0.99
 
     nec_ff = np.asarray(ff.nec_margins).ravel()[typeI]
     nec_vg = np.asarray(ec.nec_margins).ravel()[typeI]
-    # NEC/WEC/SEC are algebraic-exact in both paths -> should match closely.
     np.testing.assert_allclose(nec_ff, nec_vg, atol=1e-8, rtol=1e-6)
 
 
@@ -202,7 +199,7 @@ def test_runs_superluminal_no_nan_types():
     ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv)
     he = np.asarray(ff.he_types)
     assert np.all(np.isfinite(he))
-    assert ff.n_type_iv > 0  # Alcubierre wall is Type IV, even superluminally
+    assert ff.n_type_iv > 0
     fr = type_fractions(ff)
     assert abs(sum(fr[f"frac_type_{k}"] for k in ("i", "ii", "iii", "iv")) - 1.0) < 1e-6
 
@@ -210,12 +207,11 @@ def test_runs_superluminal_no_nan_types():
 class TestTypeIIMarginsAreDecidedNotOverclaimed:
     """One null contraction decides the NEC, and nothing else, so use the LMI.
 
-    The frame-free certifier used to hand the same Eulerian null witness to all
-    four conditions at every non-Type-I point. At a Type-II point that silently
-    certified WEC/SEC/DEC as satisfied whenever the null contraction happened to
-    be non-negative, even with a manifestly negative Eulerian energy density.
-    Returning NaN fixed the overclaim but left the point undecided. The S-lemma
-    LMI decides it properly: this canonical block has null witness exactly zero
+    Handing the same Eulerian null witness to all four conditions at a
+    non-Type-I point would silently certify WEC/SEC/DEC as satisfied whenever
+    the null contraction happened to be non-negative, even with a manifestly
+    negative Eulerian energy density, and returning NaN would leave the point
+    undecided. The S-lemma LMI decides it properly: this canonical block has null witness exactly zero
     and Eulerian energy density -1, and the WEC really is violated.
     """
 
@@ -308,7 +304,6 @@ def test_lmi_is_evaluated_only_where_it_is_read():
     assert np.any(he != 1), "fixture must carry non-Type-I points to be meaningful"
     assert np.any(he == 1), "fixture must carry Type-I points for gathering to matter"
 
-    # Reference: the LMI at every point, then the same selection by hand.
     flat_T = jnp.reshape(curv.stress_energy, (-1, 4, 4))
     flat_g = jnp.reshape(curv.metric, (-1, 4, 4))
     full = jax.vmap(slemma.certify_point)(flat_T, flat_g)
@@ -318,3 +313,98 @@ def test_lmi_is_evaluated_only_where_it_is_read():
         got = np.asarray(got).reshape(-1)[~is_I]
         want = np.asarray(full[cond])[~is_I]
         np.testing.assert_array_equal(got, want, err_msg=cond)
+
+
+def test_frame_free_kernels_match_eager():
+    """The jitted grid kernels reproduce an eager, un-jitted evaluation of the same primitives."""
+    from warpax.energy_conditions import slemma
+    from warpax.energy_conditions.classification import (
+        _standard_solver_unreliable_mask,
+        classify_hawking_ellis,
+    )
+    from warpax.energy_conditions.eigenvalue_checks import check_all
+    from warpax.energy_conditions.frame_free import (
+        _exact_margins,
+        eulerian_null_witness,
+        ill_conditioned_eigenbasis,
+    )
+
+    metric = AlcubierreMetric(v_s=1.5, R=1.0, sigma=8.0)
+    grid = wall_clustered(metric, [(-3, 3)] * 3, (8, 8, 8), a=1.2)
+    curv = evaluate_curvature_grid(metric, grid, batch_size=512)
+    T = jnp.reshape(curv.stress_energy, (-1, 4, 4))
+    g = jnp.reshape(curv.metric, (-1, 4, 4))
+    gi = jnp.reshape(curv.metric_inv, (-1, 4, 4))
+    tol = 1e-10
+
+    with jax.disable_jit():
+        Tm = jnp.einsum("nac,ncb->nab", gi, T)
+        cls = jax.vmap(lambda a, b: classify_hawking_ellis(a, b, tol=tol))(Tm, g)
+        bad = np.asarray(
+            _standard_solver_unreliable_mask(cls.he_type, cls.eigenvalues, cls.eigenvalues_imag),
+            dtype=bool,
+        )
+        if bad.any():
+            idx = jnp.asarray(np.flatnonzero(bad))
+            sub = jax.vmap(
+                lambda a, b, c: classify_hawking_ellis(a, b, solver="generalized", T_ab=c, tol=tol)
+            )(Tm[idx], g[idx], T[idx])
+            cls = type(cls)(*(f.at[idx].set(s) for f, s in zip(cls, sub, strict=True)))
+        nec_I, wec_I, sec_I, dec_I = jax.vmap(check_all)(cls.rho, cls.pressures)
+        witness = jax.vmap(eulerian_null_witness)(T, g, gi)
+        ill = jax.vmap(ill_conditioned_eigenbasis)(cls.eigenvectors)
+        lmi_floor = jax.vmap(lambda a, b: slemma.noise_floor(a, b, condition="nec"))(T, g)
+        eig_floor = slemma._NOISE_REL * jnp.max(jnp.abs(cls.eigenvalues), axis=-1)
+        floor = jnp.where((cls.he_type == 1) & ~ill, eig_floor, 2 * lmi_floor)
+        nonI = np.flatnonzero(np.asarray((cls.he_type != 1) | ill))
+        assert nonI.size, "fixture must need the LMI somewhere"
+        idx = jnp.asarray(nonI)
+        sub = jax.vmap(slemma.certify_point)(T[idx], g[idx])
+        lmi = {k: jnp.zeros_like(witness).at[idx].set(v) for k, v in sub.items()}
+        nec, wec, sec, dec = jax.vmap(_exact_margins)(
+            cls.he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi, ill
+        )
+
+    ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv)
+    expected = {
+        "he_types": cls.he_type,
+        "eigenvalues": cls.eigenvalues,
+        "eigenvalues_imag": cls.eigenvalues_imag,
+        "rho": cls.rho,
+        "pressures": cls.pressures,
+        "nec_noise_floor": floor,
+        "nec_margins": nec,
+        "wec_margins": wec,
+        "sec_margins": sec,
+        "dec_margins": dec,
+        "is_vacuum": cls.is_vacuum,
+        "lmi_substituted": ill.astype(nec.dtype),
+    }
+    for name, want in expected.items():
+        got = np.asarray(getattr(ff, name)).reshape(np.shape(want))
+        np.testing.assert_allclose(got, np.asarray(want), rtol=1e-12, atol=0, err_msg=name)
+    assert ff.n_type_i == int(np.sum(np.asarray(cls.he_type) == 1))
+
+
+def test_type_i_noise_floor_is_eigenframe_scale():
+    """A well-conditioned Type-I point carries the eigenframe floor, not the LMI one.
+
+    Rest frame ``rho = 1``, ``p = (-1 - 2e-10, 2, 3)`` boosted by rapidity 3 along
+    ``y`` keeps the eigenframe NEC slack ``rho + p_1 = -1.987e-10`` (roundoff from
+    the exact ``-2e-10``), but the Eulerian LMI floor grew to ``6.06e-10`` with the
+    tetrad components and made the slack inconclusive. The routed floor is
+    ``1e-12 * max|lambda| = 3e-12 < 1e-11`` and the slack lies below ``-floor``.
+    """
+    c, s = np.cosh(3.0), np.sinh(3.0)
+    L = jnp.asarray(
+        [[c, 0.0, s, 0.0], [0.0, 1.0, 0.0, 0.0], [s, 0.0, c, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
+    T = L.T @ jnp.diag(jnp.array([1.0, -1.0 - 2e-10, 2.0, 3.0])) @ L
+    ff = certify_grid_frame_free(T[None], MINKOWSKI[None], solver="standard")
+    assert int(ff.he_types[0]) == 1
+    assert float(ff.lmi_substituted[0]) == 0.0
+    floor = float(ff.nec_noise_floor[0])
+    assert floor == pytest.approx(3e-12, rel=1e-9)
+    assert floor < 1e-11
+    assert float(ff.nec_margins[0]) == pytest.approx(-1.987e-10, rel=1e-3)
+    assert float(ff.nec_margins[0]) < -floor

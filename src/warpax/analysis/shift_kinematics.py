@@ -33,10 +33,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
+from warpax.geometry.geometry import christoffel_from_jacobian
 from warpax.geometry.grid import build_coord_batch
 from warpax.geometry.types import GridSpec
 
@@ -60,6 +62,10 @@ def compute_shift_kinematics(
         ``(theta_beta, sigma_sq_beta, omega_sq_beta)``: shift divergence, shear
         scalar squared and vorticity scalar squared, all raised with the
         spatial metric ``gamma^{ij}``.
+
+    ``jacfwd`` returns ``d_beta[j, i] = d beta_j / d x^i``, so the
+    transpose gives ``P[i, j] = d_i beta_j`` before the Christoffel term
+    builds ``D_i beta_j``.
     """
     g = metric_fn(coords)
     gamma = g[1:, 1:]
@@ -71,24 +77,18 @@ def compute_shift_kinematics(
         c = jnp.concatenate([jnp.array([t], dtype=coords.dtype), p])
         return metric_fn(c)[0, 1:]
 
-    # d_beta[j, i] = d beta_j / d x^i  ->  P[i, j] = d_i beta_j
     d_beta = jax.jacfwd(beta_lower_at)(xyz)
     partial_i_beta_j = d_beta.T
 
-    # Spatial Christoffel symbols Gamma^k_{ij} compatible with gamma_{ij}.
     def spatial_metric_at(p: Float[Array, "3"]) -> Float[Array, "3 3"]:
         c = jnp.concatenate([jnp.array([t], dtype=coords.dtype), p])
         return metric_fn(c)[1:, 1:]
 
-    dgamma = jax.jacfwd(spatial_metric_at)(xyz)  # dgamma[a, b, c] = d_c gamma_{ab}
-    term1 = jnp.einsum("lk,jki->lij", gamma_inv, dgamma)
-    term2 = jnp.einsum("lk,ikj->lij", gamma_inv, dgamma)
-    term3 = jnp.einsum("lk,ijk->lij", gamma_inv, dgamma)
-    christoffel = 0.5 * (term1 + term2 - term3)  # Gamma^l_{ij}
+    christoffel = christoffel_from_jacobian(gamma_inv, jax.jacfwd(spatial_metric_at)(xyz))
 
     beta_lower = g[0, 1:]
     christoffel_term = jnp.einsum("kij,k->ij", christoffel, beta_lower)
-    cov = partial_i_beta_j - christoffel_term  # D_i beta_j
+    cov = partial_i_beta_j - christoffel_term
 
     theta = jnp.einsum("ij,ij->", gamma_inv, cov)
     cov_sym = 0.5 * (cov + cov.T)
@@ -130,18 +130,21 @@ def compute_shift_kinematics_grid(
     ``grid_spec.shape``.
     """
     coords_flat = build_coord_batch(grid_spec, t=t)
+    results = _shift_points(metric_fn, coords_flat, batch_size)
     grid_shape = grid_spec.shape
-
-    def point_fn(c: Float[Array, "4"]) -> Float[Array, "3"]:
-        theta, sigma_sq, omega_sq = compute_shift_kinematics(metric_fn, c)
-        return jnp.stack([theta, sigma_sq, omega_sq])
-
-    if batch_size is not None:
-        results = jax.lax.map(point_fn, coords_flat, batch_size=batch_size)
-    else:
-        results = jax.vmap(point_fn)(coords_flat)
-
     theta_grid = results[:, 0].reshape(grid_shape)
     sigma_sq_grid = results[:, 1].reshape(grid_shape)
     omega_sq_grid = results[:, 2].reshape(grid_shape)
     return theta_grid, sigma_sq_grid, omega_sq_grid
+
+
+@eqx.filter_jit
+def _shift_points(metric_fn, coords, batch_size):
+    """Jitted point-map of :func:`compute_shift_kinematics` over ``(N, 4)`` coords."""
+
+    def point_fn(c: Float[Array, "4"]) -> Float[Array, "3"]:
+        return jnp.stack(compute_shift_kinematics(metric_fn, c))
+
+    if batch_size is not None:
+        return jax.lax.map(point_fn, coords, batch_size=batch_size)
+    return jax.vmap(point_fn)(coords)

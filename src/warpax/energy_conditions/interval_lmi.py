@@ -71,7 +71,7 @@ def _point_box(point):
     box = []
     for c in point:
         lo = hi = float(c)
-        if lo != c:  # c is not representable in binary64; bracket it instead
+        if lo != c:
             lo, hi = math.nextafter(lo, -math.inf), math.nextafter(hi, math.inf)
         box.append(iv.mpf([lo, hi]))
     return box
@@ -126,9 +126,9 @@ def _clamp_to_ball(w, pad: float = 1e-12):
 
     A float64 unit vector has ``|w|^2 = 1 + O(ulp)``, and the interval check rounds
     that endpoint UP, so the sphere candidate, the one that matters at a wall
-    point, where the minimum sits at ``|w| = 1``, was rejected every time and the
-    only surviving candidate was ``w = 0``. That is sound but useless: it turned
-    every certified strong-energy violation into ``inconclusive``.
+    point, where the minimum sits at ``|w| = 1``, would be rejected every time,
+    leaving ``w = 0`` as the only candidate. That is sound but useless: every
+    certified strong-energy violation would read as ``inconclusive``.
 
     Shrinking by a relative ``pad`` keeps the candidate admissible and costs ``pad``
     of tightness in a bound that is otherwise exact to the last bit.
@@ -143,7 +143,7 @@ def _clamp_to_ball(w, pad: float = 1e-12):
 def _q_at(rho_iv, b_iv, S_iv, w):
     """Interval enclosure of ``q(w) = rho + 2 b.w + w^T S w`` at a fixed float ``w``.
 
-    Unlike :func:`.enclosure._objective_interval` this does NOT normalise: it is the
+    Unlike :func:`.enclosure._objective_interval` this does NOT normalize: it is the
     ball evaluator, so ``|w| <= 1`` is the caller's obligation and is checked here
     in interval arithmetic rather than assumed from the float that proposed it.
     Returns ``None`` when ``|w| <= 1`` cannot be certified, which only forfeits a
@@ -166,9 +166,10 @@ def _ball_upper(rho_iv, b_iv, S_iv) -> float:
     the proposals are; only its tightness depends on them. Three candidates cover
     the cases that matter: ``w = 0`` (which is why ``rho < 0`` alone convicts the
     weak condition, with no direction search at all), the unconstrained stationary
-    point ``S w = -b`` when it lands inside the ball, and the sphere minimiser that
-    :func:`.enclosure._trs_argmin` already computes, ray-minimised over ``t`` in
-    ``[0, 1]`` so the interior of the ball is reachable along that direction too.
+    point ``S w = -b`` when it lands inside the ball, and the sphere minimizer that
+    :func:`.enclosure._trs_argmin` already computes, ray-minimized over ``t`` in
+    ``[0, 1]`` so the interior of the ball is reachable along that direction too:
+    ``q(t v) = rho + 2t (b.v) + t^2 (v^T S v)`` is a scalar quadratic in ``t``.
     """
     import numpy as np
 
@@ -190,7 +191,6 @@ def _ball_upper(rho_iv, b_iv, S_iv) -> float:
         nv = float(np.linalg.norm(v))
         if nv > 0.0:
             v = v / nv
-            # q(t v) = rho + 2t (b.v) + t^2 (v^T S v): a scalar quadratic in t.
             lin, quad = float(np.dot(b_m, v)), float(v @ S_arr @ v)
             t = 1.0 if quad <= 0.0 else min(1.0, max(0.0, -lin / quad))
             for tc in {1.0, t}:
@@ -240,6 +240,14 @@ def certify_point_from_metric(metric_dual_fn, point, *, prec: int = 80) -> dict:
     satisfied and the verdict is unaffected; do not quote a ball ``*_lower`` as a
     margin. ``dec_lower`` combines two quantities of different degree in ``T`` and
     is sign-only for that reason as well.
+
+    The null (sphere) bound re-evaluates a float-proposed direction in interval
+    arithmetic, so a poor direction weakens the bound and cannot invalidate it.
+    The timelike (ball) bounds restrict the multiplier to ``sigma >= 0`` and take
+    their witness from the ball; on the null cone ``Theta(k,k) = T(k,k)``, so the
+    NEC witness says nothing whatever about the SEC. DEC needs both inequalities,
+    so it is certified only when both are and refuted as soon as either is, which
+    ``min`` at both ends gives exactly.
     """
     mpmath.mp.prec = prec
     iv.prec = prec
@@ -248,16 +256,10 @@ def certify_point_from_metric(metric_dual_fn, point, *, prec: int = 80) -> dict:
     theta = _trace_reversed(rho_iv, b_iv, S_iv)
     flux = _minus_t_squared(rho_iv, b_iv, S_iv)
 
-    # Null (sphere): the float minimiser only proposes a direction; the value is
-    # re-evaluated in interval arithmetic, so a poor direction weakens the bound
-    # and cannot invalidate it.
     nec_lower = _lmi_dual_lower(rho_iv, b_iv, S_iv)
     q_iv = _objective_interval(rho_iv, b_iv, S_iv, _trs_argmin(*_mid_fields(rho_iv, b_iv, S_iv)))
     nec_upper = _hi(q_iv) if q_iv is not None else math.inf
 
-    # Timelike (ball): the multiplier is restricted to sigma >= 0, and the witness
-    # must come from the ball, on the null cone Theta(k,k) = T(k,k), so the NEC
-    # witness says nothing whatever about the SEC.
     wec_lower = _lmi_dual_lower(rho_iv, b_iv, S_iv, sigma_min=0.0)
     wec_upper = _ball_upper(rho_iv, b_iv, S_iv)
     sec_lower = _lmi_dual_lower(*theta, sigma_min=0.0)
@@ -272,8 +274,6 @@ def certify_point_from_metric(metric_dual_fn, point, *, prec: int = 80) -> dict:
             return "violated"
         return "inconclusive"
 
-    # DEC needs both inequalities, so it is certified only when both are, and it is
-    # refuted as soon as either is: min at both ends gives exactly that.
     dec_lower, dec_upper = min(wec_lower, flux_lower), min(wec_upper, flux_upper)
 
     return {

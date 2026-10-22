@@ -53,9 +53,9 @@ def _boost_x(zeta: float) -> jnp.ndarray:
 
 
 class TestNearVacuumModulusGate:
-    """Bug: ``near_vacuum`` tested only Re(lambda), so a pure momentum flux
-    T_ab = q(dt (x) dx + dx (x) dt) with eigenvalues +/- iq was absorbed as
-    vacuum Type I at any q."""
+    """``near_vacuum`` tests the eigenvalue modulus, so a pure momentum flux
+    T_ab = q(dt (x) dx + dx (x) dt) with eigenvalues +/- iq is Type IV at
+    every q, never vacuum Type I."""
 
     def _pure_flux(self, q: float) -> jnp.ndarray:
         T = jnp.zeros((4, 4)).at[0, 1].set(q).at[1, 0].set(q)
@@ -86,18 +86,19 @@ class TestNearVacuumModulusGate:
         assert float(cls.is_vacuum) == 1.0
 
     def test_verify_point_pure_flux_reports_violation(self):
+        """Type IV: margins come from the optimizer, which sees the unbounded
+        WEC violation a spectrum-only vacuum bypass would hide."""
         T = self._pure_flux(1.0)
         res = verify_point(T, ETA, n_starts=4)
         assert int(res.he_type) == 4
-        # Type IV: margins come from the optimizer, which sees the
-        # unbounded WEC violation the old vacuum bypass hid.
         assert float(res.wec_margin) < 0.0
 
 
 class TestScaleAwareViolationGate:
-    """Bug: the fixed absolute atol=1e-10 violation gate flagged float64
-    eigenvalue noise as 'violated' at ||T|| >~ 1e6 (54/200 synthetic
-    marginal fluids at 1e11; ~24% of WarpShell NEC-'violated' points)."""
+    """The violation gate scales with ||T||: an absolute atol = 1e-10 would
+    read float64 eigenvalue noise as a violation once ||T|| exceeds about
+    1e6, so analytically marginal fluids at ||T|| = 1e11 must not count as
+    violated."""
 
     def _marginal_margins(self, scale: float, n: int = 64) -> jnp.ndarray:
         """NEC margins of boosted, analytically marginal fluids."""
@@ -106,10 +107,10 @@ class TestScaleAwareViolationGate:
         T_rest = jnp.diag(jnp.array([-1.0, -1.0, 0.5, 0.5]) * scale)
 
         def margin(zeta):
+            """NEC margin min_i (rho + p_i); analytically exactly zero."""
             B = _boost_x(zeta)
             T_mixed = B @ T_rest @ jnp.linalg.inv(B)
             cls = classify_hawking_ellis(T_mixed, ETA)
-            # NEC margin = min_i (rho + p_i); analytically exactly zero.
             return jnp.min(cls.rho + cls.pressures)
 
         return jax.vmap(margin)(zetas)
@@ -121,11 +122,11 @@ class TestScaleAwareViolationGate:
         summary = _compute_summary(margins, scale=scales)
         assert float(summary.fraction_violated) == 0.0
 
-    def test_legacy_absolute_gate_would_have_flagged(self):
-        # Demonstrates the test actually exercises the bug: without the relative term
-        # the same noise floor trips the gate at large ||T||.
+    def test_absolute_gate_flags_marginal_fluids(self):
+        """Without the relative term (scale=None, pure absolute) the same
+        noise floor trips the gate at large ||T||."""
         margins = self._marginal_margins(1e11)
-        summary_abs = _compute_summary(margins)  # scale=None: pure absolute
+        summary_abs = _compute_summary(margins)
         assert float(summary_abs.fraction_violated) > 0.0
 
     def test_genuine_violation_still_flagged_at_extreme_scale(self):
@@ -163,8 +164,8 @@ class TestClassifierToleranceSentinel:
         return t_mixed, g_flat
 
     def test_type_fractions_stable_under_tol_sweep(self, wall_slab):
-        # `tol` is the real-spectrum threshold. This used to sweep `imag_rtol`,
-        # which only selects the auto-solver, so it passed whatever the data did.
+        """``tol`` is the real-spectrum threshold; ``imag_rtol`` only selects
+        the auto-solver, so sweeping it would pass whatever the data did."""
         t_mixed, g_flat = wall_slab
         counts = []
         for tol in (1e-12, 1e-10, 1e-8):
@@ -177,7 +178,7 @@ class TestClassifierToleranceSentinel:
             np.testing.assert_array_equal(c, counts[0])
 
     def test_imag_rtol_does_not_touch_the_real_spectrum_decision(self, wall_slab):
-        # Pins the docstring fix: imag_rtol is auto-dispatch only.
+        """imag_rtol is auto-dispatch only."""
         t_mixed, g_flat = wall_slab
         counts = []
         for imag_rtol in (3e-4, 3e-3, 3e-2):
@@ -191,10 +192,10 @@ class TestClassifierToleranceSentinel:
             np.testing.assert_array_equal(c, counts[0])
 
     def test_default_classifier_agrees_with_mpmath_on_slab(self, wall_slab):
-        # The 50-digit gate is the authority; the default float64
-        # classifier must agree with it everywhere on this slab,
-        # including the weak Type-IV far-field tail (|Im| ~ 1e-8) that
-        # the pre-fix relative tier absorbed as Type I.
+        """The 50-digit gate is the authority; the default float64 classifier
+        must agree with it everywhere on this slab, including the weak Type-IV
+        far-field tail (|Im| ~ 1e-8) that a relative tier would absorb as
+        Type I."""
         t_mixed, g_flat = wall_slab
         cls = jax.vmap(lambda T, g: classify_with_solver(T, g, None, solver="standard"))(
             t_mixed, g_flat
@@ -204,10 +205,10 @@ class TestClassifierToleranceSentinel:
         assert rep["n_flips"] == 0
 
     def test_mpmath_gate_agrees_at_every_scale(self):
-        # Eigenvalues s(1 +/- 1e-5j): complex (Type IV) at any s. The float64
-        # relative tier used to absorb the split above its 1e6 scale floor, so
-        # the same physics read Type I at s=1e8 and Type IV at s=1; the tier is
-        # gone and both paths now agree at both scales, with no flip to report.
+        """Eigenvalues s(1 +/- 1e-5j) are complex (Type IV) at any s; float64
+        and the 50-digit path must agree at s=1e8 as at s=1, with no flip to
+        report (a relative tier with a 1e6 scale floor would read Type I at
+        s=1e8)."""
         g = np.diag([-1.0, 1.0, 1.0, 1.0])
         s = 1e8
         M = np.zeros((4, 4))
@@ -230,6 +231,8 @@ class TestTimelikeTiebreakBoundary:
 
     @pytest.mark.parametrize("scale", [1.0, 1e11, 1e30])
     def test_rho_sign_matches_mpmath_oracle(self, scale):
+        """The mpmath oracle gives rho = -(timelike eigenvalue), the unique
+        negative eigenvalue of the boosted diag(-0.7, 0.3, 0.5, 0.9)*s."""
         T_mixed = jnp.diag(jnp.array([-0.7, 0.3, 0.5, 0.9]) * scale)
         B = _boost_x(0.8)
         T_b = B @ T_mixed @ jnp.linalg.inv(B)
@@ -238,22 +241,26 @@ class TestTimelikeTiebreakBoundary:
         rep = classify_hawking_ellis_mpmath(np.asarray(T_b), np.diag([-1.0, 1.0, 1.0, 1.0]))
         assert rep["he_type"] == 1
         assert float(cls.rho) == pytest.approx(0.7 * scale, rel=1e-8)
-        # mpmath oracle: rho = -(timelike eigenvalue); here the unique
-        # negative eigenvalue of the boosted diag(-0.7, 0.3, 0.5, 0.9)*s.
         assert -min(rep["eigenvalues_real"]) == pytest.approx(0.7 * scale, rel=1e-8)
 
 
 class TestDECNecessaryOnly:
     """Sentinel: check_dec is the eigenvalue (necessary) bound; the
     optimizer carries the flux-causality pillar. Their Boolean verdicts
-    agree on clearly-signed Type-I cases, and DEC <= WEC after the merge."""
+    agree on clearly-signed Type-I cases, and DEC <= WEC after the merge.
+
+    The parametrized cases have eigenvalue margins +0.5 (satisfied), -0.5
+    (violated) and +1.0 (satisfied); only the sign is compared because the
+    three-term optimizer objective is not magnitude-commensurable with the
+    eigenvalue bound.
+    """
 
     @pytest.mark.parametrize(
         "rho,p",
         [
-            (1.0, (0.5, 0.3, 0.1)),  # satisfied, margin +0.5
-            (1.0, (1.5, 0.0, 0.0)),  # violated, margin -0.5
-            (2.0, (-1.0, 0.5, 0.5)),  # satisfied, margin +1.0
+            (1.0, (0.5, 0.3, 0.1)),
+            (1.0, (1.5, 0.0, 0.0)),
+            (2.0, (-1.0, 0.5, 0.5)),
         ],
     )
     def test_check_dec_sign_agrees_with_optimize_dec(self, rho, p):
@@ -262,30 +269,28 @@ class TestDECNecessaryOnly:
         eig_margin = float(check_dec(jnp.array(rho), jnp.array(p)))
         opt = optimize_dec(T_ab, ETA, n_starts=4, key=jax.random.PRNGKey(1))
         opt_margin = float(opt.margin)
-        # Sign agreement only: the three-term optimizer objective is not
-        # magnitude-commensurable with the eigenvalue bound.
         assert (eig_margin < 0) == (opt_margin < -1e-8), (
             f"eigenvalue bound {eig_margin} vs optimizer {opt_margin}"
         )
 
     def test_dec_margin_merged_with_wec_invariant(self):
-        # rho = -0.5 with p = 0.1: eigenvalue bounds are wec = -0.5 and
-        # dec = rho - |p| = -0.6, so the DEC bound sits below WEC here.
+        """rho = -0.5 with p = 0.1: eigenvalue bounds are wec = -0.5 and
+        dec = rho - |p| = -0.6, so the DEC bound sits below WEC; Type I
+        publishes the eigenvalue WEC margin exactly."""
         rho, p = -0.5, (0.1, 0.1, 0.1)
         assert float(check_wec(jnp.array(rho), jnp.array(p))) == pytest.approx(-0.5)
         assert float(check_dec(jnp.array(rho), jnp.array(p))) == pytest.approx(-0.6)
 
-        T_mixed = jnp.diag(jnp.array([0.5, 0.1, 0.1, 0.1]))  # rho=-0.5
+        T_mixed = jnp.diag(jnp.array([0.5, 0.1, 0.1, 0.1]))
         res = verify_point(ETA @ T_mixed, ETA, n_starts=2)
         assert int(res.he_type) == 1
-        # Type I publishes the eigenvalue WEC margin exactly.
         assert float(res.wec_margin) == pytest.approx(-0.5)
         assert float(res.dec_margin) <= float(res.wec_margin) + 1e-12
 
     def test_dec_wec_merge_on_optimizer_branch(self):
-        # Non-Type-I point (pure flux, Type IV): all margins come from the
-        # optimizer, so this exercises the dec = min(wec, dec) merge on the
-        # branch the Type-I eigenvalue path never reaches.
+        """Non-Type-I point (pure flux, Type IV): all margins come from the
+        optimizer, so this exercises the dec = min(wec, dec) merge on the
+        branch the Type-I eigenvalue path never reaches."""
         T = jnp.zeros((4, 4)).at[0, 1].set(1.0).at[1, 0].set(1.0)
         res = verify_point(T, ETA, n_starts=4)
         assert int(res.he_type) == 4
@@ -327,7 +332,7 @@ class TestScaleCovariance:
         assert float(res.he_type) == 1.0
 
     def test_levi_civita_survives_a_tiny_metric(self):
-        """scale**4 underflows below |g| ~ 1e-77; the normalised form does not."""
+        """scale**4 underflows below |g| ~ 1e-77; the normalized form does not."""
         from warpax.geometry.invariants import _levi_civita_4d
 
         g = 1e-100 * jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
@@ -475,3 +480,33 @@ class TestConvergenceQuantities:
 
         with pytest.raises(ValueError, match="geometric refinement ladder"):
             richardson_extrapolation([1.0, 0.5, 0.25], [25, 50, 100])
+
+
+class TestBobrickMartireScan:
+    """``_scan_matter`` runs one vmapped probe scan instead of 15 host syncs."""
+
+    def test_scan_matter_matches_loop_reference(self):
+        """Alcubierre: same peak magnitude, coords and signed density as a per-probe loop."""
+        from warpax.classify.bobrick_martire import (
+            _DEFAULT_RADIAL_PROBES,
+            _energy_density_mixed,
+            _probe_point,
+            _scan_matter,
+        )
+
+        metric = AlcubierreMetric()
+        peak_mag, peak_coords, peak_rho = _scan_matter(metric)
+
+        ref_mag, ref_coords, ref_rho = 0.0, _probe_point(1.0), 0.0
+        for r in _DEFAULT_RADIAL_PROBES:
+            coords = _probe_point(r)
+            rho = _energy_density_mixed(metric, coords)
+            if not jnp.isfinite(rho):
+                continue
+            if float(jnp.abs(rho)) > ref_mag:
+                ref_mag, ref_coords, ref_rho = float(jnp.abs(rho)), coords, float(rho)
+
+        assert ref_mag > 0.0
+        assert abs(peak_mag - ref_mag) <= 1e-12 * ref_mag
+        assert abs(peak_rho - ref_rho) <= 1e-12 * ref_mag
+        np.testing.assert_allclose(np.asarray(peak_coords), np.asarray(ref_coords), rtol=1e-15)

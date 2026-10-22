@@ -21,9 +21,9 @@ Three ingredients make a rigorous global bound cheap here.
    ``g -> Gamma -> Riem -> Ric -> G -> T`` is differentiated in *interval*
    forward mode to second order (:mod:`._intervalad`, :mod:`._intervalcurv`), so
    every derivative carries a rigorous enclosure rather than a floating-point
-   estimate. Closed-form symbolic differentiation was tried first and abandoned:
-   the 3-component Rodal shift, with its ``1/r`` and ``log cosh``, produced
-   expressions whose interval evaluation was hopelessly over-wide.
+   estimate. Closed-form symbolic derivatives are not used: for the 3-component
+   Rodal shift, with its ``1/r`` and ``log cosh``, their interval evaluation is
+   hopelessly over-wide.
 
 3. **Tight interval evaluation.** The only transcendental in the shape function
    is ``tanh``, and ``tanh(u) = 1 - 2/(exp(2u) + 1)`` contains ``u`` exactly
@@ -86,12 +86,14 @@ __all__ = [
 ]
 
 
-# Rigorous interval constants. tanh(sigma R), sinh(R sigma) and cosh(R sigma) enter
-# as constants; point mpmath would wrap a rounded value as a degenerate interval and
-# let its rounding error escape the enclosure, so build them from iv.exp.
-
-
 def _c_exp(u):
+    """Interval ``exp(u)`` for the metric constants.
+
+    ``tanh(sigma R)``, ``sinh(R sigma)`` and ``cosh(R sigma)`` enter the metrics as
+    constants; point mpmath would wrap a rounded value as a degenerate interval and
+    let its rounding error escape the enclosure, so every such constant is built
+    from ``iv.exp``.
+    """
     return iv.exp(iv.mpf(u))
 
 
@@ -101,7 +103,8 @@ def _c_tanh(u):
 
 
 def _c_sinh(u):
-    # e - 1/e is monotone increasing in e, so the naive interval form is exact.
+    """Interval ``sinh(u)``; ``e - 1/e`` is monotone increasing in ``e``, so the
+    naive interval form is exact."""
     e = _c_exp(u)
     return (e - 1 / e) / 2
 
@@ -109,11 +112,6 @@ def _c_sinh(u):
 def _c_cosh(u):
     e = _c_exp(u)
     return (e + 1 / e) / 2
-
-
-# ---------------------------------------------------------------------------
-# metrics in the interval-AD algebra
-# ---------------------------------------------------------------------------
 
 
 def _shape(r, R, sigma):
@@ -149,8 +147,12 @@ def _assemble(beta, conformal=None):
 
 
 def alcubierre_metric(v_s=0.5, R=1.0, sigma=8.0):
+    """Alcubierre drive in the interval-AD algebra.
+
+    The bubble translates, ``x_s(t) = v_s t``, so ``d_t g`` is nonzero at ``t = 0``.
+    """
+
     def fn(t, x, y, z):
-        # The bubble translates: x_s(t) = v_s t, so d_t g is nonzero at t = 0.
         dx = x - v_s * t
         r = ad.sqrt(dx * dx + y * y + z * z + ad.constant(1e-60))
         f = _shape(r, R, sigma)
@@ -207,8 +209,6 @@ def natario_metric(v_s=0.5, R=1.0, sigma=8.0):
         tanh_R_sigma = _c_tanh(iv.mpf(sigma) * iv.mpf(R))
         norm = ad.constant(2 * tanh_R_sigma)
         n = (1 - (tp - tm) / norm) / 2
-        # dn/dr = -sigma (sech^2(sigma(r+R)) - sech^2(sigma(r-R))) / (4 tanh(sigma R))
-        #       =  sigma (tp^2 - tm^2)            / (4 tanh(sigma R))
         dn = (tp * tp - tm * tm) * ad.constant(iv.mpf(sigma) / (4 * tanh_R_sigma))
         q = dn / r
         beta = [
@@ -240,14 +240,16 @@ def van_den_broeck_metric(v_s=0.5, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5,
 
 
 def shape_interval(R=1.0, sigma=8.0):
-    """Interval enclosure of the tanh top-hat over a 2D box, for the wall mask."""
+    """Interval enclosure of the tanh top-hat over a 2D box, for the wall mask.
+
+    The radius is built in interval arithmetic: endpoints assembled from
+    round-to-nearest ``math.sqrt`` need not enclose the true shape value, and the
+    wall mask discards boxes on this test.
+    """
     if not (math.isfinite(R) and R > 0 and math.isfinite(sigma) and sigma > 0):
         raise ValueError("shape_interval requires finite R > 0 and sigma > 0")
 
     def fn(bx, by):
-        # Build the radius in interval arithmetic. Endpoints assembled from
-        # round-to-nearest math.sqrt need not enclose the true shape value, and
-        # the wall mask discards boxes on this test.
         def _abs_range(c):
             lo_c, hi_c = mpmath.mpf(c.a), mpmath.mpf(c.b)
             if lo_c >= 0:
@@ -279,11 +281,6 @@ METRICS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# branch and bound
-# ---------------------------------------------------------------------------
-
-
 @dataclass(order=True)
 class _Box:
     key: float
@@ -310,7 +307,7 @@ class Enclosure:
         return self.upper - self.lower
 
     def contains(self, value: float, atol: float = 0.0) -> bool:
-        """Whether a previously reported extremum lies inside the enclosure."""
+        """Whether a grid-sampled extremum lies inside the enclosure."""
         return (self.lower - atol) <= value <= (self.upper + atol)
 
 
@@ -349,30 +346,8 @@ def _rad_iv(c) -> float:
     return 0.5 * (_hi(c) - _lo(c))
 
 
-def _mag(c) -> float:
-    """Largest absolute value attained on the interval."""
-    return max(abs(_lo(c)), abs(_hi(c)))
-
-
-# Converting mpmath endpoints to double rounds to nearest, which can shave a
-# sub-ulp sliver off an enclosure. This relative pad restores outward rounding:
-# the per-operation defect is ~1e-16, four orders inside it.
 _OUTWARD = 1e-12
 
-
-# --- the S-lemma dual bound -------------------------------------------------
-#
-# The decoupled bound  N >= rho_lo - 2|b|_max + lambda_min_lo(S)  is valid but does
-# not converge: it charges the worst case of the linear and quadratic terms in
-# different directions v. This one uses the duality of the pointwise certificate,
-# with  That = [[rho, b^T], [b, S]],  eta = diag(-1, 1, 1, 1),  M(s) = That + s eta:
-#
-#     min_{|v|=1} q(v) = 2 max_s lambda_min(M(s))
-#
-# exactly, so N >= 2 lambda_min(M(s)) for ANY fixed s and optimality of s costs
-# tightness, never validity. Over a box, a verified interval LDL^T with every pivot
-# of M(s) - t I strictly positive gives lambda_min >= t there. Both are rigorous,
-# so the two bounds can be maxed.
 
 _ETA4 = ((-1.0, 0.0, 0.0, 0.0), (0.0, 1.0, 0.0, 0.0), (0.0, 0.0, 1.0, 0.0), (0.0, 0.0, 0.0, 1.0))
 
@@ -419,6 +394,30 @@ def _lmi_dual_lower(rho_iv, b_iv, S_iv, *, sigma_min: float = -math.inf) -> floa
     ``sigma_min`` floors the multiplier search: ``0.0`` restricts it to the
     non-negative multipliers the weak energy condition requires, which is what
     :mod:`.interval_lmi` uses to decide the ball rather than the sphere.
+
+    The decoupled bound ``N >= rho_lo - 2|b|_max + lambda_min_lo(S)`` is valid but
+    does not converge: it charges the worst case of the linear and quadratic terms
+    in different directions ``v``. This bound uses the duality of the pointwise
+    certificate: with ``That = [[rho, b^T], [b, S]]``, ``eta = diag(-1, 1, 1, 1)``
+    and ``M(s) = That + s eta``, ``min_{|v|=1} q(v) = 2 max_s lambda_min(M(s))``
+    exactly, so ``N >= 2 lambda_min(M(s))`` for any fixed ``s`` and optimality of
+    ``s`` costs tightness, never validity. Over a box, a verified interval LDL^T
+    with every pivot of ``M(s) - t I`` strictly positive gives ``lambda_min >= t``
+    there; both bounds are rigorous, so the caller may take their max.
+
+    The multiplier is chosen in floating point by ternary search on the concave
+    ``s -> lambda_min(mid + s eta)`` over ``|s| <= 2 scale``, with ``scale``
+    clamped at 1.0. That clamp is the opposite of :func:`.slemma.noise_floor`,
+    deliberately: there the bracket must collapse with the tensor or a relative
+    floor convicts Minkowski, whereas here it only proposes a multiplier and the
+    interval LDL is the acceptance test, so an over-wide bracket costs residual,
+    never soundness. The first trial shift is ``lambda_min(mid) - rad_f`` by Weyl
+    (``lambda_min`` moves by at most the spectral norm of the perturbation, which
+    the Frobenius norm of the radius matrix bounds). A pivot of size epsilon
+    cannot be certified positive in interval arithmetic, so the certifiable ``t``
+    sits strictly below ``lambda_min``; it is bracketed by doubling the offset and
+    then bisected, because a fixed geometric back-off leaves 0.03 of slack on the
+    Alcubierre wall, the whole residual gap.
     """
     import numpy as np
 
@@ -426,15 +425,8 @@ def _lmi_dual_lower(rho_iv, b_iv, S_iv, *, sigma_min: float = -math.inf) -> floa
     mid = np.array([[_mid_iv(That[i][j]) for j in range(4)] for i in range(4)])
     mid = 0.5 * (mid + mid.T)
     eta = np.array(_ETA4)
-    # The clamp at 1.0 is the opposite of slemma.noise_floor, deliberately: there
-    # the bracket must collapse with the tensor or a relative floor convicts
-    # Minkowski; here it only proposes a multiplier and the interval LDL below is
-    # the acceptance test, so an over-wide bracket costs residual, never soundness.
     scale = max(1.0, float(np.max(np.abs(mid))))
 
-    # Maximise the concave s -> lambda_min(mid + s eta). Float only: the
-    # multiplier is a free parameter, and a poor choice weakens the bound
-    # without invalidating it.
     def lam(s):
         return float(np.linalg.eigvalsh(mid + s * eta)[0])
 
@@ -450,19 +442,12 @@ def _lmi_dual_lower(rho_iv, b_iv, S_iv, *, sigma_min: float = -math.inf) -> floa
             hi_s = m2
     s_star = 0.5 * (lo_s + hi_s)
 
-    # Weyl: lambda_min moves by at most the spectral norm of the perturbation,
-    # which the Frobenius norm of the radius matrix bounds. Used only to place the
-    # first trial value; the acceptance test is the interval LDL below.
     rad_f = math.sqrt(sum(_rad_iv(That[i][j]) ** 2 for i in range(4) for j in range(4)))
     M_iv = [[That[i][j] + s_star * _ETA4[i][j] for j in range(4)] for i in range(4)]
 
     t_hi = lam(s_star) - rad_f
     if not math.isfinite(t_hi):
         return -math.inf
-    # A pivot of size epsilon cannot be certified positive in interval arithmetic,
-    # so the certifiable t sits strictly below lambda_min. Bracket by doubling, then
-    # bisect; a fixed geometric back-off leaves 0.03 of slack on the Alcubierre
-    # wall, the whole residual gap.
     offset = max(rad_f, 1e-12 * scale)
     t_lo = None
     for _ in range(60):
@@ -498,6 +483,13 @@ def _trs_argmin(rho: float, b, S):
     interval arithmetic (:func:`_objective_interval`), which is what makes the
     resulting upper bound rigorous. A suboptimal direction only weakens the
     bound; it cannot invalidate it. Returns ``None`` if no direction is found.
+
+    The hard case is detected on the whole lowest eigenspace, not merely the first
+    eigenvector returned: ``S = diag(0, 0, 2)`` with ``b = (0, 1, 0)`` has a
+    degenerate lowest eigenvalue with ``bt[0] = 0`` but ``bt[1] != 0``. The secular
+    norm increases monotonically as ``mu`` rises towards ``lambda_min``, so the root
+    of ``norm(mu) = 1`` lies below any ``mu`` where the norm exceeds one, which the
+    bisection relies on.
     """
     import numpy as np
 
@@ -507,9 +499,6 @@ def _trs_argmin(rho: float, b, S):
     w, V = np.linalg.eigh(S)
     bt = V.T @ b
 
-    # Hard case: b has no component along the WHOLE lowest eigenspace, not merely
-    # along the first eigenvector returned. S = diag(0, 0, 2) with b = (0, 1, 0)
-    # has a degenerate lowest eigenvalue, bt[0] = 0 but bt[1] != 0.
     low = np.abs(w - w[0]) <= 1e-14 * max(1.0, abs(w[0]))
     if np.max(np.abs(bt[low])) < 1e-14:
         rest = np.zeros(3)
@@ -529,8 +518,6 @@ def _trs_argmin(rho: float, b, S):
             return np.inf
         return float(np.sqrt(np.sum((bt / d) ** 2)))
 
-    # ``norm_at`` increases monotonically as mu rises towards lambda_min, so the
-    # root of norm_at(mu) = 1 lies BELOW any mu where the norm exceeds one.
     lo, hi = w[0] - float(np.linalg.norm(b)) - 1.0, w[0] - 1e-15
     for _ in range(200):
         mid = 0.5 * (lo + hi)
@@ -547,14 +534,14 @@ def _trs_argmin(rho: float, b, S):
 
 
 def _trs_argmin_lmi(rho: float, b, S):
-    """Minimising direction recovered from the LMI multiplier, not the secular root.
+    """Minimizing direction recovered from the LMI multiplier, not the secular root.
 
     At the optimal multiplier ``s*`` the semidefinite relaxation is tight and its
     optimal solution is rank one, so the eigenvector ``x`` of ``M(s*)`` for the
-    least eigenvalue has the form ``x0 (1, v)`` with ``v`` the minimiser. This
+    least eigenvalue has the form ``x0 (1, v)`` with ``v`` the minimizer. This
     agrees with the dual value by construction, which the secular solver does not:
     on the Alcubierre wall ``_trs_argmin`` returns a direction worth ``-0.2765``
-    where the true minimum is ``-0.3070``, and that 0.03 was the entire residual
+    where the true minimum is ``-0.3070``, and that 0.03 is the entire residual
     width of the bracket at a point-sized box.
 
     Returns ``None`` in the hard case ``x0 ~ 0``, where the caller falls back.
@@ -600,7 +587,7 @@ def _objective_interval(rho_iv, b_iv, S_iv, v):
 
     ``v`` arrives as float64 components, which are exact binary rationals, so the
     only inexactness is in the arithmetic, all of it done in interval form
-    here, including the normalisation ``|v|``. The upper endpoint of the result
+    here, including the normalization ``|v|``. The upper endpoint of the result
     is therefore a rigorous upper bound on ``N`` at this point, and hence on the
     infimum over the whole domain.
     """
@@ -628,7 +615,7 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
         """Mean-value enclosure ``f(c) + f'(X).(X - c)`` of one component.
 
         ``comp_jet`` carries the gradient over the box, ``comp_ctr`` is the exact
-        value at the centre (a degenerate-box evaluation), and ``dx``/``dy`` are the
+        value at the center (a degenerate-box evaluation), and ``dx``/``dy`` are the
         intervals ``[x] - c_x`` and ``[y] - c_y``. Rigorous by the mean value theorem
         on a box, which is convex; the chain being differentiable there is certified
         by the box evaluation having succeeded.
@@ -638,31 +625,48 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
     def bounds(bx, by):
         """Rigorous enclosure of the NEC deficit ``N`` over the box, plus ``f``.
 
-        Two evaluations. The *centre* evaluation is on a degenerate box, so it is
-        an exact pointwise value of ``N`` and hence a valid upper bound on the
-        infimum, an achieved value, not an interval artefact. The *box*
-        evaluation supplies a rigorous lower bound
+        The shape enclosure never depends on the curvature evaluation and is
+        computed first: it must stay available when the metric chain fails on a
+        wide box, or the wall mask could never discard that box. The jet ring is
+        preferred (same interval values, plus the gradients the centered bound
+        needs); the plain ring is the fallback, since the jet ring refuses an
+        ``abs`` whose argument straddles zero, which a wide box can produce. A box
+        straddling the axis ``r = 0`` encloses the removable ``1/r`` of the
+        spherical form and is reported as unbounded, so branch-and-bound splits it
+        rather than trusting it; the sub-boxes leave the wall band and the mask
+        discards them.
 
-            N >= rho_lo - 2 |b|_max + lambda_min_lo(S),
+        The lower bound is the max of independently valid bounds, so the max is
+        valid too: the decoupled bound ``N >= rho_lo - 2|b|_max +
+        lambda_min_lo(S)`` with Gershgorin on the interval matrix, which survives
+        boxes the LDL declines to certify and wins on wide boxes where the midpoint
+        carries no information; the S-lemma dual bound of :func:`_lmi_dual_lower`;
+        and both again applied to the centered (mean-value) enclosure. Naive
+        interval evaluation of the curvature chain overestimates by a
+        box-width-independent factor (148x on the Alcubierre wall) because the same
+        derivative enters many canceling terms; the mean-value form replaces that
+        ``O(h)`` excess with ``O(h^2)``. On a very wide box the centered form can
+        be looser than the naive one and overflow the squaring in the decoupled
+        bound; it is a tightening only, so any failure there leaves ``lower``
+        unchanged.
 
-        with ``lambda_min_lo`` from Weyl's inequality applied to the interval
-        matrix: the least eigenvalue of a symmetric matrix moves by at most the
-        spectral norm of the perturbation, which the Frobenius norm of the radius
-        matrix bounds from above.
+        The center evaluation is on a degenerate box, so it carries no dependency
+        at all: it supplies the exact pointwise value used both as the expansion
+        point of the centered bound and as the achieved upper bound. The direction
+        is found in floating point and the value in interval arithmetic; for any
+        unit ``v`` at any point ``q(v) >= N(point) >= inf N``, so ``v`` affects
+        tightness only, never validity, and the smaller upper endpoint of the two
+        candidate directions wins. The returned pair is padded outward by a
+        relative ``_OUTWARD = 1e-12``: converting mpmath endpoints to double rounds
+        to nearest, which can shave a sub-ulp sliver off an enclosure, and the
+        per-operation defect of ~1e-16 is four orders inside the pad.
         """
-        # The shape enclosure never depends on the curvature evaluation, so
-        # compute it first: it must stay available when the metric chain fails
-        # on a wide box, or the wall mask can never discard that box.
         try:
             f_iv = shape_fn(bx, by)
         except (ZeroDivisionError, ValueError, OverflowError):
             f_iv = iv.mpf([0, 1])
         if _hi(f_iv) < wall_lo or _lo(f_iv) > wall_hi:
             return math.inf, math.inf, f_iv
-        # Prefer the jet ring: same interval values, plus the gradients the
-        # centered bound needs. The plain ring is the fallback, since the jet ring
-        # refuses an ``abs`` whose argument straddles zero, which a wide box can
-        # produce.
         jet_fields = None
         try:
             jet_fields = _eval(bx, by, jet=True)
@@ -680,32 +684,28 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
 
         parts = [rho, *bvec, *[S[i][j] for i in range(3) for j in range(3)]]
         if not all(math.isfinite(_lo(c)) and math.isfinite(_hi(c)) for c in parts):
-            # A box straddling the coordinate axis r = 0 encloses the removable
-            # 1/r of the spherical form. Report it as unbounded so that
-            # branch-and-bound splits it rather than trusting it; the sub-boxes
-            # leave the wall band and are then discarded by the mask test.
             return -math.inf, math.inf, f_iv
 
         def _decoupled(rho_, b_, S_):
             """Rigorous version of ``N >= rho_lo - 2|b|_max + lambda_min_lo(S)``.
 
-            The inequality is valid; an earlier implementation of it was not. It
-            converted interval endpoints to binary64 with round-to-nearest, took the
-            radius with the same rounding, and read ``lambda_min`` off
-            ``numpy.linalg.eigvalsh`` of the midpoint matrix, which carries no
-            certified error bound. Every one of those errors can move the result
-            *upward*, and since this value is max'd against the verified LMI bound an
-            upward error is not conservative, it is an unsound lower bound that
-            wins. A constructed example at coefficient scale 1e100 returned a
-            "lower bound" six times the true deficit and above an achieved upper
-            bound.
+            Everything is done in interval arithmetic, with ``lambda_min`` bounded
+            by Gershgorin, ``lambda_min(S) >= min_i (S_ii - sum_{j != i} |S_ij|)``,
+            which is rigorous for a symmetric interval matrix and needs no
+            eigensolver, and the single conversion to binary64 rounds outward.
+            Round-to-nearest endpoints, a rounded radius, or ``lambda_min`` read off
+            ``numpy.linalg.eigvalsh`` of the midpoint matrix carry no certified
+            error bound, and each such error can move the result upward; since this
+            value is max'd against the verified LMI bound, an upward error is an
+            unsound lower bound that wins (at coefficient scale 1e100 it can exceed
+            the true deficit sixfold and sit above an achieved upper bound).
 
-            Everything below is therefore done in interval arithmetic, with
-            ``lambda_min`` bounded by Gershgorin (rigorous for a symmetric interval
-            matrix, and needing no eigensolver), and the single conversion to
-            binary64 rounds outward.
+            ``|b|^2`` is a sum of squares, but at low working precision the squares
+            can round outward past zero and ``iv.sqrt`` then raises
+            ``ComplexResult``; clamping the lower endpoint up to zero is
+            outward-safe, since this bound subtracts the upper endpoint of
+            ``2 sqrt(b2)``.
             """
-            # lambda_min(S) >= min_i ( S_ii - sum_{j != i} |S_ij| ), Gershgorin.
             lam_iv = None
             for i in range(3):
                 row = iv.mpf([0, 0])
@@ -726,23 +726,13 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
             b2 = iv.mpf([0, 0])
             for c in b_:
                 b2 = b2 + c * c
-            # |b|^2 is a sum of squares, but at low working precision the squares can
-            # round outward past zero and iv.sqrt then raises ComplexResult. Clamping
-            # the LOWER endpoint up to zero is outward-safe: this bound subtracts the
-            # upper endpoint of 2 sqrt(b2).
             if mpmath.mpf(b2.a) < 0:
                 b2 = iv.mpf([0, mpmath.mpf(b2.b)])
             bnd = rho_ - 2 * iv.sqrt(b2) + lam_iv
             return _lo(bnd)
 
-        # Two independently valid lower bounds, so the max is valid too. The
-        # decoupled one survives boxes the LDL declines to certify, and wins on
-        # wide boxes where the midpoint carries no information.
         lower = max(_decoupled(rho, bvec, S), _lmi_dual_lower(rho, bvec, S))
 
-        # Centre evaluation. It is a degenerate box, so it carries no dependency at
-        # all: it supplies the exact pointwise value used both as the achieved upper
-        # bound below and as the expansion point of the centered lower bound here.
         cx, cy = _mid_iv(bx), _mid_iv(by)
         ctr = None
         try:
@@ -750,11 +740,6 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
         except (ZeroDivisionError, ValueError, OverflowError, NotImplementedError):
             pass
 
-        # Centered (mean-value) lower bound. Naive interval evaluation of the
-        # curvature chain overestimates by a box-width-independent factor (148x on
-        # the Alcubierre wall) because the same derivative enters many cancelling
-        # terms; the mean-value form replaces that O(h) excess with O(h^2). Taken
-        # as a max against the bounds above, so it can only tighten.
         if jet_fields is not None and ctr is not None:
             dx = bx - iv.mpf([cx, cx])
             dy = by - iv.mpf([cy, cy])
@@ -765,9 +750,6 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
                 for i in range(3)
             ]
             parts_k = [rho_k, *b_k, *[S_k[i][j] for i in range(3) for j in range(3)]]
-            # On a very wide box the centered form can be looser than the naive one
-            # and large enough to overflow the squaring in the decoupled bound. It is
-            # a tightening only, so any failure here just leaves ``lower`` as it was.
             try:
                 if all(math.isfinite(_lo(c)) and math.isfinite(_hi(c)) for c in parts_k):
                     lower = max(
@@ -776,9 +758,6 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
             except (OverflowError, ValueError, ZeroDivisionError):
                 pass
 
-        # Achieved value at the box centre. The direction is found in floating point,
-        # the value in interval arithmetic; for ANY unit v at ANY point
-        # q(v) >= N(point) >= inf N, so v affects tightness only, never validity.
         upper = math.inf
         f_mid = shape_fn(iv.mpf([cx, cx]), iv.mpf([cy, cy]))
         if ctr is not None and _lo(f_mid) >= wall_lo and _hi(f_mid) <= wall_hi:
@@ -787,9 +766,6 @@ def _make_objective(metric_fn, shape_fn, wall_lo=0.1, wall_hi=0.9):
                 rho_m = _mid_iv(rho_c)
                 b_m = [_mid_iv(c) for c in b_c]
                 S_m = [[_mid_iv(S_c[i][j]) for j in range(3)] for i in range(3)]
-                # Two candidate directions, both evaluated rigorously; the smaller
-                # upper endpoint wins. Any unit direction is valid, so this only
-                # tightens.
                 for v_star in (_trs_argmin_lmi(rho_m, b_m, S_m), _trs_argmin(rho_m, b_m, S_m)):
                     if v_star is None:
                         continue
@@ -840,9 +816,18 @@ def certify_nec_deficit(
         point is discarded, including points on the curved mask boundary.
     tol
         Target enclosure width.
+    max_boxes
+        Evaluation budget; the loop tests ``n_eval + 2 <= max_boxes`` before each
+        split because each pass evaluates both halves. Boxes are pushed under the
+        ``best_upper`` of the moment, so the heap can retain boxes a later, smaller
+        ``best_upper`` would have rejected; the heap minimum is still a valid lower
+        bound and is clamped to ``best_upper`` so a budget-exhausted run never
+        reports ``lower > upper``.
+    prec
+        Working precision in bits, set on both ``mpmath.mp`` and ``mpmath.iv``,
+        which keeps its own precision and would otherwise stay at the 53-bit
+        default.
     """
-    # mpmath.iv keeps its OWN precision, so mp.prec alone leaves every interval
-    # operation at the 53-bit default.
     mpmath.mp.prec = prec
     iv.prec = prec
     bounds = _make_objective(metric_fn, shape_fn, wall_mask[0], wall_mask[1])
@@ -876,16 +861,13 @@ def certify_nec_deficit(
     best_pt = tuple((a + b) / 2 for a, b in zip(lo0, hi0, strict=True))
     n_eval = 1
 
-    # +2, not +0: each pass evaluates both halves, so testing before the split
-    # lets the budget overshoot by one.
     while heap and n_eval + 2 <= max_boxes:
         box = heapq.heappop(heap)
         if box.key > best_upper:
-            continue  # cannot contain the global minimum
+            continue
         if best_upper - box.key < tol:
             heapq.heappush(heap, box)
             break
-        # split the longer side
         widths = [box.hi[i] - box.lo[i] for i in range(2)]
         ax = 0 if widths[0] >= widths[1] else 1
         mid = (box.lo[ax] + box.hi[ax]) / 2
@@ -898,7 +880,6 @@ def certify_nec_deficit(
                 lo[ax] = mid
             l, u, f_iv = box_bounds(tuple(lo), tuple(hi))
             n_eval += 1
-            # wall restriction: discard only if provably outside the band
             if _hi(f_iv) < wall_mask[0] or _lo(f_iv) > wall_mask[1]:
                 continue
             if math.isfinite(u) and u < best_upper and _inside_band(f_iv):
@@ -907,10 +888,6 @@ def certify_nec_deficit(
             if l <= best_upper:
                 heapq.heappush(heap, _Box(l, tuple(lo), tuple(hi)))
 
-    # Boxes are pushed under the best_upper of the moment, so the heap can retain
-    # boxes a later, smaller best_upper would have rejected. The heap minimum is
-    # still a valid lower bound; clamp so a budget-exhausted run never reports
-    # lower > upper.
     certified_lower = min([b.key for b in heap], default=best_upper)
     certified_lower = min(certified_lower, best_upper)
     return Enclosure(
@@ -936,8 +913,8 @@ def tail_bound(metric_fn, shape_fn, x_outer, s_outer, prec=60, wall_mask=(0.1, 0
     through ``r = |x - x_s(t)|``, decaying like ``exp(-2 sigma (r - R))``. One
     interval evaluation of ``f`` on the exterior therefore certifies that its
     enclosure lies entirely outside ``[wall_lo, wall_hi]``, so the exterior contains
-    no wall point in any direction, including ``x < -x_outer[0]``, which the old
-    annulus never touched, since ``r`` does not distinguish the two sides.
+    no wall point in any direction, including ``x < -x_outer[0]``, since ``r`` does
+    not distinguish the two sides.
 
     The exterior is UNBOUNDED, and a box evaluation is not. ``x_outer``/``s_outer``
     only fix the inner radius ``r_min``; the bound is then taken on all of
@@ -945,13 +922,19 @@ def tail_bound(metric_fn, shape_fn, x_outer, s_outer, prec=60, wall_mask=(0.1, 0
     ``f = [tanh(s(r+R)) - tanh(s(r-R))] / (2 tanh(sR))``,
     ``df/dr = s[sech^2(s(r+R)) - sech^2(s(r-R))] / (2 tanh(sR)) < 0`` for every
     ``r > 0``, because ``|r+R| > |r-R|`` there. So ``f`` on ``[r_min, inf)`` is
-    enclosed by ``[0, f(r_min)]``. Evaluating the box alone certified only the
-    annulus ``r_min <= r <= |corner|``, while the appendix claimed ``r >= 3``.
+    enclosed by ``[0, f(r_min)]``; evaluating the box alone would certify only the
+    annulus ``r_min <= r <= |corner|``.
 
     ``shape_fn`` must be returned by :func:`shape_interval` with positive finite
     parameters. The conclusion covers the radial exterior ``r >= r_min``;
     a caller using it for a rectangular search must ensure that the complement
-    of that search lies in this exterior. ``s_outer`` is nonnegative.
+    of that search lies in this exterior. ``s_outer`` is nonnegative. ``r_min``
+    uses the minimum of ``|x|`` over ``x_outer``, which is 0 when the interval
+    straddles the origin (not ``min(|endpoint|)``), and is the lower endpoint of an
+    interval square root because ``math.hypot`` rounds to nearest and can raise the
+    radius above its true value; a lower radius gives an upper shape value since
+    the profile decreases. ``prec`` is set on both ``mpmath.mp`` and ``mpmath.iv``,
+    which keeps its own precision.
 
     Returns ``(f_lo, f_hi, excluded)``: the certified enclosure of the shape function
     on the exterior, and whether it is provably disjoint from the wall band.
@@ -968,18 +951,12 @@ def tail_bound(metric_fn, shape_fn, x_outer, s_outer, prec=60, wall_mask=(0.1, 0
         raise ValueError(
             "tail_bound requires ordered finite extents, s >= 0 and a wall band in [0,1]"
         )
-    # mpmath.iv keeps its OWN precision, so mp.prec alone leaves every interval
-    # operation at the 53-bit default.
     mpmath.mp.prec = prec
     iv.prec = prec
-    # min |x| over the interval, which is 0 when it straddles the origin;
-    # min(|endpoint|) is not that.
     if x_outer[0] <= 0.0 <= x_outer[1]:
         x_min = 0.0
     else:
         x_min = min(abs(x_outer[0]), abs(x_outer[1]))
-    # A lower radius gives an upper shape value because this profile decreases.
-    # math.hypot rounds to nearest and can raise the radius above its true value.
     xi, si = iv.mpf(x_min), iv.mpf(s_outer[0])
     r_min = mpmath.mpf(iv.sqrt(xi * xi + si * si).a)
     f_at_rmin = shape_fn(iv.mpf([r_min, r_min]), iv.mpf([0.0, 0.0]))

@@ -44,7 +44,7 @@ from warpax.metrics import (
 )
 from warpax.metrics.natario import natario_eulerian_energy_density
 
-# Schwarzschild multi-radius validation
+from ._helpers import ETA, iso_to_schw_r
 
 SCHWARZSCHILD_RADII = [1.0, 2.0, 5.0, 10.0, 50.0, 100.0]
 
@@ -114,14 +114,12 @@ class TestSchwarzschildMultiRadius:
         )
 
 
-# Minkowski exact zero
-
 MINKOWSKI_COORDS = [
-    jnp.array([1.1, 2.3, -0.7, 3.14]),  # fully asymmetric
-    jnp.array([0.0, 0.0, 0.0, 0.0]),  # origin
-    jnp.array([-5.0, 7.1, -2.2, 0.9]),  # negative coords
-    jnp.array([0.0, 100.0, -50.0, 25.0]),  # large values
-    jnp.array([3.0, 0.01, -0.01, 0.001]),  # near-zero spatial
+    jnp.array([1.1, 2.3, -0.7, 3.14]),
+    jnp.array([0.0, 0.0, 0.0, 0.0]),
+    jnp.array([-5.0, 7.1, -2.2, 0.9]),
+    jnp.array([0.0, 100.0, -50.0, 25.0]),
+    jnp.array([3.0, 0.01, -0.01, 0.001]),
 ]
 
 
@@ -182,30 +180,27 @@ class TestMinkowskiExactZero:
     def test_metric_is_minkowski(self, coords: jnp.ndarray) -> None:
         """Metric must be diag(-1, 1, 1, 1) everywhere."""
         result = compute_curvature_chain(self.metric, coords)
-        eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
         npt.assert_allclose(
             np.array(result.metric),
-            np.array(eta),
+            np.array(ETA),
             atol=1e-15,
             err_msg="Metric is not Minkowski",
         )
         npt.assert_allclose(
             np.array(result.metric_inv),
-            np.array(eta),
+            np.array(ETA),
             atol=1e-15,
             err_msg="Inverse metric is not Minkowski",
         )
 
 
-# Alcubierre Eulerian energy density
-
 BUBBLE_WALL_POINTS = [
-    (0.8, 0.5, 0.0),  # bubble wall, y-offset
-    (0.8, 0.0, 0.5),  # bubble wall, z-offset
-    (1.0, 0.3, 0.3),  # on-wall, both y and z
-    (0.5, 0.7, 0.0),  # inner wall region
-    (1.2, 0.4, 0.0),  # outer wall region
+    (0.8, 0.5, 0.0),
+    (0.8, 0.0, 0.5),
+    (1.0, 0.3, 0.3),
+    (0.5, 0.7, 0.0),
+    (1.2, 0.4, 0.0),
 ]
 
 
@@ -291,8 +286,8 @@ class TestAlcubierreEulerianEnergyDensity:
     @pytest.mark.parametrize(
         "x,y,z",
         [
-            (0.8, 0.0, 0.0),  # on x-axis near wall
-            (1.0, 0.0, 0.0),  # on x-axis at wall
+            (0.8, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
         ],
     )
     def test_energy_density_zero_on_axis(
@@ -337,8 +332,6 @@ class TestAlcubierreEulerianEnergyDensity:
             err_msg=f"Autodiff rho should be zero far from bubble at ({x}, {y}, {z})",
         )
 
-
-# Natario Eulerian energy density
 
 NATARIO_WALL_POINTS = [
     (5.0, 3.0, 0.0),
@@ -479,7 +472,7 @@ class TestStressEnergySymmetry:
         coords = self._slab_coords(bounds, self.GRID_N)
 
         def einstein_at(c):
-            # pre-symmetrization tensor; stress_energy is forced symmetric
+            """Pre-symmetrization Einstein tensor; stress_energy is forced symmetric."""
             return compute_curvature_chain(metric, c).einstein
 
         G = jax.vmap(einstein_at)(coords)
@@ -517,10 +510,10 @@ class TestStressEnergySymmetry:
         )
 
     def test_vdb_stress_energy_symmetric(self):
+        """Compact bubble so the slab crosses the walls; the default R=350
+        leaves G = 0 identically on a (-2, 2) slab."""
         from warpax.metrics import VanDenBroeckMetric
 
-        # compact bubble so the slab crosses the walls; default R=350
-        # leaves G = 0 identically on a (-2, 2) slab
         self._assert_symmetric_over_slab(
             VanDenBroeckMetric(v_s=0.5, R=1.0, sigma=8.0, R_tilde=0.5, sigma_B=8.0),
             bounds=(-2.0, 2.0),
@@ -541,9 +534,6 @@ class TestStressEnergySymmetry:
             WarpShellPhysical(v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0),
             bounds=(5.0, 25.0),
         )
-
-
-# Natario zero-expansion property
 
 
 class TestNatarioZeroExpansion:
@@ -601,16 +591,12 @@ class TestNatarioZeroExpansion:
                 atol=1e-10,
                 err_msg=f"Natario theta != 0 at coords {coords}",
             )
-            # covers the omega output slot (zero for Eulerian observers)
             npt.assert_allclose(
                 float(omega_sq),
                 0.0,
                 atol=1e-10,
                 err_msg=f"Eulerian vorticity != 0 at coords {coords}",
             )
-
-
-# Rodal globally Hawking-Ellis Type I
 
 
 class TestRodalTypeI:
@@ -631,26 +617,20 @@ class TestRodalTypeI:
         )
         result = evaluate_curvature_grid(metric, grid, compute_invariants=False)
 
-        # Flatten grid arrays for classification
         n_points = 8 * 8 * 8
         flat_T = result.stress_energy.reshape(n_points, 4, 4)
         flat_g = result.metric.reshape(n_points, 4, 4)
         flat_g_inv = result.metric_inv.reshape(n_points, 4, 4)
 
-        # Classify all points via vmap
         flat_T_mixed = jax.vmap(jnp.matmul)(flat_g_inv, flat_T)
         cls_results = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
 
         he_types = np.asarray(cls_results.he_type)
 
-        # All points should be Type I (he_type == 1)
         assert np.all(he_types == 1.0), (
             f"Found non-Type-I points: unique types = {np.unique(he_types)}, "
             f"counts = {dict(zip(*np.unique(he_types, return_counts=True), strict=True))}"
         )
-
-
-# Rodal energy deficit vs Alcubierre
 
 
 class TestRodalEnergyDeficit:
@@ -676,9 +656,6 @@ class TestRodalEnergyDeficit:
         rodal = RodalMetric(v_s=v_s, R=R, sigma=sigma)
         alcubierre = AlcubierreMetric(v_s=v_s, R=R, sigma=sigma, x_s=0.0)
 
-        # Scan radii along the equatorial plane (x=0, y=r, z=0)
-        # to find peak WEC violation for each metric independently.
-        # The Alcubierre peak is near r=R; Rodal peak may shift outward.
         r_values = np.linspace(R * 0.5, R * 1.5, 40)
 
         peak_rho_rodal = 0.0
@@ -687,33 +664,26 @@ class TestRodalEnergyDeficit:
         for r_test in r_values:
             coords = jnp.array([0.0, 0.0, float(r_test), 0.0])
 
-            # Rodal
             result_r = compute_curvature_chain(rodal, coords)
             euler_r = compute_eulerian_ec(result_r.stress_energy, result_r.metric)
             val_r = float(euler_r["wec"])
             if val_r < peak_rho_rodal:
                 peak_rho_rodal = val_r
 
-            # Alcubierre
             result_a = compute_curvature_chain(alcubierre, coords)
             euler_a = compute_eulerian_ec(result_a.stress_energy, result_a.metric)
             val_a = float(euler_a["wec"])
             if val_a < peak_rho_alcubierre:
                 peak_rho_alcubierre = val_a
 
-        # Both should be negative (energy condition violations)
         assert peak_rho_rodal < 0, f"Rodal peak rho = {peak_rho_rodal}, expected < 0"
         assert peak_rho_alcubierre < 0, f"Alcubierre peak rho = {peak_rho_alcubierre}, expected < 0"
 
-        # Ratio: both negative, so ratio > 1 means Rodal has smaller violation
         reduction_factor = peak_rho_alcubierre / peak_rho_rodal
         assert 19.0 < reduction_factor < 57.0, (
             f"Reduction factor = {reduction_factor:.2f}, expected ~38x (19-57). "
             f"Rodal peak = {peak_rho_rodal:.6e}, Alcubierre peak = {peak_rho_alcubierre:.6e}"
         )
-
-
-# Lentz WEC violation at bubble wall
 
 
 class TestLentzWECViolation:
@@ -731,9 +701,9 @@ class TestLentzWECViolation:
         metric = LentzMetric(v_s=0.1, R=100.0, sigma=8.0)
 
         wall_points = [
-            jnp.array([0.0, 50.0, 50.0, 0.0]),  # wall diagonal (from regression)
-            jnp.array([0.0, 80.0, 20.0, 0.0]),  # wall off-diagonal
-            jnp.array([0.0, 30.0, 70.0, 0.0]),  # wall off-diagonal
+            jnp.array([0.0, 50.0, 50.0, 0.0]),
+            jnp.array([0.0, 80.0, 20.0, 0.0]),
+            jnp.array([0.0, 30.0, 70.0, 0.0]),
         ]
 
         for coords in wall_points:
@@ -752,8 +722,8 @@ class TestLentzWECViolation:
         metric = LentzMetric(v_s=0.1, R=100.0, sigma=8.0)
 
         trivial_points = [
-            jnp.array([0.0, 5.0, 5.0, 0.0]),  # deep inside bubble
-            jnp.array([0.0, 200.0, 200.0, 0.0]),  # far outside bubble
+            jnp.array([0.0, 5.0, 5.0, 0.0]),
+            jnp.array([0.0, 200.0, 200.0, 0.0]),
         ]
 
         for coords in trivial_points:
@@ -762,9 +732,6 @@ class TestLentzWECViolation:
             assert abs(float(rho_euler)) < 1e-8, (
                 f"Lentz rho_euler should be ~0 at {coords}: rho_euler = {float(rho_euler):.6e}"
             )
-
-
-# Santiago observer-dependence theorem
 
 
 class TestSantiagoObserverDependence:
@@ -786,7 +753,6 @@ class TestSantiagoObserverDependence:
 
         n_points = 20
         angles = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
-        # Points on a ring in the x-y plane at distance ~R from center
         wall_points = [jnp.array([0.0, 1.0 * np.cos(a), 1.0 * np.sin(a), 0.0]) for a in angles]
 
         n_violated = 0
@@ -815,8 +781,6 @@ class TestSantiagoObserverDependence:
 
         n_points = 10
         angles = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
-        # Points on equatorial ring at r ~ R, avoiding on-axis (sin(a)!=0)
-        # Offset z=0.1 to stay off the coordinate axis
         wall_points = [jnp.array([0.0, 1.0 * np.cos(a), 1.0 * np.sin(a), 0.1]) for a in angles]
 
         n_violated = 0
@@ -844,7 +808,6 @@ class TestSantiagoObserverDependence:
         """
         metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
 
-        # Use 5 wall points (subset of the 20-point ring)
         angles = np.linspace(0, 2 * np.pi, 5, endpoint=False)
         wall_points = [jnp.array([0.0, 1.0 * np.cos(a), 1.0 * np.sin(a), 0.0]) for a in angles]
 
@@ -852,7 +815,6 @@ class TestSantiagoObserverDependence:
         for coords in wall_points:
             result = compute_curvature_chain(metric, coords)
 
-            # Observer-robust NEC margin
             ec_result = verify_point(
                 result.stress_energy,
                 result.metric,
@@ -860,35 +822,16 @@ class TestSantiagoObserverDependence:
             )
             robust_nec = float(ec_result.nec_margin)
 
-            # Eulerian-only NEC margin
             euler_ec = compute_eulerian_ec(result.stress_energy, result.metric)
             euler_nec = float(euler_ec["nec"])
 
-            # Observer-robust should find worse (more negative) violations
             if robust_nec < euler_nec:
                 n_robust_worse += 1
 
-        # Majority (>= 3 out of 5) should show observer-robust is worse
         assert n_robust_worse >= 3, (
             f"Observer-robust NEC should be worse than Eulerian at majority "
             f"of points, but only {n_robust_worse}/5 showed this."
         )
-
-
-# Helper: isotropic <-> Schwarzschild coordinate conversions
-
-
-def _schw_r_to_iso(r_schw, M=1.0):
-    """Convert Schwarzschild radial coordinate to isotropic."""
-    return (r_schw - M + np.sqrt(r_schw**2 - 2 * M * r_schw)) / 2.0
-
-
-def _iso_to_schw_r(r_iso, M=1.0):
-    """Convert isotropic radial coordinate to Schwarzschild."""
-    return r_iso * (1 + M / (2 * r_iso)) ** 2
-
-
-# Schwarzschild Circular Orbit Benchmarks
 
 
 class TestSchwarzschildCircularOrbitBenchmark:
@@ -907,8 +850,6 @@ class TestSchwarzschildCircularOrbitBenchmark:
         self.metric = SchwarzschildMetric(M=self.M)
         self.x0, self.v0 = circular_orbit_ic(self.metric, r_schw=self.r_schw, M=self.M)
 
-        # Analytical proper period: T = 2*pi*r^(3/2) M^(-1/2) sqrt(1 - 3M/r)
-        # Wald GR Ch. 6.3
         T_coord = 2.0 * np.pi * self.r_schw**1.5 / np.sqrt(self.M)
         self.T_proper = T_coord * np.sqrt(1.0 - 3.0 * self.M / self.r_schw)
 
@@ -927,10 +868,10 @@ class TestSchwarzschildCircularOrbitBenchmark:
         """Circular orbit should return to starting angular position after one proper period.
 
         Analytical proper period T = 2*pi*r^(3/2) M^(-1/2) sqrt(1 - 3M/r).
-        Wald GR Ch. 6.3.
+        Wald GR Ch. 6.3. The angular displacement is normalized to
+        [-pi, pi]; within 0.1% of a full revolution means
+        |delta_angle| < 0.001 * 2*pi.
         """
-        # Check angular displacement: after one full orbit, the particle
-        # should return to its starting angular position.
         x_final = float(self.sol.positions[-1, 1])
         y_final = float(self.sol.positions[-1, 2])
         x_start = float(self.x0[1])
@@ -939,18 +880,14 @@ class TestSchwarzschildCircularOrbitBenchmark:
         angle_final = np.arctan2(y_final, x_final)
         angle_start = np.arctan2(y_start, x_start)
 
-        # Angular displacement should be near 0 or 2*pi (full orbit)
-        # Normalize to [-pi, pi]
         delta_angle = angle_final - angle_start
         delta_angle = (delta_angle + np.pi) % (2 * np.pi) - np.pi
 
-        # Within 0.1% of a full revolution means |delta_angle| < 0.001 * 2*pi
         assert abs(delta_angle) < 0.001 * 2 * np.pi, (
             f"Angular displacement {np.degrees(delta_angle):.4f} deg after one "
             f"period exceeds 0.1% threshold"
         )
 
-        # Also verify final position is close to starting position in x-y plane
         r_final = np.sqrt(x_final**2 + y_final**2)
         r_start = np.sqrt(x_start**2 + y_start**2)
         npt.assert_allclose(
@@ -991,9 +928,6 @@ class TestSchwarzschildCircularOrbitBenchmark:
         )
 
 
-# Schwarzschild Radial Infall Benchmarks
-
-
 class TestSchwarzschildRadialInfallBenchmark:
     """Radial infall from rest at r_schw=20M.
 
@@ -1021,7 +955,6 @@ class TestSchwarzschildRadialInfallBenchmark:
             event=event,
         )
 
-        # Compute isotropic radius along trajectory
         self.r_iso_traj = jnp.sqrt(
             self.sol.positions[:, 1] ** 2
             + self.sol.positions[:, 2] ** 2
@@ -1033,25 +966,22 @@ class TestSchwarzschildRadialInfallBenchmark:
 
         Killing energy E = -xi_a v^a for the static Killing vector xi = partial_t.
         For Schwarzschild in isotropic coords (diagonal metric), E = -g_00 * v^0.
+        timelike_ic returns the future-directed root (v^0 > 0), so E > 0, and
+        E_start = sqrt(1 - 2M/r_start_schw). Conservation is checked over the
+        first 500 points as max(|E_i - E_start|) / |E_start| < 1e-4.
         """
-        # Analytical E at start: E = sqrt(1 - 2M/r_start_schw)
         E_analytical = np.sqrt(1.0 - 2.0 * self.M / self.r_start_schw)
 
-        # Compute E_i = -g_{0a} v^a at each trajectory point (first 500 points).
-        # For diagonal Schwarzschild in isotropic coords: E = -g_00 v^0.
-        # timelike_ic returns the future-directed root (v^0 > 0), so E > 0.
         n_valid = 500
         positions_valid = self.sol.positions[:n_valid]
         velocities_valid = self.sol.velocities[:n_valid]
 
         def killing_energy_at_point(x, v):
             g = self.metric(x)
-            # E = -g_{0a} v^a = -g_00 v^0 (diagonal metric)
             return -g[0, 0] * v[0]
 
         E_traj = jax.vmap(killing_energy_at_point)(positions_valid, velocities_valid)
 
-        # Check conservation: max(|E_i - E_start|) / |E_start| < 1e-4
         E_start = float(E_traj[0])
         max_energy_drift = float(jnp.max(jnp.abs(E_traj - E_start)) / jnp.abs(E_start))
         assert max_energy_drift < 1e-4, (
@@ -1059,7 +989,6 @@ class TestSchwarzschildRadialInfallBenchmark:
             f"E_start={E_start:.6f}, E_analytical={E_analytical:.6f}"
         )
 
-        # Verify E_start matches analytical (future-directed convention: E > 0)
         npt.assert_allclose(
             abs(E_start),
             E_analytical,
@@ -1068,11 +997,13 @@ class TestSchwarzschildRadialInfallBenchmark:
         )
 
     def test_radial_infall_monotonic_decrease(self):
-        """Isotropic radius should monotonically decrease during radial infall."""
+        """Isotropic radius should monotonically decrease during radial infall.
+
+        Positive bumps up to 1e-10 are allowed as numerical noise.
+        """
         r_valid = self.r_iso_traj[:500]
         dr = jnp.diff(r_valid)
 
-        # Allow small positive bumps up to 1e-10 (numerical noise)
         n_increasing = int(jnp.sum(dr > 1e-10))
         assert n_increasing == 0, f"Radius increased at {n_increasing} points during radial infall"
 
@@ -1087,9 +1018,6 @@ class TestSchwarzschildRadialInfallBenchmark:
         assert max_norm_error < 1e-6, (
             f"4-velocity norm drift {max_norm_error:.2e} exceeds 1e-6 during radial infall"
         )
-
-
-# Tidal Eigenvalue Benchmarks
 
 
 class TestTidalEigenvaluesMultiRadius:
@@ -1109,33 +1037,26 @@ class TestTidalEigenvaluesMultiRadius:
         """
         metric = SchwarzschildMetric(M=self.M)
 
-        # Position on x-axis
         x = jnp.array([0.0, r_iso, 0.0, 0.0])
 
-        # Static observer: v = (1/sqrt(-g_00), 0, 0, 0)
         g = metric(x)
         v_t = 1.0 / jnp.sqrt(-g[0, 0])
         v = jnp.array([v_t, 0.0, 0.0, 0.0])
 
-        # Compute tidal eigenvalues (sorted ascending by tidal_eigenvalues)
         eigs = tidal_eigenvalues(metric, x, v)
         eigs_np = np.array(eigs)
 
-        # Analytical: use Schwarzschild r for the eigenvalue formula
-        r_schw = _iso_to_schw_r(r_iso, self.M)
+        r_schw = iso_to_schw_r(r_iso, self.M)
         radial_eig = -2.0 * self.M / r_schw**3
         transverse_eig = self.M / r_schw**3
 
-        # Sort by absolute value to identify eigenvalues
         sorted_by_abs = sorted(eigs_np, key=abs)
 
-        # Smallest-by-abs should be near 0 (within 0.5 * |transverse|)
         assert abs(sorted_by_abs[0]) < 0.5 * abs(transverse_eig), (
             f"Smallest eigenvalue {sorted_by_abs[0]:.6e} not near zero at "
             f"r_iso={r_iso} (threshold={0.5 * abs(transverse_eig):.6e})"
         )
 
-        # Most negative should match radial_eig (machine precision on isotropic grid)
         most_negative = min(eigs_np)
         npt.assert_allclose(
             most_negative,
@@ -1148,7 +1069,6 @@ class TestTidalEigenvaluesMultiRadius:
             ),
         )
 
-        # Two most positive should match transverse_eig
         positive_eigs = sorted([e for e in eigs_np if e > abs(radial_eig) * 0.1])
         assert len(positive_eigs) >= 2, (
             f"Expected at least 2 positive eigenvalues, got {len(positive_eigs)} at r_iso={r_iso}"
@@ -1172,7 +1092,7 @@ class TestTidalEigenvaluesMultiRadius:
         """
         metric = MinkowskiMetric()
         x = jnp.array([0.0, 5.0, 2.0, 3.0])
-        v = jnp.array([1.0, 0.0, 0.0, 0.0])  # static observer
+        v = jnp.array([1.0, 0.0, 0.0, 0.0])
 
         eigs = tidal_eigenvalues(metric, x, v)
         npt.assert_allclose(
@@ -1181,12 +1101,6 @@ class TestTidalEigenvaluesMultiRadius:
             atol=1e-14,
             err_msg="Tidal eigenvalues not zero in flat Minkowski spacetime",
         )
-
-
-# Synthetic Energy Condition Verification
-
-# Flat space metric for all synthetic EC tests
-ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
 
 class TestSyntheticECVerification:
@@ -1209,10 +1123,8 @@ class TestSyntheticECVerification:
         T = jnp.diag(jnp.array([-0.5, 0.0, 0.0, 0.0]))
         r = verify_point(T, ETA, n_starts=8)
 
-        # WEC must be violated
         assert float(r.wec_margin) < 0, f"WEC margin {float(r.wec_margin):.6f} should be negative"
 
-        # Eigenvalue-based check should give exactly -0.5
         rho = r.rho
         pressures = r.pressures
         _, wec_eig, _, _ = check_all(rho, pressures)
@@ -1223,7 +1135,6 @@ class TestSyntheticECVerification:
             err_msg="Eigenvalue WEC margin should be -0.5 for rho=-0.5",
         )
 
-        # Observer-optimized margin should be at least as negative
         assert float(r.wec_margin) <= float(wec_eig) + 1e-6, (
             f"verify_point WEC margin {float(r.wec_margin):.6f} should be <= "
             f"eigenvalue margin {float(wec_eig):.6f}"
@@ -1269,8 +1180,7 @@ class TestAlcubierreVsZeroIsMinkowski:
         m = AlcubierreMetric(v_s=0.0, R=2.0, sigma=8.0)
         coords = jnp.array([0.0, 0.5, 0.3, -0.2])
         chain = compute_curvature_chain(m, coords)
-        eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        np.testing.assert_allclose(np.asarray(chain.metric), np.asarray(eta), atol=1e-14)
+        np.testing.assert_allclose(np.asarray(chain.metric), np.asarray(ETA), atol=1e-14)
         np.testing.assert_allclose(np.asarray(chain.ricci), np.zeros((4, 4)), atol=5e-12)
         np.testing.assert_allclose(np.asarray(chain.einstein), np.zeros((4, 4)), atol=5e-12)
         np.testing.assert_allclose(np.asarray(chain.stress_energy), np.zeros((4, 4)), atol=5e-12)
@@ -1288,16 +1198,23 @@ class TestAlcubierreVsZeroIsMinkowski:
 class TestSchwarzschildADMMassFuchs:
     """ADM mass surface integral on the Fuchs canonical metric.
 
-    Previously the metric interpolation clamped beyond the solved radial grid,
-    so the exterior was not vacuum and the surface integral grew *linearly* in
-    ``r`` (``M(2r)/M(r) = 2`` exactly) instead of converging. That pathology was
-    pinned here as documented behaviour. The potentials are now continued
-    analytically as Schwarzschild outside the grid, so the surface mass
+    If the metric interpolation clamped beyond the solved radial grid, the
+    exterior would not be vacuum and the surface integral would grow *linearly*
+    in ``r`` (``M(2r)/M(r) = 2`` exactly) instead of converging. The potentials
+    are continued analytically as Schwarzschild outside the grid, so the surface mass
     converges to the volume mass, which is what asymptotic flatness, and the
     manuscript's Santiago-Schuster-Visser escape argument, require.
     """
 
     def test_adm_mass_converges_to_volume_mass(self):
+        """Surface masses approach the volume mass monotonically from above.
+
+        The residual falls like 1/r, so each doubling of the surface radius
+        must roughly halve the excess over the volume mass. Because the
+        finite-radius value still carries that 1/r tail, a tight bound on the
+        largest-radius mass would contradict the law; instead the tail is
+        extrapolated away with M_inf = 2 M(2r) - M(r).
+        """
         from warpax.adm.mass import adm_mass
         from warpax.metrics.fuchs_construction import fuchs_default
 
@@ -1306,19 +1223,12 @@ class TestSchwarzschildADMMassFuchs:
         masses = [float(adm_mass(metric, r_surface=r, n_theta=10, n_phi=18)) for r in radii]
         assert all(np.isfinite(m) and m > 0 for m in masses), masses
 
-        # Monotone approach from above to the volume mass, not a drift away.
         assert masses[0] > masses[1] > masses[2] > masses[3] > metric.total_mass, masses
 
-        # The residual falls like 1/r: each doubling of the surface radius must
-        # roughly halve the excess over the volume mass.
         excess = [m - metric.total_mass for m in masses]
         for lo, hi in pairwise(excess):
             npt.assert_allclose(hi / lo, 0.5, rtol=0.15)
 
-        # The finite-radius value still carries the 1/r tail the ratios above
-        # confirm, so asserting a tight bound on masses[-1] would contradict
-        # that law. Extrapolate it away instead: for a 1/r excess,
-        # M_inf = 2 M(2r) - M(r).
         m_inf = 2.0 * masses[-1] - masses[-2]
         npt.assert_allclose(m_inf, metric.total_mass, rtol=2e-3)
 
@@ -1327,10 +1237,10 @@ class TestInterpolationOrderRegression:
     """Default (linear) IO interpolation has O(h) accuracy in cell size."""
 
     def _make_grid(self, n: int) -> tuple:
-        """Sample a smooth analytic alpha=alpha(x) on a 1D-extended 4D grid."""
+        """Sample alpha(x) = 1 + 0.1 sin(pi x), smooth with nontrivial second
+        derivative, on a 1D-extended 4D grid."""
         Nt, N = 2, n
         x = jnp.linspace(-1.0, 1.0, N)
-        # alpha(x) = 1 + 0.1 * sin(pi x); smooth, has nontrivial 2nd derivative.
         alpha_1d = 1.0 + 0.1 * jnp.sin(jnp.pi * x)
         alpha = jnp.broadcast_to(alpha_1d[None, :, None, None], (Nt, N, N, N)).copy()
         beta = jnp.zeros((Nt, N, N, N, 3))
@@ -1339,10 +1249,11 @@ class TestInterpolationOrderRegression:
         return alpha, beta, gamma, spec
 
     def test_linear_interpolation_h_scaling(self):
+        """Probe alpha at a midpoint between two grid nodes, where linear
+        interpolation error is O(h^2 |alpha''|) with h = 2/(N-1); doubling
+        the resolution twice must cut the error by at least 8x."""
         from warpax.io import InterpolatedADMMetric
 
-        # Probe alpha at a midpoint between two grid nodes - linear interp
-        # error there is O(h^2 * |alpha''|), and grid spacing is h = 2/(N-1).
         probe = jnp.array([0.0, 0.001, 0.0, 0.0])
         truth = 1.0 + 0.1 * jnp.sin(jnp.pi * 0.001)
 
@@ -1357,7 +1268,6 @@ class TestInterpolationOrderRegression:
             )
             errors.append(abs(float(m.lapse(probe) - truth)))
 
-        # Doubling resolution should roughly quarter the error (O(h^2)).
         ratio = errors[0] / max(errors[2], 1e-30)
         assert ratio >= 8.0, (
             f"Linear interp didn't converge as ~h^2: errors {errors}, ratio {ratio:.2f}"
@@ -1390,10 +1300,10 @@ class TestWarpShellBoundaryDEC:
         assert worst < 0.0, f"expected DEC violation at R1/R2 transitions; min={worst}"
 
 
-# Bubble centers ((t, x, y, z) coords). Each metric's center moves with v_s*t,
-# so (0, 0, 0, 0) is the on-axis center at t=0 for v_s != 0.
 @pytest.fixture
 def on_axis_coords() -> jnp.ndarray:
+    """Bubble center in (t, x, y, z). Each metric's center moves with v_s*t,
+    so (0, 0, 0, 0) is the on-axis center at t=0 for v_s != 0."""
     return jnp.array([0.0, 0.0, 0.0, 0.0])
 
 

@@ -30,7 +30,16 @@ def richardson_extrapolation(
     """Richardson extrapolation from 3+ grid resolutions.
 
     Assumes ``Q(h) = Q_exact + C * h^p + O(h^{p+1})`` where
-    ``h = 1 / (N - 1)``: N points over a fixed domain span N-1 cells.
+    ``h = 1 / (N - 1)``: N points over a fixed domain span N-1 cells. Using
+    ``1/N`` instead puts exactly second-order data at order 2.069 with a
+    nonzero extrapolant and rejects ``[25, 49, 97]``. The three-point order
+    estimate is valid only on a geometric ladder. The machine-precision gate
+    is relative to ``max|Q_i|``: an absolute ``1e-30`` calls
+    ``[4e-100, 2e-100, 1e-100]`` exact while it is still halving at every
+    level. A non-monotonic triplet reports no order rather than substituting
+    ``expected_order``, which would make the ``converged`` test vacuously
+    true. The ladder spread is the assumption-free bound used whenever
+    Richardson is not earned.
 
     Parameters
     ----------
@@ -73,16 +82,10 @@ def richardson_extrapolation(
             f"Richardson extrapolation requires at least 3 resolutions, got {len(values)}"
         )
 
-    # Use the last 3 resolutions (coarsest -> finest)
     Q1, Q2, Q3 = values[-3], values[-2], values[-1]
     N1, N2, N3 = grid_sizes[-3], grid_sizes[-2], grid_sizes[-1]
-    # Endpoint-inclusive grids: N points over a fixed domain span N-1 cells, so
-    # the spacing that the error expansion is in goes as 1/(N-1). Using 1/N put
-    # exactly second-order data at order 2.069 with a nonzero extrapolant, and
-    # rejected [25, 49, 97], whose spacing ratio is exactly 2.
     h1, h2, h3 = 1.0 / (N1 - 1), 1.0 / (N2 - 1), 1.0 / (N3 - 1)
 
-    # The three-point order estimate is valid only on a geometric ladder.
     r, r2 = h1 / h2, h2 / h3
     if abs(r - r2) > 1e-9 * max(r, r2):
         raise ValueError(
@@ -92,18 +95,13 @@ def richardson_extrapolation(
             "varying ratio."
         )
 
-    # Assumption-free bound, used whenever Richardson is not earned.
     spread = max(abs(Q1 - Q3), abs(Q2 - Q3))
 
-    # Estimate convergence order
     dQ12 = Q1 - Q2
     dQ23 = Q2 - Q3
 
-    # Relative: an absolute 1e-30 called [4e-100, 2e-100, 1e-100] exact while
-    # it was still halving at every level.
     q_scale = max(abs(Q1), abs(Q2), abs(Q3))
     if abs(dQ23) <= 1e-15 * q_scale:
-        # Already converged to machine precision
         return {
             "extrapolated_value": float(Q3),
             "observed_order": float(expected_order),
@@ -115,9 +113,6 @@ def richardson_extrapolation(
 
     ratio = dQ12 / dQ23
     if ratio <= 0:
-        # Non-monotonic: no order is estimable. This used to substitute
-        # p = expected_order and then test |p - expected_order| < 1, which is
-        # always true, so a failed convergence reported itself as converged.
         return {
             "extrapolated_value": float(Q3),
             "observed_order": None,
@@ -129,7 +124,6 @@ def richardson_extrapolation(
 
     p = math.log(abs(ratio)) / math.log(r)
 
-    # Richardson extrapolation: Q_ext = (r^p * Q_fine - Q_coarse) / (r^p - 1)
     rp = r**p
     if abs(rp - 1.0) < 1e-30:
         Q_ext = Q3
@@ -140,7 +134,6 @@ def richardson_extrapolation(
     return {
         "extrapolated_value": float(Q_ext),
         "observed_order": float(p),
-        # Richardson is an error estimate only when the order supports it.
         "error_estimate": float(abs(Q3 - Q_ext) if converged else spread),
         "converged": bool(converged),
         "fallback": False,
@@ -229,7 +222,12 @@ def compute_convergence_quantity(
     cell_volume : float
         Volume of a single grid cell. Required for both
         ``"integrated_violation"`` and ``"l2_violation"``: without it
-        neither is an integral and both grow with the point count.
+        neither is an integral and both grow with the point count; the
+        volume-free L2 sum has an apparent order of ``-log_2(r^{3/2})``.
+        Violated points are those below ``-1e-10 * max|negative margin|``:
+        an absolute cut reports zero violation for a grid whose margins are
+        all of order 1e-12, and scaling by ``max|margin|`` lets one large
+        positive margin elsewhere hide a real violation.
 
     Returns
     -------
@@ -246,10 +244,6 @@ def compute_convergence_quantity(
     if quantity == "min_margin":
         return float(np.nanmin(flat))
 
-    # Relative roundoff gate, scaled by the negative margins themselves. An
-    # absolute -1e-10 reports zero violation for a grid whose margins are all
-    # of order 1e-12; scaling by max|margin| instead lets one large POSITIVE
-    # margin elsewhere set the floor and hide a real violation.
     negatives = flat[np.isfinite(flat) & (flat < 0.0)]
     scale = float(np.max(np.abs(negatives))) if negatives.size else 0.0
     cut = -1e-10 * scale
@@ -258,8 +252,6 @@ def compute_convergence_quantity(
         violated = flat[flat < cut]
         if violated.size == 0:
             return 0.0
-        # sqrt(sum f^2 dV), not sqrt(sum f^2): without the volume this counts
-        # points, and its "order" -1.4 was just -log_2(r^{3/2}).
         return float(np.sqrt(np.sum(violated**2) * cell_volume))
 
     if quantity == "integrated_violation":

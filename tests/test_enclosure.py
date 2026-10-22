@@ -5,6 +5,21 @@ JAX pipeline exactly on a degenerate (point) box. If it does not, every
 "certified" bound in the appendix is meaningless, so this is checked against the
 independent autodiff implementation for both a single-component shift
 (Alcubierre) and a three-component one (Rodal).
+
+``_VDB`` must be the benchmark instance (R_tilde=1.0, as every script fixes
+it), or the test compares the interval and JAX transcriptions of a spacetime
+the paper never reports and says nothing about the certified bracket in
+tables/enclosures.tex. ``test_interval_chain_matches_jax_at_a_point`` pairs
+each interval-algebra transcription with the JAX metric it must reproduce:
+Natario exercises a three-component vortical shift and Van den Broeck the
+conformal branch of ``_assemble`` (gamma_ij = B^2 delta_ij), which the
+flat-slice drives never touch. ``test_centered_form_encloses_every_interior_point``
+covers the centered (mean-value) bound that ``enclosure._make_objective``
+builds from jet gradients, the one place where a sign or index error yields a
+bound tighter than the truth, so it checks containment rather than the
+algebra. The soundness tests pin three counterexamples where a valid
+inequality implemented non-rigorously would return a lower bound ABOVE the
+true minimum; the four paper metrics do not reach them.
 """
 
 import math
@@ -86,13 +101,13 @@ def test_tail_radius_rounds_down_and_requires_the_monotone_profile():
 def _jax_reference(metric):
     """Eulerian decomposition in an ORTHONORMAL spatial frame, from the JAX chain.
 
-    The orthonormalisation is the point of the test. Reading off ``T[a, i+1]`` and
+    The orthonormalization is the point of the test. Reading off ``T[a, i+1]`` and
     ``T[i+1, j+1]`` gives coordinate components, and comparing those against the
     interval chain's coordinate components is vacuous: both sides make the same
-    mistake and the test passes while the certified objective minimises over the
-    wrong sphere. That is what happened for Van den Broeck, whose slice is
-    ``gamma_ij = B^2 delta_ij``. Both sides are now pushed through ``L^{-1}`` with
-    ``gamma = L L^T``, so the test compares the physical quantity.
+    mistake and the test passes while the certified objective minimizes over the
+    wrong sphere. For Van den Broeck, whose slice is ``gamma_ij = B^2 delta_ij``,
+    the coordinate comparison is vacuous. Both sides are pushed through ``L^{-1}``
+    with ``gamma = L L^T``, so the test compares the physical quantity.
     """
     import numpy as np
 
@@ -113,17 +128,9 @@ def _jax_reference(metric):
     return rho, b, S
 
 
-# Must be the benchmark instance. R_tilde was 0.6 here and in run_enclosures.py while
-# every other script fixes 1.0, so this test compared the interval and JAX
-# transcriptions of a spacetime the paper never reports, they agreed with each
-# other and said nothing about the certified bracket in tables/enclosures.tex.
 _VDB = dict(v_s=0.5, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
 
 
-# Each entry pairs an interval-algebra transcription with the JAX metric it must
-# reproduce. Natario exercises a three-component vortical shift; Van den Broeck
-# exercises the conformal branch of ``_assemble`` (gamma_ij = B^2 delta_ij), which
-# the flat-slice drives never touch.
 @pytest.mark.parametrize(
     "name,builder,reference",
     [
@@ -146,15 +153,17 @@ _VDB = dict(v_s=0.5, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
     ],
 )
 def test_interval_chain_matches_jax_at_a_point(name, builder, reference):
+    """CONTAINMENT is the property the bounds rest on: the JAX value must lie
+    inside the enclosure. The pad absorbs a degenerate box's rounding, worst
+    measured excess 1.0e-15, so 1e-12 is three orders of headroom and no
+    looser, or it hides a transcription mismatch between the two metrics. On a
+    point box the enclosure must also be tight (rho width < 1e-9), or
+    branch-and-bound can never converge no matter how far it subdivides."""
     mpmath.mp.prec = 80
     box = [iv.mpf([v, v]) for v in _PT]
     rho_iv, b_iv, S_iv = eulerian_fields_interval(builder(), box)
     rho_j, b_j, S_j = _jax_reference(reference())
 
-    # CONTAINMENT is the property the bounds rest on: the JAX value must lie inside
-    # the enclosure. The pad absorbs a degenerate box's rounding, worst measured
-    # excess 1.0e-15, so 1e-12 is three orders of headroom and no looser, or it
-    # hides a transcription mismatch between the two metrics.
     def contains(c, v, pad=1e-12):
         return float(mpmath.mpf(c.a)) - pad <= v <= float(mpmath.mpf(c.b)) + pad
 
@@ -168,8 +177,6 @@ def test_interval_chain_matches_jax_at_a_point(name, builder, reference):
         for j in range(3):
             assert contains(S_iv[i][j], S_j[i][j]), f"{name}: S[{i}][{j}] outside"
 
-    # And on a point box the enclosure must be tight, or branch-and-bound can
-    # never converge no matter how far it subdivides.
     assert width(rho_iv) < 1e-9, f"{name}: rho enclosure too wide at a point"
 
 
@@ -207,10 +214,6 @@ def test_conformal_slice_null_deficit_uses_the_physical_sphere():
     assert n_min > 0.05, f"expected the physical deficit ~ +0.0706, got {n_min}"
 
 
-# The centered (mean-value) bound. ``enclosure._make_objective`` builds it from jet
-# gradients, and it is the one place where a sign or index error yields a bound
-# tighter than the truth, so these check containment rather than the algebra.
-
 _ENCLOSURE_METRICS = [
     ("Alcubierre", lambda: alcubierre_metric(0.5, 1.0, 8.0), (-0.003, 0.932)),
     ("Rodal", lambda: rodal_metric(0.5, 1.0, 8.0), (-0.971, 0.003)),
@@ -234,8 +237,8 @@ def _centered_fields(metric, cx, cy, h):
     )
 
 
-@pytest.mark.parametrize("name,builder,centre", _ENCLOSURE_METRICS)
-def test_centered_form_encloses_every_interior_point(name, builder, centre):
+@pytest.mark.parametrize("name,builder,center", _ENCLOSURE_METRICS)
+def test_centered_form_encloses_every_interior_point(name, builder, center):
     """Sampled true values must lie inside the centered enclosure, for every box.
 
     This is the containment property. A wrong gradient index, a missed cross term or
@@ -246,7 +249,7 @@ def test_centered_form_encloses_every_interior_point(name, builder, centre):
 
     mpmath.mp.prec = 80
     metric = builder()
-    cx, cy = centre
+    cx, cy = center
     rng = np.random.default_rng(20260818)
     pad = 1e-9
 
@@ -278,8 +281,8 @@ def test_centered_form_encloses_every_interior_point(name, builder, centre):
                     )
 
 
-@pytest.mark.parametrize("name,builder,centre", _ENCLOSURE_METRICS)
-def test_jet_ring_reproduces_the_plain_interval_values(name, builder, centre):
+@pytest.mark.parametrize("name,builder,center", _ENCLOSURE_METRICS)
+def test_jet_ring_reproduces_the_plain_interval_values(name, builder, center):
     """The jet ring must return the same value enclosure as the plain one.
 
     Both are rigorous outward-rounded enclosures of the same quantity, so neither can
@@ -289,7 +292,7 @@ def test_jet_ring_reproduces_the_plain_interval_values(name, builder, centre):
     tight rather than exact.
     """
     mpmath.mp.prec = 80
-    cx, cy = centre
+    cx, cy = center
     h = 1e-3
     box = [iv.mpf([0, 0]), iv.mpf([cx - h, cx + h]), iv.mpf([cy - h, cy + h]), iv.mpf([0, 0])]
     metric = builder()
@@ -388,18 +391,13 @@ def test_certified_lower_never_exceeds_a_brute_force_minimum():
     assert checked > 20, "the sampler found too few wall points to be a real check"
 
 
-# Soundness regressions: three places where a valid inequality was implemented
-# non-rigorously, so the returned lower bound could sit ABOVE the true minimum.
-# The four paper metrics do not reach them, so the counterexamples are pinned here.
-
-
 def _set_prec(bits=60):
     """Set BOTH precisions.
 
     ``mpmath.mp.prec`` and ``mpmath.iv.prec`` are independent, and
     ``certify_nec_deficit`` sets ``iv.prec`` itself, so a test that sets only
-    ``mp.prec`` inherits whatever the previously executed test left behind, and its
-    result depends on collection order.
+    ``mp.prec`` inherits whatever an earlier test left behind, and its result
+    depends on collection order.
     """
     mpmath.mp.prec = 200
     iv.prec = bits
@@ -411,7 +409,7 @@ def test_shape_interval_encloses_the_true_shape_value():
     The earlier implementation assembled the radius from round-to-nearest
     ``math.sqrt`` calls and installed the results as interval endpoints. At the
     point below it returned an interval that did not contain the true value, so a
-    box holding the minimiser could be dropped and the certified lower bound raised.
+    box holding the minimizer could be dropped and the certified lower bound raised.
     """
     _set_prec()
     x, s = 0.950030236708907, 0.5338202611110032
@@ -428,9 +426,10 @@ def test_shape_interval_encloses_the_true_shape_value():
 def test_inv4_keeps_a_derivative_through_a_zero_valued_pivot_factor():
     """A zero VALUE with a nonzero derivative must not be eliminated as zero.
 
-    ``_inv4`` used to skip the elimination step when the factor's value interval was
-    exactly zero. For a jet that is the wrong test: the value can vanish while the
-    derivative does not, and skipping drops the derivative silently.
+    Skipping the elimination step when the factor's value interval is exactly
+    zero is the wrong test for a jet: the value can vanish while the derivative
+    does not, and skipping drops the derivative silently. Here
+    M(t) = [[1, t], [t, 1]] (+) I_2, so d(M^-1)_01/dt = -1 at t = 0.
     """
     from warpax.energy_conditions import _jet
     from warpax.energy_conditions._intervalcurv import _inv4
@@ -438,7 +437,6 @@ def test_inv4_keeps_a_derivative_through_a_zero_valued_pivot_factor():
     _set_prec()
     t = _jet.seed(iv.mpf([0, 0]), 1)
     one, zero = _jet.constant(1), _jet.constant(0)
-    # M(t) = [[1, t], [t, 1]] (+) I_2, so d(M^-1)_01/dt = -1 at t = 0.
     M = [
         [one, t, zero, zero],
         [t, one, zero, zero],
@@ -459,7 +457,8 @@ def test_decoupled_bound_stays_below_the_truth_under_heavy_cancellation():
     error bound. Every such error moves the result upward and the bound is max'd
     against the verified LMI value, so an upward error wins: at the coefficients
     below that gives roughly six times the true deficit, above an achieved upper
-    bound and hence no lower bound at all.
+    bound and hence no lower bound at all. With b = 0 the true deficit is
+    exactly rho + lambda_min(S).
     """
     import numpy as np
 
@@ -475,7 +474,6 @@ def test_decoupled_bound_stays_below_the_truth_under_heavy_cancellation():
             [0.1753514443711059, -1.02175725466781, 0.4374447732538044],
         ]
     )
-    # b = 0, so the true deficit is exactly rho + lambda_min(S).
     truth = rho_f + float(np.linalg.eigvalsh(S_f)[0]) * scale
 
     S = [[iv.mpf([float(S_f[i][j]) * scale] * 2) for j in range(3)] for i in range(3)]
@@ -504,11 +502,13 @@ def test_exterior_holds_no_wall_point_in_any_direction():
     """The tail exclusion must certify band disjointness, not compare deficits.
 
     ``_make_objective`` carries the same wall mask as the search, so on the exterior
-    it takes the masked branch and never computes a deficit: the old ``tail_bound``
-    returned ``+inf`` and the ``tail > upper`` test that consumed it was vacuously
-    true. The wall band is a condition on ``f`` alone, and ``f`` sees position only
+    it takes the masked branch and never computes a deficit, so a ``tail_bound``
+    returning ``+inf`` would make a ``tail > upper`` test vacuously true. The
+    wall band is a condition on ``f`` alone, and ``f`` sees position only
     through ``r``, so one interval evaluation covers every direction, including
-    ``x < -3``, which an outer annulus stated in ``x`` alone never touched.
+    ``x < -3``, which an outer annulus stated in ``x`` alone never touches. The
+    returned bounds must be finite, a real enclosure rather than an infinity
+    standing in for one.
     """
     mpmath.mp.prec = 60
     iv.prec = 60
@@ -522,5 +522,4 @@ def test_exterior_holds_no_wall_point_in_any_direction():
         f_lo, f_hi, excluded = tail_bound(metric, shape, x_box, s_box)
         assert excluded, (x_box, s_box, f_lo, f_hi)
         assert f_hi < 0.1, f_hi
-        # And it must be a real enclosure, not an infinity standing in for one.
         assert math.isfinite(f_lo) and math.isfinite(f_hi)

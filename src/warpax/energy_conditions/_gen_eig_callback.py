@@ -55,9 +55,9 @@ def _scipy_gen_eig_host(
     -----
     ``check_finite=False``: NaN sanitization happens upstream in
     ``classify_hawking_ellis``, so skipping the LAPACK NaN scan is safe and
-    saves ~5% of the call cost.
+    saves ~5% of the call cost. Inputs go through ``np.asarray`` because
+    ``jax.pure_callback`` may pass ``jax.Array`` and LAPACK needs ``np.ndarray``.
     """
-    # jax.pure_callback may pass jax.Array; LAPACK needs np.ndarray.
     T_np = np.asarray(T_ab)
     g_np = np.asarray(g_ab)
     eigvals, eigvecs = _sla.eig(T_np, g_np, check_finite=False)

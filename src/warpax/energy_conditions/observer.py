@@ -4,6 +4,9 @@ Timelike observers use rapidity angles or a spatial rapidity vector with an
 optional smooth cap. Rapidity is relative to the supplied tetrad's timelike
 leg; the tetrad constructor uses the Eulerian slice normal. Null directions
 use angles or a stereographic chart on the sphere with one pole excluded.
+
+The degeneracy tolerance ``_DEGENERATE_RTOL`` is relative: an absolute floor
+would make the tetrad depend on the coordinate scale.
 """
 
 from __future__ import annotations
@@ -12,7 +15,6 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
-# Absolute floors make the tetrad depend on the coordinate scale.
 _DEGENERATE_RTOL = 1e-12
 
 
@@ -53,6 +55,20 @@ def _select_first_nondegenerate(
     )
 
 
+def eulerian_normal(
+    g_inv: Float[Array, "... 4 4"],
+) -> tuple[Float[Array, "..."], Float[Array, "... 4"]]:
+    """Lapse and future unit normal ``n^a = -alpha g^{a0}`` of the ``t = const`` slices.
+
+    Both are NaN where ``g^{00} >= 0``: such a slice is not spacelike and has
+    no unit timelike normal, so no floor or absolute value can supply one.
+    """
+    neg_g00 = -g_inv[..., 0, 0]
+    alpha = 1.0 / jnp.sqrt(jnp.where(neg_g00 > 0.0, neg_g00, jnp.nan))
+    n_up = -alpha[..., None] * g_inv[..., 0, :]
+    return alpha, n_up
+
+
 def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]:
     """Construct an Eulerian orthonormal tetrad for a Lorentzian metric.
 
@@ -67,20 +83,18 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
         ``tetrad[I, a] = e_I^a``. Normalization holds to numerical accuracy.
         The slice normal remains timelike at any warp speed under the stated
         hypotheses, including where the coordinate-time direction is spacelike.
-    """
-    g_inv = jnp.linalg.inv(g_ab)
 
-    # Spacelike slices require g^{00} < 0. An absolute floor would rescale e_0.
-    neg_g00 = -g_inv[0, 0]
-    alpha = 1.0 / jnp.sqrt(jnp.where(neg_g00 > 0.0, neg_g00, jnp.nan))
-    beta_up = -g_inv[0, 1:4] / g_inv[0, 0]
-    e0 = jnp.array([1.0 / alpha, -beta_up[0] / alpha, -beta_up[1] / alpha, -beta_up[2] / alpha])
+    Each spatial slot tries its primary axis first and falls back to the other
+    spatial axes if the projection collapses. The Gram-Schmidt signature is ``-1``
+    for the timelike row and ``+1`` for every other row, unbuilt rows being inert
+    because their entries are zero. Selection requires a positive radicand:
+    ``abs()`` would normalize a timelike candidate as spacelike.
+    """
+    _, e0 = eulerian_normal(jnp.linalg.inv(g_ab))
 
     spatial_basis = jnp.eye(4)[1:]
     tetrad = jnp.zeros((4, 4)).at[0].set(e0)
 
-    # Each spatial slot tries its primary axis first, then falls back to
-    # the other spatial axes if the projection collapses.
     fallback_order = (
         (0, 1, 2),
         (1, 0, 2),
@@ -88,9 +102,6 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
     )
 
     for slot, axes in enumerate(fallback_order, start=1):
-        # The signature for the current set of already-built rows:
-        # row 0 (timelike) is -1, built spatial rows are +1, the rest +1
-        # but inert because their entries are zero.
         signature = jnp.array([-1.0] + [1.0] * 3)
 
         candidates = []
@@ -104,8 +115,6 @@ def compute_orthonormal_tetrad(g_ab: Float[Array, "4 4"]) -> Float[Array, "4 4"]
         norm_sqs = jnp.stack(norm_sqs)
 
         v_sel, norm_sq_sel = _select_first_nondegenerate(candidates, norm_sqs)
-        # Selection requires a positive radicand; abs() would normalize a
-        # timelike candidate as spacelike.
         norm = jnp.sqrt(norm_sq_sel)
         tetrad = tetrad.at[slot].set(v_sel / norm)
 
@@ -215,7 +224,6 @@ def timelike_from_boost_vector(
     else:
         zeta = norm
 
-    # At w=0 the spatial contribution vanishes.
     s_hat = w / norm
     s = s_hat[0] * tetrad[1] + s_hat[1] * tetrad[2] + s_hat[2] * tetrad[3]
 
@@ -326,7 +334,7 @@ def bounded_param(
     result = lower + (upper - lower) * sigmoid(raw)
 
     Used by optimization to enforce box constraints with
-    Optimistix BFGS, which does not natively support bounded minimization.
+    Optimiztix BFGS, which does not natively support bounded minimization.
 
     Parameters
     ----------

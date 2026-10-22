@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import pytest
 
 from warpax.benchmarks.alcubierre import AlcubierreMetric
@@ -30,11 +31,7 @@ from warpax.energy_conditions.verifier import (
 from warpax.geometry.grid import evaluate_curvature_grid
 from warpax.geometry.types import GridSpec
 
-# Standard Minkowski metric
 ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-
-
-# 1. Dust in Minkowski (no violation)
 
 
 class TestDustVerifyPoint:
@@ -64,9 +61,6 @@ class TestDustVerifyPoint:
         assert float(r.wec_margin) == pytest.approx(1.0, abs=1e-6)
 
 
-# 2. Known WEC violation
-
-
 class TestWECViolationVerifyPoint:
     """Negative energy density: rho = -0.5."""
 
@@ -75,9 +69,6 @@ class TestWECViolationVerifyPoint:
     def test_wec_violated(self):
         r = verify_point(self.T_bad, ETA, n_starts=4)
         assert float(r.wec_margin) < 0
-
-
-# 3. Eulerian vs observer-robust comparison (CORE PAPER ARGUMENT)
 
 
 class TestEulerianVsObserverRobust:
@@ -95,10 +86,10 @@ class TestEulerianVsObserverRobust:
     The minimum can be negative when q is large enough.
 
     The boosted density falls below rho for large enough z when
-    rho + p < 2|q|.
+    rho + p < 2|q|. Here rho=0.5, q=-0.6, p=0.3: rho+p=0.8 < 2|q|=1.2, so a
+    violation exists.
     """
 
-    # rho=0.5, q=-0.6, p=0.3: rho+p=0.8, 2|q|=1.2 > 0.8 -> violation exists
     rho = 0.5
     q = -0.6
     p = 0.3
@@ -128,9 +119,6 @@ class TestEulerianVsObserverRobust:
         assert float(r.wec_margin) < float(e["wec"]), (
             f"robust={r.wec_margin} should be < eulerian={e['wec']}"
         )
-
-
-# 4. Small Alcubierre grid (5x5x5)
 
 
 @pytest.fixture(scope="module")
@@ -171,14 +159,12 @@ class TestAlcubierreGrid:
 
     def test_nec_violation_detected(self, alcubierre_ec):
         """NEC violations in the bubble wall region (Alcubierre 1994)."""
-        # Use nanmin: center point (r_s=0) may produce NaN from coordinate singularity
         assert float(jnp.nanmin(alcubierre_ec.nec_margins)) < 0, (
             f"Expected NEC violation but min margin = {jnp.nanmin(alcubierre_ec.nec_margins)}"
         )
 
     def test_wec_violation_detected(self, alcubierre_ec):
         """WEC violations in the bubble wall region (Alcubierre 1994)."""
-        # Use nanmin: center point (r_s=0) may produce NaN from coordinate singularity
         assert float(jnp.nanmin(alcubierre_ec.wec_margins)) < 0, (
             f"Expected WEC violation but min margin = {jnp.nanmin(alcubierre_ec.wec_margins)}"
         )
@@ -187,9 +173,6 @@ class TestAlcubierreGrid:
         """Summary statistics report fraction_violated > 0 for WEC/NEC."""
         assert float(alcubierre_ec.nec_summary.fraction_violated) > 0
         assert float(alcubierre_ec.wec_summary.fraction_violated) > 0
-
-
-# 4b. verify_point / verify_grid with solver='generalized'
 
 
 class TestGeneralizedSolverIntegration:
@@ -217,9 +200,6 @@ class TestGeneralizedSolverIntegration:
         assert ec.he_types.shape == (5, 5, 5)
 
 
-# 5. Eulerian comparison on grid
-
-
 class TestEulerianGridComparison:
     """Run verify_grid with compute_eulerian=True on Alcubierre data."""
 
@@ -236,8 +216,6 @@ class TestEulerianGridComparison:
         assert isinstance(ec, ECGridResult)
         assert ec.nec_margins.shape == (5, 5, 5)
 
-        # Both runs share the default PRNGKey(42), so the robust parts match
-        # and the merge is exactly min(robust, eulerian) pointwise.
         flat_T = result.stress_energy.reshape(-1, 4, 4)
         flat_g = result.metric.reshape(-1, 4, 4)
         flat_gi = result.metric_inv.reshape(-1, 4, 4)
@@ -247,17 +225,12 @@ class TestEulerianGridComparison:
             merged = getattr(ec, f"{name}_margins").reshape(-1)
             expected = jnp.minimum(robust, eulerian[name])
             finite = jnp.isfinite(merged) & jnp.isfinite(expected)
-            # merging can only lower the margins
             assert bool(jnp.all(merged[finite] <= robust[finite] + 1e-12)), name
             assert bool(jnp.allclose(merged[finite], expected[finite], atol=1e-12)), name
-        # the flag must actually do something: some NEC points get lowered
         nec_robust = alcubierre_ec.nec_margins.reshape(-1)
         nec_merged = ec.nec_margins.reshape(-1)
         finite = jnp.isfinite(nec_merged) & jnp.isfinite(nec_robust)
         assert int(jnp.sum(nec_merged[finite] < nec_robust[finite] - 1e-12)) > 0
-
-
-# 6. Summary statistics correctness
 
 
 class TestSummaryStatistics:
@@ -287,9 +260,6 @@ class TestSummaryStatistics:
             assert jnp.isfinite(summary.min_margin)
 
 
-# 7. Worst observer stored correctly
-
-
 class TestWorstObserver:
     """For a violated point, worst_observer is a unit timelike vector."""
 
@@ -315,9 +285,6 @@ class TestWorstObserver:
         assert -1e-6 <= phi <= 2 * jnp.pi + 1e-6, f"phi={phi} out of range"
 
 
-# 8. ANEC integrand
-
-
 class TestANECIntegrand:
     """Pointwise ANEC integrand returns correct scalar."""
 
@@ -329,16 +296,12 @@ class TestANECIntegrand:
         assert float(val) == pytest.approx(1.0, abs=1e-12)
 
     def test_sign_matches(self):
-        """For negative-energy T: T_{ab} k^a k^b < 0."""
+        """For negative-energy T: T_{ab} k^a k^b = T_00 + T_11 = -1 by hand."""
         T = jnp.diag(jnp.array([-0.5, -0.5, 0.0, 0.0]))
         k = jnp.array([1.0, 1.0, 0.0, 0.0])
         val = anec_integrand(T, k)
-        # by hand: T_00 + T_11 = -0.5 - 0.5 = -1
         assert float(val) == pytest.approx(-1.0, abs=1e-12)
         assert float(val) < 0
-
-
-# 9b. ECGridResult new fields
 
 
 class TestECGridResultNewFields:
@@ -369,9 +332,6 @@ class TestECGridResultNewFields:
         assert float(ec.max_imag_eigenvalue) == pytest.approx(0.0, abs=1e-12)
         assert jnp.all(jnp.isnan(ec.nec_opt_margins))
         assert float(ec.nec_margins[0, 0, 0]) == pytest.approx(1.0, abs=1e-10)
-
-
-# 10b. DEC future-directedness
 
 
 class TestDECFutureDirectedness:
@@ -423,10 +383,6 @@ class TestDECFutureDirectedness:
             _dec_objective,
         )
 
-        # Minkowski T_ab with T_00 = -1, T_ii = 0.5: rho = -1 violates WEC, and the
-        # energy flux j = (-1, 0, 0, 0) is timelike but past-directed, giving
-        # future_margin = -1. The past-directed check is the binding one here.
-
         T_ab = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
         g_ab = ETA
         tetrad = compute_orthonormal_tetrad(g_ab)
@@ -434,22 +390,15 @@ class TestDECFutureDirectedness:
         T_mixed = g_inv @ T_ab
         zeta_max = jnp.float64(5.0)
 
-        # Eulerian observer (w = 0)
         w = jnp.zeros(3)
         args = (T_ab, T_mixed, g_ab, tetrad, zeta_max)
         obj = _dec_objective(w, args)
 
-        # The objective should be negative (violation detected)
         assert float(obj) < 0, (
             f"DEC objective at Eulerian = {obj}, expected < 0 for past-directed flux"
         )
         assert float(obj) == pytest.approx(-1.0)
 
-        # At the Eulerian observer future_margin == wec_margin == rho
-        # algebraically, so the composite alone cannot isolate the
-        # future-directedness term. Pin the sub-objectives directly:
-        # j = (-1, 0, 0, 0) gives future = -1 (past-directed) and
-        # flux causality = +1 (timelike).
         assert float(_dec_future_subobjective(w, args)) == pytest.approx(-1.0)
         assert float(_dec_flux_subobjective(w, args)) == pytest.approx(1.0)
 
@@ -458,7 +407,6 @@ class TestDECFutureDirectedness:
         from warpax.energy_conditions.observer import compute_orthonormal_tetrad
         from warpax.energy_conditions.optimization import _dec_objective
 
-        # Perfect fluid dust: rho=1, p=0. Flux is future-directed and causal.
         T_ab = jnp.diag(jnp.array([1.0, 0.0, 0.0, 0.0]))
         g_ab = ETA
         tetrad = compute_orthonormal_tetrad(g_ab)
@@ -470,21 +418,16 @@ class TestDECFutureDirectedness:
         args = (T_ab, T_mixed, g_ab, tetrad, zeta_max)
         obj = _dec_objective(w, args)
 
-        # For dust at Eulerian: j = (1, 0, 0, 0)
-        # wec = T_{ab} u^a u^b = 1
-        # causality = -g_{ab} j^a j^b = -(-1) = 1
-        # future = -(j_a n^a) = -(g_{0b} j^b * n^0) = -(-1*1*1) = 1
-        # min(1, 1, 1) = 1
         assert float(obj) == pytest.approx(1.0, abs=1e-12), (
             f"DEC objective for dust = {obj}, expected exactly 1.0"
         )
 
     def test_eulerian_dec_catches_past_directed(self):
-        """Eulerian DEC also detects past-directed flux."""
-        # Same past-directed tensor as above
+        """Eulerian DEC also detects past-directed flux on the same
+        T = diag(-1, 0.5, 0.5, 0.5) tensor (past-directed flux plus WEC
+        violation give a negative margin)."""
         T_ab = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
         e = compute_eulerian_ec(T_ab, ETA)
-        # DEC margin should be negative (past-directed flux + WEC violation)
         assert float(e["dec"]) < 0, (
             f"Eulerian DEC = {e['dec']}, expected < 0 for past-directed flux"
         )
@@ -498,24 +441,133 @@ class TestDECFutureDirectedness:
     def test_type_i_dec_uses_full_optimizer(self):
         """Type-I DEC margin reflects min(eigenvalue_proxy, full_optimizer).
 
+        The principal-frame point has rho=1, p=(0.3, 0, 0), so the algebraic
+        DEC margin rho - max|p| = 0.7 > 0; the reported margin must not exceed
+        that eigenvalue slack and must be no worse than the WEC margin, since
+        DEC requires WEC.
+
         For a Type-I tensor with rho > max|p_i| (algebraic DEC margin > 0)
         but with a strong off-diagonal flux that makes the full DEC
         optimizer detect causality issues, verify_point must report the
         more conservative full-optimizer margin.
         """
-        # Type-I anisotropic point in principal frame: rho=1, p=(0.3, 0, 0).
-        # Algebraic DEC margin (rho - max|p|) = 0.7 > 0.
         T_principal = jnp.diag(jnp.array([1.0, 0.3, 0.0, 0.0]))
         r = verify_point(T_principal, ETA, n_starts=8)
-        # Type-I should be detected
         assert int(r.he_type) == 1
-        # DEC margin should be finite and >= 0 (this is a non-violating point);
-        # the value comes from min(eigenvalue_slack, full_optimizer),
-        # so it must not exceed the eigenvalue slack (= 0.7).
         eig_slack = 1.0 - 0.3
         assert float(r.dec_margin) <= eig_slack + 1e-6
-        # And it must be no worse than the WEC margin (since DEC requires WEC).
         assert float(r.dec_margin) <= float(r.wec_margin) + 1e-6
 
 
-# 10. Float64 dtype
+def test_verify_grid_subset_batch_size_matches_vmap(alcubierre_grid_data):
+    """``batch_size`` routes the non-Type-I subset through ``lax.map`` without changing numbers.
+
+    Margins agree to rtol 1e-12. The arg-min observer of a flat minimum is only
+    determined to the optimizer stopping tolerance, so ``worst_observers`` and
+    ``worst_params`` are compared at rtol 1e-6; a chunked ``lax.map`` compiles a
+    different XLA program than one ``vmap`` and lands 1e-7 away on that arg-min.
+    ``*_opt_n_steps`` counts iterations of the batched loop, which depend on the
+    batch composition, so those diagnostics are not compared. The DEC flux
+    sub-objective ``-g(j, j) / max|That|`` is unbounded below under boosts
+    wherever the flux is spacelike, so its capped BFGS run stops on the tanh
+    plateau at ``zeta_max`` with ``dec_opt_converged = 0``; the two programs stop
+    about ``1e-4`` apart there, so the ``dec_*`` margins are compared at rtol 1e-3
+    and ``dec_opt_converged``, which flips with the stopping point, is not compared.
+    """
+    result, _ = alcubierre_grid_data
+    args = (result.stress_energy, result.metric, result.metric_inv)
+    ec_vmap = verify_grid(*args, n_starts=4, batch_size=None)
+    ec_map = verify_grid(*args, n_starts=4, batch_size=4)
+    assert ec_vmap.n_type_i < ec_vmap.he_types.size, "fixture needs non-Type-I points"
+    for name, a, b in zip(ECGridResult._fields, ec_vmap, ec_map, strict=True):
+        if name.endswith("_opt_n_steps") or name == "dec_opt_converged":
+            continue
+        if isinstance(a, (ECSummary, jax.Array)):
+            rtol = 1e-6 if name in ("worst_observers", "worst_params") else 1e-12
+            if name in ("dec_margins", "dec_opt_margins", "dec_summary"):
+                rtol = 1e-3
+            np.testing.assert_allclose(np.asarray(a), np.asarray(b), rtol=rtol, err_msg=name)
+        else:
+            assert a == b, name
+
+
+def _boost_y(rapidity):
+    c, s = np.cosh(rapidity), np.sinh(rapidity)
+    L = np.eye(4)
+    L[0, 0] = L[2, 2] = c
+    L[0, 2] = L[2, 0] = s
+    return jnp.asarray(L)
+
+
+def test_ill_conditioned_type_i_routes_to_optimizer():
+    """An ill-conditioned Type-I eigenbasis takes the optimizer route, not the eigenvalue slack.
+
+    Rest-frame ``diag(1, p_x, 0, 3)`` with ``p_x = -1.0000004098162183`` boosted by
+    rapidity 6 along ``y`` (``T = L^T diag L``, ``g = eta``) has eigenvector condition
+    number ``e^12 = 1.63e5``. The float64 eigensolver returns ``rho = 1.0000005578``
+    while an 80-digit eigendecomposition of the same stored matrix gives
+    ``rho = 1.0000002618``, so the true eigenframe NEC slack ``rho + p_x`` is
+    ``-1.48e-7`` but the float64 slack is ``+1.48031452e-7``. The point is
+    flagged and carries the optimizer route
+    ``min(nec_opt, null_deficit)``, which lies at ``-3.6e-12`` in Eulerian
+    normalization (the slack divided by ``cosh^2 6``).
+    """
+    from warpax.energy_conditions.classification import classify_hawking_ellis
+    from warpax.energy_conditions.slemma import null_deficit
+
+    L = _boost_y(6.0)
+    T = L.T @ jnp.diag(jnp.array([1.0, -1.0000004098162183, 0.0, 3.0])) @ L
+    cls = classify_hawking_ellis(ETA @ T, ETA)
+    sv = jnp.linalg.svd(cls.eigenvectors, compute_uv=False)
+    assert int(cls.he_type) == 1
+    assert float(sv[0] / sv[-1]) > 1e5
+    assert float(jnp.min(cls.rho + cls.pressures)) == pytest.approx(1.48031452e-7, rel=1e-6)
+
+    res = verify_grid(T[None], ETA[None], n_starts=4, solver="standard")
+    assert float(res.eig_ill_conditioned[0]) == 1.0
+    assert np.isfinite(float(res.nec_opt_margins[0]))
+    route = min(float(res.nec_opt_margins[0]), float(null_deficit(T, ETA)))
+    assert float(res.nec_margins[0]) == route
+    assert abs(float(res.nec_margins[0])) < 1e-9
+
+
+def test_eulerian_dec_flux_scales_linearly():
+    """The Eulerian DEC margin is linear in ``T``.
+
+    With ``T_00 = eps`` and ``T_01 = T_10 = 2 eps`` in Minkowski the Eulerian flux is
+    ``j = (eps, -2 eps, 0, 0)``, ``-g(j, j) = -3 eps^2``, and the tetrad scale is
+    ``max|That| = 2 eps``, so the flux submargin is ``-1.5 eps`` and the DEC margin
+    ``min(eps, -1.5 eps, eps) = -1.5 eps``. The ratio ``dec(1e-3) / dec(1e-6)`` is
+    therefore 1000; a quadratic submargin ``-3 eps^2`` would give 1e6.
+    """
+
+    def dec(eps):
+        T = jnp.zeros((4, 4)).at[0, 0].set(eps).at[0, 1].set(2 * eps).at[1, 0].set(2 * eps)
+        return float(compute_eulerian_ec(T, ETA)["dec"])
+
+    assert dec(1e-3) == pytest.approx(-1.5e-3, rel=1e-12)
+    assert dec(1e-3) / dec(1e-6) == pytest.approx(1000.0, rel=1e-6)
+
+
+def test_verify_point_ill_conditioned_type_i_matches_grid():
+    """``verify_point`` applies the eigenbasis conditioning guard like ``verify_grid``.
+
+    Same tensor as :func:`test_ill_conditioned_type_i_routes_to_optimizer`:
+    rest-frame ``diag(1, -1.0000004098162183, 0, 3)`` boosted by rapidity 6
+    along ``y`` in Minkowski. The float64 eigenframe NEC slack is
+    ``+1.48031452e-7`` although the stored tensor violates NEC, so the point
+    must be flagged and take ``min(nec_opt, null_deficit)``, which is negative.
+    The point and one-point-grid NEC margins agree to 1e-12.
+    """
+    L = _boost_y(6.0)
+    T = L.T @ jnp.diag(jnp.array([1.0, -1.0000004098162183, 0.0, 3.0])) @ L
+
+    pt = verify_point(T, ETA, n_starts=4, solver="standard")
+    grid = verify_grid(T[None], ETA[None], n_starts=4, solver="standard")
+
+    assert int(pt.he_type) == 1
+    assert bool(pt.eig_ill_conditioned)
+    assert float(pt.nec_margin) < 0
+    assert float(pt.nec_margin) == pytest.approx(float(grid.nec_margins[0]), abs=1e-12)
+    assert float(pt.wec_margin) == float(pt.wec_opt_margin)
+    assert float(pt.sec_margin) == float(pt.sec_opt_margin)

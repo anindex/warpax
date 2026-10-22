@@ -18,10 +18,10 @@ require all timelike/null observers (Santiago, Schuster & Visser, PRD 105,
 The miss fraction is a property of the single-frame diagnostic, not a
 refutation of any author's algebra.
 
-The Eulerian comparison uses :func:`..energy_conditions.compute_eulerian_ec`,
-whose ADM normal is only timelike for ``v_s < 1``; the verification is therefore run at
-subluminal velocities (the regime in which positive-energy claims are stated).
-The invariant quantities themselves remain valid at all velocities.
+The Eulerian comparison uses :func:`..energy_conditions.compute_eulerian_ec`.
+Its ADM normal is unit timelike at every warp speed for a valid ADM metric;
+:func:`warpax.certify` still restricts the comparison to ``v_s < 1`` because the
+published positive-energy claims are stated there.
 """
 
 from __future__ import annotations
@@ -29,9 +29,10 @@ from __future__ import annotations
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jaxtyping import Array, Float
+from jaxtyping import Array, Bool, Float
 
 from ..energy_conditions.frame_free import certify_grid_frame_free
+from ..energy_conditions.types import FrameFreeGridResult
 from ..energy_conditions.verifier import _eulerian_ec_point
 
 _CONDS = ("nec", "wec", "sec", "dec")
@@ -41,37 +42,56 @@ def _flat(x, trailing):
     return jnp.reshape(x, (-1, *trailing)) if trailing else jnp.reshape(x, (-1,))
 
 
+def _energy_densities(T_field, g_field, g_inv_field, mask):
+    """Flattened Hawking-Ellis type, invariant Type-I density and Eulerian density."""
+    ff = certify_grid_frame_free(T_field, g_field, g_inv_field, lmi_where=mask)
+    flat_T = _flat(T_field, (4, 4))
+    flat_g = _flat(g_field, (4, 4))
+    flat_gi = _flat(g_inv_field, (4, 4))
+    eul = jax.vmap(_eulerian_ec_point)(flat_T, flat_g, flat_gi)
+    he = np.asarray(ff.he_types).ravel()
+    rho_inv = np.asarray(ff.rho).ravel()
+    return he, rho_inv, np.asarray(eul["wec"]).ravel()
+
+
 def single_frame_miss(
     T_field: Float[Array, "... 4 4"],
     g_field: Float[Array, "... 4 4"],
     g_inv_field: Float[Array, "... 4 4"],
     *,
-    mask: Float[Array, "..."] | None = None,
-    volume_weights: Float[Array, "..."] | None = None,
+    mask: Bool[Array, "..."] | Bool[np.ndarray, "..."] | None = None,
+    volume_weights: Float[Array, "..."] | Float[np.ndarray, "..."] | None = None,
     atol: float = 1e-10,
+    frame_free: FrameFreeGridResult | None = None,
 ) -> dict:
     r"""Fraction of all-observer EC violations missed by the Eulerian frame.
 
-    A point counts as all-observer violating a condition if either
-    (i) it is Type I with the invariant eigenvalue margin ``< -atol``, or
-    (ii) it is Type IV: a complex-eigenvalue stress-energy has no rest frame and
+    A point counts as all-observer violating a condition when its frame-free
+    margin (eigenvalue slack at Type I, LMI margin otherwise) is ``< -atol``, or
+    when it is Type IV: a complex-eigenvalue stress-energy has no rest frame and
     violates the NEC, hence also WEC/SEC/DEC, for some observer (Hawking-Ellis;
     Martin-Moruno-Visser 2017). It is "missed" when the Eulerian margin is
-    ``>= 0`` (the single frame reports no problem). Type II/III points (negligible
-    in these metrics) are excluded from the count, conservatively.
+    ``>= 0`` (the single frame reports no problem). The Eulerian NEC margin is
+    the exact minimum over the null sphere of the Eulerian frame.
 
     Returns per-condition ``miss_rate`` (volume-weighted), ``n_violated``,
-    ``n_missed``, plus the Type-IV volume fraction within the selection.
+    ``n_missed``, ``n_undecided`` (non-finite frame-free margins), plus the
+    Type-IV volume fraction within the selection. That fraction excludes
+    near-vacuum points, the same population that produces the Type-IV
+    violations. ``frame_free`` reuses an existing certification; otherwise the
+    LMI runs only on the masked points.
     """
-    # Only the masked points are read, so only they need the LMI.
-    ff = certify_grid_frame_free(T_field, g_field, g_inv_field, lmi_where=mask)
+    ff = (
+        certify_grid_frame_free(T_field, g_field, g_inv_field, lmi_where=mask)
+        if frame_free is None
+        else frame_free
+    )
     flat_T = _flat(T_field, (4, 4))
     flat_g = _flat(g_field, (4, 4))
     flat_gi = _flat(g_inv_field, (4, 4))
     eul = jax.vmap(_eulerian_ec_point)(flat_T, flat_g, flat_gi)
 
     he = np.asarray(ff.he_types).ravel()
-    is_typeI = he == 1.0
     is_typeIV = he == 4.0
     vac = np.asarray(ff.is_vacuum).ravel() > 0.5
 
@@ -89,11 +109,8 @@ def single_frame_miss(
     out: dict = {}
     for c in _CONDS:
         eul_m = np.asarray(eul[c]).ravel()
-        typeI_viol = is_typeI & (inv[c] < -atol)
-        # Type IV (excluding near-vacuum noise) violates every condition: a
-        # complex-eigenvalue T^a_b has no rest frame and fails the NEC.
-        typeIV_viol = is_typeIV & (~vac)
-        all_obs_viol = typeI_viol | typeIV_viol
+        decided = np.isfinite(inv[c])
+        all_obs_viol = (decided & (inv[c] < -atol)) | (is_typeIV & ~vac)
         missed = all_obs_viol & (eul_m >= 0.0)
         wv = float(np.sum(w * all_obs_viol))
         wm = float(np.sum(w * missed))
@@ -101,11 +118,9 @@ def single_frame_miss(
             "miss_rate": (wm / wv) if wv > 0 else None,
             "n_violated": int(np.sum(sel & all_obs_viol)),
             "n_missed": int(np.sum(sel & missed)),
+            "n_undecided": int(np.sum(sel & ~decided)),
         }
     wsel = float(np.sum(w))
-    # Same population as typeIV_viol above: near-vacuum points are excluded there,
-    # so counting them here made the reported fraction describe a different set
-    # from the one that produced the violations.
     out["frac_type_iv"] = float(np.sum(w * (he == 4.0) * (~vac)) / wsel) if wsel > 0 else 0.0
     out["n_selected"] = int(np.sum(sel))
     return out
@@ -115,9 +130,9 @@ def integrated_exotic_content(
     T_field: Float[Array, "... 4 4"],
     g_field: Float[Array, "... 4 4"],
     g_inv_field: Float[Array, "... 4 4"],
-    volume_weights: Float[Array, "..."],
+    volume_weights: Float[Array, "..."] | Float[np.ndarray, "..."],
     *,
-    mask: Float[Array, "..."] | None = None,
+    mask: Bool[Array, "..."] | Bool[np.ndarray, "..."] | None = None,
 ) -> dict:
     r"""Integrated exotic-matter content E_- (figure of merit; cf. Pfenning-Ford).
 
@@ -129,18 +144,11 @@ def integrated_exotic_content(
         v_s < 1), for comparison with single-frame claims.
 
     Returns ``E_minus_inv``, ``E_plus_inv``, ``E_minus_eul``, ``E_plus_eul``,
-    ``balance_inv`` (E_+/|E_-|), ``typeIV_volume_frac``.
+    ``balance_inv`` (E_+/|E_-|), ``typeIV_volume_frac``. The LMI runs only on
+    the masked points. ``rho_eul`` is ``T_ab n^a n^b``; ``rho_inv`` is NaN at
+    non-Type-I points.
     """
-    # Only the masked points are read, so only they need the LMI.
-    ff = certify_grid_frame_free(T_field, g_field, g_inv_field, lmi_where=mask)
-    flat_T = _flat(T_field, (4, 4))
-    flat_g = _flat(g_field, (4, 4))
-    flat_gi = _flat(g_inv_field, (4, 4))
-    eul = jax.vmap(_eulerian_ec_point)(flat_T, flat_g, flat_gi)
-    rho_eul = np.asarray(eul["wec"]).ravel()  # T_ab n^a n^b
-
-    he = np.asarray(ff.he_types).ravel()
-    rho_inv = np.asarray(ff.rho).ravel()  # NaN for non-Type-I
+    he, rho_inv, rho_eul = _energy_densities(T_field, g_field, g_inv_field, mask)
     w = np.asarray(volume_weights).ravel()
     if mask is not None:
         w = w * np.asarray(mask).ravel().astype(float)
@@ -172,24 +180,15 @@ def peak_proper_energy_deficit(
     g_field: Float[Array, "... 4 4"],
     g_inv_field: Float[Array, "... 4 4"],
     *,
-    mask: Float[Array, "..."] | None = None,
+    mask: Bool[Array, "..."] | Bool[np.ndarray, "..."] | None = None,
 ) -> dict:
     """Peak proper-energy deficit = ``-min(rho)`` (invariant Type-I and Eulerian).
 
     The invariant value is over Type-I points only (the Eulerian value over all
     points). Used by :func:`reduction_factors` to check published reduction
-    claims.
+    claims. The LMI runs only on the masked points.
     """
-    # Only the masked points are read, so only they need the LMI.
-    ff = certify_grid_frame_free(T_field, g_field, g_inv_field, lmi_where=mask)
-    flat_T = _flat(T_field, (4, 4))
-    flat_g = _flat(g_field, (4, 4))
-    flat_gi = _flat(g_inv_field, (4, 4))
-    eul = jax.vmap(_eulerian_ec_point)(flat_T, flat_g, flat_gi)
-    rho_eul = np.asarray(eul["wec"]).ravel()
-
-    he = np.asarray(ff.he_types).ravel()
-    rho_inv = np.asarray(ff.rho).ravel()
+    he, rho_inv, rho_eul = _energy_densities(T_field, g_field, g_inv_field, mask)
     sel = np.ones(he.size, bool) if mask is None else np.asarray(mask).ravel().astype(bool)
     typeI = sel & (he == 1.0) & np.isfinite(rho_inv)
     inv_vals = rho_inv[typeI]

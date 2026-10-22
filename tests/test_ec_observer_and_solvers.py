@@ -1,4 +1,12 @@
-"""EC observer parameterizations, solver fallbacks, filtering, multistart and PRNG contracts."""
+"""EC observer parameterizations, solver fallbacks, filtering, multistart and PRNG contracts.
+
+``TETRAD_CASES`` spans every regime the certifier points the tetrad at: flat,
+curved, inside a bubble, across the wall as v_s approaches 1, and the
+superluminal center. ``test_robust_leq_eulerian`` grid bounds are 3x the bubble
+radius for Alcubierre and Rodal and 1.5x the outer radius for WarpShell.
+``GOLDEN`` rows 0-6 are deterministic axis-aligned boosts at zeta_max and rows
+7-15 are ``jax.random.normal(PRNGKey(42), (9, 3)) * 5.0``.
+"""
 
 from __future__ import annotations
 
@@ -41,13 +49,11 @@ from warpax.energy_conditions.optimization import (
 )
 from warpax.energy_conditions.verifier import _eulerian_ec_point
 
-# Flat Minkowski metric: eta = diag(-1, 1, 1, 1)
 ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
 
 def _orthonormality_check(tetrad: jnp.ndarray, g_ab: jnp.ndarray) -> jnp.ndarray:
     """Compute g_{ab} e_I^a e_J^b and return the deviation from eta_{IJ}."""
-    # tetrad[I, a], g_ab[a, b] -> product[I, J] = g_{ab} e_I^a e_J^b
     product = jnp.einsum("Ia,ab,Jb->IJ", tetrad, g_ab, tetrad)
     return product - ETA
 
@@ -56,8 +62,6 @@ def _at(metric, coords):
     return metric(jnp.array(coords))
 
 
-# Every regime the certifier points the tetrad at: flat, curved, inside a bubble,
-# across the wall as v_s approaches 1, and the superluminal centre.
 TETRAD_CASES = {
     "minkowski": ETA,
     "schwarzschild-3M": _at(SchwarzschildMetric(M=1.0), [0.0, 3.0, 0.0, 0.0]),
@@ -73,7 +77,7 @@ TETRAD_CASES = {
     "alcubierre-wall-v0.95": _at(
         AlcubierreMetric(v_s=0.95, R=1.0, sigma=8.0, x_s=0.0), [0.0, 1.0, 0.1, 0.0]
     ),
-    "alcubierre-superluminal-centre": _at(
+    "alcubierre-superluminal-center": _at(
         AlcubierreMetric(v_s=2.0, R=1.0, sigma=8.0, x_s=0.0), [0.0, 0.0, 0.0, 0.0]
     ),
 }
@@ -101,7 +105,7 @@ class TestTetrad:
         the slice normal stays timelike (g^00 = -1/alpha^2 = -1). That is what makes
         the ADM-normal frame valid at every speed, and it guards against reading
         ``g_00`` where ``g^00`` is meant."""
-        g = TETRAD_CASES["alcubierre-superluminal-centre"]
+        g = TETRAD_CASES["alcubierre-superluminal-center"]
         assert float(g[0, 0]) > 0.0
         assert float(jnp.linalg.inv(g)[0, 0]) < 0.0
 
@@ -155,9 +159,6 @@ class TestTimelikeFromRapidity:
         np.testing.assert_allclose(norm, -1.0, atol=1e-12)
 
 
-# Null vector tests
-
-
 class TestNullFromAngles:
     """Null vector construction from angular parameters."""
 
@@ -191,9 +192,6 @@ class TestNullFromAngles:
                 np.testing.assert_allclose(norm, 0.0, atol=1e-12)
 
 
-# Sigmoid parameterization tests
-
-
 class TestBoundedParam:
     """Sigmoid reparameterization tests."""
 
@@ -219,7 +217,6 @@ class TestBoundedParam:
         """Gradient of bounded_param at raw=0 is maximal: sigmoid'(0) * range = 0.25 * 5 = 1.25."""
         grad_fn = jax.grad(lambda r: bounded_param(r, jnp.float64(0.0), jnp.float64(5.0)))
         grad_at_zero = grad_fn(jnp.float64(0.0))
-        # sigmoid'(0) = 0.25, range = 5, so gradient = 1.25
         np.testing.assert_allclose(float(grad_at_zero), 1.25, atol=1e-14)
 
 
@@ -231,13 +228,9 @@ from warpax.metrics import LentzMetric, RodalMetric, WarpShellMetric
 @pytest.mark.parametrize(
     "MetricCls,kwargs,grid_bounds",
     [
-        # Alcubierre: R=1, sigma=8, bounds [-3,3] (3x bubble radius)
         (AlcubierreMetric, dict(v_s=0.5, R=1.0, sigma=8.0), [(-3, 3)] * 3),
-        # Rodal: R=100, sigma=0.03, bounds [-300,300] (3x bubble radius)
         (RodalMetric, dict(v_s=0.5, R=100.0, sigma=0.03), [(-300, 300)] * 3),
-        # WarpShell: R_1=10, R_2=20, bounds [-30,30] (1.5x outer radius)
         (WarpShellMetric, dict(v_s=0.5), [(-30, 30)] * 3),
-        # Lentz: default parameters, bounds [-3,3]
         (LentzMetric, dict(v_s=0.5), [(-3, 3)] * 3),
     ],
     ids=["alcubierre", "rodal", "warpshell", "lentz"],
@@ -245,9 +238,12 @@ from warpax.metrics import LentzMetric, RodalMetric, WarpShellMetric
 def test_robust_leq_eulerian(MetricCls, kwargs, grid_bounds):
     """Robust margins must be <= Eulerian margins + tolerance at every grid point.
 
-    This is the core mathematical invariant: the optimizer searches over all
-    observers, so it can only find margins that are at least as negative as
-    any specific observer (including the Eulerian one).
+    The optimizer searches over all observers, so for WEC, SEC and DEC it can
+    only find margins at least as negative as the Eulerian observer's. The NEC
+    is frame independent and the Eulerian value is the exact minimum over the
+    null sphere, while the robust value at Type I points is the eigenframe
+    slack min(rho + p_i) on a different normalization, so for the NEC only the
+    signs are compared: every violation one route finds, the other finds too.
     """
     metric = MetricCls(**kwargs)
     grid = GridSpec(bounds=grid_bounds, shape=(30, 30, 30))
@@ -262,7 +258,6 @@ def test_robust_leq_eulerian(MetricCls, kwargs, grid_bounds):
         batch_size=64,
     )
 
-    # NEC tol relaxed: Eulerian uses 6 discrete null dirs vs continuous S^2 search.
     tol = {"nec": 5e-4, "wec": 1e-6, "sec": 1e-6, "dec": 1e-6}
 
     for cond in ("nec", "wec", "sec", "dec"):
@@ -273,11 +268,16 @@ def test_robust_leq_eulerian(MetricCls, kwargs, grid_bounds):
         if not np.any(valid):
             continue
 
+        if cond == "nec":
+            rob_v, eul_v = rob[valid], eul[valid]
+            assert np.all(eul_v[rob_v < -1e-5] < -1e-7), "Eulerian misses a robust NEC violation"
+            assert np.all(rob_v[eul_v < -1e-5] < -1e-7), "robust misses an Eulerian NEC violation"
+            continue
+
         excess = rob[valid] - eul[valid]
         max_excess = float(np.max(excess))
 
         if max_excess > tol[cond]:
-            # Find worst violating point for diagnostic output
             excess_full = np.full_like(eul, -np.inf)
             excess_full[valid] = excess
             worst_idx = np.unravel_index(np.argmax(excess_full), eul.shape)
@@ -296,8 +296,6 @@ from warpax.energy_conditions.filtering import (
     shape_function_mask,
 )
 from warpax.energy_conditions.types import ECGridResult, ECSummary
-
-# Helpers
 
 _DUMMY_SUMMARY = ECSummary(
     fraction_violated=jnp.array(0.0),
@@ -369,7 +367,6 @@ class TestShapeFunctionMask:
     def setup_method(self):
         """Set up Alcubierre metric and a 1D grid along the x-axis."""
         self.metric = AlcubierreMetric(v_s=1.0, R=1.0, sigma=8.0, x_s=0.0)
-        # Points along x-axis: interior (0), wall region (~R), exterior (far)
         x_vals = jnp.array([0.0, 0.3, 0.6, 0.9, 1.0, 1.1, 1.4, 2.0, 5.0, 10.0])
         self.coords_batch = jnp.stack(
             [jnp.zeros_like(x_vals), x_vals, jnp.zeros_like(x_vals), jnp.zeros_like(x_vals)],
@@ -382,13 +379,11 @@ class TestShapeFunctionMask:
         mask = shape_function_mask(self.metric, self.coords_batch, self.grid_shape)
         assert mask.shape == self.grid_shape, f"Expected shape {self.grid_shape}, got {mask.shape}"
         assert mask.dtype == jnp.bool_, f"Expected bool dtype, got {mask.dtype}"
-        # At least some points should be in the wall
         assert jnp.sum(mask) > 0, "Expected some points in the wall region"
 
     def test_shape_function_mask_excludes_interior(self):
         """Points at the origin (f ~ 1) are excluded by [0.1, 0.9] bounds."""
         mask = shape_function_mask(self.metric, self.coords_batch, self.grid_shape)
-        # Origin point (x=0) should have f ~ 1.0, which is outside [0.1, 0.9]
         f_origin = self.metric.shape_function_value(self.coords_batch[0])
         if float(f_origin) > 0.9:
             assert not bool(mask[0]), (
@@ -398,7 +393,6 @@ class TestShapeFunctionMask:
     def test_shape_function_mask_excludes_exterior(self):
         """Points far away (f ~ 0) are excluded by [0.1, 0.9] bounds."""
         mask = shape_function_mask(self.metric, self.coords_batch, self.grid_shape)
-        # Far point (x=10) should have f ~ 0.0, which is outside [0.1, 0.9]
         f_far = self.metric.shape_function_value(self.coords_batch[-1])
         if float(f_far) < 0.1:
             assert not bool(mask[-1]), (
@@ -436,22 +430,18 @@ class TestFrobeniusNormMask:
 
     def test_frobenius_norm_mask_threshold(self):
         """Adjusting threshold changes which points are selected."""
-        # Create a (3,) grid with varying norms
         T = jnp.zeros((3, 4, 4))
-        T = T.at[0, 0, 0].set(1e-15)  # norm ~ 1e-15 (below default threshold)
-        T = T.at[1, 0, 0].set(1e-10)  # norm ~ 1e-10 (below default but above lower)
-        T = T.at[2, 0, 0].set(1.0)  # norm ~ 1.0 (above all thresholds)
+        T = T.at[0, 0, 0].set(1e-15)
+        T = T.at[1, 0, 0].set(1e-10)
+        T = T.at[2, 0, 0].set(1.0)
 
-        # Default threshold = 1e-12
         mask_default = frobenius_norm_mask(T)
         assert bool(mask_default[2]), "Norm=1.0 should pass default threshold"
         assert not bool(mask_default[0]), "Norm=1e-15 should fail default threshold"
 
-        # Lower threshold = 1e-16
         mask_low = frobenius_norm_mask(T, threshold=1e-16)
         assert jnp.all(mask_low), "All points should pass threshold=1e-16"
 
-        # Higher threshold = 0.5
         mask_high = frobenius_norm_mask(T, threshold=0.5)
         assert bool(mask_high[2]), "Norm=1.0 should pass threshold=0.5"
         assert not bool(mask_high[0]), "Norm=1e-15 should fail threshold=0.5"
@@ -471,7 +461,6 @@ class TestDeterminantGuardMask:
 
     def test_determinant_guard_degenerate(self):
         """Metric with det=0 fails guard and emits warning."""
-        # Create a degenerate metric (all zeros -> det=0)
         g_field = jnp.zeros((2, 4, 4))
         with pytest.warns(UserWarning, match="grid points have"):
             mask = determinant_guard_mask(g_field)
@@ -485,8 +474,8 @@ class TestDeterminantGuardMask:
             assert bool(mask[0]), f"g = {scale:.0e} eta has condition number 1"
 
     def test_determinant_guard_configurable_threshold(self):
-        """Threshold parameter changes behavior on an ill-conditioned metric."""
-        # Condition number 1e18: near-degenerate whatever the overall scale.
+        """Threshold parameter changes behavior on a metric with condition
+        number 1e18, near-degenerate whatever the overall scale."""
         g = jnp.diag(jnp.array([-1e-18, 1.0, 1.0, 1.0]))
         g_field = g.reshape(1, 4, 4)
 
@@ -549,14 +538,15 @@ class TestWallRestrictedStats:
     """Tests for compute_wall_restricted_stats type counts and violation counts."""
 
     def setup_method(self):
-        """Build a synthetic ECGridResult with known types and margins."""
+        """Build a synthetic ECGridResult with known types and margins.
+
+        Types are [I, I, II, III, IV, IV]; NEC margins are
+        [0.5, -0.5, -1.0, 0.1, -2.0, -0.01], violated (< -1e-10) at indices
+        1, 2, 4, 5; the mask excludes index 5 only.
+        """
         self.grid_shape = (6,)
-        # Types: [I, I, II, III, IV, IV]
         self.he_types = jnp.array([1.0, 1.0, 2.0, 3.0, 4.0, 4.0])
-        # NEC margins: [0.5, -0.5, -1.0, 0.1, -2.0, -0.01]
-        # Violated (< -1e-10): indices 1, 2, 4, 5
         self.nec_margins = jnp.array([0.5, -0.5, -1.0, 0.1, -2.0, -0.01])
-        # Mask: all True except index 5
         self.mask = jnp.array([True, True, True, True, True, False])
         self.ec_result = _make_synthetic_ec_result(
             self.grid_shape,
@@ -576,8 +566,6 @@ class TestWallRestrictedStats:
     def test_wall_restricted_stats_violation_counts(self):
         """Known margins with mask produce correct violation counts."""
         stats = compute_wall_restricted_stats(self.ec_result, self.mask)
-        # Violated within mask: indices 1 (-0.5), 2 (-1.0), 4 (-2.0) = 3
-        # Index 5 is masked out
         assert stats.nec_violated == 3, f"Expected nec_violated=3, got {stats.nec_violated}"
 
     def test_wall_restricted_stats_fractions(self):
@@ -601,9 +589,7 @@ class TestWallRestrictedStatsMissRate:
         """Build known Eulerian vs robust scenario."""
         self.grid_shape = (4,)
         self.he_types = jnp.array([1.0, 1.0, 1.0, 1.0])
-        # Robust margins: all violated
         self.robust_nec = jnp.array([-1.0, -1.0, -1.0, -1.0])
-        # Eulerian margins: 2 satisfied (missed), 2 violated (not missed)
         self.eulerian_nec = jnp.array([0.5, 0.5, -0.5, -0.5])
         self.mask = jnp.ones(self.grid_shape, dtype=bool)
         self.ec_result = _make_synthetic_ec_result(
@@ -625,18 +611,16 @@ class TestWallRestrictedStatsMissRate:
             self.mask,
             eulerian_margins=eulerian_margins,
         )
-        # 4 robust-violated, 2 Eulerian-satisfied -> miss rate = 2/4 = 0.5
         assert stats.nec_miss_rate == pytest.approx(0.5), (
             f"Expected nec_miss_rate=0.5, got {stats.nec_miss_rate}"
         )
 
     def test_wall_restricted_stats_miss_rate_none(self):
         """When no violations exist, miss rate is None."""
-        # All robust margins positive
         ec_positive = _make_synthetic_ec_result(
             self.grid_shape,
             self.he_types,
-            jnp.ones(self.grid_shape),  # all satisfied
+            jnp.ones(self.grid_shape),
         )
         eulerian_margins = {
             "nec": jnp.ones(self.grid_shape),
@@ -683,7 +667,6 @@ class TestWallRestrictedStatsEdgeCases:
         assert stats.n_type_iii == 0
         assert stats.n_type_iv == 0
         assert stats.nec_violated == 0
-        # Fractions should be 0 (safe division by max(n_total, 1))
         assert stats.frac_type_i == 0.0
         assert stats.nec_frac_violated == 0.0
 
@@ -700,7 +683,6 @@ class TestWallRestrictedStatsEdgeCases:
         assert stats.n_type_i == 1
         assert stats.n_type_ii == 1
         assert stats.n_type_iv == 1
-        # Violated: indices 0 (-1.0), 2 (-0.5)
         assert stats.nec_violated == 2
 
     def test_wall_restricted_stats_3d_grid(self):
@@ -715,7 +697,7 @@ class TestWallRestrictedStatsEdgeCases:
         stats = compute_wall_restricted_stats(ec_result, mask)
         assert stats.n_total == 6
         assert stats.n_type_i == 2
-        assert stats.nec_violated == 4  # indices 1, 2, 4, 5
+        assert stats.nec_violated == 4
 
 
 def _spacelike_normal_metric() -> jnp.ndarray:
@@ -753,16 +735,16 @@ class TestObserverTetradLapseGuard:
 
 
 class TestKinematicScalarsLapseGuard:
-    def test_spacelike_normal_no_nan(self):
+    def test_spacelike_normal_gives_nan(self):
         almost_g = _spacelike_normal_metric()
 
         def constant_metric(coords):
             return almost_g
 
         theta, sigma_sq, omega_sq = compute_kinematic_scalars(constant_metric, jnp.zeros(4))
-        assert jnp.isfinite(theta)
-        assert jnp.isfinite(sigma_sq)
-        assert jnp.isfinite(omega_sq)
+        assert jnp.isnan(theta)
+        assert jnp.isnan(sigma_sq)
+        assert float(omega_sq) == 0.0
 
 
 class TestStartsFibonacciPool:
@@ -824,11 +806,16 @@ class TestStartsFibonacciPool:
             starts="fibonacci+bfgs_top_k",
         )
         assert jnp.isfinite(r.margin)
-        # Every observer gives -1 - 0.7*sinh^2(zeta) for this T.
         assert float(r.margin) <= -1.0
 
     def test_golden_fixture_metadata_and_determinism(self):
-        """Golden header fields present; fibonacci+bfgs_top_k is seed-deterministic."""
+        """Golden header fields present; fibonacci+bfgs_top_k is seed-deterministic.
+
+        The result is pinned against the stored snapshot so optimizer drift is
+        caught. The margin is the physics quantity and stays tight (rtol 1e-10);
+        the worst-observer boost is a BFGS argmin that drifts ~1e-8 across
+        BLAS/dependency versions, so it gets the looser rtol 1e-6.
+        """
         fixture_path = Path(__file__).parent / "fixtures" / "golden" / "fibonacci_pool.npy"
         assert fixture_path.exists(), f"golden fixture missing: {fixture_path}"
 
@@ -863,10 +850,6 @@ class TestStartsFibonacciPool:
         assert jnp.array_equal(r1.margin, r2.margin)
         assert jnp.array_equal(r1.worst_observer, r2.worst_observer)
         assert jnp.isfinite(r1.margin)
-        # Pin against the stored snapshot so optimizer drift is caught. The margin
-        # is the physics quantity and stays tight; the worst-observer boost is a
-        # BFGS argmin that drifts ~1e-8 across BLAS/dependency versions, so it gets
-        # the looser cross-version tolerance.
         npt.assert_allclose(r1.margin, d["margin"], rtol=1e-10)
         npt.assert_allclose(r1.worst_observer, d["worst_observer"], rtol=1e-6)
 
@@ -892,17 +875,20 @@ class TestSpatialNeighborWarmStart:
                 f"{fn.__name__} drifted under warm_start='cold' explicit call"
             )
 
-        # NEC (2D) - check margin equality
         r_default_nec = optimize_nec(T, g, key=key)
         r_explicit_nec = optimize_nec(T, g, warm_start="cold", key=key)
         assert jnp.array_equal(r_default_nec.margin, r_explicit_nec.margin)
 
     def test_spatial_neighbor_can_use_neighbor_observer(self):
-        """spatial_neighbor swaps the tail of the start pool for the neighbor."""
+        """spatial_neighbor swaps the tail of the start pool for the neighbor.
+
+        The last n_swap rows become the neighbor seed and the rest of the pool
+        is untouched; cold mode and a missing neighbor both leave the pool
+        unchanged.
+        """
         T, g, key = self._bench_inputs()
         r_cold = optimize_wec(T, g, warm_start="cold", key=key)
         neighbor = r_cold.worst_observer
-        # Smoke check of the public path on a real optimizer output.
         r_neighbor = optimize_wec(
             T,
             g,
@@ -912,8 +898,6 @@ class TestSpatialNeighborWarmStart:
         )
         assert jnp.isfinite(r_neighbor.margin)
 
-        # Injection mechanics: last n_swap rows become the neighbor seed,
-        # the rest of the pool is untouched.
         n_starts = 16
         zeta_max = 5.0
         pool = _make_initial_conditions_3d(n_starts, zeta_max, jax.random.PRNGKey(0))
@@ -935,7 +919,6 @@ class TestSpatialNeighborWarmStart:
         )
         assert jnp.array_equal(out[:-n_swap], pool[:-n_swap])
 
-        # cold mode and a missing neighbor both leave the pool unchanged.
         out_cold = _inject_neighbor_start(
             pool,
             neighbor,
@@ -979,7 +962,6 @@ class TestSpatialNeighborWarmStart:
         for ok in [1.0 / 16.0, 1.0]:
             r = optimize_wec(T, g, neighbor_fraction=ok, key=key)
             assert jnp.isfinite(r.margin)
-            # T_ab u^a u^b = -1 at the Eulerian observer, worse under boost.
             assert float(r.margin) <= -1.0
 
 
@@ -988,7 +970,6 @@ from warpax.energy_conditions.classification import (
 )
 from warpax.metrics import WarpShellMetric
 
-# 10 fixed seeds for the perturbation ensemble.
 N_SEEDS = 10
 SEEDS = [20260418 + i for i in range(N_SEEDS)]
 
@@ -1126,8 +1107,6 @@ class TestGeneralizedSolverStability:
         )
 
 
-# Rows 0-6: deterministic axis-aligned boosts at zeta_max.
-# Rows 7-15: jax.random.normal(PRNGKey(42), (9, 3)) * 5.0.
 GOLDEN = np.array(
     [
         [0.0, 0.0, 0.0],
@@ -1209,11 +1188,10 @@ class TestMpmathEigenvalues:
 class TestMpmathClassifier:
     """Pin the 50-digit classifier verdicts and contrast with float64."""
 
-    def test_weak_type_iv_now_correct_at_unit_scale(self) -> None:
-        # Pre-fix: the relative imaginary tier absorbed this
-        # complex pair (1 +/- 2e-5 i) as Type I at unit scale. With the
-        # scale floor on the tier, float64 now agrees with the 50-digit
-        # verdict here.
+    def test_weak_type_iv_correct_at_unit_scale(self) -> None:
+        """The complex pair (1 +/- 2e-5 i) is Type IV at unit scale in both
+        float64 and the 50-digit path; a relative imaginary tier without a
+        scale floor would absorb it as Type I."""
         T = _type_iv_block_diag(imag=2.0e-5)
 
         float64_result = classify_hawking_ellis(T, MINKOWSKI)
@@ -1226,8 +1204,9 @@ class TestMpmathClassifier:
         assert mp_result["max_imag_abs"] > 1.0e-6
 
     def test_type_iv_agrees_with_mpmath_at_large_scale(self) -> None:
-        # A scale-floored relative tier would absorb a real 2e-5 split here and
-        # read Type I where the 50-digit path reads Type IV. Both must agree.
+        """At scale 1e11 a scale-floored relative tier would absorb a real
+        2e-5 split and read Type I where the 50-digit path reads Type IV; both
+        must agree on Type IV."""
         scale = 1.0e11
         T = scale * _type_iv_block_diag(imag=2.0e-5)
 
@@ -1258,7 +1237,6 @@ class TestMpmathClassifier:
         precision. The relative-sign test in :func:`_causal_counts` identifies
         the timelike eigenvector even when ``|g_{ij}|/|g_{00}| ~ 10``.
         """
-        # Same fixture as the float64 contract test
         T_mixed = np.diag(np.array([-1.0, 0.3, 0.3, 0.3]))
         g_ab = np.array(
             [
@@ -1282,10 +1260,11 @@ class TestVerifyClassificationAtPoints:
     """Pin the cross-check function's flip-rate accounting."""
 
     def test_batch_flip_rate_is_correct(self) -> None:
+        """Two points, one reported Type I in float64 but Type IV in mpmath and
+        one true Type I, give one flip at index 0 and flip_rate 0.5."""
         T_flip = np.asarray(_type_iv_block_diag(imag=2.0e-5))
         T_fluid = np.asarray(_perfect_fluid(rho=1.0, p=0.3))
 
-        # Two points: one Type-I-in-float64 (actually Type IV), one true Type I.
         T_batch = np.stack([T_flip, T_fluid], axis=0)
         g_batch = np.stack([np.asarray(MINKOWSKI)] * 2, axis=0)
         float64_types = np.array([1, 1], dtype=np.int32)
@@ -1295,7 +1274,6 @@ class TestVerifyClassificationAtPoints:
         assert report["n_points"] == 2
         assert report["n_flips"] == 1
         assert report["flip_indices"].tolist() == [0]
-        # Flipped point's mpmath verdict is Type IV.
         assert report["mpmath_he_types"][0] == 4
         assert report["mpmath_he_types"][1] == 1
         assert report["flip_rate"] == 0.5
@@ -1329,11 +1307,7 @@ class TestVerifyClassificationAtPoints:
         assert report["cond_V_per_point"].shape == (2,)
         assert report["uncertain_mask"].shape == (2,)
         assert report["uncertain_mask"].dtype == np.bool_
-        # Both clean fluids should be certain
         assert report["uncertain_mask"].any() == False
-
-
-# Bauer-Fike eigenvector-matrix condition number diagnostic
 
 
 class TestCondV:
@@ -1348,7 +1322,11 @@ class TestCondV:
     """
 
     def test_well_conditioned_flags_certain(self) -> None:
-        """Perfect fluid under Minkowski -> uncertain=False, cond_V well-bounded."""
+        """Perfect fluid under Minkowski -> uncertain=False, cond_V well-bounded.
+
+        The threshold for precision=50 is 10^25; a clean fluid should be well
+        below (< 1e10). Existing result keys must still be present.
+        """
         T = np.asarray(_perfect_fluid(rho=1.0, p=0.3))
         g = np.asarray(MINKOWSKI)
 
@@ -1361,11 +1339,9 @@ class TestCondV:
             f"Expected uncertain=False for clean perfect fluid; "
             f"got uncertain={result['uncertain']}, cond_V={result['cond_V']}"
         )
-        # Threshold for precision=50 is 10^25; clean fluid should be well below.
         assert result["cond_V"] < 10**10, (
             f"Expected cond_V < 1e10 for clean perfect fluid; got cond_V={result['cond_V']}"
         )
-        # Existing keys still present (additivity contract)
         for k in (
             "he_type",
             "all_real",
@@ -1396,7 +1372,6 @@ class TestCondV:
         threshold at ``precision=50``. An exact Jordan block is the
         physically-meaningful fixture for the Bauer-Fike diagnostic.
         """
-        # EXACT Jordan block in top-left 2x2: (1,0) entry is 0.0.
         T = np.array(
             [
                 [1.0, 1.0, 0.0, 0.0],
@@ -1412,12 +1387,175 @@ class TestCondV:
         assert "cond_V" in result
         assert "uncertain" in result
 
-        # cond(V) should be very large (ill-conditioned eigenvector matrix)
         assert result["uncertain"] is True, (
             f"Expected uncertain=True for exact-Jordan T; "
             f"got uncertain={result['uncertain']}, cond_V={result['cond_V']}"
         )
-        # cond_V should exceed the half-digit threshold 10^(50/2) = 10^25
         assert result["cond_V"] > 10**25 or result["cond_V"] == float("inf"), (
             f"Expected cond_V > 10^25 (or inf); got cond_V={result['cond_V']}"
         )
+
+
+class TestMpmathInputRoundingSplit:
+    """Rounding a defective block into float64 already splits it; mpmath flags it."""
+
+    @staticmethod
+    def _rotated_type_iii_float64() -> np.ndarray:
+        import mpmath
+
+        with mpmath.workdps(80):
+            T_ab = mpmath.matrix([[1, 0, -1, 0], [0, -1, 1, 0], [-1, 1, -1, 0], [0, 0, 0, 3]])
+            eta = mpmath.diag([-1, 1, 1, 1])
+            c, s = mpmath.cos(mpmath.mpf("0.1")), mpmath.sin(mpmath.mpf("0.1"))
+            L = mpmath.matrix([[1, 0, 0, 0], [0, c, -s, 0], [0, s, c, 0], [0, 0, 0, 1]])
+            T_mixed = eta * (L * T_ab * L.T)
+            return np.array([[float(T_mixed[i, j]) for j in range(4)] for i in range(4)])
+
+    def test_rotated_exact_type_iii_is_flagged_uncertain(self) -> None:
+        """The exact Type III ``T_ab = [[1,0,-1,0],[0,-1,1,0],[-1,1,-1,0],[0,0,0,3]]``
+        (``J_3(-1) (+) [3]``) rotated by 0.1 rad in x-y at 80 digits and rounded to
+        float64 carries an ``O(eps^(1/3))`` perturbation, so the 50-digit solve sees
+        a complex triple with ``|Im lambda| ~ 4.05e-6``, below
+        ``rounding_split = 3 * eps^(1/3) = 1.81e-5``: ``he_type`` 4 with
+        ``uncertain`` True and reason ``input_rounding_split``."""
+        T = self._rotated_type_iii_float64()
+        result = classify_hawking_ellis_mpmath(T, np.asarray(MINKOWSKI), precision=50)
+
+        assert result["he_type"] == 4
+        assert result["uncertain"] is True
+        assert result["uncertain_reason"] == "input_rounding_split"
+        assert abs(result["max_imag_abs"] - 4.05e-6) < 0.05e-6
+        assert result["max_imag_abs"] < 3.0 * (2.2e-16) ** (1.0 / 3.0)
+
+    def test_clean_type_iv_stays_certain(self) -> None:
+        """A companion block ``[[1, -1], [1, 1]]`` has ``|Im lambda| = 1``, far above
+        ``rounding_split = 1.8e-5`` at scale 1, and well-separated real parts
+        (gaps 0.8, 0.5 and 0), so neither rule fires: ``uncertain`` False."""
+        T = np.asarray(_type_iv_block_diag(imag=1.0))
+        result = classify_hawking_ellis_mpmath(T, np.asarray(MINKOWSKI), precision=50)
+
+        assert result["he_type"] == 4
+        assert result["uncertain"] is False
+        assert result["uncertain_reason"] is None
+
+    def test_boosted_perfect_fluid_rounding_gap_stays_certain(self) -> None:
+        """Perfect fluid ``rho=1, p=0.3`` boosted by rapidity 0.7 has eigenvalues
+        ``-1, 0.3, 0.3, 0.3`` (diagonalizable Type I); float64 rounding splits the
+        triple by ``~1e-16``, below ``rounding_floor = 1e-12 * scale``, so the gap
+        rule must not fire: ``he_type`` 1, ``uncertain`` False, reason ``None``."""
+        eta = np.asarray(MINKOWSKI, dtype=float)
+        ch, sh = np.cosh(0.7), np.sinh(0.7)
+        L = np.eye(4)
+        L[0, 0], L[0, 1], L[1, 0], L[1, 1] = ch, sh, sh, ch
+        T = eta @ (L @ np.diag([1.0, 0.3, 0.3, 0.3]) @ L.T)
+        result = classify_hawking_ellis_mpmath(T, eta, precision=50)
+
+        assert result["he_type"] == 1
+        assert max(result["eigenvalues_real"]) - 0.3 < 1e-14
+        assert result["uncertain"] is False
+        assert result["uncertain_reason"] is None
+
+
+class TestHardBoundCap:
+    """strategy='hard_bound' reaches the full rapidity cap exactly once."""
+
+    def _inputs(self):
+        T = jnp.diag(jnp.array([1.0, -1.001, 0.0, 0.0]))
+        return T, ETA
+
+    def test_hard_bound_reaches_the_cap(self):
+        T, g = self._inputs()
+        r = optimize_wec(T, g, zeta_max=5.0, n_starts=7, strategy="hard_bound")
+        expected = 1.0 - 0.001 * np.sinh(5.0) ** 2
+        assert abs(float(r.margin) - expected) < 1e-4
+        assert abs(float(r.worst_params[0]) - 5.0) < 1e-6
+
+    def test_hard_bound_observer_is_unit_timelike(self):
+        T, g = self._inputs()
+        r = optimize_wec(T, g, zeta_max=5.0, n_starts=7, strategy="hard_bound")
+        u = r.worst_observer
+        assert abs(float(u @ g @ u) + 1.0) < 1e-10
+
+    def test_hard_bound_converges_from_eulerian_start(self):
+        """Projection gradient is finite at w=0, so the Eulerian start converges."""
+        T = jnp.diag(jnp.array([1.0, 0.5, 0.5, 0.5]))
+        for fn in (optimize_wec, optimize_sec):
+            r = fn(T, ETA, zeta_max=5.0, n_starts=7, max_steps=256, strategy="hard_bound")
+            assert float(r.converged) == 1.0
+            assert float(r.n_steps) < 256
+
+    def test_dec_per_subcondition_forwards_options(self, monkeypatch):
+        import warpax.energy_conditions.optimization as opt
+
+        T, g = self._inputs()
+        seen = []
+        real = opt._dispatch_multistart_3d
+
+        def spy(*args, **kwargs):
+            seen.append(kwargs)
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(opt, "_dispatch_multistart_3d", spy)
+        neighbor = jnp.array([1.0, 0.0, 0.0, 0.0])
+        opt.optimize_dec(
+            T,
+            g,
+            mode="per_subcondition_min",
+            starts="fibonacci+bfgs_top_k",
+            warm_start="spatial_neighbor",
+            neighbor_fraction=0.5,
+            neighbor_observer=neighbor,
+        )
+        assert len(seen) == 3
+        for kw in seen:
+            assert kw["starts"] == "fibonacci+bfgs_top_k"
+            assert kw["warm_start"] == "spatial_neighbor"
+            assert kw["neighbor_fraction"] == 0.5
+            assert kw["neighbor_observer"] is neighbor
+            assert kw["tetrad"] is not None and kw["g_ab"] is not None
+
+
+def test_violation_fraction_policy_is_shared():
+    """``verify_grid`` and ``compare_eulerian_vs_robust`` share one violation gate.
+
+    ``T = diag(1e12, -1e12 - 0.1, 0, 0)`` in Minkowski is Type I with NEC slack
+    ``rho + p_1 = -0.1``, which is ``1e-13`` relative to ``max|lambda| = 1e12`` and
+    below the eigensolver resolution, so the shared gate
+    ``margin < -(1e-10 + 1e-12 * 1e12)`` reports 0 percent violated on both paths
+    (the comparison's old absolute ``1e-10`` gate said 100). ``diag(1, -1 - 1e-7, 0, 0)``
+    has slack ``-1e-7`` above the gate ``1e-10 + 1e-12`` and reports 100 percent on
+    both. Margins ``(-1, NaN)`` have one decided point, violated: 100 percent with
+    ``n_undecided = 1`` on both paths, where the NaN comes from a non-finite tensor.
+    """
+    from warpax.energy_conditions.filtering import violation_masks
+    from warpax.energy_conditions.verifier import _compute_summary, verify_grid
+
+    def both(T_field):
+        g_field = jnp.broadcast_to(ETA, T_field.shape)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            res = verify_grid(T_field, g_field, n_starts=2)
+            cmp = compare_eulerian_vs_robust(
+                T_field, g_field, g_field, T_field.shape[:-2], n_starts=2
+            )
+        return float(res.nec_summary.fraction_violated) * 100.0, cmp
+
+    pct, cmp = both(jnp.diag(jnp.array([1e12, -1e12 - 0.1, 0.0, 0.0]))[None])
+    assert pct == 0.0
+    assert cmp.pct_violated_robust["nec"] == 0.0
+    assert cmp.n_undecided["nec"] == 0
+
+    pct, cmp = both(jnp.diag(jnp.array([1.0, -1.0 - 1e-7, 0.0, 0.0]))[None])
+    assert pct == 100.0
+    assert cmp.pct_violated_robust["nec"] == 100.0
+
+    violated, decided = violation_masks(jnp.array([-1.0, jnp.nan]), None)
+    assert violated.tolist() == [True, False]
+    assert decided.tolist() == [True, False]
+    assert float(_compute_summary(jnp.array([-1.0, jnp.nan])).fraction_violated) == 1.0
+    pct, cmp = both(
+        jnp.stack([jnp.diag(jnp.array([1.0, -1.0 - 1e-7, 0.0, 0.0])), jnp.full((4, 4), jnp.nan)])
+    )
+    assert pct == 100.0
+    assert cmp.pct_violated_robust["nec"] == 100.0
+    assert cmp.n_undecided["nec"] == 1

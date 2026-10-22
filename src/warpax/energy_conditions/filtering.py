@@ -19,6 +19,9 @@ Mask builders
 
 Statistics
 ----------
+- :func:`violation_masks`, the one violation gate shared by every grid
+  statistic (``verify_grid`` summaries, the Eulerian comparison and the
+  wall statistics).
 - :func:`compute_wall_restricted_stats`, computes Hawking-Ellis Type
   breakdown, per-condition violation counts/fractions, and conditional
   miss rates within a masked region.
@@ -34,6 +37,26 @@ from jaxtyping import Array, Bool, Float
 
 from ..geometry.metric import MetricSpecification
 from .types import ECGridResult, WallRestrictedStats
+
+
+def violation_masks(
+    margins: Float[Array, "..."],
+    scale: Float[Array, "..."] | None,
+    atol: float = 1e-10,
+    rtol: float = 1e-12,
+) -> tuple[Bool[Array, "..."], Bool[Array, "..."]]:
+    """Return ``(violated, decided)`` masks for signed margins.
+
+    A point is decided when its margin is finite and violated when
+    ``margin < -(atol + rtol * scale)``, with ``scale`` the per-point
+    ``max|lambda|`` (``None`` gives the absolute gate). The relative term
+    keeps the gate above the eigensolver noise floor, about ``eps * ||T||``,
+    so marginal points at large ``||T||`` do not pick up roundoff verdicts.
+    Undecided points belong in neither side of a violation fraction.
+    """
+    threshold = atol if scale is None else atol + rtol * scale
+    decided = jnp.isfinite(margins)
+    return decided & (margins < -threshold), decided
 
 
 def shape_function_mask(
@@ -99,7 +122,7 @@ def determinant_guard_mask(
 ) -> Bool[Array, "..."]:
     """Boolean mask: True where the metric is non-degenerate.
 
-    The determinant is taken on the scale-normalised metric, so the test
+    The determinant is taken on the scale-normalized metric, so the test
     measures conditioning rather than coordinate scale.
 
     Points where this is False have near-singular metrics; EC margins
@@ -160,7 +183,7 @@ def compute_wall_restricted_stats(
         Violation tolerance: a point is violated when
         ``margin < -(atol + rtol * max|lambda|)``. The relative term
         keeps the gate above eigensolver noise at large ||T||
-        (see ``verifier._compute_summary``).
+        (see :func:`violation_masks`, shared with ``verify_grid``).
     eulerian_margins : dict[str, Float[Array, "..."]] | None
         If provided, dict with keys ``"nec"``, ``"wec"``, ``"sec"``,
         ``"dec"`` mapping to Eulerian margin arrays. Used to compute
@@ -185,15 +208,11 @@ def compute_wall_restricted_stats(
     mask_flat = mask.ravel().astype(bool)
     n_total = int(jnp.sum(mask_flat))
 
-    # Raw integer point counts, preserved for transparency regardless of
-    # volume weighting (a count is a count).
     n_i = int(jnp.sum((he_flat == 1.0) & mask_flat))
     n_ii = int(jnp.sum((he_flat == 2.0) & mask_flat))
     n_iii = int(jnp.sum((he_flat == 3.0) & mask_flat))
     n_iv = int(jnp.sum((he_flat == 4.0) & mask_flat))
 
-    # Weighting used for fractions/rates: per-point volume when provided,
-    # else uniform (recovers raw point-fraction behavior exactly).
     if volume_weights is not None:
         weight = volume_weights.ravel().astype(float) * mask_flat
     else:
@@ -201,13 +220,11 @@ def compute_wall_restricted_stats(
     w_total = float(jnp.sum(weight))
     w_safe = w_total if w_total > 0.0 else 1.0
 
-    # Type fractions (volume-weighted when weights supplied)
     frac_i = float(jnp.sum(weight * (he_flat == 1.0))) / w_safe
     frac_ii = float(jnp.sum(weight * (he_flat == 2.0))) / w_safe
     frac_iii = float(jnp.sum(weight * (he_flat == 3.0))) / w_safe
     frac_iv = float(jnp.sum(weight * (he_flat == 4.0))) / w_safe
 
-    # Per-condition violations
     conditions = {
         "nec": ec_result.nec_margins,
         "wec": ec_result.wec_margins,
@@ -215,24 +232,17 @@ def compute_wall_restricted_stats(
         "dec": ec_result.dec_margins,
     }
 
-    # Per-point eigenvalue scale for the violation gate. Duck-typed
-    # callers without eigenvalues fall back to the absolute gate.
     eigs = getattr(ec_result, "eigenvalues", None)
-    if eigs is not None:
-        threshold = atol + rtol * jnp.max(jnp.abs(eigs), axis=-1).ravel()
-    else:
-        threshold = jnp.asarray(atol)
+    scale = None if eigs is None else jnp.max(jnp.abs(eigs), axis=-1).ravel()
 
     violated_counts: dict[str, int] = {}
     violated_fracs: dict[str, float] = {}
     nan_counts: dict[str, int] = {}
     for cond, margins in conditions.items():
         flat = margins.ravel()
-        # A NaN margin scores False under "< -threshold" while still counting in
-        # the denominator, i.e. it reads as satisfied. Count them and warn.
         nan_sel = jnp.isnan(flat) & mask_flat
         nan_counts[cond] = int(jnp.sum(nan_sel))
-        viol = (flat < -threshold) & mask_flat
+        viol = violation_masks(flat, scale, atol, rtol)[0] & mask_flat
         violated_counts[cond] = int(jnp.sum(viol))
         violated_fracs[cond] = float(jnp.sum(weight * viol)) / w_safe
     if any(nan_counts.values()):
@@ -243,7 +253,6 @@ def compute_wall_restricted_stats(
             stacklevel=2,
         )
 
-    # Miss rates (if eulerian_margins provided)
     miss_rates: dict[str, float | None] = {
         "nec": None,
         "wec": None,
@@ -254,7 +263,7 @@ def compute_wall_restricted_stats(
         for cond, robust_margins in conditions.items():
             eul = eulerian_margins[cond].ravel()
             rob = robust_margins.ravel()
-            robust_violated = (rob < -threshold) & mask_flat
+            robust_violated = violation_masks(rob, scale, atol, rtol)[0] & mask_flat
             w_rob_violated = float(jnp.sum(weight * robust_violated))
             if w_rob_violated > 0.0:
                 missed = (eul >= 0.0) & robust_violated

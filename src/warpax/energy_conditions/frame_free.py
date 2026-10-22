@@ -18,15 +18,18 @@ is a separate, sufficient NEC violation diagnostic when momentum is nonzero.
 
 from __future__ import annotations
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jaxtyping import Array, Float
+from jaxtyping import Array, Bool, Float
 
-from .classification import classify_with_solver
+from .classification import _EVEC_COND_MAX as _EVEC_COND_MAX
+from .classification import classify_with_solver, ill_conditioned_eigenbasis
 from .eigenvalue_checks import check_all
+from .observer import eulerian_normal
+from .slemma import _NOISE_REL, noise_floor
 from .slemma import certify_point as certify_point_lmi
-from .slemma import noise_floor
 from .types import FrameFreeGridResult
 from .verifier import _classify_grid_batch
 
@@ -68,37 +71,25 @@ def eulerian_momentum_frame(
     discriminant is ``(rho_n + S_par)^2 - 4 |j|^2``. At zero momentum the
     implementation sets ``jhat`` and ``S_par`` to zero. The metric must be
     Lorentzian with spacelike coordinate slices.
+
+    ``h^a_b = delta^a_b + n^a n_b`` projects onto the slice and
+    ``j^a = -h^a_b T^b_c n^c`` is the spatial momentum density; ``jhat`` is
+    normalized by the largest component first to preserve small nonzero momentum.
     """
-    # Eulerian normal n^a: n_a = (-1, 0, 0, 0) up to lapse; n^a = g^{ab} n_b,
-    # renormalized to n.n = -1 so the construction is lapse-agnostic.
-    n_low = jnp.array([-1.0, 0.0, 0.0, 0.0])
-    n_up = g_inv @ n_low
-    n_up = n_up / jnp.sqrt(jnp.abs(n_low @ n_up))
+    _, n_up = eulerian_normal(g_inv)
     n_low2 = g_ab @ n_up
-    proj = jnp.eye(4) + jnp.outer(n_up, n_low2)  # h^a_b = delta + n^a n_b
+    proj = jnp.eye(4) + jnp.outer(n_up, n_low2)
     T_mixed = g_inv @ T_ab
     rho = n_up @ (T_ab @ n_up)
-    j_up = -(proj @ (T_mixed @ n_up))  # spatial momentum density j^a
+    j_up = -(proj @ (T_mixed @ n_up))
     j2 = j_up @ (g_ab @ j_up)
     jmag = jnp.sqrt(jnp.clip(j2, min=0.0))
-    # Normalize by the largest component first to preserve small nonzero momentum.
     j_scale = jnp.max(jnp.abs(j_up))
     j_unit = j_up / jnp.where(j_scale > 0.0, j_scale, 1.0)
     j2_unit = j_unit @ (g_ab @ j_unit)
     jhat = j_unit / jnp.sqrt(jnp.where(j2_unit > 0.0, j2_unit, 1.0))
     S_par = jhat @ (g_ab @ ((proj @ (T_mixed @ proj)) @ jhat))
     return rho, S_par, jmag
-
-
-# Large boosts can make a Type-I eigenbasis nearly singular. Route such points
-# to the LMI; this cutoff is a conditioning policy, not a rigorous error bound.
-_EVEC_COND_MAX = 1e5
-
-
-def ill_conditioned_eigenbasis(evecs, cond_max: float = _EVEC_COND_MAX):
-    """True where the eigenvector matrix is too ill-conditioned to read."""
-    sv = jnp.linalg.svd(evecs, compute_uv=False)
-    return (sv[..., 0] / jnp.maximum(sv[..., -1], 1e-300)) > cond_max
 
 
 def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi, ill_conditioned=None):
@@ -118,7 +109,6 @@ def _exact_margins(he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi, ill_condit
     is_I = he_type == 1
     if ill_conditioned is not None:
         is_I = is_I & ~ill_conditioned
-    # The LMI deficit uses Eulerian normalization; nec_I uses the eigenframe.
     nonI_nec = 2.0 * lmi["nec"]
     nec = jnp.where(is_I, nec_I, nonI_nec)
     wec = jnp.where(is_I, wec_I, lmi["wec"])
@@ -192,6 +182,37 @@ def certify_point_frame_free(
     }
 
 
+@jax.jit
+def _mixed_batch(flat_T, flat_g, flat_ginv):
+    """Inverse metric (when absent) and mixed stress-energy over a flat batch."""
+    if flat_ginv is None:
+        flat_ginv = jax.vmap(jnp.linalg.inv)(flat_g)
+    return flat_ginv, jnp.einsum("nac,ncb->nab", flat_ginv, flat_T)
+
+
+@jax.jit
+def _margins_batch(he_type, eigenvalues, rho, pressures, evecs, flat_T, flat_g, flat_ginv):
+    """Type-I slacks, Eulerian witness, conditioning flag and routed NEC floor per point.
+
+    The floor follows the route of the returned NEC margin: well-conditioned
+    Type-I points get ``_NOISE_REL * max|lambda|`` on the eigenframe slack,
+    every other point twice the Eulerian LMI floor of :func:`.slemma.null_deficit`.
+    """
+    slacks = jax.vmap(check_all)(rho, pressures)
+    witness = jax.vmap(eulerian_null_witness)(flat_T, flat_g, flat_ginv)
+    ill = jax.vmap(ill_conditioned_eigenbasis)(evecs)
+    lmi_floor = jax.vmap(lambda T, g: noise_floor(T, g, condition="nec"))(flat_T, flat_g)
+    eig_floor = _NOISE_REL * jnp.max(jnp.abs(eigenvalues), axis=-1)
+    nec_floor = jnp.where((he_type == 1) & ~ill, eig_floor, 2 * lmi_floor)
+    return slacks, witness, ill, nec_floor
+
+
+@eqx.filter_jit
+def _vmap_batch(point_fn, *args):
+    """Jitted ``vmap(point_fn)``; ``point_fn`` is looked up by the caller at call time."""
+    return jax.vmap(point_fn)(*args)
+
+
 def certify_grid_frame_free(
     T_field: Float[Array, "... 4 4"],
     g_field: Float[Array, "... 4 4"],
@@ -199,7 +220,7 @@ def certify_grid_frame_free(
     *,
     solver: str = "auto",
     tol: float = 1e-10,
-    lmi_where: Float[Array, "..."] | None = None,
+    lmi_where: Bool[Array, "..."] | Bool[np.ndarray, "..."] | None = None,
 ) -> FrameFreeGridResult:
     """Compute cap-free energy-condition margins across an evaluation grid.
 
@@ -218,7 +239,7 @@ def certify_grid_frame_free(
         Eigenvalue backend.
     tol : float
         Classification tolerance, not an energy-condition error bound.
-    lmi_where : Float[Array, "..."] | None
+    lmi_where : Bool[Array, "..."] | Bool[np.ndarray, "..."] | None
         Boolean mask restricting LMI evaluation. Non-Type-I points and
         ill-conditioned Type-I points outside the mask receive NaN margins.
         Well-conditioned Type-I margins are computed everywhere. ``None``
@@ -227,26 +248,36 @@ def certify_grid_frame_free(
     Returns
     -------
     FrameFreeGridResult
-        Grid margins, type counts, and diagnostics. ``nec_noise_floor`` uses
-        the scale of the returned NEC margins, twice the underlying LMI
-        floor. ``lmi_substituted`` marks ill-conditioned eigenbases.
+        Grid margins, type counts, and diagnostics. ``nec_noise_floor`` is
+        matched to the route of each NEC margin: the eigenframe scale
+        ``1e-12 * max|lambda|`` at well-conditioned Type-I points and twice
+        the Eulerian LMI floor elsewhere, so comparisons keep the tolerance
+        of the returned margin on both sides of zero.
+        ``lmi_substituted`` marks ill-conditioned eigenbases. The LMI runs
+        only where eigenvalue margins are unavailable; points excluded by
+        ``lmi_where`` that need it receive NaN. ``max_imag_eigenvalue`` is a
+        ``nanmax`` summary, not a certified margin.
     """
     grid_shape = T_field.shape[:-2]
     flat_T = jnp.reshape(T_field, (-1, 4, 4))
     flat_g = jnp.reshape(g_field, (-1, 4, 4))
-    if g_inv_field is None:
-        flat_ginv = jax.vmap(jnp.linalg.inv)(flat_g)
-    else:
-        flat_ginv = jnp.reshape(g_inv_field, (-1, 4, 4))
-    flat_Tmixed = jnp.einsum("nac,ncb->nab", flat_ginv, flat_T)
+    flat_ginv = None if g_inv_field is None else jnp.reshape(g_inv_field, (-1, 4, 4))
+    flat_ginv, flat_Tmixed = _mixed_batch(flat_T, flat_g, flat_ginv)
 
     cls = _classify_grid_batch(flat_Tmixed, flat_g, flat_T, solver=solver, tol=tol)
-    nec_I, wec_I, sec_I, dec_I = jax.vmap(check_all)(cls.rho, cls.pressures)
-    witness = jax.vmap(eulerian_null_witness)(flat_T, flat_g, flat_ginv)
+    (nec_I, wec_I, sec_I, dec_I), witness, ill_dev, nec_floor = _margins_batch(
+        cls.he_type,
+        cls.eigenvalues,
+        cls.rho,
+        cls.pressures,
+        cls.eigenvectors,
+        flat_T,
+        flat_g,
+        flat_ginv,
+    )
 
     he = np.asarray(cls.he_type)
-    # Evaluate the costlier LMI only where eigenvalue margins are unavailable.
-    ill = np.asarray(jax.vmap(ill_conditioned_eigenbasis)(cls.eigenvectors))
+    ill = np.asarray(ill_dev)
     wanted = (he != 1) | ill
     if lmi_where is not None:
         wanted &= np.asarray(jnp.reshape(lmi_where, (-1,))).astype(bool)
@@ -254,37 +285,23 @@ def certify_grid_frame_free(
     unused = jnp.zeros_like(witness)
     if nonI.size:
         idx = jnp.asarray(nonI)
-        sub = jax.vmap(certify_point_lmi)(flat_T[idx], flat_g[idx])
+        sub = _vmap_batch(certify_point_lmi, flat_T[idx], flat_g[idx])
         lmi = {k: unused.at[idx].set(v) for k, v in sub.items()}
     else:
         lmi = {"nec": unused, "wec": unused, "sec": unused, "dec": unused}
     if lmi_where is not None:
-        # Excluded points needing the LMI have no computed margin.
         nan = jnp.full_like(unused, jnp.nan)
         skipped = jnp.asarray(((he != 1) | ill) & ~wanted)
         lmi = {k: jnp.where(skipped, nan, v) for k, v in lmi.items()}
-    nec, wec, sec, dec = jax.vmap(_exact_margins)(
-        cls.he_type,
-        nec_I,
-        wec_I,
-        sec_I,
-        dec_I,
-        witness,
-        lmi,
-        jnp.asarray(ill),
+    nec, wec, sec, dec = _vmap_batch(
+        _exact_margins, cls.he_type, nec_I, wec_I, sec_I, dec_I, witness, lmi, ill_dev
     )
 
     n_vacuum = int(np.sum(np.asarray(cls.is_vacuum) > 0.5))
-    # nanmax: a NaN-sanitized eigenvalue must not poison the grid-wide
-    # imaginary-part diagnostic (it is a summary, not a certified margin).
     max_imag = float(np.nanmax(np.abs(np.asarray(cls.eigenvalues_imag))))
 
-    def _rs(x, trailing=()):  # reshape flat -> grid
+    def _rs(x, trailing=()):
         return jnp.reshape(x, (*grid_shape, *trailing))
-
-    # Preserve the LMI tolerance for comparisons on both sides of zero.
-    # The routed NEC slot is twice the LMI margin, so its floor has the same scale.
-    nec_floor = 2 * jax.vmap(lambda T, g: noise_floor(T, g, condition="nec"))(flat_T, flat_g)
 
     return FrameFreeGridResult(
         he_types=_rs(cls.he_type),
@@ -311,17 +328,17 @@ def certify_grid_frame_free(
 
 def type_fractions(
     result: FrameFreeGridResult,
-    mask: Float[Array, "..."] | None = None,
-    volume_weights: Float[Array, "..."] | None = None,
+    mask: Bool[Array, "..."] | Bool[np.ndarray, "..."] | None = None,
+    volume_weights: Float[Array, "..."] | Float[np.ndarray, "..."] | None = None,
 ) -> dict[str, float]:
     """Volume-weighted Hawking-Ellis type fractions (optionally wall-restricted).
 
     Parameters
     ----------
     result : FrameFreeGridResult
-    mask : Float[Array, "..."] or None
-        Boolean/0-1 selection (e.g. the wall mask). ``None`` selects all points.
-    volume_weights : Float[Array, "..."] or None
+    mask : Bool[Array, "..."] | Bool[np.ndarray, "..."] | None
+        Boolean selection (e.g. the wall mask). ``None`` selects all points.
+    volume_weights : Float[Array, "..."] | Float[np.ndarray, "..."] | None
         Proper-volume weights (e.g. ``GridSpec.volume_weights_array``) so that
         clustered grids are not biased toward the densely-sampled wall. ``None``
         gives uniform (point-count) weighting.
@@ -347,7 +364,7 @@ def type_fractions(
 
 def typeI_min_margins(
     result: FrameFreeGridResult,
-    mask: Float[Array, "..."] | None = None,
+    mask: Bool[Array, "..."] | Bool[np.ndarray, "..."] | None = None,
 ) -> dict[str, float]:
     """Minimum eigenvalue-inequality slacks over selected Type-I points.
 

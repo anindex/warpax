@@ -95,7 +95,6 @@ class TestMechanism:
             omegas.append(om)
             imags.append(im)
         fit = fit_kappa(np.array(omegas), np.array(imags))
-        # f = kappa * omega holds to ~machine precision for pure rotation.
         assert fit["r_squared"] > 0.9999
         assert fit["kappa"] > 0.0
 
@@ -122,7 +121,7 @@ class TestExcessRatio:
             imags.append(float(jnp.max(jnp.abs(cls.eigenvalues_imag))))
         kappa = fit_kappa(np.array(omegas), np.array(imags))["kappa"]
 
-        pt = jnp.array([0.0, 1.0, 0.3, 0.0])  # wall sample
+        pt = jnp.array([0.0, 1.0, 0.3, 0.0])
         nat = NatarioMetric(v_s=0.5, R=1.0, sigma=8.0)
         _, _, omega_sq = compute_shift_kinematics(nat, pt)
         cur = compute_curvature_chain(nat, pt)
@@ -136,15 +135,12 @@ class TestExcessRatio:
         path = os.path.join(
             os.path.dirname(__file__), "..", "results", "vorticity_type_analytic.json"
         )
-        if not os.path.exists(path):
-            pytest.skip("results/vorticity_type_analytic.json not present")
         cross = json.load(open(path))["cross_metric"]
         assert cross["Rodal"]["imag_ratio"] is None
         vortical = ["Van den Broeck", "Alcubierre", "Natário"]
         for name in vortical:
             assert cross[name]["imag_ratio"] > 1.0
             assert cross[name]["sigma"] > 0.0
-        # The excess over kappa*omega orders with the shear-to-vorticity ratio.
         ratios = [cross[n]["imag_ratio"] for n in vortical]
         shears = [cross[n]["shear_to_vorticity"] for n in vortical]
         assert ratios == sorted(ratios)

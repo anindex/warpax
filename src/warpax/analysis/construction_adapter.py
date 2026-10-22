@@ -25,9 +25,7 @@ from ..benchmarks import AlcubierreMetric
 from ..geometry.metric import MetricSpecification
 from ..metrics import (
     GarattiniMetric,
-    NatarioMetric,
     RodalMetric,
-    VanDenBroeckMetric,
     WarpShellPhysical,
     fuchs_default,
     sshell_default,
@@ -39,36 +37,39 @@ MIN_WALL_CELLS = 4.0
 
 @dataclass(frozen=True)
 class ConstructionSpec:
-    """A positive-energy warp construction wrapped for uniform certification."""
+    """A positive-energy warp construction wrapped for uniform certification.
+
+    ``speed_param`` is ``"v_s"`` or ``"v_0"``. ``cluster_a`` is the clustering
+    strength of the graded grid the construction is certified on; the
+    resolution witness must be measured on that same grid, so it lives here
+    rather than at the call site. ``claim`` is the published energy-condition
+    claim (community summary) for the certified-vs-claimed column, free text
+    and not a refutation. ``params`` records every physical parameter so the
+    panel is reproducible from the output alone. ``wall_radius`` is the
+    characteristic wall radius ``R_c``: curvature carries ``1/L^2``, so
+    cross-construction stress margins are comparable only after multiplying
+    by ``R_c^2``, and the radial grid is clustered on it. ``r_max`` is the
+    outer radius of the sampled ball for the axisymmetric ladder.
+    ``grid_center`` is the axial bubble position at ``t = 0``: the
+    axisymmetric reduction is exact about either this point or the origin,
+    but the radial clustering only lands on the wall when the two agree. A
+    callable is resolved against the built metric, which the
+    Garattini-Zatrimaylov drive needs because its bubble sits at
+    ``r_0 = v_s / H`` and moves with the parameters.
+    """
 
     name: str
     build: Callable[[float], MetricSpecification]
     default_speed: float
-    speed_param: str  # "v_s" or "v_0"
+    speed_param: str
     bounds: tuple[tuple[float, float], ...]
     grid_n: int
     is_comoving: bool
-    # Clustering strength of the graded grid this construction is certified on.
-    # The resolution witness must be measured on that same grid, so it lives
-    # here rather than at the call site.
     cluster_a: float = 2.0
-    # Published energy-condition claim (community summary), for the
-    # certified-vs-claimed agreement column. Free-text, not a refutation.
     claim: str = ""
-    # Every physical parameter that defines this construction, recorded so the
-    # panel is reproducible from the output alone rather than from the source.
     params: dict = field(default_factory=dict)
-    # Characteristic wall radius R_c. Curvature carries 1/L^2, so cross-
-    # construction stress margins are only comparable after multiplying by
-    # R_c^2; and the radial grid is clustered on it.
     wall_radius: float = 1.0
-    # Outer radius of the sampled ball for the axisymmetric ladder.
     r_max: float = 3.0
-    # Axial position of the bubble at t = 0. The axisymmetric reduction is exact
-    # about either this point or the origin, but the radial clustering only lands
-    # on the wall when the two agree. A callable is resolved against the built
-    # metric, which the Garattini-Zatrimaylov drive needs: its bubble sits at
-    # r_0 = v_s / H, so the centre moves with the parameters.
     grid_center: float | Callable[[MetricSpecification], float] = 0.0
 
     def center_of(self, metric: MetricSpecification) -> float:
@@ -89,26 +90,27 @@ def _rodal(v_s):
     return RodalMetric(v_s=v_s, R=1.0, sigma=8.0)
 
 
-def _natario(v_s):
-    return NatarioMetric(v_s=v_s, R=1.0, sigma=8.0)
-
-
-def _vdb(v_s):
-    return VanDenBroeckMetric(v_s=v_s, R=1.0, sigma=8.0, R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
-
-
 def _garattini(v_s):
-    # de Sitter background warp bubble; H is matched so that the speed
-    # v_s = H * R sits at the Garattini-Zatrimaylov averaged-condition regime.
+    """de Sitter background bubble.
+
+    ``H = v_s`` so ``v_s = H R`` sits in the Garattini-Zatrimaylov
+    averaged-condition regime.
+    """
     return GarattiniMetric(v_s=v_s, R=1.0, sigma=8.0, H=v_s)
 
 
 def construction_registry() -> dict[str, ConstructionSpec]:
-    """All registered constructions keyed by name (compact references + shells)."""
+    """All registered constructions keyed by name (compact references + shells).
+
+    The compact references use ``grid_n = 64``: the worst-case resolution
+    witness gives 4.72 cells across the 10-90% wall, against 3.57 at
+    ``N = 50``, below ``MIN_WALL_CELLS``. Garattini uses ``N = 192``: its
+    bubble co-moves with the Hubble flow at ``r_0 = v_s/H = 1``, so
+    origin-anchored clustering spends its resolution on the center; at
+    ``N = 64`` the wall spans 1.42 cells and the four-cell floor needs
+    ``N >= 181``.
+    """
     specs = [
-        # Compact references (baseline + the irrotational global-Type-I claim).
-        # grid_n = 64: the worst-case resolution witness gives 4.72 cells across
-        # the 10-90% wall, against 3.57 at N = 50, below MIN_WALL_CELLS.
         ConstructionSpec(
             "Alcubierre",
             _alcubierre,
@@ -135,7 +137,6 @@ def construction_registry() -> dict[str, ConstructionSpec]:
             wall_radius=1.0,
             r_max=3.0,
         ),
-        # Additional positive-energy / source-prescribed constructions.
         ConstructionSpec(
             "Fuchs",
             lambda v: fuchs_default(v_s=v),
@@ -169,10 +170,6 @@ def construction_registry() -> dict[str, ConstructionSpec]:
             claim="Bobrick-Martire / Fell-Heisenberg shell; WEC/NEC/SEC at wall, DEC violated",
         ),
         ConstructionSpec(
-            # N = 192, not 64: the bubble co-moves with the Hubble flow and sits
-            # at r_0 = v_s/H = 1, so origin-anchored clustering spends its
-            # resolution on the centre. At N = 64 the wall spans 1.42 cells; the
-            # four-cell floor needs N >= 181.
             "Garattini",
             _garattini,
             0.1,
@@ -227,24 +224,12 @@ def construction_registry() -> dict[str, ConstructionSpec]:
     return {s.name: s for s in specs}
 
 
-# Matched panel: common shift kinematics.
-#
-# Fuchs is designed at v_s = 0.02 and Garattini pins v_s = H R, so the match is to
-# them, on the only shared invariants: the dimensionless shift kinematics. The
-# Fuchs sigmoid (R_1 = 10, R_2 = 20) crosses 10-90% at 12.790029 and 17.209971, so
-# R_c = 15, W = 4.419943, W/R_c = 0.294663. MATCHED_SIGMA reproduces that width at
-# R = R_c, solved from the exact finite-R profile since 2 atanh(0.8)/sigma is not
-# valid at sigma*R ~ 1.
 MATCHED_V_S = 0.02
 MATCHED_R_C = 15.0
 MATCHED_WIDTH = 4.419943
 MATCHED_SIGMA = 0.497115373
 MATCHED_R_MAX = 2.0 * MATCHED_R_C
 
-# Matter content, background curvature and compactness are NOT matched: Fuchs
-# carries a two-boundary shell, Garattini a Lambda R^2, and only Fuchs' stress is
-# velocity-independent. Type fractions and miss rates are comparable under common
-# sampling; raw stress severity and energy positivity are not.
 MATCHING_CAVEAT = (
     "Common shift kinematics only (v_s, R_c, W/R_c, box, wall band). Matter "
     "content, background curvature and compactness are construction-specific "
@@ -253,7 +238,20 @@ MATCHING_CAVEAT = (
 
 
 def matched_registry() -> dict[str, ConstructionSpec]:
-    """The four panel constructions at common dimensionless shift kinematics."""
+    """The four panel constructions at common dimensionless shift kinematics.
+
+    Fuchs is designed at ``v_s = 0.02`` and Garattini pins ``v_s = H R``, so
+    the match is to them on the only shared invariants. The Fuchs sigmoid
+    (``R_1 = 10``, ``R_2 = 20``) crosses 10-90% at 12.790029 and 17.209971,
+    giving ``R_c = 15``, ``W = 4.419943``, ``W/R_c = 0.294663``.
+    ``MATCHED_SIGMA`` reproduces that width at ``R = R_c``, solved from the
+    exact finite-R profile because ``2 atanh(0.8)/sigma`` is not valid at
+    ``sigma*R ~ 1``. Matter content, background curvature and compactness
+    are not matched: Fuchs carries a two-boundary shell, Garattini a
+    ``Lambda R^2``, and only Fuchs' stress is velocity-independent. Type
+    fractions and miss rates are comparable under common sampling; raw
+    stress severity and energy positivity are not.
+    """
     v, R, s = MATCHED_V_S, MATCHED_R_C, MATCHED_SIGMA
     common = dict(
         speed_param="v_s",
@@ -334,9 +332,9 @@ def wall_cells(spec: ConstructionSpec, speed: float | None = None, n: int | None
     The previous implementation counted *nodes* falling in a ``[0.05, 0.95]``
     band on a **uniform** line while the certification ran on the **graded**
     grid, summed the ``+x`` and ``-x`` crossings into one figure (so a reported
-    "6" was about 3 per wall normal), and renormalised the shape function by its
+    "6" was about 3 per wall normal), and renormalized the shape function by its
     peak-to-peak range, which is not meaningful for a shell scalar, whose
-    disconnected transitions the normalisation merges.
+    disconnected transitions the normalization merges.
     """
     from ..grids import wall_cells_on_axis, wall_clustered
 

@@ -40,8 +40,9 @@ class TestRegistry:
 
 
 class TestResolutionGate:
-    # One case per construction: each builds its own graded grid, so a single
-    # loop would hold one worker for the sum of all seven.
+    """One case per construction: each builds its own graded grid, so a single
+    loop would hold one worker for the sum of all seven."""
+
     @pytest.mark.parametrize("name", CONSTRUCTIONS)
     def test_construction_resolves_at_default_n(self, name):
         resolved, cells = is_resolved(construction_registry()[name])
@@ -49,7 +50,7 @@ class TestResolutionGate:
         assert cells >= MIN_WALL_CELLS
 
     def test_coarse_grid_flags_unresolved(self):
-        # A very coarse grid must fail the gate for a compact wall.
+        """A very coarse grid must fail the gate for a compact wall."""
         reg = construction_registry()
         spec = reg["Alcubierre"]
         cells = wall_cells(spec, n=4)
@@ -57,10 +58,10 @@ class TestResolutionGate:
 
 
 def test_garattini_wall_resolves_when_the_reduction_is_bubble_centred():
-    """The A3 withholding was a grid artefact, not a property of the construction.
+    """The A3 withholding was a grid artifact, not a property of the construction.
 
     Garattini-Zatrimaylov places its bubble at ``r_0 = v_s / H`` by the matching
-    condition, not at the coordinate origin. An origin-centred axisymmetric reduction
+    condition, not at the coordinate origin. An origin-centered axisymmetric reduction
     clusters its radial nodes on a sphere the wall merely *crosses*, so the wall spans
     1.5 cells at the coarsest ladder level and the panel withheld it as under-resolved.
     The reduction is exact about either point, the configuration is axisymmetric
@@ -79,7 +80,7 @@ def test_garattini_wall_resolves_when_the_reduction_is_bubble_centred():
         spec = registry()["Garattini"]
         metric = spec.metric()
         center = spec.center_of(metric)
-        assert center == pytest.approx(metric.v_s / metric.H), "centre is r_0 = v_s / H"
+        assert center == pytest.approx(metric.v_s / metric.H), "center is r_0 = v_s / H"
         assert center != 0.0, "the bubble must be off-origin"
 
         grid = axisymmetric_grid(
@@ -88,7 +89,6 @@ def test_garattini_wall_resolves_when_the_reduction_is_bubble_centred():
         axis = center + np.concatenate([-grid.r[::-1], grid.r])
         assert wall_cells_on_axis(metric, axis).cells >= 4.0
 
-        # The origin-centred axis does not resolve the same wall.
         origin_axis = np.concatenate([-grid.r[::-1], grid.r])
         assert wall_cells_on_axis(metric, origin_axis).cells < 4.0
 

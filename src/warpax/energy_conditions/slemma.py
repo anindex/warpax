@@ -47,19 +47,14 @@ from jaxtyping import Array, Float
 
 from .observer import compute_orthonormal_tetrad
 
-# eta in the orthonormal tetrad frame; M(sigma) = That + sigma * ETA.
 _ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
-# Each ternary step shrinks the multiplier bracket by 2/3.
 _TERNARY_STEPS = 80
 
-# Relative tolerance for inconclusive margins on either side of zero.
 _NOISE_REL = 1e-12
 
-# A zero absolute floor preserves positive-rescaling covariance.
 _NOISE_ABS = 0.0
 
-# Projected-gradient steps for the violating-observer search in witness_observer.
 _DESCENT_STEPS = 400
 
 
@@ -71,7 +66,7 @@ def tetrad_components(
 
     ``That[0,0] = rho``, ``That[0,i] = -b_i``, ``That[i,j] = S_ij``.
     """
-    e = compute_orthonormal_tetrad(g_ab)  # e[I, a] = e_I^a
+    e = compute_orthonormal_tetrad(g_ab)
     return e @ T_ab @ e.T
 
 
@@ -92,11 +87,14 @@ def _lmi_margin(
     The maximum occurs at finite ``sigma``: diagonal Rayleigh quotients
     bound it above by ``That_00 - sigma`` and ``That_ii + sigma``, which
     tend to ``-inf`` in the respective directions.
+
+    Each of the ``_TERNARY_STEPS = 80`` ternary steps shrinks the multiplier
+    bracket by ``2/3``. The bracket must hold the argmax whether or not the LMI is
+    feasible, so it comes from an unconditional bound: ``lam_min(M(sigma)) <=
+    scale -+ sigma`` while the maximum is at least ``lam_min(That) >= -4 scale``
+    by Gershgorin, hence ``|sigma*| <= 5 scale``. The scale is not clamped at 1,
+    so the bracket collapses to the point 0 on vacuum.
     """
-    # The bracket must hold the argmax whether or not the LMI is feasible, so it comes
-    # from an unconditional bound: lam_min(M(sigma)) <= scale -+ sigma while the maximum
-    # is at least lam_min(That) >= -4 scale by Gershgorin, hence |sigma*| <= 5 scale.
-    # Not clamped at 1, so the bracket collapses to the point 0 on vacuum.
     scale = _tensor_scale(T_hat)
     lo = jnp.maximum(sigma_lo, -5.0 * scale)
     hi = 5.0 * scale
@@ -160,12 +158,13 @@ def noise_floor(
     ``-floor`` indicate violation, and the intervening band is inconclusive.
     For :func:`null_deficit`, double this floor because that function returns
     twice the NEC LMI margin. :mod:`.certificate` can sometimes resolve a
-    marginal case with an exact sufficient certificate.
+    marginal case with an exact sufficient certificate. The absolute floor is
+    zero and the scale is unclamped, so the tolerance rescales with the tensor and
+    positive-rescaling covariance is preserved.
     """
     if condition not in ("nec", "wec", "sec", "dec"):
         raise ValueError(f"unknown condition {condition!r}")
     T_hat = tetrad_components(T_ab, g_ab)
-    # Keep the scale unclamped so the tolerance rescales with the tensor.
     return _NOISE_REL * _tensor_scale(T_hat) + _NOISE_ABS
 
 
@@ -240,6 +239,10 @@ def witness_observer(
 
     Returns NaN if no negative candidate is found. The search need not find
     a global minimum, so NaN proves neither satisfaction nor saturation.
+
+    The descent runs ``_DESCENT_STEPS = 400`` projected-gradient steps onto the
+    closed unit ball with step ``1/(2||S||)``: the gradient of ``q`` is
+    ``2(S w - b)``, with Lipschitz constant ``2||S||``.
     """
     T_hat = tetrad_components(T_ab, g_ab)
     rho, b, S = T_hat[0, 0], -T_hat[0, 1:], T_hat[1:, 1:]
@@ -247,11 +250,10 @@ def witness_observer(
     def q(w):
         return rho - 2.0 * (b @ w) + w @ (S @ w)
 
-    def project(w):  # onto the closed unit ball
+    def project(w):
         n = jnp.linalg.norm(w)
         return jnp.where(n > 1.0, w / jnp.where(n > 0, n, 1.0), w)
 
-    # Gradient of q is 2(S w - b), Lipschitz constant 2||S||; step 1/(2||S||).
     s_norm = jnp.maximum(jnp.max(jnp.abs(jnp.linalg.eigvalsh(S))), 1e-12)
     step = 0.5 / s_norm
 

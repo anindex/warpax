@@ -7,8 +7,6 @@ energy condition*, Phys. Rev. D 105, 064038 (2022),
 [arXiv:2105.03079](https://arxiv.org/abs/2105.03079)).
 """
 
-from __future__ import annotations
-
 import json
 import os
 from pathlib import Path
@@ -19,6 +17,7 @@ import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array, Float
 
+from warpax.energy_conditions.filtering import violation_masks
 from warpax.energy_conditions.verifier import _eulerian_ec_point, verify_grid
 
 _CONDITIONS = ("nec", "wec", "sec", "dec")
@@ -28,8 +27,12 @@ class ComparisonResult(NamedTuple):
     """Per-point comparison between Eulerian and robust EC margins.
 
     Dict-valued fields are keyed by ``"nec"|"wec"|"sec"|"dec"``. ``missed``
-    flags ``(eul >= 0) & (rob < -1e-10)``; ``severity`` is ``eul - rob``
-    at missed points (zero elsewhere); ``conditional_miss_rate`` is
+    flags ``(eul >= 0) & violated`` with ``violated`` the shared gate of
+    :func:`~warpax.energy_conditions.filtering.violation_masks` on the robust
+    margin at the eigenvalue scale, the same gate ``verify_grid`` summaries
+    use; ``severity`` is ``eul - rob`` at missed points (zero elsewhere).
+    Percentages are over decided (finite) robust margins; ``n_undecided``
+    counts the rest per condition. ``conditional_miss_rate`` is
     ``100 * pct_missed / pct_violated_robust`` (a percentage; zero when
     nothing violated).
     """
@@ -44,6 +47,7 @@ class ComparisonResult(NamedTuple):
     classification_stats: dict[str, int | float]
     opt_margins: dict[str, Float[Array, "..."]]
     he_types: Float[Array, "..."]
+    n_undecided: dict[str, int] | None = None
 
 
 def compare_eulerian_vs_robust(
@@ -89,16 +93,13 @@ def compare_eulerian_vs_robust(
     if key is None:
         key = jax.random.PRNGKey(42)
 
-    # Pure-host product of static shape dims; avoids a device round-trip.
     n_points = int(np.prod(grid_shape))
     flat_T = T_field.reshape(n_points, 4, 4)
     flat_g = g_field.reshape(n_points, 4, 4)
     flat_g_inv = g_inv_field.reshape(n_points, 4, 4)
 
-    # 1. Eulerian EC: vectorized, fast
     eul_results = jax.vmap(_eulerian_ec_point)(flat_T, flat_g, flat_g_inv)
 
-    # 2. Robust EC: optimizer per point (compute_eulerian=False!)
     robust = verify_grid(
         T_field,
         g_field,
@@ -110,7 +111,6 @@ def compare_eulerian_vs_robust(
         compute_eulerian=False,
     )
 
-    # 3. Build per-condition comparison
     eulerian_margins = {}
     robust_margins = {}
     missed = {}
@@ -119,8 +119,9 @@ def compare_eulerian_vs_robust(
     pct_violated_robust = {}
     conditional_miss_rate = {}
     opt_margins_dict = {}
+    n_undecided = {}
+    eig_scale = jnp.max(jnp.abs(robust.eigenvalues), axis=-1)
 
-    # Map condition names to robust ECGridResult fields
     robust_field_map = {
         "nec": robust.nec_margins,
         "wec": robust.wec_margins,
@@ -139,16 +140,16 @@ def compare_eulerian_vs_robust(
         eul_margin = eul_results[cond].reshape(grid_shape)
         rob_margin = robust_field_map[cond]
 
-        # Missed: Eulerian says satisfied, robust says violated
-        missed_mask = (eul_margin >= 0.0) & (rob_margin < -1e-10)
+        violated, decided = violation_masks(rob_margin, eig_scale)
+        missed_mask = (eul_margin >= 0.0) & violated
         sev = jnp.where(missed_mask, eul_margin - rob_margin, 0.0)
 
-        # Statistics
-        n_total = float(rob_margin.size)
+        n_decided = int(jnp.sum(decided))
+        n_undecided[cond] = int(rob_margin.size) - n_decided
+        n_total = float(max(n_decided, 1))
         pct_m = float(jnp.sum(missed_mask.astype(jnp.float64))) / n_total * 100.0
-        pct_v = float(jnp.sum((rob_margin < -1e-10).astype(jnp.float64))) / n_total * 100.0
+        pct_v = float(jnp.sum(violated.astype(jnp.float64))) / n_total * 100.0
 
-        # Conditional miss rate: f_miss|viol = missed / violated
         cond_miss = pct_m / pct_v * 100.0 if pct_v > 0 else 0.0
 
         eulerian_margins[cond] = eul_margin
@@ -160,7 +161,6 @@ def compare_eulerian_vs_robust(
         conditional_miss_rate[cond] = cond_miss
         opt_margins_dict[cond] = opt_field_map[cond]
 
-    # 4. Classification statistics
     classification_stats = {
         "n_type_i": robust.n_type_i,
         "n_type_ii": robust.n_type_ii,
@@ -180,6 +180,7 @@ def compare_eulerian_vs_robust(
         classification_stats=classification_stats,
         opt_margins=opt_margins_dict,
         he_types=robust.he_types.reshape(grid_shape),
+        n_undecided=n_undecided,
     )
 
 
@@ -240,7 +241,6 @@ def build_comparison_table(
                 row[f"{cond}_robust_min"] = float(np.nanmin(rob))
                 row[f"{cond}_pct_violated_robust"] = float(n_violated / rob.size * 100)
                 row[f"{cond}_pct_missed"] = float(n_missed / missed_mask.size * 100)
-                # Conditional miss rate: f_miss|viol
                 row[f"{cond}_conditional_miss_rate"] = (
                     float(n_missed / n_violated * 100) if n_violated > 0 else 0.0
                 )

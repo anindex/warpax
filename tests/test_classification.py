@@ -23,11 +23,7 @@ from warpax.energy_conditions.eigenvalue_checks import (
 from warpax.energy_conditions.types import ClassificationResult
 from warpax.metrics import NatarioMetric, RodalMetric, WarpShellMetric
 
-# Minkowski metric
 ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-
-
-# Classification tests
 
 
 class TestTypeIClassification:
@@ -65,7 +61,6 @@ class TestTypeIClassification:
 
         assert int(result.he_type) == 1
         np.testing.assert_allclose(float(result.rho), rho, atol=1e-12)
-        # Pressures are sorted
         np.testing.assert_allclose(result.pressures, jnp.array([p1, p2, p3]), atol=1e-12)
 
     def test_near_degenerate(self):
@@ -91,8 +86,6 @@ class TestTypeIVClassification:
 
     def test_complex_eigenvalues(self):
         """T^a_b with a 2x2 rotation block producing complex conjugate eigenvalues."""
-        # Build T^a_b with a rotation subblock in the (1,2) plane
-        # Eigenvalues of [[0, -1], [1, 0]] are +/- i
         T_mixed = jnp.array(
             [
                 [-1.0, 0.0, 0.0, 0.0],
@@ -105,7 +98,6 @@ class TestTypeIVClassification:
         result = classify_hawking_ellis(T_mixed, ETA)
 
         assert int(result.he_type) == 4
-        # rho and pressures should be NaN for non-Type-I
         assert jnp.isnan(result.rho)
         assert jnp.all(jnp.isnan(result.pressures))
 
@@ -116,28 +108,21 @@ class TestTypeIIClassification:
     def test_null_eigenvector(self):
         """Construct T^a_b with a null eigenvector in Minkowski.
 
-        Use a Jordan-block-like structure that has a null eigenvector.
+        Use a Jordan-block-like structure that has a null eigenvector: a 4x4
+        matrix with eigenvalues {0, 0, 1, 2} where the two zeros share a Jordan
+        block, built as P J P^-1 in the basis e0=(1,1,0,0)/sqrt(2),
+        e1=(1,-1,0,0)/sqrt(2), e2, e3 so that the eigenvalue-0 eigenvector is
+        the null vector k = (1, 1, 0, 0). Not all eigenvalues are degenerate,
+        so this is Type II, not III.
 
         Take T^a_b with a null eigenvector k = (1, 1, 0, 0):
         k is null: eta_{ab} k^a k^b = -1 + 1 = 0.
         Build T so that T^a_b k^b = lambda k^a for some lambda,
         but T is NOT diagonalizable (has a Jordan block).
         """
-        # A 4x4 matrix with eigenvalues {0, 0, 1, 2} where the two zeros
-        # share a Jordan block. The eigenvectors of the zero eigenvalue
-        # include a null vector in Minkowski.
-        k = jnp.array([1.0, 1.0, 0.0, 0.0])  # null in Minkowski
-        # l_b = eta_{ab} k^a = (-1, 1, 0, 0)
-        l = ETA @ k  # = [-1, 1, 0, 0]
+        k = jnp.array([1.0, 1.0, 0.0, 0.0])
+        l = ETA @ k
 
-        # Simplest Type II construction: a matrix that has eigenvalue 0 with
-        # geometric multiplicity 1 but algebraic multiplicity 2, plus its
-        # eigenvalue-0 eigenvector being null.
-
-        # Jordan block approach: define T in a basis where (1,1,0,0) is one
-        # of the basis vectors.
-        # Basis: e0=(1,1,0,0)/sqrt(2), e1=(1,-1,0,0)/sqrt(2), e2=(0,0,1,0), e3=(0,0,0,1)
-        # In this basis, set T to have a Jordan block for the first eigenvalue.
         P = jnp.array(
             [
                 [1.0, 1.0, 0.0, 0.0],
@@ -149,7 +134,6 @@ class TestTypeIIClassification:
         P = P.at[2, 2].set(1.0)
         P = P.at[3, 3].set(1.0)
 
-        # Jordan form: eigenvalue 0 with 2x2 block, plus 1 and 2
         J = jnp.array(
             [
                 [0.0, 1.0, 0.0, 0.0],
@@ -162,8 +146,6 @@ class TestTypeIIClassification:
         T_mixed = P @ J @ jnp.linalg.inv(P)
         result = classify_hawking_ellis(T_mixed, ETA)
 
-        # Should be Type II: has null eigenvector, eigenvalues {0, 0, 1, 2}
-        # (not all degenerate, so not Type III)
         assert int(result.he_type) == 2
         assert jnp.isnan(result.rho)
         assert jnp.all(jnp.isnan(result.pressures))
@@ -186,14 +168,14 @@ class TestTypeIIIClassification:
     def test_maximally_degenerate_null_with_relaxed_tol(self):
         """A 2x2 Jordan block with all-equal eigenvalues is Type **II**, not III.
 
-        This test used to assert Type III, and the classifier used to agree,
-        because its Type-III gate was ``n_unique == 1``, all four eigenvalues
-        equal, which a ``J_2(lam) (+) [lam] (+) [lam]`` satisfies. Equal
-        eigenvalues are not the criterion. The Hawking-Ellis type is fixed by the
-        Jordan *chain length*: Segre ``[2,1,1]`` is Type II, and Type III needs a
-        a ``J_3``, Segre ``[3,1]``. The classifier now discriminates them by
-        the defect ``multiplicity - dim ker(A - lam I)``, which is 1 here and 2 for
-        a ``J_3``; see ``test_type_iii_3x3_block`` for the real thing.
+        Equal eigenvalues are not the criterion (``J_2(lam) (+) [lam] (+) [lam]``
+        has all four equal). The Hawking-Ellis type is fixed by the Jordan
+        *chain length*: Segre ``[2,1,1]`` is Type II, and Type III needs a
+        ``J_3``, Segre ``[3,1]``. The classifier discriminates them by the
+        defect ``multiplicity - dim ker(A - lam I)``, which is 1 here and 2 for
+        a ``J_3``; see ``test_type_iii_3x3_block`` for the real thing. The
+        relaxed tol=1e-6 absorbs the O(1e-8) perturbation from eig's handling
+        of the defective matrix.
         """
         lam = 1.0
         P = jnp.array(
@@ -207,7 +189,6 @@ class TestTypeIIIClassification:
         P = P.at[2, 2].set(1.0)
         P = P.at[3, 3].set(1.0)
 
-        # Jordan form: eigenvalue lam with 2x2 block, plus two more lam
         J = jnp.array(
             [
                 [lam, 1.0, 0.0, 0.0],
@@ -219,8 +200,6 @@ class TestTypeIIIClassification:
 
         T_mixed = P @ J @ jnp.linalg.inv(P)
 
-        # Relaxed tolerance absorbs the O(1e-8) numerical perturbation
-        # from eig's handling of the defective matrix.
         result = classify_hawking_ellis(T_mixed, ETA, tol=1e-6)
 
         assert int(result.he_type) == 2
@@ -258,9 +237,8 @@ class TestTypeIIIClassification:
         )
 
         T_mixed = P @ J @ jnp.linalg.inv(P)
-        result = classify_hawking_ellis(T_mixed, ETA)  # default tol=1e-10
+        result = classify_hawking_ellis(T_mixed, ETA)
 
-        # At default tolerance, eig's perturbation makes this look like Type I
         assert int(result.he_type) == 1
 
 
@@ -276,7 +254,6 @@ class TestStandardSolverBitExact:
         T = jnp.diag(jnp.array([-1.5, 0.3, 0.3, 0.3]))
         r_default = classify_hawking_ellis(T, ETA)
         r_standard = classify_hawking_ellis(T, ETA, solver="standard")
-        # Identical outputs: use array_equal, not allclose
         assert jnp.array_equal(r_default.he_type, r_standard.he_type)
         assert jnp.array_equal(r_default.eigenvalues, r_standard.eigenvalues)
         assert jnp.array_equal(r_default.eigenvectors, r_standard.eigenvectors)
@@ -317,7 +294,6 @@ class TestStandardSolverBitExact:
 class TestGeneralizedSolver:
     """solver='generalized' dispatch via scipy.linalg.eig + pure_callback."""
 
-    # Non-Minkowski g (WarpShell-style) - verbatim from
     NON_MINK_G = jnp.array(
         [
             [-0.12, 0.05, 0.05, 0.0],
@@ -418,7 +394,6 @@ class TestJITAndVmap:
 
     def test_vmap_batch(self):
         """jax.vmap(classify_hawking_ellis) works on a batch of (N, 4, 4) tensors."""
-        # Build a batch of 3 Type I tensors
         T_batch = jnp.stack(
             [
                 jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5])),
@@ -431,15 +406,11 @@ class TestJITAndVmap:
         classify_vmap = jax.vmap(classify_hawking_ellis)
         results = classify_vmap(T_batch, g_batch)
 
-        # All should be Type I
         np.testing.assert_array_equal(np.array(results.he_type), [1, 1, 1])
         np.testing.assert_allclose(np.array(results.rho), [1.0, 2.0, 0.5], atol=1e-12)
 
     def test_classify_mixed_tensor(self):
         """classify_mixed_tensor raises index and then classifies."""
-        # For a diagonal T_{ab} in Minkowski, T^a_b = g^{ac} T_{cb}
-        # With g^{ab} = diag(-1, 1, 1, 1) and T_{ab} = diag(rho, p, p, p),
-        # T^a_b = diag(-rho, p, p, p)
         rho, p = 2.0, 0.3
         T_ab = jnp.diag(jnp.array([rho, p, p, p]))
         g_inv = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
@@ -448,9 +419,6 @@ class TestJITAndVmap:
 
         assert int(result.he_type) == 1
         np.testing.assert_allclose(float(result.rho), rho, atol=1e-12)
-
-
-# Eigenvalue EC check tests
 
 
 class TestECChecksDust:
@@ -543,10 +511,8 @@ class TestDECViolation:
         rho = jnp.float64(1.0)
         pressures = jnp.array([0.9, -0.9, 0.0])
         eigenvalue_margin = float(check_dec(rho, pressures))
-        # min(1-0.9, 1-0.9, 1-0) = 0.1
         assert eigenvalue_margin == pytest.approx(0.1)
 
-        # Cross-validate with the optimizer on the same tensor.
         T_mixed = jnp.diag(jnp.array([-1.0, 0.9, -0.9, 0.0]))
         T_ab = ETA @ T_mixed
         res = optimize_dec(T_ab, ETA, n_starts=8, zeta_max=5.0)
@@ -592,32 +558,25 @@ class TestECVmapGrid:
         batch_rho = jnp.array([1.0, -1.0, 0.0, 1.0])
         batch_p = jnp.array(
             [
-                [0.0, 0.0, 0.0],  # dust: all satisfied
-                [0.0, 0.0, 0.0],  # negative rho: WEC violated
-                [0.0, 0.0, 0.0],  # vacuum: boundary
-                [-2.0, 0.0, 0.0],  # NEC violated
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [-2.0, 0.0, 0.0],
             ]
         )
 
         vmap_all = jax.vmap(check_all)
         nec, wec, sec, dec = vmap_all(batch_rho, batch_p)
 
-        # Point 0 (dust): all >= 0
         assert float(nec[0]) >= 0.0
         assert float(wec[0]) >= 0.0
 
-        # Point 1 (negative rho): WEC < 0
         assert float(wec[1]) < 0.0
 
-        # Point 2 (vacuum): all == 0
         np.testing.assert_allclose(float(nec[2]), 0.0, atol=1e-12)
 
-        # Point 3 (NEC violation): NEC < 0
         assert float(nec[3]) < 0.0
         np.testing.assert_allclose(float(nec[3]), -1.0, atol=1e-12)
-
-
-# Scale-aware imaginary tolerance tests (root cause fix)
 
 
 class TestScaleAwareImaginaryTolerance:
@@ -626,15 +585,17 @@ class TestScaleAwareImaginaryTolerance:
     def test_large_eigenvalues_tiny_relative_imag_is_type_i(self):
         """Moderate eigenvalues (~1e3) with |Im|/scale ~ 1e-11 -> Type I.
 
-        This is the root cause scenario: eigenvalues have absolute imaginary
-        parts ~1e-8, which exceeds the old absolute tolerance 1e-10, but
-        relative to scale (~1e3) they are ~1e-11, well below tolerance.
+        Eigenvalues have absolute imaginary parts ~1e-8, which exceeds an
+        absolute tolerance of 1e-10, but relative to scale (~1e3) they are
+        ~1e-11, well below the scale-aware tolerance, so the result is Type I.
+        The perturbation is an antisymmetric eps on the (1,2) block, whose
+        diagonal entries must be EQUAL: on diag(a, a) it gives a true complex
+        pair a +/- i*eps, whereas on unequal entries the spectrum stays
+        exactly real. Type IV on this matrix is pinned (with NaN assertions)
+        by TestTypeIVClassification::test_complex_eigenvalues; Type-IV
+        preservation under the scale-aware tolerance is covered by
+        test_imag_rtol_threshold_boundary.
         """
-        # Build T_mixed with known real eigenvalues, then add tiny imaginary
-        # perturbation via an antisymmetric off-diagonal term. The (1,2)
-        # diagonal entries must be EQUAL: an antisymmetric eps on a 2x2
-        # block diag(a, a) gives a true complex pair a +/- i*eps,
-        # whereas on unequal entries the spectrum stays exactly real.
         T_mixed = jnp.diag(jnp.array([-1e3, 5e2, 5e2, 1e2]))
 
         eps = 1e-8
@@ -643,17 +604,10 @@ class TestScaleAwareImaginaryTolerance:
 
         result = classify_hawking_ellis(T_mixed, ETA)
 
-        # With scale-aware tolerance: |Im| ~ 1e-8, scale ~ 1e3, ratio ~ 1e-11 < tol
-        # -> should be Type I (not Type IV)
         assert int(result.he_type) == 1, (
             f"Expected Type I but got Type {int(result.he_type)}. "
             f"Scale-aware tolerance should classify this as real."
         )
-
-    # Type IV on this matrix is pinned (with NaN assertions) by
-    # TestTypeIVClassification::test_complex_eigenvalues; Type-IV preservation
-    # under the scale-aware tolerance is covered by
-    # test_imag_rtol_threshold_boundary below.
 
     def test_imag_tolerance_is_scale_covariant(self):
         """The real-spectrum test must be invariant under T -> cT.
@@ -677,7 +631,6 @@ class TestScaleAwareImaginaryTolerance:
         for scale in (1e-8, 1.0, 1e11):
             assert _classify(4e-3, scale) == 4, f"|Im/Re|=4e-3 at {scale}"
             assert _classify(2e-3, scale) == 4, f"|Im/Re|=2e-3 at {scale}"
-            # Below the tolerance the spectrum reads real at every scale.
             assert _classify(1e-12, scale) == 1, f"|Im/Re|=1e-12 at {scale}"
 
     def test_eigenvalues_imag_near_zero_for_diagonal(self):
@@ -686,9 +639,6 @@ class TestScaleAwareImaginaryTolerance:
         result = classify_hawking_ellis(T_mixed, ETA)
 
         np.testing.assert_allclose(result.eigenvalues_imag, jnp.zeros(4), atol=1e-14)
-
-
-# Type II null dust benchmark (validates non-Type-I optimizer pathway)
 
 
 class TestTypeIINullDustBenchmark:
@@ -701,26 +651,25 @@ class TestTypeIINullDustBenchmark:
     """
 
     def test_null_dust_classification(self):
-        """Null dust classifies as Type II (or I depending on numerics)."""
-        # k = (1, 1, 0, 0) is null in Minkowski: eta_ab k^a k^b = -1 + 1 = 0
+        """Null dust classifies as Type II (or I depending on numerics).
+
+        Its eigenvalues are {0, 0, 0, 0} with a null eigenvector, so numerically
+        it may read Type I (near-vacuum) or Type II depending on tolerance, but
+        never Type IV.
+        """
         k_up = jnp.array([1.0, 1.0, 0.0, 0.0])
-        k_down = ETA @ k_up  # k_a = (-1, 1, 0, 0)
+        k_down = ETA @ k_up
 
         Phi_sq = 1.0
         T_ab = Phi_sq * jnp.outer(k_down, k_down)
 
-        # Fixture sanity: k is null, so T_ab k^a k^b = Phi^2 (k_a k^a)^2 = 0.
         assert float(jnp.einsum("a,ab,b->", k_up, T_ab, k_up)) == pytest.approx(0.0, abs=1e-12)
 
-        # T^a_b = g^{ac} T_{cb}
         g_inv = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
         T_mixed = g_inv @ T_ab
 
         result = classify_hawking_ellis(T_mixed, ETA)
 
-        # Null dust has eigenvalues {0, 0, 0, 0} with a null eigenvector
-        # Numerically it may classify as Type I (near-vacuum) or Type II
-        # depending on tolerance, but NOT Type IV
         assert int(result.he_type) != 4, (
             f"Null dust should not be Type IV, got Type {int(result.he_type)}"
         )
@@ -799,7 +748,6 @@ class TestTypeIIISyntheticBenchmark:
                 [0.0, 0.0, 0.0, 1.0],
             ]
         ) / jnp.sqrt(2.0)
-        # Renormalize the last row so P stays invertible at float64 precision.
         P = P.at[3, 3].set(1.0)
         J = jnp.array(
             [
@@ -814,14 +762,14 @@ class TestTypeIIISyntheticBenchmark:
     def test_jordan_2x2_at_small_scale_is_type_ii(self):
         """At ``lam = 1e-4`` the 2x2 Jordan block classifies as Type II.
 
-        A ``J_2`` block is Segre ``[2,1,1]``, i.e. Type II, at every scale. This
-        asserted Type III until the classifier learned to test the Jordan chain
-        length rather than eigenvalue multiplicity.
+        A ``J_2`` block is Segre ``[2,1,1]``, i.e. Type II, at every scale,
+        because the classifier tests the Jordan chain length rather than
+        eigenvalue multiplicity. At the default tol the eig split on this
+        1e-4-scale block falls below tol*scale, so the test uses a relaxed
+        tol = 1e-2 * lam, what a practitioner would choose for small-scale
+        defective detection.
         """
         T = self._jordan_2x2_tensor(1e-4)
-        # At the default tol the eig split on this 1e-4-scale Jordan block
-        # falls below tol*scale, so use a relaxed tol = 1e-2 * lam, matching
-        # what a practitioner would choose for small-scale defective detection.
         result = classify_hawking_ellis(T, ETA, tol=1e-2 * 1e-4)
         assert int(result.he_type) == 2
 
@@ -858,16 +806,13 @@ class TestTypeIIISyntheticBenchmark:
                 f"exceeds 3e-3 * scale = {3e-3 * scale:.2e}"
             )
 
-    # NaN rho/pressures for Type III on this exact tensor is pinned by
-    # TestTypeIIIClassification::test_maximally_degenerate_null_with_relaxed_tol.
-
     @staticmethod
     def _generic_type_iii(rho, f, p):
         """Lorentz-self-adjoint ``J_3(-rho) (+) [p]`` with ``p != -rho``.
 
         This is *generic* Type III: the repeated eigenvalue has multiplicity three,
-        not four, so it is exactly the family the old ``n_unique == 1`` gate
-        excluded by construction.
+        not four, so an all-eigenvalues-equal gate would exclude it by
+        construction.
         """
         T_ab = jnp.array(
             [
@@ -912,9 +857,6 @@ class TestTypeIIISyntheticBenchmark:
         assert int(result.he_type) == 4, "documents the limit; not a desired outcome"
 
 
-# g-orthogonal causal-basis fix
-
-
 class TestTimelikeTiebreakScaleInvariance:
     """The Type-I timelike-eigenvector selection must be scale-free.
 
@@ -931,7 +873,7 @@ class TestTimelikeTiebreakScaleInvariance:
         u_up = jnp.array([ch, sh, 0.0, 0.0])
         u_dn = ETA @ u_up
         T_dn = (rho + p) * jnp.outer(u_dn, u_dn) + p * ETA
-        return ETA @ T_dn, ETA  # g^{-1} = eta for Minkowski
+        return ETA @ T_dn, ETA
 
     def test_rho_is_scale_equivariant_at_large_norm(self):
         """classify(c*T).rho == c*classify(T).rho for a boosted Type-I fluid."""
@@ -966,11 +908,8 @@ class TestCausalBasisFix:
         block dominates ``-g_{00}`` (ratio ~10). The relative-sign causal test
         identifies the timelike eigenvector and returns Type I.
         """
-        # T^a_b spectrum: one negative (-1.0, timelike eigenvector) + three
-        # positive (0.3, 0.3, 0.3, spacelike). This IS a Type-I perfect fluid.
         T_mixed = jnp.diag(jnp.array([-1.0, 0.3, 0.3, 0.3]))
 
-        # Non-Minkowski g with |g_{ij}|/|g_{00}| ~ 10 (RESEARCH.md Code Example 1).
         g_ab = jnp.array(
             [
                 [-0.12, 0.05, 0.05, 0.0],
@@ -1103,9 +1042,8 @@ def test_genuine_type_i_anisotropic_is_not_tagged_vacuum():
 
 
 def test_vacuum_tag_just_below_tolerance():
-    """Eigenvalues at exactly tol should NOT be tagged vacuum
-    (strict less-than in the check)."""
-    # max|Re lambda| = tol = 1e-10 exactly: should NOT be vacuum
+    """Eigenvalues with max|Re lambda| = tol = 1e-10 exactly should NOT be
+    tagged vacuum (strict less-than in the check)."""
     T = jnp.diag(jnp.array([-1e-10, 1e-10, 1e-10, 1e-10]))
     res = classify_hawking_ellis(T, _g_minkowski())
     assert float(res.is_vacuum) == 0.0, (
@@ -1115,13 +1053,17 @@ def test_vacuum_tag_just_below_tolerance():
 
 def test_grid_vacuum_count_matches_n_vacuum():
     """ECGridResult.n_vacuum reports the grid-aggregate count consistent
-    with per-point is_vacuum tags."""
+    with per-point is_vacuum tags.
+
+    On a (+-5)^3 box for R=1, sigma=8 Alcubierre the wall occupies ~0.35% of
+    the volume, so the vast majority of points are near-vacuum, and n_vacuum
+    must not exceed n_type_i because vacuum points are tagged Type I.
+    """
     from warpax.benchmarks import AlcubierreMetric
     from warpax.energy_conditions.verifier import verify_grid
     from warpax.geometry import GridSpec, evaluate_curvature_grid
 
     metric = AlcubierreMetric(R=1.0, sigma=8.0, v_s=0.5)
-    # Small grid for test speed
     grid = GridSpec(bounds=[(-5, 5)] * 3, shape=(20, 20, 20))
     curv = evaluate_curvature_grid(metric, grid, batch_size=256)
     ec = verify_grid(
@@ -1133,15 +1075,11 @@ def test_grid_vacuum_count_matches_n_vacuum():
         compute_eulerian=False,
     )
     assert ec.n_vacuum is not None, "n_vacuum should be populated on ECGridResult"
-    # On a (±5)^3 box for R=1, sigma=8 Alcubierre, the wall occupies
-    # ~0.35% of the volume, so the vast majority of points should be
-    # near-vacuum (T ~ 0 outside the wall).
     total = 20**3
     vacuum_frac = ec.n_vacuum / total
     assert vacuum_frac > 0.5, (
         f"Expected > 50% vacuum for Alcubierre on (±5)^3; got {vacuum_frac:.3f}"
     )
-    # And n_vacuum should be <= n_type_i (since vacuum points are tagged Type-I)
     assert ec.n_vacuum <= ec.n_type_i, (
         f"n_vacuum={ec.n_vacuum} exceeds n_type_i={ec.n_type_i}; vacuum "
         "points should be a subset of Type-I."
@@ -1152,10 +1090,11 @@ def test_nilpotent_stress_energy_is_not_mistaken_for_vacuum():
     """Negative null dust is finite, Type II, and violates every condition.
 
     Its mixed tensor is nilpotent, so its spectrum is identically zero. Testing the
-    near-vacuum bypass on the spectrum alone therefore labelled it vacuum and hence
+    near-vacuum bypass on the spectrum alone therefore labeled it vacuum and hence
     Type I, and a Type-I label routes the point away from the linear matrix
     inequality that is supposed to decide every non-Type-I point. The LMI margins
-    are -2 for all four conditions; the classifier reported none.
+    are -2 for all four conditions, and the bypass must still fire on an exactly
+    zero tensor.
     """
     import numpy as np
 
@@ -1172,6 +1111,40 @@ def test_nilpotent_stress_energy_is_not_mistaken_for_vacuum():
     margins = slemma.certify_point(T_ab, g)
     assert float(margins["nec"]) < -1.0, "the LMI must see the violation"
 
-    # And the bypass must still fire on something that really is vacuum.
     zero = classify_hawking_ellis(jnp.zeros((4, 4)), g)
     assert int(zero.is_vacuum) == 1
+
+
+class TestSplitNullToleranceIsScaleInvariant:
+    """The collapsed-eigenvector null admission must not depend on stress units."""
+
+    @staticmethod
+    def _split_null_tensor(d: float = 1e-24):
+        g = jnp.array(
+            [
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, d],
+            ]
+        )
+        M = jnp.array(
+            [
+                [0.0, 1.0, 0.0, 0.0],
+                [d, 0.0, 1.0, 0.0],
+                [0.0, d, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
+        return M, g
+
+    @pytest.mark.parametrize("amplitude", [1.0, 1e-30])
+    def test_split_null_is_type_i_at_every_amplitude(self, amplitude):
+        """``g M`` is symmetric with eigenvalues ``0, +-sqrt(2d), 1`` for
+        ``d = 1e-24``; the eigenvector of 0 is ``(1, 0, -d, 0)`` with
+        ``g(v, v) = -2d < 0``, so the tensor is Type I. An admission scaled by
+        ``4 * max(gaps) / g_quad_scale`` carries stress units and reads ``M``
+        and ``1e-30 M`` differently; both must be 1."""
+        M, g = self._split_null_tensor()
+        result = classify_hawking_ellis(amplitude * M, g)
+        assert int(result.he_type) == 1

@@ -19,6 +19,12 @@ values. The cost is that every quantity carries ``1 + 4 + 16`` interval numbers
 Only the operations the warp metrics actually use are implemented. Every
 transcendental is written so that its argument appears exactly once, which keeps
 the interval extension free of dependency overestimation at the leaves.
+
+The transcendentals ``sqrt``, ``exp``, ``log`` and the ``add``/``mul`` helpers are
+taken from :mod:`._jet` and are the only places that name a concrete scalar type;
+everything else is generic in ``+ - * /``, so :class:`Dual2` can be instantiated
+over :class:`._jet.Jet` as well as over a bare mpmath interval, which supplies the
+extra derivative the centered bound in :mod:`.enclosure` needs.
 """
 
 from __future__ import annotations
@@ -30,25 +36,16 @@ from . import _jet
 
 __all__ = ["Dual2", "constant", "cosh", "exp", "log", "sinh", "sqrt", "tanh", "variable"]
 
-# The transcendentals below are the only places that name a concrete scalar type.
-# Dispatching them lets Dual2 be instantiated over ``_jet.Jet`` as well as over a
-# bare mpmath interval, which is what supplies the extra derivative the centered
-# bound in :mod:`.enclosure` needs. Everything else here is generic in + - * /.
 _sqrt, _exp, _log = _jet.sqrt, _jet.exp, _jet.log
 _add, _mul = _jet.add, _jet.mul
 
-_N = 4  # spacetime dimension
+_N = 4
 
 
 def _zeros():
     return [iv.mpf([0, 0]) for _ in range(_N)]
 
 
-def _zeros2():
-    return [[iv.mpf([0, 0]) for _ in range(_N)] for _ in range(_N)]
-
-
-# Shared zero gradient and Hessian; see _jet._ZERO_D.
 _ZERO_G = tuple(iv.mpf([0, 0]) for _ in range(_N))
 _ZERO_H = tuple(tuple(iv.mpf([0, 0]) for _ in range(_N)) for _ in range(_N))
 
@@ -59,6 +56,12 @@ class Dual2:
     Arithmetic follows the exact chain rule, so ``d.g[i]`` encloses
     ``df/dx_i`` and ``d.h[i][j]`` encloses ``d^2 f/dx_i dx_j`` over the box on
     which the inputs were seeded.
+
+    ``g`` and ``h`` default to shared immutable zero tuples, as :class:`._jet.Jet`
+    does for its gradient. The Hessian sum in ``__mul__`` is left-associated:
+    interval addition is commutative but not associative under directed rounding,
+    so a different bracketing would move the enclosure by a few ulps and the jet
+    ring would stop reproducing the plain one bit for bit.
     """
 
     __slots__ = ("g", "h", "v")
@@ -67,8 +70,6 @@ class Dual2:
         self.v = v
         self.g = _ZERO_G if g is None else g
         self.h = _ZERO_H if h is None else h
-
-    # , arithmetic ---------------------------------------------------------
 
     def __add__(self, o):
         o = _lift(o)
@@ -99,11 +100,6 @@ class Dual2:
         g = [_add(_mul(self.g[i], o.v), _mul(self.v, o.g[i])) for i in range(_N)]
         h = [
             [
-                # Left-associated, exactly as the un-nested version was: interval
-                # addition is commutative but NOT associative under directed
-                # rounding, so a different bracketing would move the value
-                # enclosure by a few ulps and the jet ring would stop reproducing
-                # the plain one bit for bit.
                 _add(
                     _add(
                         _add(_mul(self.h[i][j], o.v), _mul(self.g[i], o.g[j])),
@@ -213,7 +209,7 @@ def log(d: Dual2) -> Dual2:
 
 
 def tanh(d: Dual2) -> Dual2:
-    # Single occurrence of the argument keeps the leaf enclosure tight.
+    """``tanh(u) = 1 - 2/(exp(2u) + 1)``; ``u`` appears once, so the leaf is tight."""
     th = 1 - 2 / (_exp(2 * d.v) + 1)
     sech2 = 1 - th**2
     return _chain(d, th, sech2, -2 * th * sech2)

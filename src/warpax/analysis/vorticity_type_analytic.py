@@ -10,14 +10,16 @@ The momentum-aligned 2x2 stress block has a complex pair when
 ``4*j**2 > (rho + S_parallel)**2``. Applying this reduction to a full tensor
 requires the transverse couplings to vanish. The scripts compare the
 restricted prediction with the full eigenspectrum.
+
+``_IMAG_FLOOR`` is the ``|Im lambda|`` (relative to the eigenvalue scale)
+below which the spectrum is treated as real, matching the classifier's
+degeneracy tolerance.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-# Below this |Im lambda| (relative to the eigenvalue scale) the spectrum is
-# treated as real, matching the classifier's degeneracy tolerance.
 _IMAG_FLOOR = 1e-10
 
 
@@ -73,6 +75,10 @@ def fit_kappa(omega: np.ndarray, imag: np.ndarray) -> dict:
         Vorticity magnitudes ``sqrt(omega^2)``.
     imag : array
         Corresponding measured ``max|Im lambda|`` of ``T^a_b``.
+
+    ``R^2`` uses the uncentered total sum of squares because the model is
+    forced through the origin; the mean-centered form understates it and
+    can go negative.
     """
     omega = np.asarray(omega, dtype=float)
     imag = np.asarray(imag, dtype=float)
@@ -80,9 +86,6 @@ def fit_kappa(omega: np.ndarray, imag: np.ndarray) -> dict:
     kappa = float(np.sum(omega * imag) / denom) if denom > 0 else 0.0
     pred = kappa * omega
     ss_res = float(np.sum((imag - pred) ** 2))
-    # Uncentered total sum of squares: the model is forced through the origin
-    # (no intercept), so the correct baseline is 0, not the mean. Using the
-    # mean-centered form here understates R^2 (and can even go negative).
     ss_tot = float(np.sum(imag**2))
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
     return {"kappa": kappa, "r_squared": r2, "n": int(omega.size)}

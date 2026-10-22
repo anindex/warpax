@@ -9,10 +9,10 @@ is constant in the box width, pure dependency inflation, not a resolution effect
 
 The excess of the certified lower bound is ``C*h`` with ``h`` the box half-width and
 ``C`` of order 100, so a branch-and-bound at tolerance ``tol`` must retain roughly
-``C^2/tol`` boxes. That is why the 120000-box budget could not close.
+``C^2/tol`` boxes, beyond any practical box budget.
 
 The standard cure is the centered, or mean-value, form. For ``f`` continuously
-differentiable on a box ``X`` with centre ``c``,
+differentiable on a box ``X`` with center ``c``,
 
     f(X)  subset of  f(c) + sum_m [df/dx_m](X) * (X_m - c_m),
 
@@ -42,16 +42,13 @@ from mpmath import iv
 
 __all__ = ["Jet", "constant", "exp", "grad", "is_jet", "log", "seed", "sqrt", "value"]
 
-_N = 4  # spacetime dimension
+_N = 4
 
 
 def _zeros():
     return [iv.mpf([0, 0]) for _ in range(_N)]
 
 
-# Shared zero gradient. iv.mpf is immutable and no jet mutates d in place, so
-# allocating four fresh intervals per Jet was 20% of the branch-and-bound.
-# A tuple, so an attempted in-place write raises instead of corrupting.
 _ZERO_D = tuple(iv.mpf([0, 0]) for _ in range(_N))
 
 
@@ -59,6 +56,20 @@ class Jet:
     """Interval value and interval gradient of a function of the box coordinates.
 
     ``v`` encloses ``f`` over the box; ``d[m]`` encloses ``df/dx_m`` over the box.
+
+    ``d`` defaults to one shared zero tuple: ``iv.mpf`` is immutable and no jet
+    mutates ``d`` in place, and sharing it instead of allocating four fresh
+    intervals per jet saves about 20% of the branch-and-bound time; being a tuple,
+    an attempted in-place write raises instead of corrupting. The ``a``/``b``
+    endpoint properties let pivot selection and positivity tests in
+    :mod:`._intervalcurv` treat a jet exactly as a bare interval. Division is
+    written out rather than routed through ``self * (1/o)``: interval division
+    rounds once and a reciprocal product twice, so the shortcut would widen every
+    quotient in the curvature chain by a few ulps and the jet ring would stop
+    reproducing the plain one bit for bit. ``abs`` raises when the value interval
+    contains zero, where ``|f|`` is not differentiable; every use in the curvature
+    chain is on a quantity bounded away from zero (the squared norm of the Eulerian
+    normal), so refusing the ambiguous case keeps the result rigorous.
     """
 
     __slots__ = ("d", "v")
@@ -67,8 +78,6 @@ class Jet:
         self.v = v
         self.d = _ZERO_D if d is None else d
 
-    # Endpoint access, so pivot selection and positivity tests in _intervalcurv
-    # work on a Jet exactly as they do on a bare interval.
     @property
     def a(self):
         return self.v.a
@@ -101,10 +110,6 @@ class Jet:
 
     __rmul__ = __mul__
 
-    # Division is written out rather than routed through ``self * (1/o)``. Interval
-    # division rounds once; multiplying by a reciprocal rounds twice, so the shortcut
-    # would widen every quotient in the curvature chain by a few ulps and the jet ring
-    # would stop reproducing the plain one bit for bit.
     def __truediv__(self, o):
         o = _lift(o)
         v = self.v / o.v
@@ -127,9 +132,6 @@ class Jet:
         return out
 
     def __abs__(self):
-        # |f| is not differentiable through zero. Every use in the curvature chain
-        # is on a quantity bounded away from zero (the squared norm of the Eulerian
-        # normal); refusing the ambiguous case keeps the result rigorous.
         lo, hi = float(mpmath.mpf(self.v.a)), float(mpmath.mpf(self.v.b))
         if lo > 0:
             return self
@@ -142,14 +144,17 @@ def is_jet(x) -> bool:
     return isinstance(x, Jet)
 
 
-# mpmath's interval type raises NotImplementedError from its own ``convert`` rather
-# than returning NotImplemented, so Python never falls back to ``Jet.__radd__`` /
-# ``Jet.__rmul__`` when a bare interval sits on the left. Addition and multiplication
-# commute, so these helpers simply put the jet first; they are the only reason
-# ``Dual2`` can be instantiated over either ring without duplicating its arithmetic.
-
-
 def add(x, y):
+    """Ring-agnostic ``x + y``.
+
+    mpmath's interval type raises ``NotImplementedError`` from its own ``convert``
+    rather than returning ``NotImplemented``, so Python never falls back to
+    ``Jet.__radd__`` / ``Jet.__rmul__`` when a bare interval sits on the left.
+    Addition and multiplication commute, so :func:`add` and :func:`mul` put the jet
+    first; :func:`sub` and :func:`div` lift the left operand. These helpers are the
+    only reason ``Dual2`` can be instantiated over either ring without duplicating
+    its arithmetic.
+    """
     if isinstance(y, Jet) and not isinstance(x, Jet):
         return y + x
     return x + y

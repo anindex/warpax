@@ -23,8 +23,12 @@ The fix is basis-independent: Cholesky-factor ``gamma = L L^T`` and push the
 decomposition through ``L^{-1}``. Writing ``v = L^{-T} u`` makes
 ``gamma(v,v) = |u|^2``, so
 ``b_hat = L^{-1} b`` and ``S_hat = L^{-1} S L^{-T}`` are the components against
-which the unit-sphere minimisation is the right one. For a flat slice ``L`` is the
+which the unit-sphere minimization is the right one. For a flat slice ``L`` is the
 identity and nothing changes.
+
+Arithmetic goes through the ring-agnostic helpers of :mod:`._jet` (``_jet.sqrt`` is
+``iv.sqrt`` on a bare interval and the chain rule on a jet), so the chain runs
+unchanged over either scalar ring.
 """
 
 from __future__ import annotations
@@ -38,8 +42,6 @@ from . import _jet
 _N = 4
 _ZERO = iv.mpf([0, 0])
 
-# ``_jet.sqrt`` is ``iv.sqrt`` on a bare interval and the chain rule on a jet, so the
-# chain below runs unchanged over either scalar ring.
 _sqrt, _add, _mul, _sub, _div = (_jet.sqrt, _jet.add, _jet.mul, _jet.sub, _jet.div)
 
 
@@ -61,7 +63,10 @@ def _inv4(m):
 
     Pivoting is on the interval midpoint; correctness does not depend on the
     choice, only tightness does. A pivot interval straddling zero makes the
-    enclosure unbounded, which the caller treats as "cannot bound this box".
+    enclosure unbounded, which the caller treats as "cannot bound this box". There
+    is no zero-factor shortcut in the elimination: testing the value endpoints alone
+    would drop the derivative of a jet whose value is zero and would read a subnormal
+    magnitude as zero, either of which narrows the enclosure below the truth.
     """
     n = _N
     a = [
@@ -81,9 +86,6 @@ def _inv4(m):
             if r == col:
                 continue
             f = a[r][col]
-            # No zero-factor shortcut: testing the VALUE endpoints alone drops the
-            # derivative of a jet whose value is zero, and reads a subnormal magnitude
-            # as zero, either of which narrows the enclosure below the truth.
             a[r] = [_sub(a[r][k], _mul(f, a[col][k])) for k in range(2 * n)]
     return [[a[i][n + j] for j in range(n)] for i in range(n)]
 
@@ -92,7 +94,7 @@ def _chol3(gam):
     """Interval Cholesky ``gamma = L L^T`` for a 3x3 spatial metric.
 
     Raises ``ValueError`` when a pivot interval reaches zero, i.e. when the box is
-    too wide for the factorisation to be certified. The caller treats that as
+    too wide for the factorization to be certified. The caller treats that as
     "cannot bound this box" and subdivides, which is the correct response.
     """
     L = [[_ZERO] * 3 for _ in range(3)]
@@ -136,6 +138,20 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
         intervals, so each returned quantity carries its gradient with respect to the
         box coordinates as well as its value. That gradient is what the centered
         bound of :mod:`.enclosure` needs; the values are identical either way.
+
+    Notes
+    -----
+    The bracket ``dg_bdc + dg_cdb - dg_bcd`` and its derivative are free of the
+    contracted index, so each is built once rather than per Christoffel entry;
+    ``d(g^{ad})/dx_e = -g^{af} (dg_{fh}/dx_e) g^{hd}`` and
+    ``R_bc = d_a Gam^a_bc - d_c Gam^a_ba + Gam^a_af Gam^f_bc - Gam^a_cf Gam^f_ba``.
+    The Eulerian normal is derived from the metric, not from a shift-sign
+    convention: ``n_a = (-alpha, 0, 0, 0)``, ``n^a = g^{ab} n_b`` normalized by
+    ``|n_a n^a|^{1/2}``, exactly as in :mod:`.frame_free`. ``b`` and ``S`` are then
+    pushed into an orthonormal spatial frame through the interval Cholesky factor
+    ``gamma = L L^T``: ``b_hat = L^{-1} b`` and ``S_hat = L^{-1} S L^{-T}``,
+    computed as ``M = L^{-1} S`` column by column and then ``L^{-1} M^T`` using the
+    symmetry of ``S``; on a flat slice ``L`` is the identity.
     """
     seed = ad.variable_jet if jet else ad.variable
     coords = [seed(box[i], i) for i in range(_N)]
@@ -149,15 +165,12 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
     ]
     gi = _inv4(g)
 
-    # The bracket dg_bdc + dg_cdb - dg_bcd is free of the contracted index a and
-    # of e, so it is built once instead of 16 times per entry.
     S1 = [[[_ZERO] * _N for _ in range(_N)] for _ in range(_N)]
     for b in range(_N):
         for c in range(_N):
             for d in range(_N):
                 S1[b][c][d] = _sub(_add(dg[b][d][c], dg[c][d][b]), dg[b][c][d])
 
-    # Christoffel symbols and their first derivatives.
     Gam = [[[_ZERO] * _N for _ in range(_N)] for _ in range(_N)]
     for a in range(_N):
         for b in range(_N):
@@ -167,7 +180,6 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
                     s = _add(s, _mul(gi[a][d], S1[b][c][d]))
                 Gam[a][b][c] = _div(s, 2)
 
-    # d(g^{ad})/dx_e = -g^{af} (dg_{fh}/dx_e) g^{hd}
     dgi = [[[_ZERO] * _N for _ in range(_N)] for _ in range(_N)]
     for a in range(_N):
         for d in range(_N):
@@ -178,7 +190,6 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
                         s = _add(s, _mul(_mul(gi[a][f], dg[f][h][e]), gi[h][d]))
                 dgi[a][d][e] = -s
 
-    # Same bracket one derivative up; free of a.
     S2 = [[[[_ZERO] * _N for _ in range(_N)] for _ in range(_N)] for _ in range(_N)]
     for b in range(_N):
         for c in range(_N):
@@ -197,8 +208,6 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
                         s = _add(s, _mul(gi[a][d], S2[b][c][d][e]))
                     dGam[a][b][c][e] = _div(s, 2)
 
-    # Ricci tensor R_bc = d_a Gam^a_bc - d_c Gam^a_ba + Gam^a_af Gam^f_bc
-    #                     - Gam^a_cf Gam^f_ba
     Ric = [[_ZERO] * _N for _ in range(_N)]
     for b in range(_N):
         for c in range(_N):
@@ -222,14 +231,15 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
         for a in range(_N)
     ]
 
-    # Eulerian normal, derived from the metric rather than from a shift-sign
-    # convention: n_a = (-alpha, 0, 0, 0), so n^a = g^{ab} n_b, normalized by
-    # |n_a n^a|^{1/2}. This mirrors the reference implementation in
-    # ``warpax.energy_conditions.frame_free`` exactly and is convention-free.
     n_low = [iv.mpf([-1, -1]), _ZERO, _ZERO, _ZERO]
     n_raw = [_fold(_mul(gi[a][b], n_low[b]) for b in range(_N)) for a in range(_N)]
     norm2 = _fold(_mul(n_low[a], n_raw[a]) for a in range(_N))
-    inv_norm = 1 / _sqrt(abs(norm2))
+    if not (norm2.b < 0):
+        raise ValueError(
+            "the t = const slice is not spacelike everywhere on the box "
+            f"(g^00 n_0 n_0 encloses {norm2}); no Eulerian normal exists there"
+        )
+    inv_norm = 1 / _sqrt(-norm2)
     n_up = [_mul(c, inv_norm) for c in n_raw]
 
     rho_n = _ZERO
@@ -246,12 +256,9 @@ def eulerian_fields_interval(metric_dual_fn, box, jet=False):
 
     S_cov = [[T[i + 1][j + 1] for j in range(3)] for i in range(3)]
 
-    # Push both into an orthonormal spatial frame: gamma = L L^T, then
-    # b_hat = L^{-1} b and S_hat = L^{-1} S L^{-T}. Identity work for a flat slice.
     gam = [[g[i + 1][j + 1] for j in range(3)] for i in range(3)]
     L = _chol3(gam)
     b_vec = _fwd_solve3(L, b_cov)
-    # M = L^{-1} S  (column by column), then S_hat = L^{-1} M^T, using S symmetric.
-    M = [_fwd_solve3(L, [S_cov[i][j] for i in range(3)]) for j in range(3)]  # M[j] = column j
+    M = [_fwd_solve3(L, [S_cov[i][j] for i in range(3)]) for j in range(3)]
     S = [_fwd_solve3(L, [M[j][i] for j in range(3)]) for i in range(3)]
     return rho_n, b_vec, S

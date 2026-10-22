@@ -4,6 +4,13 @@ The claim under test is that one 4x4 LMI decides NEC/WEC/SEC/DEC over every
 observer at a point, with no rapidity cap and no dependence on the Hawking-Ellis
 type. These tests check it the only way that matters: against a direct search
 over the observer ball and sphere, on all four canonical algebraic types.
+
+The randomized checks draw hundreds of tensors. Each margin runs a ternary
+search over eigvalsh, which costs ~0.8 s dispatched eagerly one tensor at a time
+and ~0.03 s for a whole batch under one trace, hence the jitted batch helpers.
+The Type-II cases in ``CASES`` are the canonical J_2 blocks; a ``_type_ii(1.0,
+extra=[-1.0, 0.0, 3.0, 3.0])`` would have longitudinal factor lam^2 - lam + 1
+(discriminant -3), a complex pair and hence Type IV, not Type II.
 """
 
 from __future__ import annotations
@@ -23,12 +30,10 @@ from warpax.energy_conditions.slemma import (
     witness_observer,
 )
 
-ETA = np.diag([-1.0, 1.0, 1.0, 1.0])
-MINKOWSKI = jnp.asarray(ETA)
+from ._helpers import ETA as MINKOWSKI
 
-# The randomized checks draw hundreds of tensors. Each margin runs a ternary search
-# over eigvalsh, which costs ~0.8 s dispatched eagerly one tensor at a time and
-# ~0.03 s for a whole batch under one trace.
+ETA = np.asarray(MINKOWSKI)
+
 certify_batch = jax.jit(jax.vmap(certify_point, in_axes=(0, None)))
 tetrad_batch = jax.jit(jax.vmap(tetrad_components, in_axes=(0, None)))
 witness_batch = jax.jit(jax.vmap(witness_observer, in_axes=(0, None)))
@@ -49,9 +54,6 @@ def _sym(M):
     return 0.5 * (np.asarray(M, dtype=float) + np.asarray(M, dtype=float).T)
 
 
-# --- the four Hawking-Ellis canonical forms, satisfying and violating ---------
-
-
 def _type_i(rho, p):
     return np.diag([rho, p, p, p])
 
@@ -70,7 +72,7 @@ def _type_iii(r=0.7, f=1.0, p=0.3):
     point. The previous version built a mixed matrix and returned ``ETA @ Tm``; that
     product is *not* symmetric, so it was not the component matrix of any
     Lorentz-self-adjoint tensor, and ``_sym``, applied to every case before use,
-    then cancelled the off-diagonal ``f`` entries exactly, collapsing the fixture to
+    then canceled the off-diagonal ``f`` entries exactly, collapsing the fixture to
     ``diag(-r, -r, -r, p)``: a diagonal **Type I** tensor. Every "Type III" assertion
     in this file was really being made about Type I.
     """
@@ -95,9 +97,6 @@ CASES = {
     "I-violating": _type_i(-1.0, 0.5),
     "I-nec-only": _type_i(-0.2, 0.9),
     "II-null-dust": _type_ii(1.0),
-    # Was _type_ii(1.0, extra=[-1.0, 0.0, 3.0, 3.0]), whose longitudinal factor is
-    # lam^2 - lam + 1 (discriminant -3): a complex pair, i.e. Type IV, not Type II.
-    # These are the canonical J_2 blocks, and they are Type II.
     "II-violating": _type_ii_canonical(-2.0, 1.0, 3.0, 3.0),
     "II-transverse-violating": _type_ii_canonical(0.0, 1.0, -2.0, 0.0),
     "III": _type_iii(),
@@ -156,7 +155,7 @@ def test_fixtures_have_the_algebraic_type_they_claim(name):
     A = sp.diag(-1, 1, 1, 1) * T
     assert T == T.T, f"{name}: fixture must be symmetric"
 
-    eigs = A.eigenvals()  # {eigenvalue: algebraic multiplicity}, exact
+    eigs = A.eigenvals()
     n_complex = sum(m for e, m in eigs.items() if not e.is_real)
     if EXPECTED_TYPE[name] == 4:
         assert n_complex > 0, f"{name}: expected a complex pair, got {eigs}"
@@ -239,13 +238,13 @@ def test_no_rapidity_cap_dependence():
 
     Build a Type-I tensor whose WEC failure only shows up at high rapidity:
     rho > 0 but rho + p_1 < 0, so the violating observer runs off toward the
-    light cone. The LMI sees it without any cap.
+    light cone. The LMI sees it without any cap, while a cap at |w| <= 0.5
+    would report it clean (rho + p_1 = -0.4 < 0).
     """
     T = np.diag([0.5, -0.9, 2.0, 2.0])
     m = certify_point(jnp.asarray(T), MINKOWSKI)
     assert float(m["wec"]) < 0.0
-    assert float(m["nec"]) < 0.0  # rho + p_1 = -0.4 < 0
-    # a cap at |w| <= 0.5 would report it clean
+    assert float(m["nec"]) < 0.0
     w = np.linspace(0.0, 0.5, 2001)
     q = 0.5 + (-0.9) * w**2
     assert q.min() > 0.0
@@ -394,7 +393,7 @@ def test_null_deficit_dominates_the_momentum_witness():
 
     The witness probes one null direction; the deficit minimizes over all of them, so
     it must be less than or equal to it everywhere. Where the inequality is strict the
-    witness would have under-reported, which is exactly the Type-II NEC bug.
+    witness alone under-reports the Type-II NEC deficit.
     """
     from warpax.energy_conditions.frame_free import eulerian_null_witness
 
@@ -413,17 +412,10 @@ def test_null_deficit_dominates_the_momentum_witness():
     assert np.any(deficit < witness - 1e-6), "the witness should be strictly weaker somewhere"
 
 
-# --------------------------------------------------------------------------
-# Covariance under T -> c T.
-# --------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "name,T",
     [
-        # WEC binds the DEC here.
         ("perfect fluid", np.diag([2.0, -1.0, 0.5, 0.5])),
-        # Flux binds the DEC here: rho = 1 < |p_1| = 2, but rho + p_i >= 0.
         ("flux-bound", np.diag([1.0, 2.0, 0.0, 0.0])),
         (
             "momentum",
@@ -442,6 +434,12 @@ def test_null_deficit_dominates_the_momentum_witness():
 def test_margins_are_homogeneous_of_degree_one(name, T, condition):
     """Every margin must scale linearly under ``T -> c T``, the DEC included.
 
+    In the perfect-fluid case the WEC binds the DEC; in the flux-bound case
+    rho = 1 < |p_1| = 2 but rho + p_i >= 0, so the flux binds it. A saturated
+    base (|base| <= floor) has true margin zero and no float64 search resolves
+    its sign; the contract only promises the result stays inside the floor,
+    which must itself scale linearly, and that is the covariance being tested.
+
     The flux half of the DEC is the ball margin of ``-T^2`` and is therefore
     quadratic in the tensor. Taking ``min(wec, flux)`` unmodified produced a
     reported DEC margin that was degree one where the WEC bound and degree two
@@ -456,9 +454,6 @@ def test_margins_are_homogeneous_of_degree_one(name, T, condition):
     for c in (1e-8, 1e-3, 1.0, 1e3, 1e8):
         got = float(certify_point(jnp.asarray(c * T), MINKOWSKI)[condition])
         if abs(base) <= floor:
-            # Saturated: the true margin is zero and no float64 search resolves its
-            # sign. The contract only promises the result stays inside the floor,
-            # which must itself scale linearly, that is the covariance being tested.
             assert abs(got) <= c * floor * 10.0, (
                 f"{name}/{condition}: saturated base {base:g} but c={c:g} gave {got:g}"
             )
@@ -495,6 +490,10 @@ def test_exact_vacuum_returns_exactly_zero():
 def test_lmi_is_continuous_through_the_type_ii_locus():
     """The LMI margin is continuous through a Type-II point.
 
+    The margin is exactly zero on the locus and strictly monotone through it:
+    Delta > 0 is satisfied, Delta < 0 is violated, with no jump at Delta = 0,
+    and the margin is (rho + S_par)/2 - |j|, linear in j on both sides.
+
     For the momentum block ``A = [[-rho, j], [-j, S_par]]`` the discriminant
     ``Delta = (rho + S_par)^2 - 4 j^2`` vanishes with ``j != 0`` at a Hawking-Ellis
     Type-II point, so a continuous Type-I/Type-IV transition must cross Type II.
@@ -510,12 +509,9 @@ def test_lmi_is_continuous_through_the_type_ii_locus():
     T[:, 2, 2] = T[:, 3, 3] = 0.2
     margins = [float(m) for m in certify_batch(jnp.asarray(T), MINKOWSKI)["nec"]]
 
-    # Exactly zero on the locus, and strictly monotone through it.
     assert margins[js.index(1.0)] == pytest.approx(0.0, abs=1e-13)
     assert all(a > b for a, b in pairwise(margins)), margins
-    # Delta > 0 is satisfied, Delta < 0 is violated, with no jump at Delta = 0.
     assert margins[0] > 0 and margins[-1] < 0
-    # The margin is (rho + S_par)/2 - |j| here, i.e. linear in j on both sides.
     for j, m in zip(js, margins, strict=True):
         assert m == pytest.approx(0.5 * (rho + s_par) - j, abs=1e-12)
 
@@ -523,12 +519,12 @@ def test_lmi_is_continuous_through_the_type_ii_locus():
 def test_lmi_agrees_with_brute_force_at_every_hawking_ellis_type():
     """The LMI verdict must match a brute-force observer search.
 
+    DEC and SEC must never be reported cleaner than the WEC/NEC they imply.
+
     The four canonical forms plus the Type-IV tensor whose quartic
     discriminant vanishes, in Minkowski coordinates where the tetrad is the
     identity. Moved here from a module __main__ block that never ran.
     """
-    eta = np.diag([-1.0, 1.0, 1.0, 1.0])
-    g = jnp.asarray(eta)
     rng = np.random.default_rng(0)
 
     def brute(T_np, on_sphere, n=400_000):
@@ -552,13 +548,13 @@ def test_lmi_agrees_with_brute_force_at_every_hawking_ellis_type():
         "I(bad)": np.diag([-1.0, 0.5, 0.5, 0.5]),
         "II": np.outer(k, k),
         "II(bad)": np.outer(k, k) + np.diag([-1.0, 0.0, 3.0, 3.0]),
-        "III": eta @ Tm3,
-        "IV(D4=0)": eta @ Tm4,
+        "III": ETA @ Tm3,
+        "IV(D4=0)": ETA @ Tm4,
     }
 
     for name, T_np in cases.items():
         T_np = 0.5 * (T_np + T_np.T)
-        m = certify_point(jnp.asarray(T_np), g)
+        m = certify_point(jnp.asarray(T_np), MINKOWSKI)
         for key, sphere in (("nec", True), ("wec", False)):
             cert = bool(m[key] >= -1e-8)
             true = brute(T_np, sphere) >= -1e-6
@@ -566,5 +562,4 @@ def test_lmi_agrees_with_brute_force_at_every_hawking_ellis_type():
                 f"{name}/{key}: LMI says {cert}, brute force says {true} "
                 f"(margin {float(m[key]):.3e})"
             )
-        # DEC and SEC must never be reported cleaner than the WEC/NEC they imply.
         assert float(m["dec"]) <= float(m["wec"]) + 1e-9, name

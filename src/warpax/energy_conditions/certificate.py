@@ -45,7 +45,6 @@ Vec = list[Fraction]
 
 _CONDITIONS = ("nec", "wec", "sec", "dec")
 
-# Try small rational denominators first; accept candidates only after exact checks.
 _DENOMINATORS = (2, 4, 8, 16, 64, 256, 1024, 10**4, 10**6, 10**9, 10**12)
 
 
@@ -223,14 +222,19 @@ def find_multiplier(T: Mat, g: Mat, condition: str, sigma_hint: float) -> Fracti
     is inconclusive; it proves neither violation nor saturation. For
     ``condition="dec"``, this tests flux causality only; full DEC also needs
     a WEC certificate.
+
+    Candidates are the hint, the half-trace ``tr_g(T)/2`` and the tensor entries
+    (which can supply exact boundary multipliers that rounded hints miss), and the
+    hint rounded to small denominators first; every candidate still requires the
+    exact PSD check. Failing those, the feasible set ``{sigma : A + sigma g >= 0}``
+    is convex, hence an interval, so any feasible probe is widened by bisection
+    until both endpoints are pinned to a fine grid and the midpoint is returned.
     """
     A = condition_matrix(T, g, condition)
 
     def ok(s: Fraction) -> bool:
         return _sigma_is_admissible(s, condition) and is_psd_exact(_add(A, g, s))
 
-    # Tensor entries and the half-trace can supply exact boundary multipliers
-    # that rounded hints miss. Every candidate still requires the PSD check.
     cands: list[Fraction] = [Fraction(sigma_hint)]
     ginv = _inverse(g)
     half_trace = sum(ginv[a][b] * T[a][b] for a in range(4) for b in range(4)) / 2
@@ -249,9 +253,6 @@ def find_multiplier(T: Mat, g: Mat, condition: str, sigma_hint: float) -> Fracti
         if ok(s):
             return s
 
-    # Bracket the feasible interval exactly and take its midpoint. The set
-    # {sigma : A + sigma g >= 0} is convex, hence an interval, so any feasible probe
-    # can be widened by bisection until both endpoints are pinned to a fine grid.
     seed = next((s for s in cands if ok(s)), None)
     if seed is None:
         scale = max((abs(A[i][j]) for i in range(4) for j in range(4)), default=Fraction(1))
@@ -306,7 +307,9 @@ def find_violating_observer(T: Mat, g: Mat, condition: str, u_hint: Sequence[flo
     For NEC, returns ``(k, l, alpha, beta)`` with nonnegative weights,
     ``alpha g(k,k) + beta g(l,l) = 0``, and
     ``alpha T(k,k) + beta T(l,l) < 0``. The finite candidate search may miss
-    a witness, so ``None`` is inconclusive.
+    a witness, so ``None`` is inconclusive. The opposite-sign partner is sought
+    among coordinate axes and pairwise sums, a finite set that need not contain
+    one for a general Lorentzian metric.
     """
     A = condition_matrix(T, g, condition)
     for d in _DENOMINATORS:
@@ -323,8 +326,6 @@ def find_violating_observer(T: Mat, g: Mat, condition: str, u_hint: Sequence[flo
             if _quad(A, u) < 0:
                 return (u, [Fraction(0)] * 4, Fraction(1), Fraction(0))
             continue
-        # Try coordinate axes and pairwise sums for an opposite-sign partner.
-        # This finite set need not contain one for a general Lorentzian metric.
         partners: list[Vec] = []
         for i in range(4):
             e = [Fraction(0)] * 4
@@ -360,12 +361,14 @@ def certify(
     :func:`verify` can check. The legacy value ``kind="saturated"`` means
     neither search found a certificate. It does not establish saturation
     or any energy-condition verdict, and :func:`verify` rejects it.
+
+    For ``condition="dec"`` both halves (WEC and flux) are searched and the
+    binding one is reported; a DEC witness may violate either form.
     """
     if condition not in _CONDITIONS:
         raise ValueError(f"unknown condition {condition!r}")
     T, g = to_exact(T_ab), to_exact(g_ab)
 
-    # The DEC needs both halves; report the binding one.
     conds = ("wec", "dec") if condition == "dec" else (condition,)
     sigmas: dict[str, Fraction] = {}
     for c in conds:
@@ -382,7 +385,6 @@ def certify(
         }
 
     for c in conds:
-        # A DEC witness may violate either the WEC form or the flux form.
         hint = observer_hint if observer_hint is not None else _observer_hint(T, g, c)
         w = find_violating_observer(T, g, c, hint)
         if w is not None:
@@ -415,7 +417,9 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
 
     Checks tensor symmetry, Lorentzian metric inertia, condition bindings,
     and the required PSD or witness inequalities. Candidate-search hints
-    are not used. ``"saturated"`` is not a certificate and returns ``False``.
+    are not used. A ``"satisfied"`` certificate must carry exactly the multipliers
+    the claimed condition requires and a ``"violated"`` one must bind an admissible
+    sub-condition. ``"saturated"`` is not a certificate and returns ``False``.
     The certificate dictionary must follow the schema returned by
     :func:`certify`; malformed entries may raise an exception.
     """
@@ -428,7 +432,6 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
     if cond not in _CONDITIONS:
         return False
     if cert["kind"] == "satisfied":
-        # Require exactly the multipliers needed for the claimed condition.
         if set(cert["sigma"]) != set(_required_lmis(cond)):
             return False
         for c, (num, den) in cert["sigma"].items():
@@ -439,7 +442,6 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
                 return False
         return True
     if cert["kind"] == "violated":
-        # Same, with the implication running the other way.
         if cert["binding"] not in _admissible_bindings(cond):
             return False
         A = condition_matrix(T, g, cert["binding"])
@@ -454,13 +456,7 @@ def verify(cert: dict[str, Any], T_ab: Any, g_ab: Any) -> bool:
             return alpha * _quad(A, k) + beta * _quad(A, l) < 0
         u = [Fraction(n, d) for n, d in cert["witness"]]
         return _quad(g, u) <= 0 and _quad(A, u) < 0
-    # Search failure provides no certificate, including under the legacy name.
     return False
-
-
-# --------------------------------------------------------------------------
-# Float hints. These only seed the exact search; nothing they return is trusted.
-# --------------------------------------------------------------------------
 
 
 def _to_float(M: Mat) -> np.ndarray:
@@ -500,7 +496,6 @@ def _observer_hint(T: Mat, g: Mat, condition: str) -> list[float]:
     if not np.all(np.isfinite(w)) or (condition == "nec" and np.linalg.norm(w) < 1e-12):
         A_hat = np.asarray(tetrad_components(A, gj))
         b, S = -A_hat[0, 1:], A_hat[1:, 1:]
-        # Try spatial eigenvectors and the momentum direction on the sphere.
         evals, evecs = np.linalg.eigh(S)
         cand = [evecs[:, 0], -evecs[:, 0]]
         if np.linalg.norm(b) > 0:
@@ -509,5 +504,5 @@ def _observer_hint(T: Mat, g: Mat, condition: str) -> list[float]:
     if condition == "nec":
         n = np.linalg.norm(w)
         w = w / n if n > 0 else np.array([1.0, 0.0, 0.0])
-    e = np.asarray(compute_orthonormal_tetrad(gj))  # e[I, a] = e_I^a
+    e = np.asarray(compute_orthonormal_tetrad(gj))
     return list(np.concatenate([[1.0], w]) @ e)

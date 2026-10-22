@@ -77,7 +77,8 @@ def refine_extremum(
     -------
     dict
         ``value`` (best sampled value), ``coord`` ((3,) location), ``levels_used``,
-        ``last_delta`` (final value change), and ``history``.
+        ``last_delta`` (final value change), ``shape_at_extremum`` (the metric's
+        shape function there, ``None`` when it has none) and ``history``.
     """
     if mode not in ("min", "max"):
         raise ValueError(f"mode must be 'min' or 'max', got {mode!r}")
@@ -113,14 +114,13 @@ def refine_extremum(
         hw *= shrink
         if np.isfinite(last_delta) and last_delta < tol and lvl >= 2:
             break
-    # on-wall diagnostic: shape function value at the extremum (band [0.05,0.95])
     try:
         import jax.numpy as jnp
 
         f_here = float(
             metric.shape_function_value(jnp.array([t, best_xyz[0], best_xyz[1], best_xyz[2]]))
         )
-    except (NotImplementedError, Exception):
+    except NotImplementedError:
         f_here = None
     return {
         "value": best_val,

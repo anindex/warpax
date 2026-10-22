@@ -2,26 +2,13 @@
 
 from __future__ import annotations
 
-import importlib.util
 import os
-import sys
 
 import numpy as np
 import pytest
 
-_SCRIPTS = os.path.join(os.path.dirname(__file__), "..", "scripts")
-
-
-def _load_script(name):
-    # scripts import siblings (_json_io); keep this file standalone-runnable
-    if _SCRIPTS not in sys.path:
-        sys.path.insert(0, _SCRIPTS)
-    path = os.path.join(_SCRIPTS, name)
-    spec = importlib.util.spec_from_file_location(name[:-3], path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = mod
-    spec.loader.exec_module(mod)
-    return mod
+from ._helpers import SCRIPTS_DIR as _SCRIPTS
+from ._helpers import load_script as _load_script
 
 
 class TestFitBound:
@@ -41,6 +28,10 @@ class TestFitBound:
         assert fit["C"] is None and fit["n"] == 1
 
     def test_subluminal_filter(self):
+        """Only the v_s=0.5 violating, resolved, subluminal point survives.
+        The Type-I node count travels with the point, because the reported
+        deviation is meaningless without it: on a vortical wall the branch is
+        a residual that contracts as the speed falls."""
         mod = _load_script("run_ssv_bound.py")
         rows = [
             {"metric": "R", "v_s": 0.5, "typeI_nec_min": -0.10, "n_type_i_wall": 10},
@@ -49,15 +40,16 @@ class TestFitBound:
             {"metric": "R", "v_s": 0.2, "typeI_nec_min": -0.05, "n_type_i_wall": 0},
         ]
         vs, deficits, n_type_i = mod._subluminal_deficits(rows, "R")
-        # Only the v_s=0.5 violating, resolved, subluminal point survives.
         assert list(np.round(vs, 6)) == [0.5]
         assert list(np.round(deficits, 6)) == [0.10]
-        # The Type-I node count travels with the point, because the reported
-        # deviation is meaningless without it: on a vortical wall the branch is a
-        # residual that contracts as the speed falls.
         assert list(n_type_i) == [10]
 
     def test_cached_rodal_coefficient(self):
+        """For the fixed Rodal profile with zero momentum the quadratic
+        coefficient is derived from the same sampled grid as the fit; the exact
+        law gives the same ratio at every speed to machine precision, and the
+        fit must record which sweep it read so a stale pairing is visible in
+        the artifact rather than only in a file mtime."""
         import json
 
         path = os.path.join(_SCRIPTS, "..", "results", "ssv_bound.json")
@@ -65,8 +57,6 @@ class TestFitBound:
             pytest.skip("results/ssv_bound.json not present")
         data = json.load(open(path))
         fits = data["fits"]
-        # For the fixed Rodal profile with zero momentum, derive the quadratic
-        # coefficient from the same sampled grid as the fit.
         sweep_path = os.path.join(_SCRIPTS, "..", "results", "velocity_sweep.json")
         if not os.path.exists(sweep_path):
             pytest.skip("results/velocity_sweep.json not present")
@@ -77,11 +67,8 @@ class TestFitBound:
             if r["metric"] == "Rodal" and r["v_s"] < 1.0 and r.get("typeI_nec_min") is not None
         ]
         assert ratios, "no subluminal Rodal rows in the sweep"
-        # Exact law => every speed gives the same ratio, to machine precision.
         assert max(ratios) - min(ratios) < 1e-12
         assert abs(fits["Rodal"]["C"] - ratios[0]) < 1e-9
         assert fits["Rodal"]["r_squared_fixed"] > 0.999
         assert fits["Rodal"]["max_rel_dev"] < 1e-9
-        # And the fit must record which sweep it read, so a stale pairing is visible
-        # in the artifact rather than only in a file mtime.
         assert data["source"]["config"]["N"] == sweep["config"]["N"]

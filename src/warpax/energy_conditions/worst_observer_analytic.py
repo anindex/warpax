@@ -91,14 +91,15 @@ def worst_observer_typeI(
         ``inf`` if never violated), ``asymptotic_sign`` (sign of the energy
         density as ``zeta -> inf`` along the worst axis),
         ``boost_direction`` (unit spacelike 4-vector ``e_{i*}``),
-        ``rest_frame`` (unit timelike 4-vector ``e_0``),
+        ``rest_frame`` (unit timelike 4-vector ``e_0``, future-directed:
+        normalized by its own causal norm, NaN if that norm is below
+        ``1e-12`` of its Euclidean norm, sign fixed so ``e_0^0 > 0``),
         ``worst_observer`` (``cosh(z) e_0 + sinh(z) e_{i*}`` at a finite
         reference ``z = min(zeta_th, 8)``).
     """
     if condition not in _VALID:
         raise ValueError(f"condition must be in {_VALID}; got {condition!r}")
 
-    # Causal character of each eigenvector: g_{ab} v^a v^b. Timelike < 0.
     causal = jnp.einsum("ab,ak,bk->k", g_ab, eigenvectors, eigenvectors)
     timelike_idx = jnp.argmin(causal)
     rho = -eigenvalues[timelike_idx]
@@ -111,45 +112,32 @@ def worst_observer_typeI(
     axis_min = jnp.min(axis_slack)
 
     if condition == "dec":
-        # Worst DEC axis: largest |p_i| (eigenvalue bound rho >= |p_i|).
         score = jnp.where(is_spacelike, jnp.abs(eigenvalues), -jnp.inf)
         worst_axis = jnp.argmax(score)
         p_star = eigenvalues[worst_axis]
         margin = rho - jnp.abs(p_star)
     elif condition == "sec":
-        # The SEC is NOT the NEC on the same axes: it needs rho + p_i >= 0 for every i AND
-        # rho + sum_i p_i >= 0, and the trace line can fail while every axis line holds.
-        # Theta(u,u) = (rho + sum p)/2 + (rho + p_i) sinh^2 zeta, so the rest value is HALF
-        # the trace slack and the boost direction is the axis minimum.
         worst_axis = jnp.argmin(axis_slack)
         p_star = eigenvalues[worst_axis]
         rest = 0.5 * (rho + p_sum)
         margin = jnp.where(axis_min >= 0.0, rest, jnp.minimum(rest, axis_min))
     elif condition == "wec":
-        # T(u,u) = rho + (rho + p_i) sinh^2 zeta, so the infimum is rho when
-        # every axis slack is non-negative and -inf otherwise. rho + p_* alone,
-        # which this returned, is the NEC.
         worst_axis = jnp.argmin(axis_slack)
         p_star = eigenvalues[worst_axis]
         margin = jnp.where(axis_min >= 0.0, rho, jnp.minimum(rho, axis_min))
     else:
-        # NEC: the most-negative (rho + p_i), boost-independent.
         worst_axis = jnp.argmin(axis_slack)
         p_star = eigenvalues[worst_axis]
         margin = rho + p_star
 
-    # Threshold rapidity: where this condition's observer value crosses zero.
-    # Each condition has its own.
     rho_plus_p = rho + p_star
     if condition == "wec":
-        # rho_obs = rho + (rho + p_*) sinh^2 zeta
         zeta_th = jnp.where(
             (rho_plus_p < -atol) & (rho > 0.0),
             jnp.arcsinh(jnp.sqrt(jnp.maximum(rho / jnp.maximum(-rho_plus_p, atol), 0.0))),
             jnp.where(rho <= 0.0, 0.0, jnp.inf),
         )
     elif condition == "sec":
-        # Theta_obs = (rho + sum p)/2 + (rho + p_*) sinh^2 zeta
         rest = 0.5 * (rho + p_sum)
         zeta_th = jnp.where(
             (rho_plus_p < -atol) & (rest > 0.0),
@@ -157,7 +145,6 @@ def worst_observer_typeI(
             jnp.where(rest <= 0.0, 0.0, jnp.inf),
         )
     elif condition == "dec":
-        # g(J,J) = -rho^2 cosh^2 zeta + p_*^2 sinh^2 zeta, so tanh zeta_th = rho/|p_*|
         ap = jnp.abs(p_star)
         zeta_th = jnp.where(
             (ap > rho) & (rho > 0.0),
@@ -165,17 +152,18 @@ def worst_observer_typeI(
             jnp.where(rho <= 0.0, 0.0, jnp.inf),
         )
     else:
-        # NEC: T_ab k^a k^b along a null direction is rapidity-independent, so
-        # there is no threshold, either it is violated at every boost or none.
         zeta_th = jnp.where(rho_plus_p < -atol, 0.0, jnp.inf)
     asymptotic_sign = jnp.sign(rho_plus_p)
 
-    # Normalized boost frame (no Eulerian normal): e_0 timelike, e_i* spacelike.
     v0 = eigenvectors[:, timelike_idx]
     vi = eigenvectors[:, worst_axis]
-    n0 = jnp.sqrt(jnp.maximum(-causal[timelike_idx], atol))
-    ni = jnp.sqrt(jnp.maximum(causal[worst_axis], atol))
+    euclid = jnp.einsum("ak,ak->k", eigenvectors, eigenvectors)
+    c0 = -causal[timelike_idx]
+    ci = causal[worst_axis]
+    n0 = jnp.sqrt(jnp.where(c0 > 1e-12 * euclid[timelike_idx], c0, jnp.nan))
+    ni = jnp.sqrt(jnp.where(ci > 1e-12 * euclid[worst_axis], ci, jnp.nan))
     e0 = v0 / n0
+    e0 = jnp.where(e0[0] < 0.0, -e0, e0)
     ei = vi / ni
 
     z_ref = jnp.minimum(jnp.where(jnp.isinf(zeta_th), 8.0, zeta_th), 8.0)
