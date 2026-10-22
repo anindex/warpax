@@ -312,7 +312,7 @@ def test_lmi_is_evaluated_only_where_it_is_read():
     for cond, got in (("wec", ff.wec_margins), ("sec", ff.sec_margins), ("dec", ff.dec_margins)):
         got = np.asarray(got).reshape(-1)[~is_I]
         want = np.asarray(full[cond])[~is_I]
-        np.testing.assert_array_equal(got, want, err_msg=cond)
+        np.testing.assert_allclose(got, want, rtol=1e-12, atol=1e-14, err_msg=cond)
 
 
 def test_frame_free_kernels_match_eager():

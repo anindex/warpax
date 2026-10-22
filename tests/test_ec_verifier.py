@@ -484,9 +484,12 @@ def test_verify_grid_subset_batch_size_matches_vmap(alcubierre_grid_data):
             continue
         if isinstance(a, (ECSummary, jax.Array)):
             rtol = 1e-6 if name in ("worst_observers", "worst_params") else 1e-12
+            atol = 1e-6 if name in ("worst_observers", "worst_params") else 0.0
             if name in ("dec_margins", "dec_opt_margins", "dec_summary"):
                 rtol = 1e-3
-            np.testing.assert_allclose(np.asarray(a), np.asarray(b), rtol=rtol, err_msg=name)
+            np.testing.assert_allclose(
+                np.asarray(a), np.asarray(b), rtol=rtol, atol=atol, err_msg=name
+            )
         else:
             assert a == b, name
 

@@ -138,7 +138,7 @@ class SweepResult(NamedTuple):
         os.replace(tmp_json, json_path)
 
     @staticmethod
-    def load(path: str) -> SweepResult:
+    def load(path: str) -> "SweepResult":
         """Load from .npz + .json sidecar.
 
         ``null`` JSON records map back to ``None`` holes so positional
