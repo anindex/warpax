@@ -1,8 +1,8 @@
 r"""Newman-Penrose Weyl scalars and the peeling-falloff verification.
 
 This module builds the five Newman-Penrose Weyl scalars
-:math:`\Psi_0,\dots,\Psi_4` on the asymptotic outgoing null tetrad of
-:mod:`warpax.bondi.extract`, and verifies the *peeling property*
+:math:`\Psi_0,\dots,\Psi_4` on the exactly ``g``-null Eulerian tetrad of
+:func:`_null_tetrad`, and verifies the *peeling property*
 
 .. math::
 
@@ -23,9 +23,10 @@ What is computed
   from the exact curvature chain (:func:`warpax.geometry.geometry.compute_curvature_chain`)
   by forming the Weyl tensor :math:`C_{abcd}` (Riemann minus its Ricci trace
   parts, so the matter-bearing null-dust cones of Kinnersley/Vaidya are handled
-  correctly) and contracting it with the asymptotic null tetrad
+  correctly) and contracting it with the ``g``-null tetrad
   ``l`` (outgoing null), ``n`` (ingoing null), ``m`` (transverse complex null)
-  reused from :mod:`~warpax.bondi.extract`.
+  of :func:`_null_tetrad`, built on
+  :func:`warpax.energy_conditions.observer.compute_orthonormal_tetrad`.
 * :func:`peeling_slopes`, samples :math:`|\Psi_n|` over a range of luminosity
   radii along an outgoing cone and fits :math:`\log|\Psi_n|` vs :math:`\log r`,
   returning the per-scalar slope.  The peeling prediction is
@@ -34,10 +35,15 @@ What is computed
 Robustness note
 ---------------
 For a *gravitational-wave--silent* maneuver (e.g. the Damour/Kinnersley dipole
-photon rocket) the radiative scalar :math:`\Psi_4` is identically zero, so a
-numerical :math:`\Psi_4` only probes the pipeline floor (:math:`\sim10^{-18}`),
-not a physical :math:`1/r` tail.  Such scalars are flagged ``above_floor=False``
-(relative to the Coulombic :math:`\Psi_2`) and are *not* slope-fit.  The robust,
+photon rocket) the radiative scalar :math:`\Psi_4` vanishes on a principal
+null tetrad.  The Eulerian ``g``-null tetrad used here is not principal on a
+Kerr-Schild slice: it is tilted by a null rotation of :math:`O(m/r)`, which
+leaks :math:`\Psi_4 \approx 0.14\,(m/r)^2\,\Psi_2 \sim r^{-5}` into the
+numerical :math:`\Psi_4`.  That leakage falls as :math:`r^{-5}`, not as a
+physical :math:`r^{-1}` tail, so GW silence is read from the :math:`\Psi_4`
+slope, not from its absolute floor.  Scalars below ``rel_floor`` of the
+Coulombic :math:`\Psi_2` are flagged ``above_floor=False`` and are *not*
+slope-fit.  The robust,
 universal peeling certificate across all test spacetimes is the Coulombic
 :math:`\Psi_2\sim r^{-3}` (slope :math:`-3`); a true :math:`\Psi_4\sim r^{-1}`
 tail is demonstrated on a deliberately *non-silent* (e.g. :math:`\ell\ge2`)
@@ -45,12 +51,12 @@ emission used as a positive control.
 
 Conventions match :mod:`warpax.geometry.geometry` and
 :mod:`warpax.bondi.extract`: ``riemann`` is ``R^a_{bcd}`` (``[up,lo,lo,lo]``);
-``ricci`` is ``R_{ab}``; metric signature ``(-+++)``; the asymptotic tetrad is
-Minkowskian (``l.n = -1``, ``m.mbar = +1``), exact as ``g -> eta`` at large
-``r``, which is where peeling is read.
+``ricci`` is ``R_{ab}``; metric signature ``(-+++)``; the null tetrad is built
+on the exact ``g``-orthonormal Eulerian tetrad of
+:func:`warpax.energy_conditions.observer.compute_orthonormal_tetrad`
+(``g(l,n) = -1``, ``g(m,mbar) = +1``, all legs ``g``-null), reducing to the
+Minkowski tetrad as ``g -> eta``.
 """
-
-from __future__ import annotations
 
 from collections.abc import Callable
 from typing import NamedTuple
@@ -58,11 +64,9 @@ from typing import NamedTuple
 import jax.numpy as jnp
 import numpy as np
 
+from warpax.energy_conditions.observer import compute_orthonormal_tetrad
 from warpax.geometry.geometry import compute_curvature_chain
 
-from .extract import _unit_dir
-
-# Peeling prediction: Psi_n ~ r^{-(5-n)}  ->  log-log slope -(5-n).
 _EXPECTED_SLOPES = np.array([-5.0, -4.0, -3.0, -2.0, -1.0])
 
 
@@ -95,23 +99,26 @@ class PeelingResult(NamedTuple):
     ricci_max: float
 
 
-def _null_tetrad(c: float, s: float, axis: int):
-    """Asymptotic Minkowski null tetrad ``(l, n, m)`` at polar angle ``theta``.
+def _null_tetrad(g, c: float, s: float, axis: int):
+    """Exactly ``g``-null tetrad ``(l, n, m)`` at polar angle ``theta``.
 
-    Matches :func:`warpax.bondi.extract._psi4_at`: ``l = (1, nhat)`` outgoing
-    null, ``n = (1, -nhat)/2`` ingoing null (so ``eta(l,n) = -1``), and
-    ``m = (0, e_theta + i e_phi)/sqrt2`` the transverse complex null leg
-    (``eta(m, mbar) = +1``).
+    ``e = compute_orthonormal_tetrad(g)`` gives the Eulerian orthonormal legs
+    ``e0`` (timelike), ``e1..e3`` (spacelike).  With ``nhat = c e[axis] + s e[perp]``,
+    ``e_theta = -s e[axis] + c e[perp]`` and ``e_phi`` the remaining leg,
+    ``l = e0 + nhat`` (outgoing), ``n = (e0 - nhat)/2`` (ingoing, ``g(l,n) = -1``)
+    and ``m = (e_theta + i e_phi)/sqrt2`` (``g(m,mbar) = +1``).  Reduces to
+    ``l = (1, nhat)``, ``n = (1, -nhat)/2``, ``m = (0, e_theta + i e_phi)/sqrt2``
+    when ``g = eta``.
     """
-    nhat = _unit_dir(c, s, axis)
-    e_theta = _unit_dir(-s, c, axis)  # in-plane transverse (d nhat / d theta)
+    e = np.array(compute_orthonormal_tetrad(jnp.asarray(g)))
     perp = 1 + (axis % 3)
-    rem = ({0, 1, 2} - {axis - 1, perp - 1}).pop()
-    e_phi = np.zeros(3)
-    e_phi[rem] = 1.0  # out-of-plane transverse unit
-    l_up = np.array([1.0, *nhat])
-    n_up = np.array([1.0, *(-nhat)]) * 0.5
-    m_up = np.concatenate([[0.0], (e_theta + 1j * e_phi) / np.sqrt(2.0)])
+    rem = ({1, 2, 3} - {axis, perp}).pop()
+    nhat = c * e[axis] + s * e[perp]
+    e_theta = -s * e[axis] + c * e[perp]
+    e_phi = e[rem]
+    l_up = e[0] + nhat
+    n_up = 0.5 * (e[0] - nhat)
+    m_up = (e_theta + 1j * e_phi) / np.sqrt(2.0)
     return l_up, n_up, m_up
 
 
@@ -119,7 +126,7 @@ def weyl_scalars(res, c: float, s: float, axis: int = 1) -> np.ndarray:
     r"""Five complex NP Weyl scalars ``[Psi0..Psi4]`` at one cone point.
 
     Builds the Weyl tensor from the curvature result and contracts with the
-    asymptotic null tetrad.  In 4D,
+    ``g``-null tetrad of :func:`_null_tetrad` built on ``res.metric``.  In 4D,
 
     .. math::
         C_{abcd} = R_{abcd}
@@ -140,11 +147,11 @@ def weyl_scalars(res, c: float, s: float, axis: int = 1) -> np.ndarray:
     (5,) complex ``np.ndarray`` ``[Psi0, Psi1, Psi2, Psi3, Psi4]``.
     """
     g = np.array(res.metric)
-    Rmix = np.array(res.riemann)  # R^a_{bcd}
-    Ric = np.array(res.ricci)  # R_{ab}
+    Rmix = np.array(res.riemann)
+    Ric = np.array(res.ricci)
     Rs = float(res.ricci_scalar)
 
-    Rdown = np.einsum("ae,ebcd->abcd", g, Rmix)  # R_{abcd}
+    Rdown = np.einsum("ae,ebcd->abcd", g, Rmix)
     ricci_part = 0.5 * (
         np.einsum("ac,bd->abcd", g, Ric)
         - np.einsum("ad,bc->abcd", g, Ric)
@@ -154,7 +161,7 @@ def weyl_scalars(res, c: float, s: float, axis: int = 1) -> np.ndarray:
     scalar_part = (Rs / 6.0) * (np.einsum("ac,bd->abcd", g, g) - np.einsum("ad,bc->abcd", g, g))
     C = Rdown - ricci_part + scalar_part
 
-    l, n, m = _null_tetrad(c, s, axis)
+    l, n, m = _null_tetrad(g, c, s, axis)
     mb = np.conj(m)
     psi0 = np.einsum("abcd,a,b,c,d->", C, l, m, l, m)
     psi1 = np.einsum("abcd,a,b,c,d->", C, l, n, l, m)
@@ -179,7 +186,8 @@ def peeling_slopes(
     generator at polar angle ``theta`` and least-squares fits ``log|Psi_n|`` vs
     ``log r``.  A scalar is fit only if it is resolved above ``rel_floor`` times
     the Coulombic ``|Psi_2|`` at the same radii (else it is at the numerical
-    floor, e.g. ``Psi_4`` for a GW-silent dipole, and reported, not fit).
+    floor, e.g. ``Psi_0,1,3,4`` on Schwarzschild in diagonal coordinates, and
+    reported, not fit).
 
     Returns
     -------
@@ -197,8 +205,6 @@ def peeling_slopes(
         psi_by_r[:, i] = np.abs(weyl_scalars(res, c, s, axis))
         ricci_max = max(ricci_max, float(np.abs(res.ricci_scalar)))
 
-    # Resolution gate: a scalar is "above floor" if its largest sampled
-    # magnitude exceeds rel_floor times the Coulombic Psi_2 reference.
     psi2_ref = float(np.max(psi_by_r[2])) if np.max(psi_by_r[2]) > 0 else 1.0
     above = np.max(psi_by_r, axis=1) > rel_floor * psi2_ref
 

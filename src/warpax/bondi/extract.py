@@ -14,19 +14,23 @@ flux) P_B^mu is constant: there is no reactionless steering.
 
 What is computed here
 ---------------------
-* **Matter flux** ``F^mu = oint n^2_matter(Omega) lhat^mu dOmega`` where the local
-  radiation amplitude seen by the asymptotic rest observer ``u^a`` is
+* **Matter flux** ``F^mu = oint n^2_matter(Omega) lhat^mu dOmega``, the matter
+  amplitude integral **only**: the news term ``|N|^2`` of the flux-balance law
+  is not included, so a radiating vacuum spacetime returns ``flux = 0`` here.
+  The local radiation amplitude seen by the asymptotic rest observer ``u^a`` is
 
       n^2_matter(Omega) = lim_{r->inf} r^2 (u^a u^b T_{ab}) ,
 
   with ``T_{ab}`` the curvature-derived stress-energy
   (:func:`warpax.geometry.geometry.compute_curvature_chain`) and ``lhat^mu =
   (1, nhat)`` the outgoing null direction.
-* **News proxy** ``psi4_rms``: the RMS of ``|r * Psi_4|`` over the cut, where
-  ``Psi_4 = C_{abcd} n^a mbar^b n^c mbar^d`` is the outgoing Weyl scalar built on
-  an asymptotic null tetrad.  For a gravitational-wave-silent maneuver (e.g. the
-  Damour/Kinnersley dipole photon rocket) this vanishes; nonzero ``psi4_rms``
-  flags gravitational radiation.
+* **News-derivative proxy** ``psi4_rms``: the Gauss-Legendre weighted spherical
+  RMS ``sqrt(sum_j w_j |r Psi_4|_j^2 / 2)`` over the cut, where
+  ``Psi_4 = C_{abcd} n^a mbar^b n^c mbar^d`` is the outgoing Weyl scalar on the
+  exactly ``g``-null tetrad of :mod:`warpax.bondi.peeling`.  ``Psi_4`` is a
+  retarded-time derivative of the news on a single cut, so nonzero ``psi4_rms``
+  flags gravitational radiation but ``psi4_rms = 0`` does **not** establish
+  gravitational-wave silence (a news plateau has ``Psi_4 = 0`` in its interior).
 
 Conventions match :mod:`warpax.geometry.geometry`: ``riemann`` is
 ``R^a_{bcd}`` (``[upper, lower, lower, lower]``); ``stress_energy`` is
@@ -34,15 +38,14 @@ Conventions match :mod:`warpax.geometry.geometry`: ``riemann`` is
 
 .. note::
 
-   The result is the radiated flux on a single outgoing cut at retarded time
-   ``u``.  ``F^0 = oint n^2 dOmega`` is (minus) the Bondi mass-loss rate and
-   ``F^i`` the radiated momentum; for an exact photon rocket these equal
-   ``-dP_B^mu/du`` (the conservation law).  The extractor is **axisymmetric**
+   The result is the matter-radiated flux on a single outgoing cut at retarded
+   time ``u``.  ``F^0 = oint n^2 dOmega`` is (minus) the matter part of the
+   Bondi mass-loss rate and ``F^i`` the matter-radiated momentum; for an exact
+   photon rocket (no news) these equal ``-dP_B^mu/du`` (the conservation law).
+   The total Bondi loss additionally needs the news history.  The extractor is **axisymmetric**
    about ``axis`` (the phi integral is done analytically, killing the
    off-axis momentum components); a full-sphere variant is a direct extension.
 """
-
-from __future__ import annotations
 
 from collections.abc import Callable
 from typing import NamedTuple
@@ -52,7 +55,7 @@ import numpy as np
 
 from warpax.geometry.geometry import compute_curvature_chain
 
-_ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+from .peeling import weyl_scalars
 
 
 class BondiFluxResult(NamedTuple):
@@ -60,13 +63,19 @@ class BondiFluxResult(NamedTuple):
 
     Attributes
     ----------
-    flux : (4,) radiated four-momentum flux ``F^mu = oint n^2 lhat^mu dOmega``.
-    energy_flux : ``F^0 = oint n^2 dOmega`` (= minus Bondi mass-loss rate).
-    momentum_flux : (3,) spatial part ``F^i``.
+    flux : (4,) matter-radiated four-momentum flux
+        ``F^mu = oint n^2 lhat^mu dOmega`` (matter amplitude only; the news term
+        ``|N|^2`` is not included, so radiating vacuum gives zero).
+    energy_flux : ``F^0 = oint n^2 dOmega`` (matter part of minus the Bondi
+        mass-loss rate; news not included).
+    momentum_flux : (3,) spatial part ``F^i`` (matter only).
     n2_samples : matter amplitude ``n^2(theta)`` at the Gauss-Legendre nodes
         (Richardson-extrapolated to ``r -> inf`` when ``richardson`` is set).
     cos_nodes : ``cos(theta)`` Gauss-Legendre nodes.
-    psi4_rms : RMS of ``|r * Psi_4|`` over the cut (news / GW-silence proxy).
+    psi4_rms : Gauss-Legendre weighted spherical RMS ``sqrt(sum_j w_j |r Psi_4|_j^2 / 2)``
+        of the outgoing Weyl scalar on the cut.  A single-cut news-derivative
+        proxy: nonzero flags gravitational radiation, zero does not establish
+        gravitational-wave silence.
     ricci_max : max ``|R|`` over the sampled points (exact-solution sanity).
     """
 
@@ -77,20 +86,6 @@ class BondiFluxResult(NamedTuple):
     cos_nodes: np.ndarray
     psi4_rms: float
     ricci_max: float
-
-
-def _unit_dir(c: float, s: float, axis: int) -> np.ndarray:
-    """Spatial unit vector at polar angle ``theta`` about ``axis`` (phi=0 plane).
-
-    ``nhat`` has component ``cos(theta)`` along ``axis`` and ``sin(theta)`` along
-    the next spatial axis (cyclically), with the ``(c, s, 0)`` axis convention
-    for ``axis = 1`` (x).
-    """
-    perp = 1 + (axis % 3)  # next spatial index, cyclic in {1,2,3}
-    n = np.zeros(3)
-    n[axis - 1] = c
-    n[perp - 1] = s
-    return n
 
 
 def _matter_amplitude(
@@ -107,31 +102,8 @@ def _matter_amplitude(
 
 
 def _psi4_at(res, c: float, s: float, axis: int) -> float:
-    """Outgoing Weyl scalar ``Psi_4`` on an asymptotic Minkowski null tetrad.
-
-    Uses the full Riemann tensor (``Weyl = Riemann`` near scri where Ricci -> 0).
-    Tetrad: ``l = (1, nhat)`` outgoing null, ``n = (1, -nhat)/2`` ingoing null,
-    ``m = (0, e_theta + i e_phi)/sqrt2`` transverse complex null leg.
-    """
-    nhat = _unit_dir(c, s, axis)
-    e_theta = _unit_dir(-s, c, axis)  # d nhat / d theta (in-plane transverse)
-    # e_phi: the remaining spatial axis, orthogonal to both nhat and e_theta
-    perp = 1 + (axis % 3)  # the axis carrying sin(theta)
-    rem = ({0, 1, 2} - {axis - 1, perp - 1}).pop()
-    e_phi = np.zeros(3)
-    e_phi[rem] = 1.0  # out-of-plane transverse unit
-
-    nin_up = np.array([1.0, *(-nhat)]) * 0.5  # ingoing null n^a (l.n = -1)
-    m_up = np.concatenate([[0.0], (e_theta + 1j * e_phi) / np.sqrt(2.0)])
-    mbar = np.conj(m_up)
-
-    g = np.array(res.metric)
-    Rmix = np.array(res.riemann)  # R^a_{bcd}
-    # lower first index: R_{abcd} = g_{ae} R^e_{bcd}
-    Rdown = np.einsum("ae,ebcd->abcd", g, Rmix)
-    # Psi4 = C_{abcd} n^a mbar^b n^c mbar^d  (n here = ingoing null nin_up)
-    psi4 = np.einsum("abcd,a,b,c,d->", Rdown, nin_up, mbar, nin_up, mbar)
-    return float(np.abs(psi4))
+    """``|Psi_4|`` of the Weyl tensor on the ``g``-null tetrad (see :func:`weyl_scalars`)."""
+    return float(np.abs(weyl_scalars(res, c, s, axis)[4]))
 
 
 def radiated_momentum_flux(
@@ -144,7 +116,12 @@ def radiated_momentum_flux(
     axis: int = 1,
     richardson: bool = True,
 ) -> BondiFluxResult:
-    """Radiated four-momentum flux through a cut of null infinity.
+    """Matter-radiated four-momentum flux through a cut of null infinity.
+
+    ``flux``/``energy_flux`` integrate the matter amplitude ``n^2`` only; the
+    news term ``|N|^2`` is not included, so a radiating vacuum returns zero.
+    ``psi4_rms`` is a single-cut news-derivative proxy and zero does not
+    establish gravitational-wave silence.
 
     Parameters
     ----------
@@ -181,24 +158,22 @@ def radiated_momentum_flux(
             n2, Rs, res = _matter_amplitude(metric_fn, X, u_rest, r)
             n2_by_r[i, j] = n2
             ricci_max = max(ricci_max, Rs)
-            if i == len(radii) - 1:  # news proxy at the largest radius
+            if i == len(radii) - 1:
                 psi4_vals[j] = r * _psi4_at(res, float(c), s, axis)
 
-    # Richardson r->inf:  n^2(r) ~ n2_inf + C/r  ->  n2_inf = (r2 n2_2 - r1 n2_1)/(r2 - r1)
     if richardson and len(radii) >= 2:
         r1, r2 = radii[-2], radii[-1]
         n2 = (r2 * n2_by_r[-1] - r1 * n2_by_r[-2]) / (r2 - r1)
     else:
         n2 = n2_by_r[-1]
 
-    # oint f dOmega = 2 pi int_{-1}^{1} f dc  (axisymmetry kills the phi integral).
-    F0 = 2 * np.pi * np.sum(w * n2)  # lhat^0 = 1
-    Faxis = 2 * np.pi * np.sum(w * n2 * c_nodes)  # lhat^axis = cos(theta)
+    F0 = 2 * np.pi * np.sum(w * n2)
+    Faxis = 2 * np.pi * np.sum(w * n2 * c_nodes)
     flux = np.zeros(4)
     flux[0] = F0
     flux[axis] = Faxis
 
-    psi4_rms = float(np.sqrt(np.mean(psi4_vals**2)))
+    psi4_rms = float(np.sqrt(np.sum(w * psi4_vals**2) / 2.0))
     return BondiFluxResult(
         flux=flux,
         energy_flux=float(F0),

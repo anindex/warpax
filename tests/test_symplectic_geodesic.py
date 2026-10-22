@@ -27,7 +27,7 @@ from warpax.geodesics.symplectic import (
 
 
 def _max_g_kk(result: SymplecticGeodesicResult) -> float:
-    # H = 1/2 g(k,k); the witness is max|2H|.
+    """H = 1/2 g(k,k); the witness is max|2H|."""
     return float(jnp.max(jnp.abs(2.0 * result.H_values)))
 
 
@@ -41,13 +41,11 @@ class TestMinkowskiExact:
         assert _max_g_kk(r) < 1e-12
 
     def test_straight_line_trajectory(self):
+        """x(lambda) = x0 + k lambda: the x-position is linear in the affine parameter."""
         m = MinkowskiMetric()
         x0, p0 = null_ic_canonical(m, jnp.array([0.0, 0.0, 0.0, 0.0]), jnp.array([1.0, 0.0, 0.0]))
         r = integrate_geodesic_symplectic(m, x0, p0, (0.0, 5.0), num_steps=256, order=4)
-        # x(lambda) = x0 + k * lambda (constant velocity): the x-position is
-        # linear in the affine parameter.
         x_pos = r.positions[:, 1]
-        # Fit a line and check residual is tiny.
         coeffs = jnp.polyfit(r.ts, x_pos, 1)
         residual = jnp.max(jnp.abs(x_pos - (coeffs[0] * r.ts + coeffs[1])))
         assert float(residual) < 1e-9
@@ -58,11 +56,12 @@ class TestSymplecticBeatsTsit5:
     the null cone where adaptive RK drifts off it."""
 
     def test_alcubierre_long_crossing(self):
-        # Head-on crossing: photon moving -x into the bubble moving +x
-        # (closing speed 1 + v_s). With the future-directed null_ic root a
-        # +x photon merely *chases* the bubble at closing speed 1 - v_s,
-        # which no longer stresses Tsit5; the head-on geometry reproduces
-        # the regime the past-directed root used to probe.
+        """Head-on crossing: photon moving -x into the bubble moving +x
+        (closing speed 1 + v_s). With the future-directed null_ic root a +x
+        photon merely chases the bubble at closing speed 1 - v_s, which does
+        not stress Tsit5. The regime must actually stress the RK integrator
+        (drift > 1e-3) and the symplectic scheme must be >= 100x better and
+        on-cone."""
         m = AlcubierreMetric(v_s=0.1, R=20.0, sigma=2.0)
         start = jnp.array([0.0, 30.0, 1e-3, 0.0])
         ndir = jnp.array([-1.0, 0.0, 0.0])
@@ -76,29 +75,28 @@ class TestSymplecticBeatsTsit5:
         rs = integrate_geodesic_symplectic(m, x0c, p0, span, num_steps=8192, order=4)
         sym_drift = _max_g_kk(rs)
 
-        # The regime must actually stress the RK integrator...
         assert tsit5_drift > 1e-3, f"regime too easy: tsit5_drift={tsit5_drift}"
-        # ...and the symplectic scheme must be far better (>=100x) and on-cone.
         assert sym_drift < 1e-2 * tsit5_drift
         assert sym_drift < 1e-7
 
 
 class TestSchwarzschild:
     def test_radial_null_preserved(self):
+        """Radial outward null ray well outside the horizon: on-cone, radius increasing."""
         m = SchwarzschildMetric()
-        # Radial outward null ray well outside the horizon.
         start = jnp.array([0.0, 8.0, 0.0, 0.0])
         x0c, p0 = null_ic_canonical(m, start, jnp.array([1.0, 0.0, 0.0]))
         r = integrate_geodesic_symplectic(m, x0c, p0, (0.0, 20.0), num_steps=8192, order=4)
         assert r.complete
         assert _max_g_kk(r) < 1e-8
-        # Outward ray: radius increases monotonically.
         radius = r.positions[:, 1]
         assert float(radius[-1]) > float(radius[0])
 
 
 class TestConvergence:
     def test_order4_improves_with_steps(self):
+        """Drift decreases monotonically with steps; 4x steps twice at 4th order
+        must improve by more than 16x."""
         m = AlcubierreMetric(v_s=0.1, R=20.0, sigma=2.0)
         start = jnp.array([0.0, -30.0, 1e-3, 0.0])
         x0c, p0 = null_ic_canonical(m, start, jnp.array([1.0, 0.0, 0.0]))
@@ -106,10 +104,9 @@ class TestConvergence:
         for ns in (2048, 4096, 8192):
             r = integrate_geodesic_symplectic(m, x0c, p0, (0.0, 60.0), num_steps=ns, order=4)
             drifts.append(_max_g_kk(r))
-        # Monotone decrease, and a healthy (order-4) improvement factor.
         assert drifts[1] < drifts[0]
         assert drifts[2] < drifts[1]
-        assert drifts[0] / drifts[2] > 16.0  # 4x steps twice, 4th order
+        assert drifts[0] / drifts[2] > 16.0
 
 
 class TestSentinels:

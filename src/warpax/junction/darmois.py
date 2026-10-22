@@ -22,8 +22,6 @@ boundary; the discontinuities ``[[h]] = h_in - h_out`` and
 ``[[K]] = K_in - K_out`` are compared against the tolerance ``tol``.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -68,19 +66,22 @@ def _unit_normal(
 ) -> tuple[Float[Array, "4"], Float[Array, "4"], Float[Array, ""]]:
     """Return ``(n_covec, n_vec, epsilon)`` for the boundary level set.
 
-    The unit normal is built from the gradient of ``boundary_fn``
-    rescaled by ``sqrt(|g(n, n)|)``; ``epsilon = sign(g(n, n))`` is
-    ``+1`` for a spacelike normal (timelike hypersurface) and ``-1`` for
-    a timelike normal (spacelike hypersurface). A tiny ``1e-30`` floor
-    on the norm prevents division by zero on null boundaries.
+    The unit normal is the gradient of ``boundary_fn`` divided by
+    ``sqrt(|g(n, n)|)``; ``epsilon = sign(g(n, n))`` is ``+1`` for a
+    spacelike normal (timelike hypersurface) and ``-1`` for a timelike
+    normal (spacelike hypersurface). A null boundary,
+    ``|g(n, n)| <= 1e-12 * max|g^{-1}| * |grad f|^2``, has no unit normal
+    and returns NaN for all three outputs.
     """
     n_covec_raw = jax.jacfwd(boundary_fn)(coords)
     g = metric(coords)
     g_inv = jnp.linalg.inv(g)
     n_vec_raw = g_inv @ n_covec_raw
     n_norm_sq = jnp.dot(n_vec_raw, n_covec_raw)
-    epsilon = jnp.where(n_norm_sq >= 0.0, 1.0, -1.0)
-    scale = jnp.sqrt(jnp.abs(n_norm_sq) + 1e-30)
+    scale_ref = jnp.max(jnp.abs(g_inv)) * jnp.dot(n_covec_raw, n_covec_raw)
+    null = jnp.abs(n_norm_sq) <= 1e-12 * scale_ref
+    epsilon = jnp.where(null, jnp.nan, jnp.where(n_norm_sq >= 0.0, 1.0, -1.0))
+    scale = jnp.where(null, jnp.nan, jnp.sqrt(jnp.where(null, 1.0, jnp.abs(n_norm_sq))))
     return n_covec_raw / scale, n_vec_raw / scale, epsilon
 
 
@@ -88,19 +89,22 @@ def _induced_and_extrinsic(
     metric: MetricSpecification,
     boundary_fn: Callable[[Float[Array, "4"]], Float[Array, ""]],
     coords: Float[Array, "4"],
-) -> tuple[Float[Array, "4 4"], Float[Array, "4 4"], Float[Array, ""]]:
-    """Compute induced metric ``h_{ab}``, extrinsic curvature ``K_{ab}``, and ``epsilon``.
+) -> tuple[Float[Array, "4 4"], Float[Array, "4 4"], Float[Array, ""], Float[Array, "4 4"]]:
+    """Compute ``h_{ab}``, ``K_{ab}``, ``epsilon`` and the inverse induced metric ``h^{ab}``.
 
     Uses the Gauss-Codazzi decomposition with a unit normal that may be
     timelike or spacelike. The first fundamental form is
-    ``h_{ab} = g_{ab} - epsilon n_a n_b`` and the second is
+    ``h_{ab} = g_{ab} - epsilon n_a n_b`` with exact inverse
+    ``h^{ab} = g^{ab} - epsilon n^a n^b``, and the second is
     ``K_{ab} = h^c_a h^d_b \\nabla_c n_d`` with the covariant derivative
     ``\\nabla_c n_d = \\partial_c n_d - \\Gamma^\\lambda_{cd} n_\\lambda``.
     """
-    n_covec, _n_vec, epsilon = _unit_normal(metric, boundary_fn, coords)
+    n_covec, n_vec, epsilon = _unit_normal(metric, boundary_fn, coords)
     g = metric(coords)
+    g_inv = jnp.linalg.inv(g)
 
     h_ab = g - epsilon * jnp.outer(n_covec, n_covec)
+    h_up = g_inv - epsilon * jnp.outer(n_vec, n_vec)
 
     def _n_covec_fn(c):
         n, _, _ = _unit_normal(metric, boundary_fn, c)
@@ -110,11 +114,10 @@ def _induced_and_extrinsic(
     gamma = christoffel_symbols(metric, coords)
     grad_n = dn - jnp.einsum("lcd,l->cd", gamma, n_covec)
 
-    g_inv = jnp.linalg.inv(g)
     h_mixed = h_ab @ g_inv
     K_ab = h_mixed @ grad_n @ h_mixed.T
 
-    return h_ab, K_ab, epsilon
+    return h_ab, K_ab, epsilon, h_up
 
 
 @jaxtyped(typechecker=beartype)
@@ -124,16 +127,16 @@ def _one_sided_limit(
     probe: Float[Array, "4"],
     opposite: Float[Array, "4"],
 ):
-    """``(h, K, eps)`` extrapolated to Sigma from one side.
+    """``(h, K, eps, h_up)`` extrapolated to Sigma from one side.
 
-    Two probes on the same side, at the given separation and at half of it,
-    linearly extrapolated. Differencing the raw probes across Sigma instead
-    gives ``-s h'`` , first order in the separation, so a smooth metric
-    reported a jump proportional to its own gradient and never passed.
+    Sigma is located on the probe-opposite segment by a secant step on
+    ``boundary_fn``. Two probes on the probe's side, at the given separation
+    and at half of it, are linearly extrapolated to that point. Differencing
+    the raw probes across Sigma instead gives ``-s h'``, first order in the
+    separation, so a smooth metric reported a jump proportional to its own
+    gradient and never passed. ``eps`` is NaN unless the normal has the same
+    finite causal character at the located Sigma point and at both probes.
     """
-    # Locate Sigma on the segment by a secant step on boundary_fn instead of
-    # assuming the probes straddle it symmetrically. Asymmetric probes put the
-    # assumed midpoint off the surface and biased both one-sided limits.
     f_p = boundary_fn(probe)
     f_o = boundary_fn(opposite)
     denom = f_p - f_o
@@ -141,9 +144,11 @@ def _one_sided_limit(
     t = jnp.clip(t, 0.0, 1.0)
     on_sigma = probe + t * (opposite - probe)
     near = 0.5 * (probe + on_sigma)
-    h_far, K_far, _ = _induced_and_extrinsic(metric, boundary_fn, probe)
-    h_near, K_near, eps = _induced_and_extrinsic(metric, boundary_fn, near)
-    return 2.0 * h_near - h_far, 2.0 * K_near - K_far, eps
+    h_far, K_far, eps_far, hup_far = _induced_and_extrinsic(metric, boundary_fn, probe)
+    h_near, K_near, eps_near, hup_near = _induced_and_extrinsic(metric, boundary_fn, near)
+    _, _, eps_sigma = _unit_normal(metric, boundary_fn, on_sigma)
+    eps = jnp.where((eps_sigma == eps_near) & (eps_sigma == eps_far), eps_sigma, jnp.nan)
+    return 2.0 * h_near - h_far, 2.0 * K_near - K_far, eps, 2.0 * hup_near - hup_far
 
 
 def darmois(
@@ -193,8 +198,10 @@ def darmois(
     if probe_coords_outside is None:
         probe_coords_outside = jnp.array([0.0, 1.1, 0.0, 0.0])
 
-    h_in, K_in, _ = _one_sided_limit(metric, boundary_fn, probe_coords_inside, probe_coords_outside)
-    h_out, K_out, _ = _one_sided_limit(
+    h_in, K_in, _, _ = _one_sided_limit(
+        metric, boundary_fn, probe_coords_inside, probe_coords_outside
+    )
+    h_out, K_out, _, _ = _one_sided_limit(
         metric, boundary_fn, probe_coords_outside, probe_coords_inside
     )
 
@@ -225,13 +232,22 @@ def surface_stress_energy(
         S_{ab} = -\\frac{\\epsilon}{8\\pi}\\bigl([K_{ab}] - [K] h_{ab}\\bigr),
 
     where ``[K_{ab}] = K^+_{ab} - K^-_{ab}`` is the jump of extrinsic
-    curvature across ``Sigma``, ``[K] = h^{ab} [K_{ab}]`` is its trace
-    with respect to the (pseudo-)inverse induced metric, ``h_{ab}`` is
-    the averaged induced metric, and ``epsilon = g(n, n)`` is the sign
-    of the unit normal (``+1`` timelike hypersurface, ``-1`` spacelike).
+    curvature across ``Sigma``, ``[K] = h^{ab} [K_{ab}]`` is its trace with
+    the exact inverse induced metric ``h^{ab} = g^{ab} - epsilon n^a n^b``,
+    and ``epsilon = g(n, n)`` is the sign of the unit normal (``+1``
+    timelike hypersurface, ``-1`` spacelike). Each side is extrapolated to
+    Sigma as in :func:`darmois`, so a smooth metric gives ``S_{ab} -> 0``
+    with the probe separation instead of a spurious shell.
 
-    The sign convention follows Israel (1966): the normal points from
-    inside (-) to outside (+). The jump is ``[X] = X^+ - X^-``.
+    The normal points from inside (-) to outside (+), so the probes must
+    satisfy ``boundary_fn(inside) < 0 < boundary_fn(outside)``. The jump is
+    ``[X] = X^+ - X^-``.
+
+    Returns a NaN-filled tensor unless all three hold: (i) first-form
+    compatibility ``max|h_in - h_out| <= 1e-6 * max(max|h|, 1)``, (ii) the
+    orientation above, (iii) the normal has the same finite ``epsilon`` on
+    both sides, at every probe and at the located Sigma point (a null
+    boundary has none, even when the probes see a spacelike normal).
 
     Parameters
     ----------
@@ -245,20 +261,20 @@ def surface_stress_energy(
     Float[Array, "4 4"]
         Surface stress-energy tensor (full 4x4, tangential to Sigma).
     """
-    h_in, K_in, eps_in = _induced_and_extrinsic(metric, boundary_fn, probe_coords_inside)
-    h_out, K_out, eps_out = _induced_and_extrinsic(metric, boundary_fn, probe_coords_outside)
+    h_in, K_in, eps_in, hup_in = _one_sided_limit(
+        metric, boundary_fn, probe_coords_inside, probe_coords_outside
+    )
+    h_out, K_out, eps_out, hup_out = _one_sided_limit(
+        metric, boundary_fn, probe_coords_outside, probe_coords_inside
+    )
 
     delta_K = K_out - K_in
     h_avg = 0.5 * (h_in + h_out)
-    # eps is +/-1. Averaging a sign change gives 0 and silently zeroed S_ab;
-    # a Sigma whose normal changes causal character has no Israel stress.
-    epsilon = jnp.where(eps_in == eps_out, eps_in, jnp.nan)
+    h_up = 0.5 * (hup_in + hup_out)
+    delta_K_trace = jnp.einsum("ab,ab->", h_up, delta_K)
+    S_ab = -(eps_in / (8.0 * jnp.pi)) * (delta_K - delta_K_trace * h_avg)
 
-    # Trace of the jump on the induced metric (h^{ab} is a 3D inverse;
-    # use the Moore-Penrose pseudo-inverse for the 4x4 representation
-    # because h_ab has a null direction along n^a).
-    h_inv_avg = jnp.linalg.pinv(h_avg)
-    delta_K_trace = jnp.einsum("ab,ab->", h_inv_avg, delta_K)
-
-    S_ab = -(epsilon / (8.0 * jnp.pi)) * (delta_K - delta_K_trace * h_avg)
-    return S_ab
+    compatible = jnp.max(jnp.abs(h_in - h_out)) <= 1e-6 * jnp.maximum(jnp.max(jnp.abs(h_avg)), 1.0)
+    oriented = (boundary_fn(probe_coords_inside) < 0.0) & (boundary_fn(probe_coords_outside) > 0.0)
+    same_eps = (eps_in == eps_out) & jnp.isfinite(eps_in)
+    return jnp.where(compatible & oriented & same_eps, S_ab, jnp.nan)

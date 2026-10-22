@@ -12,8 +12,6 @@ driven by the tidal tensor
 transport terms.
 """
 
-from __future__ import annotations
-
 from typing import NamedTuple
 
 import diffrax
@@ -72,6 +70,10 @@ def geodesic_deviation_vector_field(
     - Geodesic: dx/dtau = v, dv/dtau = -Gamma v v
     - Deviation: dxi/dtau = w - Gamma v xi, dw/dtau = -K xi - Gamma v w
 
+    The Riemann tensor reuses the Christoffel symbols computed for the
+    geodesic part (bit-identical), avoiding a second ``jacfwd(metric)`` per
+    ODE step.
+
     Parameters
     ----------
     tau : Float[Array, ""]
@@ -87,32 +89,21 @@ def geodesic_deviation_vector_field(
         Time derivative [v, a, dxi, dw] of shape (16,).
     """
     metric_fn = args
-    x = y[:4]  # position x^mu
-    v = y[4:8]  # velocity v^mu
-    xi = y[8:12]  # deviation vector xi^mu
-    w = y[12:16]  # covariant deviation velocity w^mu
+    x = y[:4]
+    v = y[4:8]
+    xi = y[8:12]
+    w = y[12:16]
 
-    # Christoffel symbols at current position: Gamma^lam_{mu nu} (4,4,4)
     gamma = christoffel_symbols(metric_fn, x)
 
-    # Riemann tensor at current position: R^lam_{mu nu rho} (4,4,4,4).
-    # Reuse the Christoffel computed above (bit-identical; avoids a second
-    # jacfwd(metric) on every ODE step).
     R = riemann_tensor(metric_fn, x, gamma=gamma)
 
-    # Geodesic equations
-    # a^lam = -Gamma^lam_{mu nu} v^mu v^nu
     a = -jnp.einsum("lab,a,b->l", gamma, v, v)
 
-    # Tidal tensor
-    # K^mu_rho = R^mu_{nu rho sigma} v^nu v^sigma
-    K = jnp.einsum("mnrs,n,s->mr", R, v, v)  # (4,4)
+    K = jnp.einsum("mnrs,n,s->mr", R, v, v)
 
-    # Deviation equations
-    # dxi^mu/dtau = w^mu - Gamma^mu_{ab} v^a xi^b
     dxi = w - jnp.einsum("lab,a,b->l", gamma, v, xi)
 
-    # dw^mu/dtau = -K^mu_rho xi^rho - Gamma^mu_{ab} v^a w^b
     dw = -jnp.einsum("mr,r->m", K, xi) - jnp.einsum("lab,a,b->l", gamma, v, w)
 
     return jnp.concatenate([v, a, dxi, dw])
@@ -178,7 +169,7 @@ def integrate_geodesic_with_deviation(
         Named tuple with ts, positions, velocities, deviations,
         deviation_velocities, result code, event_mask.
     """
-    y0 = jnp.concatenate([x0, v0, xi0, w0])  # (16,)
+    y0 = jnp.concatenate([x0, v0, xi0, w0])
 
     sol = _solve_geodesic_ode(
         geodesic_deviation_vector_field,
@@ -193,11 +184,10 @@ def integrate_geodesic_with_deviation(
         event,
     )
 
-    # Unpack the 16-component state into 4 fields
-    positions = sol.ys[:, :4]  # (N, 4)
-    velocities = sol.ys[:, 4:8]  # (N, 4)
-    deviations = sol.ys[:, 8:12]  # (N, 4)
-    deviation_velocities = sol.ys[:, 12:16]  # (N, 4)
+    positions = sol.ys[:, :4]
+    velocities = sol.ys[:, 4:8]
+    deviations = sol.ys[:, 8:12]
+    deviation_velocities = sol.ys[:, 12:16]
 
     return DeviationResult(
         ts=sol.ts,
@@ -238,8 +228,8 @@ def tidal_tensor(
     Float[Array, "4 4"]
         Tidal tensor K^mu_rho of shape (4, 4).
     """
-    R = riemann_tensor(metric_fn, x)  # R^lam_{mu nu rho} (4,4,4,4)
-    return jnp.einsum("mnrs,n,s->mr", R, v, v)  # K^mu_rho (4,4)
+    R = riemann_tensor(metric_fn, x)
+    return jnp.einsum("mnrs,n,s->mr", R, v, v)
 
 
 def tidal_eigenvalues(
@@ -273,6 +263,5 @@ def tidal_eigenvalues(
     """
     K = tidal_tensor(metric_fn, x, v)
     eigs = jnp.linalg.eigvals(K)
-    # Take real parts and sort
     eigs_real = jnp.real(eigs)
     return jnp.sort(eigs_real)

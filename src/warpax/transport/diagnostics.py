@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import diffrax
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float, Int
@@ -36,10 +38,48 @@ def _first_local_min_idx(d: Float[Array, "N"]) -> Int[Array, ""]:
     if none exists (still approaching at the integration horizon) we fall back
     to the global minimum. vmap/JIT-safe (no data-dependent Python control).
     """
-    interior = (d[1:-1] <= d[:-2]) & (d[1:-1] <= d[2:])  # shape (N-2,)
+    interior = (d[1:-1] <= d[:-2]) & (d[1:-1] <= d[2:])
     has_local = jnp.any(interior)
-    first_local = jnp.argmax(interior) + 1  # +1: interior starts at index 1
+    first_local = jnp.argmax(interior) + 1
     return jnp.where(has_local, first_local, jnp.argmin(d))
+
+
+def _static_observer(g: Float[Array, "4 4"], dtype) -> Float[Array, "4"]:
+    """Static 4-velocity (1/sqrt(-g_00), 0, 0, 0); NaN where g_00 >= 0 (no static observer)."""
+    g00 = g[0, 0]
+    u_t = jnp.where(g00 < 0, 1.0 / jnp.sqrt(-g00), jnp.nan)
+    return jnp.array([u_t, 0.0, 0.0, 0.0], dtype=dtype)
+
+
+@eqx.filter_jit
+def _tidal_max_jit(metric_fn, x: Float[Array, "4"], u: Float[Array, "4"]) -> Float[Array, ""]:
+    return jnp.max(jnp.abs(tidal_eigenvalues(metric_fn, x, u)))
+
+
+def _tidal_max(metric_fn, x: Float[Array, "4"], u: Float[Array, "4"]) -> Float[Array, ""]:
+    """Maximum |eigenvalue| of the tidal tensor at ``x`` for 4-velocity ``u``.
+
+    Python-float leaves of ``metric_fn`` are promoted to arrays so the jitted
+    kernel is traced once per metric class, not once per parameter value.
+    """
+    metric_fn = jax.tree_util.tree_map(
+        lambda v: jnp.asarray(v) if isinstance(v, float) else v, metric_fn
+    )
+    return _tidal_max_jit(metric_fn, x, u)
+
+
+def _closest_approach(sol, target: Float[Array, "3"], tol: Float[Array, ""]):
+    """Index of first closest approach to ``target`` and whether it is within ``tol``.
+
+    ``tol`` is widened to half the spatial distance traveled between saved
+    samples, so a ray passing through the target is not rejected because no
+    sample landed on it.
+    """
+    d = jnp.linalg.norm(sol.positions[:, 1:] - target, axis=1)
+    idx = _first_local_min_idx(d)
+    step = sol.ts[1] - sol.ts[0]
+    tol = jnp.maximum(tol, 0.5 * step * jnp.linalg.norm(sol.velocities[idx, 1:]))
+    return idx, d[idx] <= tol
 
 
 def null_coord_time_asymmetry(
@@ -52,6 +92,7 @@ def null_coord_time_asymmetry(
     dt0: float = 0.01,
     rtol: float = 1e-8,
     atol: float = 1e-8,
+    arrival_rtol: float = 0.01,
 ) -> Float[Array, ""]:
     """Null round-trip *coordinate-time* asymmetry between emitter and receiver.
 
@@ -80,21 +121,22 @@ def null_coord_time_asymmetry(
     num_points : saved points per leg
     dt0 : initial step size
     rtol, atol : integration tolerances
+    arrival_rtol : each leg must pass within ``arrival_rtol * |receiver - emitter|``
+        (or half the inter-sample spacing, whichever is larger) of its
+        target, else the result is NaN
 
     Returns
     -------
     delta_t_coord : round-trip coordinate-time asymmetry (0 for symmetric
-        spacetimes in the same slicing).
+        spacetimes in the same slicing); NaN if either leg failed to
+        integrate successfully or never reached its target.
     """
-    # Spatial direction from emitter to receiver
     dx = receiver[1:] - emitter[1:]
     dist = jnp.linalg.norm(dx)
 
-    # Handle zero-distance case
     is_zero_dist = dist < 1e-15
     dx_safe = jnp.where(is_zero_dist, jnp.array([1.0, 0.0, 0.0]), dx / jnp.maximum(dist, 1e-15))
 
-    # Forward leg: emitter -> receiver
     _, k0_fwd = null_ic(metric_fn, emitter, dx_safe)
     sol_fwd = integrate_geodesic(
         metric_fn,
@@ -107,14 +149,11 @@ def null_coord_time_asymmetry(
         atol=atol,
     )
 
-    # Find arrival: closest approach to receiver position
-    spatial_dist_fwd = jnp.linalg.norm(sol_fwd.positions[:, 1:] - receiver[1:], axis=1)
-    idx_fwd = _first_local_min_idx(spatial_dist_fwd)
+    idx_fwd, reached_fwd = _closest_approach(sol_fwd, receiver[1:], arrival_rtol * dist)
     t_arrive_fwd = sol_fwd.positions[idx_fwd, 0]
     dt_coord_fwd = t_arrive_fwd - emitter[0]
 
-    # Backward leg: receiver -> emitter
-    arrival_pos = sol_fwd.positions[idx_fwd]  # Start from where forward leg arrived
+    arrival_pos = sol_fwd.positions[idx_fwd]
     dx_back = emitter[1:] - arrival_pos[1:]
     dx_back_safe = jnp.where(
         jnp.linalg.norm(dx_back) < 1e-15,
@@ -133,17 +172,16 @@ def null_coord_time_asymmetry(
         atol=atol,
     )
 
-    # Find return: closest approach to emitter position
-    spatial_dist_bwd = jnp.linalg.norm(sol_bwd.positions[:, 1:] - emitter[1:], axis=1)
-    idx_bwd = _first_local_min_idx(spatial_dist_bwd)
+    idx_bwd, reached_bwd = _closest_approach(sol_bwd, emitter[1:], arrival_rtol * dist)
     t_arrive_bwd = sol_bwd.positions[idx_bwd, 0]
     dt_coord_bwd = t_arrive_bwd - arrival_pos[0]
 
-    delta_dt_coord = jnp.where(is_zero_dist, 0.0, dt_coord_fwd - dt_coord_bwd)
-    return delta_dt_coord
-
-
-null_round_trip_asymmetry = null_coord_time_asymmetry
+    reached = reached_fwd & reached_bwd
+    solved = (sol_fwd.result == diffrax.RESULTS.successful) & (
+        sol_bwd.result == diffrax.RESULTS.successful
+    )
+    valid = is_zero_dist | (reached & solved)
+    return jnp.where(valid, jnp.where(is_zero_dist, 0.0, dt_coord_fwd - dt_coord_bwd), jnp.nan)
 
 
 def geodesic_deviation_diagnostic(
@@ -169,13 +207,8 @@ def geodesic_deviation_diagnostic(
     A_geo : maximum tidal eigenvalue magnitude
     """
     if velocity is None:
-        # Static observer: u^mu = (1/sqrt(-g_00), 0, 0, 0)
-        g = metric_fn(emitter)
-        u_t = 1.0 / jnp.sqrt(jnp.maximum(-g[0, 0], 1e-30))
-        velocity = jnp.array([u_t, 0.0, 0.0, 0.0], dtype=emitter.dtype)
-
-    eigs = tidal_eigenvalues(metric_fn, emitter, velocity)
-    return jnp.max(jnp.abs(eigs))
+        velocity = _static_observer(metric_fn(emitter), emitter.dtype)
+    return _tidal_max(metric_fn, emitter, velocity)
 
 
 def blueshift_hazard(
@@ -197,7 +230,7 @@ def blueshift_hazard(
     ----------
     metric_fn : callable mapping (4,) -> (4,4)
     emitter : emission point
-    n_directions : number of spatial directions to probe
+    n_directions : number of spatial directions to probe (1..6)
     tau_max : maximum affine parameter
     num_points : saved points per geodesic
 
@@ -205,11 +238,11 @@ def blueshift_hazard(
     -------
     B : blueshift hazard scalar
     """
+    if not 1 <= n_directions <= 6:
+        raise ValueError(f"n_directions must be in [1, 6], got {n_directions}")
     g = metric_fn(emitter)
-    u_t = 1.0 / jnp.sqrt(jnp.maximum(-g[0, 0], 1e-30))
-    u_observer = jnp.array([u_t, 0.0, 0.0, 0.0], dtype=emitter.dtype)
+    u_observer = _static_observer(g, emitter.dtype)
 
-    # Probe directions: +/-x, +/-y, +/-z (or fewer)
     directions = jnp.stack(
         [
             jnp.array([1.0, 0.0, 0.0]),
@@ -223,9 +256,7 @@ def blueshift_hazard(
 
     def omega_at(x, k):
         g_at = metric_fn(x)
-        u_t_at = 1.0 / jnp.sqrt(jnp.maximum(-g_at[0, 0], 1e-30))
-        u_at = jnp.array([u_t_at, 0.0, 0.0, 0.0], dtype=x.dtype)
-        return -jnp.einsum("ab,a,b", g_at, k, u_at)
+        return -jnp.einsum("ab,a,b", g_at, k, _static_observer(g_at, x.dtype))
 
     def _hazard_one(d):
         _, k0 = null_ic(metric_fn, emitter, d)
@@ -239,7 +270,6 @@ def blueshift_hazard(
             rtol=1e-8,
             atol=1e-8,
         )
-        # omega = -g_{ab} k^a u^b for a static observer
         omega_emit = -jnp.einsum("ab,a,b", g, k0, u_observer)
         omegas = jax.vmap(omega_at)(sol.positions, sol.velocities)
         log_shifts = jnp.abs(jnp.log(jnp.maximum(jnp.abs(omegas / omega_emit), 1e-30)))

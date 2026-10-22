@@ -41,7 +41,7 @@ def velocity_norm(
     Float[Array, ""]
         Scalar norm g_ab v^a v^b.
     """
-    g = metric_fn(x)  # (4, 4)
+    g = metric_fn(x)
     return jnp.einsum("ab,a,b", g, v, v)
 
 
@@ -158,7 +158,6 @@ def blueshift_along_trajectory(
         Blueshift factor omega_recv / omega_emit (> 1 = blueshift) at each saved
         point relative to the first point.
     """
-    # Emission event (first saved point)
     x_emit = null_sol.positions[0]
     k_emit = null_sol.velocities[0]
     u_emit = observer_velocity_fn(x_emit)
@@ -181,13 +180,14 @@ def proper_time_elapsed(
 ) -> Float[Array, "N"]:
     """Compute cumulative proper time along a timelike geodesic trajectory.
 
-    Uses the trapezoidal rule to integrate:
+    Uses the midpoint rule to integrate:
         dtau = sqrt(-g_ab dx^a dx^b)
 
-    between successive saved points. Returns a cumulative array starting at 0.
+    between successive saved points, evaluating the metric at the midpoint of
+    each segment. Returns a cumulative array starting at 0.
 
     For geodesics parameterized by proper time, this should match the affine
-    parameter ts (up to numerical integration error from the trapezoidal rule
+    parameter ts (up to numerical integration error from the midpoint rule
     on the saved points).
 
     Parameters
@@ -202,26 +202,21 @@ def proper_time_elapsed(
     Float[Array, "N"]
         Cumulative proper time at each saved point. First element is 0.
     """
-    positions = sol.positions  # (N, 4)
+    positions = sol.positions
     _N = positions.shape[0]
 
-    # Coordinate differences between successive saved points
-    dx = positions[1:] - positions[:-1]  # (N-1, 4)
+    dx = positions[1:] - positions[:-1]
 
-    # Midpoint positions for metric evaluation (trapezoidal approximation)
-    x_mid = 0.5 * (positions[1:] + positions[:-1])  # (N-1, 4)
+    x_mid = 0.5 * (positions[1:] + positions[:-1])
 
     def ds_segment(x: Float[Array, "4"], delta: Float[Array, "4"]) -> Float[Array, ""]:
         """Proper time increment for one segment."""
         g = metric_fn(x)
         ds_sq = -jnp.einsum("ab,a,b", g, delta, delta)
-        # Clamp to avoid sqrt of negative (should not happen for timelike)
         return jnp.sqrt(jnp.maximum(ds_sq, 0.0))
 
-    # Vectorize over all segments
-    dtau_segments = jax.vmap(ds_segment)(x_mid, dx)  # (N-1,)
+    dtau_segments = jax.vmap(ds_segment)(x_mid, dx)
 
-    # Cumulative sum with leading zero
     cumulative = jnp.concatenate([jnp.array([0.0]), jnp.cumsum(dtau_segments)])
 
     return cumulative

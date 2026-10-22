@@ -7,8 +7,6 @@ The state vector y = [x^mu (4,), v^mu (4,)] has shape (8,):
 Christoffel symbols are computed at each integration step via exact JAX autodiff.
 """
 
-from __future__ import annotations
-
 from typing import NamedTuple
 
 import diffrax
@@ -33,10 +31,9 @@ class GeodesicResult(NamedTuple):
         Coordinate positions x^mu at each saved point.
     velocities : Float[Array, "N 4"]
         4-velocities v^mu at each saved point.
-    result : int
-        Diffrax result code (0 = success, 1 = max_steps_reached,
-        11 = event_occurred); see warpax.geodesics._result_codes.TERMINATION_REASONS
-        for the full mapping.
+    result : diffrax.RESULTS
+        Diffrax result enum (success, max_steps_reached, event_occurred, ...);
+        see warpax.geodesics._result_codes.TERMINATION_REASONS for the mapping.
     event_mask : Array or None
         Which event triggered (if any). Shape depends on number of events.
     """
@@ -44,7 +41,7 @@ class GeodesicResult(NamedTuple):
     ts: Float[Array, "N"]
     positions: Float[Array, "N 4"]
     velocities: Float[Array, "N 4"]
-    result: int
+    result: diffrax.RESULTS
     event_mask: Array | None
 
 
@@ -100,16 +97,14 @@ def geodesic_vector_field(
         a^mu = -Gamma^mu_{alpha beta} v^alpha v^beta.
     """
     metric_fn = args
-    x = y[:4]  # position x^mu
-    v = y[4:]  # velocity v^mu = dx^mu/dtau
+    x = y[:4]
+    v = y[4:]
 
-    # Christoffel symbols at current position: Gamma^lam_{mu nu}
-    gamma = christoffel_symbols(metric_fn, x)  # (4, 4, 4)
+    gamma = christoffel_symbols(metric_fn, x)
 
-    # Geodesic acceleration: a^lam = -Gamma^lam_{mu nu} v^mu v^nu
-    a = -jnp.einsum("lab,a,b->l", gamma, v, v)  # (4,)
+    a = -jnp.einsum("lab,a,b->l", gamma, v, v)
 
-    return jnp.concatenate([v, a])  # (8,)
+    return jnp.concatenate([v, a])
 
 
 def bounding_box_event(
@@ -153,7 +148,8 @@ def horizon_event(
     """Terminate when approaching a coordinate singularity (Schwarzschild horizon).
 
     Returns r_iso - margin * r_horizon, which crosses zero near the horizon
-    in isotropic coordinates.
+    in isotropic coordinates, where ``r_horizon = M / 2``. ``M`` comes from
+    the metric's ``M`` attribute, else the ``M`` kwarg, else 1.0.
 
     Parameters
     ----------
@@ -174,9 +170,8 @@ def horizon_event(
     x = y[:4]
     r_iso = jnp.sqrt(x[1] ** 2 + x[2] ** 2 + x[3] ** 2 + 1e-60)
     margin = kwargs.get("margin", 1.1)
-    # Try to get M from the metric args, fall back to kwarg or default
     M = getattr(args, "M", kwargs.get("M", 1.0))
-    r_horizon_iso = M / 2.0  # Schwarzschild horizon in isotropic coords
+    r_horizon_iso = M / 2.0
     return r_iso - margin * r_horizon_iso
 
 
@@ -250,15 +245,14 @@ def integrate_geodesic(
     GeodesicResult
         Named tuple with ts, positions, velocities, result code, event_mask.
     """
-    y0 = jnp.concatenate([x0, v0])  # (8,)
+    y0 = jnp.concatenate([x0, v0])
 
     sol = _solve_geodesic_ode(
         geodesic_vector_field, y0, metric, tau_span, dt0, rtol, atol, num_points, max_steps, event
     )
 
-    # Unpack positions and velocities from state
-    positions = sol.ys[:, :4]  # (N, 4)
-    velocities = sol.ys[:, 4:]  # (N, 4)
+    positions = sol.ys[:, :4]
+    velocities = sol.ys[:, 4:]
 
     return GeodesicResult(
         ts=sol.ts,

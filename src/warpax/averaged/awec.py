@@ -14,8 +14,6 @@ Shares the ``geodesic_complete`` + ``termination_reason`` flags with
 timelike-unit hyperboloid at every saved step (``g(u,u) = -1``).
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -106,10 +104,13 @@ def _extract_trajectory(
     n_samples: int,
     affine_bounds: tuple[float, float],
 ) -> tuple[Float[Array, "N"], Float[Array, "N 4"], Float[Array, "N 4"], int]:
-    """Return (ts, positions, velocities, result_code)."""
+    """Return (ts, positions, velocities, result_code).
+
+    A diffrax result is converted with :func:`result_code_to_int` (diffrax
+    0.7.x ``EnumerationItem`` is not ``int()``-convertible) and never
+    defaults to success.
+    """
     if isinstance(geodesic, GeodesicResult):
-        # Robust conversion (diffrax 0.7.x EnumerationItem is not
-        # int()-convertible); never defaults to success.
         return (
             geodesic.ts,
             geodesic.positions,
@@ -159,6 +160,11 @@ def awec(
         NamedTuple with ``line_integral``, ``geodesic_complete``, and
         ``termination_reason``.
 
+    The integral is taken in proper time: a renormalized tangent means
+    ``lambda`` is no longer ``tau``, so the integrand is weighted by
+    ``dtau/dlambda``. The timelike witness is evaluated on the unnormalized
+    tangent, relative to the sample scale ``max|g(u,u)|``.
+
     Raises
     ------
     ValueError
@@ -177,12 +183,8 @@ def awec(
         lambda c, u: _awec_integrand_at_point(metric, c, u, tangent_norm)
     )(positions, velocities)
 
-    # Integrate in proper time. Renormalising the tangent means lambda is no
-    # longer tau, so the measure needs dtau/dlambda; ford_roman.py carries it,
-    # this did not.
     line_integral = jnp.trapezoid(integrand * rate, lam)
 
-    # Causal witness on the unnormalised tangent, relative to the sample scale.
     u_scale = jnp.max(jnp.abs(u_sq))
     timelike = bool(jnp.all(u_sq < -1e-10 * jnp.where(u_scale > 0.0, u_scale, 1.0)))
 

@@ -20,43 +20,31 @@ from jaxtyping import Array, Float
 def _future_time_component(a, b, c):
     r"""Future-directed root of ``a (u^0)^2 + b u^0 + c = 0``, valid at ``a = 0``.
 
-    Both initial-condition helpers solve this normalisation quadratic for the
-    time component given a prescribed spatial direction. Dividing by ``2a``
-    unconditionally fails on exactly the locus this paper is about: where
-    ``v_s f(r) = 1`` the coordinate vector ``\partial_t`` is null, ``g_{00} = 0``
-    and the equation degenerates to the *linear* ``b u^0 + c = 0``. That is not a
-    singularity, the root ``u^0 = -c/b`` exists and is perfectly well behaved,
-    but ``0/0`` returned NaN there.
+    Both initial-condition helpers solve this normalization quadratic for the
+    time component given a prescribed spatial direction. Where ``v_s f(r) = 1``
+    the coordinate vector ``\partial_t`` is null, ``g_{00} = 0`` and the equation
+    degenerates to the linear ``b u^0 + c = 0`` with the ordinary root
+    ``-c/b``. The degeneracy test ``|a| |c| <= 1e-24 b^2`` is scale invariant,
+    so a large spatial seed (``c`` of order ``1e14``) is not mistaken for it.
 
-    Branchless (vmap/jit-safe): both branches are evaluated and selected. The
-    radicand is floored so forward-mode gradients stay finite when the
-    discriminant is negative (the superluminal case), which is
+    Roots come from the stable form ``q = -(b + sign(b) sqrt(disc)) / 2`` as
+    ``c/q`` (which tends to ``-c/b`` as ``a -> 0``) and ``q/a``; the larger
+    positive one is future-directed when ``g_00 < 0``. Branchless
+    (vmap/jit-safe). The radicand is floored so forward-mode gradients stay
+    finite when the discriminant is negative (the superluminal case), which is
     signalled by returning NaN. Callers should test ``jnp.isfinite``.
     """
-    scale = jnp.maximum(jnp.maximum(jnp.abs(a), jnp.abs(b)), jnp.abs(c))
-    scale = jnp.where(scale > 0.0, scale, 1.0)
-    degenerate = jnp.abs(a) <= 1e-12 * scale
-
-    # Quadratic branch: of the two roots take the larger, which is the
-    # future-directed one when g_00 < 0 (the roots then have opposite signs).
+    degenerate = jnp.abs(a) * jnp.abs(c) <= 1e-24 * b**2
     disc = b**2 - 4.0 * a * c
     sqrt_disc = jnp.sqrt(jnp.maximum(disc, 0.0))
-    a_safe = jnp.where(degenerate, 1.0, a)
-    quad = jnp.maximum(
-        (-b + sqrt_disc) / (2.0 * a_safe),
-        (-b - sqrt_disc) / (2.0 * a_safe),
-    )
-
-    # Linear branch, used exactly on the g_00 = 0 locus.
-    b_safe = jnp.where(jnp.abs(b) > 0.0, b, 1.0)
-    lin = -c / b_safe
-
-    root = jnp.where(degenerate, lin, quad)
+    sgn = jnp.where(b >= 0.0, 1.0, -1.0)
+    q = -0.5 * (b + sgn * sqrt_disc)
+    q_ok = q != 0.0
+    r_lin = jnp.where(q_ok, c / jnp.where(q_ok, q, 1.0), jnp.nan)
+    r_quad = jnp.where(degenerate, -jnp.inf, q / jnp.where(degenerate, 1.0, a))
+    root = jnp.maximum(r_lin, r_quad)
     nan = jax.lax.stop_gradient(jnp.full_like(root, jnp.nan))
-    # No real root (superluminal), or a degenerate case with no root at all.
-    ok = jnp.where(degenerate, jnp.abs(b) > 0.0, disc >= 0.0)
-    # Future-directed means increasing coordinate time.
-    ok = ok & (root > 0.0)
+    ok = (disc >= 0.0) & (root > 0.0) & jnp.isfinite(root)
     return jnp.where(ok, root, nan)
 
 
@@ -101,9 +89,8 @@ def timelike_ic(
     ``x_s = v_s t`` is *not* symmetric under ``t -> -t``, so a past-directed
     velocity traces a physically different trajectory, not a time-reverse.
     """
-    g = metric_fn(x0)  # (4, 4)
+    g = metric_fn(x0)
 
-    # Quadratic coefficients
     a = g[0, 0]
     b = 2.0 * jnp.dot(g[0, 1:], v_spatial)
     c = jnp.einsum("ij,i,j->", g[1:, 1:], v_spatial, v_spatial) + 1.0
@@ -156,9 +143,8 @@ def null_ic(
     therefore undefined at this level. Use :func:`null_ic_killing_normalized`
     to fix the affine scale canonically before integrating such a quantity.
     """
-    g = metric_fn(x0)  # (4, 4)
+    g = metric_fn(x0)
 
-    # Quadratic coefficients (same as timelike but c has no +1 term)
     a = g[0, 0]
     b = 2.0 * jnp.dot(g[0, 1:], n_spatial)
     c = jnp.einsum("ij,i,j->", g[1:, 1:], n_spatial, n_spatial)
@@ -174,27 +160,23 @@ def killing_energy(
     k: Float[Array, "4"],
     v_s: float | Float[Array, ""],
 ) -> Float[Array, ""]:
-    r"""Conserved energy ``E_K = -g_ab k^a K^b`` of the helical Killing vector.
+    r"""Conserved quantity ``E_K = -g_ab k^a K^b`` of the metric's Killing vector.
 
-    Every constant-velocity warp drive in this package has a metric that depends
-    on ``t`` and ``x`` only through the comoving combination ``x - v_s t``.
-    The vector
+    ``K`` is ``metric_fn.killing_vector()`` when the metric provides one, else
+    the helical ``d/dt + v_s d/dx`` of the comoving ``x - v_s t`` drives. For the
+    stationary Fuchs and T-shell constructions, which depend on ``x`` rather than
+    ``x - v_s t``, the Killing vector is ``d/dt`` alone. ``E_K = -g(k, K)`` is
+    exactly conserved along every geodesic of the metric that ``K`` generates.
 
-        K = d/dt + v_s d/dx
+    ``E_K`` is a handle on the otherwise free affine scale of a null geodesic:
+    under ``k -> c k`` it scales as ``E_K -> c E_K``, so fixing ``E_K = 1`` fixes
+    the affine parameter, which is what makes ANEC *magnitudes* comparable
+    rather than only their signs.
 
-    therefore annihilates that combination (``K(x - v_s t) = v_s - v_s = 0``)
-    and leaves the metric invariant, so it is an exact Killing vector and
-    ``E_K = -g(k, K)`` is exactly conserved along every geodesic.
-
-    ``E_K`` is the canonical handle on the otherwise free affine scale of a null
-    geodesic: under ``k -> c k`` it scales as ``E_K -> c E_K``. Fixing
-    ``E_K = 1`` therefore fixes the affine parameter uniquely and identically
-    across metrics, which is what makes ANEC *magnitudes* comparable rather than
-    only their signs.
-
-    For ``v_s > 1`` the vector ``K`` is spacelike in the asymptotic region, so
-    ``E_K`` is no longer an energy; it remains an exactly conserved, nonzero
-    quantity and hence a valid normalization.
+    For ``v_s > 1`` the helical ``K`` is spacelike in the asymptotic region, so
+    ``E_K`` is no longer an energy and can vanish: in Minkowski with
+    ``K = (1, 2, 0, 0)`` the future null ``k = (1, 1/2, sqrt(3)/2, 0)`` has
+    ``-K . k = 0``, and :func:`null_ic_killing_normalized` returns NaN there.
 
     Returns
     -------
@@ -204,8 +186,13 @@ def killing_energy(
         independently of the on-cone witness ``g(k, k)``.
     """
     g = metric_fn(x)
-    K = jnp.array([1.0, v_s, 0.0, 0.0])
-    return -jnp.einsum("ab,a,b->", g, k, K)
+    return -jnp.einsum("ab,a,b->", g, k, _killing_vector(metric_fn, v_s))
+
+
+def _killing_vector(metric_fn: object, v_s: float | Float[Array, ""]) -> Float[Array, "4"]:
+    if hasattr(metric_fn, "killing_vector"):
+        return metric_fn.killing_vector()
+    return jnp.array([1.0, v_s, 0.0, 0.0])
 
 
 def eulerian_affine_scale(
@@ -246,10 +233,10 @@ def eulerian_frequency(
     at every warp speed (it is not the coordinate-stationary ``d_t``), so this
     is well defined through and beyond the luminal transition.
     """
+    from ..energy_conditions.observer import eulerian_normal
+
     g = metric_fn(x)
-    n_low = jnp.array([-1.0, 0.0, 0.0, 0.0])
-    n_up = jnp.linalg.inv(g) @ n_low
-    n_up = n_up / jnp.sqrt(jnp.abs(n_low @ n_up))
+    _, n_up = eulerian_normal(jnp.linalg.inv(g))
     return -jnp.einsum("ab,a,b->", g, k, n_up)
 
 
@@ -298,7 +285,12 @@ def null_ic_killing_normalized(
     """
     x0, k0 = null_ic(metric_fn, x0, n_spatial)
     e_k = killing_energy(metric_fn, x0, k0, v_s)
-    scale = jnp.where(jnp.abs(e_k) > 0.0, e_target / e_k, jnp.nan)
+    g = metric_fn(x0)
+    K = _killing_vector(metric_fn, v_s)
+    floor = 1e-12 * jnp.max(jnp.abs(g)) * jnp.max(jnp.abs(k0)) * jnp.max(jnp.abs(K))
+    scale = jnp.where(
+        jnp.abs(e_k) > floor, e_target / jnp.where(jnp.abs(e_k) > floor, e_k, 1.0), jnp.nan
+    )
     return x0, k0 * scale
 
 
@@ -334,7 +326,12 @@ def circular_orbit_ic(
 
     The velocity in isotropic Cartesian coordinates is then determined by
     converting the angular momentum to coordinate velocity and solving for
-    v^0 via the timelike norm constraint.
+    v^0 via the timelike norm constraint: ``u^t = 1/sqrt(1 - 3M/r_schw)``
+    and ``dphi/dtau = sqrt(M/r_schw) / (r_schw sqrt(1 - 3M/r_schw))``; t and
+    phi agree in both charts, so ``u^y = r_iso dphi/dtau`` on the x-axis.
+    The radicand ``1 - 3M/r_schw`` is floored at ``1e-30`` so radii below
+    ``3M`` (where ``u^t`` would be complex) give a finite NaN-free result;
+    the caller checks the domain.
 
     Parameters
     ----------
@@ -355,20 +352,10 @@ def circular_orbit_ic(
     r_schw = jnp.asarray(r_schw, dtype=jnp.float64)
     M = jnp.asarray(M, dtype=jnp.float64)
 
-    # Convert to isotropic radius
     r_iso = _schw_r_to_iso(r_schw, M)
 
-    # Position: equatorial plane, on x-axis
     x0 = jnp.array([0.0, r_iso, 0.0, 0.0])
 
-    # Circular orbit at Schwarzschild radius r_schw, with u^t = 1/sqrt(1 - 3M/r_schw)
-    # and dphi/dtau = sqrt(M/r_schw)/(r_schw sqrt(1 - 3M/r_schw)). t and phi agree in
-    # both charts, so u^y = r_iso dphi/dtau on the x-axis.
-
-    # Circular geodesics require r_schw > 3M; below this the factor
-    # ``1 - 3M/r`` goes negative and ``u^t`` becomes complex. Floor the
-    # radicand so the caller gets a finite NaN-free result and can
-    # check the domain separately if needed.
     factor = jnp.sqrt(jnp.maximum(1.0 - 3.0 * M / r_schw, 1e-30))
     u_t = 1.0 / factor
     dphi_dtau = jnp.sqrt(jnp.maximum(M / r_schw, 0.0)) / (r_schw * factor)
@@ -409,13 +396,10 @@ def radial_infall_ic(
     r_start_schw = jnp.asarray(r_start_schw, dtype=jnp.float64)
     M = jnp.asarray(M, dtype=jnp.float64)
 
-    # Convert to isotropic radius
     r_iso = _schw_r_to_iso(r_start_schw, M)
 
-    # Position on x-axis in equatorial plane
     x0 = jnp.array([0.0, r_iso, 0.0, 0.0])
 
-    # At rest: zero spatial velocity
     v_spatial = jnp.array([0.0, 0.0, 0.0])
 
     return timelike_ic(metric_fn, x0, v_spatial)

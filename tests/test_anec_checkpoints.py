@@ -1,14 +1,13 @@
 """Resumption and fixed-ray convergence regressions for the retained diagnostics."""
 
 import json
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import run_anec_symplectic as rays
+from ._helpers import load_script
+
+rays = load_script("run_anec_symplectic.py")
 
 
 def result(value):

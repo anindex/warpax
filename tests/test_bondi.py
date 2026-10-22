@@ -15,68 +15,18 @@ independent spacetimes:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
-from warpax.bondi import radiated_momentum_flux
+from warpax.bondi import radiated_momentum_flux, weyl_scalars
+from warpax.bondi.extract import _psi4_at
 
-_ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-
-
-def _make_krt(G0, M0=1.0, M1=0.05, OM=0.5):
-    """Exact accelerating Kerr-Schild photon rocket; G0 -> 0 gives Vaidya."""
-
-    def worldline(u):
-        sx = jnp.sinh(G0 * u) / G0 if G0 != 0 else u
-        xx = (jnp.cosh(G0 * u) - 1.0) / G0 if G0 != 0 else 0.0
-        return jnp.array([sx, xx, 0.0, 0.0])
-
-    def m_of(u):
-        return M0 + M1 * jnp.sin(OM * u)
-
-    @jax.custom_jvp
-    def retarded_u(X):
-        def body(u, _):
-            z = worldline(u)
-            zdot = jax.jacfwd(worldline)(u)
-            D = X - z
-            r = -(_ETA @ zdot) @ D
-            F = -(D[0] ** 2) + D[1] ** 2 + D[2] ** 2 + D[3] ** 2
-            return u - F / (2.0 * r), None
-
-        u0 = X[0] - jnp.sqrt(X[1] ** 2 + X[2] ** 2 + X[3] ** 2)
-        u, _ = jax.lax.scan(body, u0, None, length=12)
-        return u
-
-    @retarded_u.defjvp
-    def _jvp(primals, tangents):
-        (X,), (dX,) = primals, tangents
-        u = retarded_u(X)
-        z = worldline(u)
-        zdot = jax.jacfwd(worldline)(u)
-        D = X - z
-        r = -(_ETA @ zdot) @ D
-        l_dn = _ETA @ (D / r)
-        return u, -(l_dn @ dX)
-
-    def metric_fn(X):
-        u = retarded_u(X)
-        z = worldline(u)
-        zdot = jax.jacfwd(worldline)(u)
-        D = X - z
-        r = -(_ETA @ zdot) @ D
-        l_up = D / r
-        l_dn = _ETA @ l_up
-        return _ETA + (2.0 * m_of(u) / r) * jnp.outer(l_dn, l_dn)
-
-    return metric_fn, m_of
-
-
-def _krt_cone(r, theta):
-    c, s = np.cos(theta), np.sin(theta)
-    return jnp.array([r, r * c, r * s, 0.0])
+from ._helpers import ETA, krt_cone, make_krt
 
 
 def _rest_static(X):
@@ -84,20 +34,25 @@ def _rest_static(X):
 
 
 def test_krt_flux_equals_recoil_and_is_gw_silent():
-    """Kinnersley rocket: flux = kinematic recoil, dipole is GW-silent."""
+    """Kinnersley rocket: flux = kinematic recoil ``-(mdot, m G0, 0, 0)`` at u=0.
+
+    On the Eulerian g-null tetrad (not principal on the Kerr-Schild slice) the
+    type-D Coulomb term leaks ``Psi_4 ~ 0.14 (m/r)^2 Psi_2 ~ 0.14 m^3/r^5``, so
+    ``r |Psi_4| <~ 0.14 m^3/r^4 = 3.4e-5`` at r=8, m=1 (measured RMS 2.3e-5;
+    a principal eta tetrad gives < 1e-6).
+    """
     G0 = 0.10
-    metric_fn, m_of = _make_krt(G0)
+    metric_fn, m_of = make_krt(G0)
     res = radiated_momentum_flux(
-        metric_fn, _krt_cone, _rest_static, n_theta=24, radii=(4.0, 8.0), richardson=False
+        metric_fn, krt_cone, _rest_static, n_theta=24, radii=(4.0, 8.0), richardson=False
     )
     m0 = float(m_of(0.0))
     mdot0 = float(jax.jacfwd(m_of)(0.0))
-    # kinematic dP_B/du = mdot v + m a, with v=(1,0,0,0), a=(0,G0,0,0) at u=0
     kin = np.array([mdot0, m0 * G0, 0.0, 0.0])
 
-    assert res.ricci_max < 1e-8  # exact solution
-    np.testing.assert_allclose(res.flux, -kin, atol=1e-3)  # F = -dP_B/du (closure)
-    assert res.psi4_rms < 1e-6  # Damour dipole: no gravitational news
+    assert res.ricci_max < 1e-8
+    np.testing.assert_allclose(res.flux, -kin, atol=1e-3)
+    assert res.psi4_rms < 0.15 * m0**3 / 8.0**4
 
 
 def test_schwarzschild_static_no_radiated_flux():
@@ -107,17 +62,53 @@ def test_schwarzschild_static_no_radiated_flux():
     res = radiated_momentum_flux(
         schw.__call__, cone, _rest_static, n_theta=24, radii=(40.0, 80.0, 160.0)
     )
-    assert np.linalg.norm(res.flux) < 1e-3  # P_B constant => cannot self-accelerate
+    assert np.linalg.norm(res.flux) < 1e-3
     assert res.psi4_rms < 1e-6
 
 
 def test_vaidya_monopole_radiates_energy_not_momentum():
     """Isotropic mass loss (straight worldline): energy flux = mdot, momentum = 0."""
-    metric_fn, m_of = _make_krt(G0=1e-8)  # G0 -> 0: spherical Vaidya
+    metric_fn, m_of = make_krt(G0=1e-8)
     res = radiated_momentum_flux(
-        metric_fn, _krt_cone, _rest_static, n_theta=24, radii=(4.0, 8.0), richardson=False
+        metric_fn, krt_cone, _rest_static, n_theta=24, radii=(4.0, 8.0), richardson=False
     )
     mdot0 = float(jax.jacfwd(m_of)(0.0))
     assert res.ricci_max < 1e-8
-    assert abs(res.energy_flux + mdot0) < 1e-3  # F^0 = -mdot
-    assert abs(res.momentum_flux[0]) < 1e-3  # zero radiated momentum
+    assert abs(res.energy_flux + mdot0) < 1e-3
+    assert abs(res.momentum_flux[0]) < 1e-3
+
+
+def test_constant_curvature_weyl_vanishes_on_g_tetrad():
+    """Constant curvature ``R_abcd = g_ac g_bd - g_ad g_bc`` with g = diag(-1,2,3,4) is pure trace.
+
+    Weyl vanishes identically, so every ``|Psi_n|`` must be < 1e-12 on the g-null
+    tetrad; an eta tetrad is not g-null and gives ``|Psi_4| = 0.125``.
+    """
+    g = np.diag([-1.0, 2.0, 3.0, 4.0])
+    g_inv = np.linalg.inv(g)
+    R = np.einsum("ac,bd->abcd", g, g) - np.einsum("ad,bc->abcd", g, g)
+    riemann = np.einsum("ae,ebcd->abcd", g_inv, R)
+    ricci = np.einsum("abad->bd", riemann)
+    res = SimpleNamespace(
+        metric=g,
+        metric_inv=g_inv,
+        riemann=riemann,
+        ricci=ricci,
+        ricci_scalar=float(np.einsum("bd,bd->", g_inv, ricci)),
+    )
+    assert _psi4_at(res, 1.0, 0.0, 1) < 1e-12
+    c, s = np.cos(0.7), np.sin(0.7)
+    assert np.all(np.abs(weyl_scalars(res, c, s, 1)) < 1e-12)
+
+
+def test_psi4_rms_is_gauss_legendre_weighted(monkeypatch):
+    """``psi4_rms = sqrt(sum_j w_j psi_j^2 / 2)`` with ``psi = cos(theta)`` is exactly 1/sqrt(3).
+
+    Gauss-Legendre integrates ``c^2`` on [-1,1] exactly (2/3, halved to 1/3);
+    an unweighted node mean gives sqrt(23/47) = 0.6995.
+    """
+    monkeypatch.setattr("warpax.bondi.extract._psi4_at", lambda res, c, s, axis: c)
+    res = radiated_momentum_flux(
+        lambda X: ETA, krt_cone, _rest_static, n_theta=24, radii=(1.0,), richardson=False
+    )
+    assert res.psi4_rms == pytest.approx(1.0 / np.sqrt(3.0), abs=1e-12)

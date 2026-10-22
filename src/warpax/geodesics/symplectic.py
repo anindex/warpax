@@ -26,7 +26,8 @@ realized with JAX autodiff in the spirit of the FANTASY integrator
 ``H_A = H(x, \\bar p)`` and ``H_B = H(\\bar x, p)`` plus an ``\\omega``-binding
 rotation ``H_C`` that keeps the copies together. The metric gradient enters only
 through ``g^{ab}`` and ``\\partial_c g^{ab}`` (one ``jax.jacfwd`` of the metric);
-the full curvature chain is never invoked inside the inner loop.
+the full curvature chain is never invoked inside the inner loop. The
+fourth-order step uses the Yoshida (1990) triple-jump coefficients.
 
 References
 ----------
@@ -35,8 +36,6 @@ References
 - Christian & Chan, "FANTASY: User-friendly Symplectic Geodesic Integrator
   for Arbitrary Metrics with Automatic Differentiation," ApJ 909, 67 (2021).
 """
-
-from __future__ import annotations
 
 from typing import NamedTuple
 
@@ -47,7 +46,6 @@ from jaxtyping import Array, Float
 
 from .initial_conditions import null_ic, timelike_ic
 
-# Yoshida (1990) 4th-order triple-jump coefficients.
 _YOSHIDA_W1 = 1.0 / (2.0 - 2.0 ** (1.0 / 3.0))
 _YOSHIDA_W0 = 1.0 - 2.0 * _YOSHIDA_W1
 
@@ -98,8 +96,8 @@ def _g_inv_and_dginv(
     """
     g = metric_fn(x)
     g_inv = jnp.linalg.inv(g)
-    dg = jax.jacfwd(metric_fn)(x)  # dg[d, e, c] = d g_{de} / d x^c
-    dginv = -jnp.einsum("ad,dec,eb->abc", g_inv, dg, g_inv)  # [a, b, c]
+    dg = jax.jacfwd(metric_fn)(x)
+    dginv = -jnp.einsum("ad,dec,eb->abc", g_inv, dg, g_inv)
     return g_inv, dginv
 
 
@@ -111,8 +109,8 @@ def _phi_HA(state, delta, metric_fn):
     """
     x, p, xb, pb = state
     g_inv, dginv = _g_inv_and_dginv(metric_fn, x)
-    dxb = jnp.einsum("ab,b->a", g_inv, pb)  # dH_A/dp_bar
-    dp = -0.5 * jnp.einsum("bca,b,c->a", dginv, pb, pb)  # -dH_A/dx
+    dxb = jnp.einsum("ab,b->a", g_inv, pb)
+    dp = -0.5 * jnp.einsum("bca,b,c->a", dginv, pb, pb)
     return (x, p + delta * dp, xb + delta * dxb, pb)
 
 
@@ -124,8 +122,8 @@ def _phi_HB(state, delta, metric_fn):
     """
     x, p, xb, pb = state
     g_inv, dginv = _g_inv_and_dginv(metric_fn, xb)
-    dx = jnp.einsum("ab,b->a", g_inv, p)  # dH_B/dp
-    dpb = -0.5 * jnp.einsum("bca,b,c->a", dginv, p, p)  # -dH_B/dx_bar
+    dx = jnp.einsum("ab,b->a", g_inv, p)
+    dpb = -0.5 * jnp.einsum("bca,b,c->a", dginv, p, p)
     return (x + delta * dx, p, xb, pb + delta * dpb)
 
 
@@ -190,11 +188,10 @@ def _integrate_core(
         x, p, _xb, _pb = new_state
         return new_state, (x, p)
 
-    init = (x0, p0, x0, p0)  # both copies start equal
+    init = (x0, p0, x0, p0)
     _, (xs, ps) = jax.lax.scan(scan_body, init, xs=None, length=num_steps)
 
-    # Prepend the initial point, then subsample to num_save evenly.
-    xs = jnp.concatenate([x0[None, :], xs], axis=0)  # (num_steps+1, 4)
+    xs = jnp.concatenate([x0[None, :], xs], axis=0)
     ps = jnp.concatenate([p0[None, :], ps], axis=0)
     lam_full = jnp.linspace(lam0, lam1, num_steps + 1)
     save_idx = jnp.linspace(0, num_steps, num_save).astype(jnp.int32)

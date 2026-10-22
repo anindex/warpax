@@ -52,13 +52,9 @@ from .symplectic import (
 )
 
 __all__ = [
-    # Jacobi deviation
     "DeviationResult",
-    # Core integrator
     "GeodesicResult",
-    # Symplectic (structure-preserving) integrator
     "SymplecticGeodesicResult",
-    # Observables
     "blueshift_along_trajectory",
     "bounding_box_event",
     "circular_orbit_ic",

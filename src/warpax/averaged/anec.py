@@ -25,8 +25,6 @@ The ``geodesic_complete`` flag and ``termination_reason`` field on
    (:func:`anec_rigorous`).
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -115,6 +113,12 @@ def _project_to_null(
     selects the reflected null branch wherever ``g_00 > 0`` (e.g. inside
     a superluminal Alcubierre bubble), mangling exactly-null input.
     Exact on Minkowski-like metrics; stable Lagrange projection elsewhere.
+
+    Uses the citardauq form of the roots, which does not cancel for a nearly
+    null tangent. A vanishing ``q`` with ``A_s != 0`` is the double root
+    ``lambda = 0`` (``u_t e_0`` itself null). With ``A_s = cross = 0`` the
+    equation reduces to ``A_t = 0``: every scaling solves it when ``A_t = 0``
+    (``u`` is returned unchanged), and none does otherwise (NaN).
     """
     e0 = jnp.array([1.0, 0.0, 0.0, 0.0], dtype=u.dtype)
     u_t = u[0]
@@ -124,21 +128,14 @@ def _project_to_null(
     cross = 2.0 * jnp.einsum("ab,a,b->", g_ab, u_t * e0, u_s)
     disc = cross**2 - 4.0 * A_s * A_t
     sqrt_disc = jnp.sqrt(jnp.maximum(disc, 0.0))
-    # Citardauq form. The naive (-cross +/- sqrt_disc) / (2 A_s) cancels
-    # catastrophically for a nearly-null tangent, and its additive 1e-30
-    # denominator offset dominates once A_s falls below it.
     sgn = jnp.where(cross >= 0.0, 1.0, -1.0)
     q = -0.5 * (cross + sgn * sqrt_disc)
     a_ok = A_s != 0.0
     q_ok = q != 0.0
-    lam_a = jnp.where(a_ok, q / jnp.where(a_ok, A_s, 1.0), 1.0)
-    lam_b = jnp.where(q_ok, A_t / jnp.where(q_ok, q, 1.0), 1.0)
+    lam_degenerate = jnp.where(A_t == 0.0, 1.0, jnp.nan)
+    lam_b = jnp.where(q_ok, A_t / jnp.where(q_ok, q, 1.0), jnp.where(a_ok, 0.0, lam_degenerate))
+    lam_a = jnp.where(a_ok, q / jnp.where(a_ok, A_s, 1.0), lam_b)
 
-    # With g_00 < 0 the roots have opposite signs and the negative one is the
-    # reflected ray, so prefer the positive one. With g_00 > 0 (inside a
-    # superluminal bubble) both can be negative, and then neither is reflected:
-    # fall back to closest to 1 rather than tie on inf and take an arbitrary
-    # one, which picked the farther ray.
     dist_a = jnp.abs(lam_a - 1.0)
     dist_b = jnp.abs(lam_b - 1.0)
     any_pos = (lam_a > 0.0) | (lam_b > 0.0)
@@ -176,18 +173,18 @@ def _extract_trajectory(
 ) -> tuple[Float[Array, "N"], Float[Array, "N 4"], Float[Array, "N 4"], int]:
     """Return (ts, positions, velocities, result_code) from either a
     ``GeodesicResult`` or a callable geodesic.
+
+    Duck-types on the trajectory interface: a Diffrax ``GeodesicResult``
+    carries an int ``result`` (converted with :func:`result_code_to_int`,
+    never defaulting to success), a ``SymplecticGeodesicResult`` carries a
+    bool ``complete`` whose failure maps to diffrax code 9 (nonfinite, its
+    only failure mode). A callable is sampled uniformly over
+    ``affine_bounds``.
     """
-    # Duck-type on the trajectory interface so this accepts both the Diffrax
-    # GeodesicResult (carries an int ``result``) and the SymplecticGeodesicResult
-    # (carries a bool ``complete`` + ``termination_reason``).
     if hasattr(geodesic, "positions") and hasattr(geodesic, "velocities"):
         if hasattr(geodesic, "result"):
-            # Robust conversion (diffrax 0.7.x EnumerationItem carries
-            # ``._value``, not ``.value``); never defaults to success.
             result_code = result_code_to_int(geodesic.result)
         else:
-            # Symplectic result: map completeness to the diffrax code
-            # convention (9 = nonfinite, its only failure mode).
             result_code = RESULT_SUCCESS if bool(geodesic.complete) else 9
         return (
             geodesic.ts,
@@ -195,7 +192,6 @@ def _extract_trajectory(
             geodesic.velocities,
             result_code,
         )
-    # Callable geodesic: sample uniformly
     lam_min, lam_max = affine_bounds
     lam = jnp.linspace(lam_min, lam_max, n_samples)
 
@@ -269,6 +265,13 @@ def anec(
         ``termination_reason``, ``max_abs_g_kk`` (rigor witness), and
         ``null_preserved``.
 
+    The rigor witness is measured on the trajectory tangent ``dx/dlambda``
+    in every mode: under ``'null_projected'`` the projected vector is null
+    by construction and would pass any curve. The verdict is relative to
+    ``max|g| * max(k^2)`` because ``g(k,k)`` carries the square of the
+    tangent scale, so an absolute tolerance flips on a rescaling of the
+    affine parameter alone.
+
     Raises
     ------
     ValueError
@@ -288,16 +291,10 @@ def anec(
         positions, velocities
     )
 
-    # trapezoid over affine parameter (non-uniform lam OK)
     line_integral = jnp.trapezoid(integrand, lam)
 
-    # Rigor witness on the TRAJECTORY tangent dx/dlambda, in every mode. Under
-    # 'null_projected' the projected vector is null by construction, so measuring
-    # it there would pass any curve.
     g_kk = jax.vmap(lambda c, u: velocity_norm(metric, c, u))(positions, velocities)
     max_abs_g_kk = jnp.max(jnp.abs(g_kk))
-    # Relative verdict: g(k,k) carries the square of the tangent scale, so an
-    # absolute tolerance flips on a rescaling of the affine parameter alone.
     kk_ref = jax.vmap(lambda c, u: jnp.max(jnp.abs(metric(c))) * jnp.max(u**2))(
         positions, velocities
     )
@@ -405,7 +402,12 @@ def anec_rigorous(
         evaluated at every saved node and its worst relative drift is returned
         as ``killing_drift``: an integrator witness independent of the on-cone
         one, which a symplectic step would otherwise satisfy almost by
-        construction.
+        construction. The drift is relative to the initial ``E_K``, the
+        conserved value; an all-zero ``E_K`` means the ray is orthogonal to
+        ``K`` and carries no information, so it is reported as 0 rather than
+        NaN. The symplectic value is evaluated with ``tangent_norm='fixed'``
+        so this witness is not masked: the integrator is supposed to keep the
+        raw tangent on the cone.
 
     Returns
     -------
@@ -425,9 +427,6 @@ def anec_rigorous(
     drift = None
     if killing is not None:
         e_k = -jnp.einsum("na,a->n", geo.momenta, jnp.asarray(killing))
-        # Relative to the initial value, which is the conserved one; an
-        # all-zero E_K would mean the ray is orthogonal to K and carries no
-        # information, so it is reported as a drift of 0 rather than a NaN.
         e0 = e_k[0]
         drift = float(
             jnp.where(
@@ -436,8 +435,6 @@ def anec_rigorous(
                 0.0,
             )
         )
-    # 'fixed' tangent: do not mask the witness, the symplectic integrator is
-    # supposed to keep the raw tangent on the cone.
     sym = anec(metric, geo, tangent_norm="fixed", null_tol=null_tol)
     if sym.null_preserved and geo.complete:
         return RigorousANEC(

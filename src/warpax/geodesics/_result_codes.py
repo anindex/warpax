@@ -6,36 +6,37 @@ member indices differ from older releases. This module centralizes the
 robust conversion used by :mod:`warpax.averaged.anec` and
 :mod:`warpax.averaged.awec` so a non-convertible result is *never*
 silently mapped to success.
+
+``RESULT_UNKNOWN`` (-1) marks a result that could not be converted; it maps
+to reason ``'unknown'`` and callers must treat it as non-success.
+``RESULT_SUCCESS`` is ``diffrax.RESULTS.successful``. ``TERMINATION_REASONS``
+is verified against the installed diffrax 0.7.2 ``RESULTS`` enumeration
+(index -> member name via ``RESULTS._name_to_item``); codes 2-8 are linear
+and nonlinear solve failures, 9 is non-finite values during the solve.
 """
 
 from __future__ import annotations
 
-# Sentinel for a result object we could not convert; maps to reason
-# 'unknown' and must be treated as non-success by callers.
 RESULT_UNKNOWN = -1
 
-# Diffrax success code (``diffrax.RESULTS.successful``).
 RESULT_SUCCESS = 0
 
-# Human-readable termination reasons, verified against the installed
-# diffrax 0.7.2 ``diffrax.RESULTS`` enumeration (equinox Enumeration;
-# index -> member name via ``RESULTS._name_to_item``).
 TERMINATION_REASONS: dict[int, str] = {
     RESULT_UNKNOWN: "unknown",
-    0: "complete",  # successful
-    1: "max_steps",  # max_steps_reached
-    2: "singular",  # singular (linear solve)
-    3: "breakdown",  # iterative linear-solve breakdown
-    4: "stagnation",  # iterative linear-solve stagnation
-    5: "conlim",  # condition-number limit exceeded
-    6: "nonfinite_input",  # non-finite linear-solve input
-    7: "nonlinear_max_steps",  # nonlinear_max_steps_reached
-    8: "nonlinear_divergence",  # nonlinear solve diverged
-    9: "nonfinite",  # non-finite values during solve
-    10: "dt_min_reached",  # minimum step size reached
-    11: "event_occurred",  # terminating event triggered
-    12: "max_steps_rejected",  # max rejected steps reached
-    13: "internal_error",  # diffrax internal error
+    0: "complete",
+    1: "max_steps",
+    2: "singular",
+    3: "breakdown",
+    4: "stagnation",
+    5: "conlim",
+    6: "nonfinite_input",
+    7: "nonlinear_max_steps",
+    8: "nonlinear_divergence",
+    9: "nonfinite",
+    10: "dt_min_reached",
+    11: "event_occurred",
+    12: "max_steps_rejected",
+    13: "internal_error",
 }
 
 
@@ -56,7 +57,7 @@ def result_code_to_int(raw: object) -> int:
             except (TypeError, ValueError):
                 continue
     try:
-        return int(raw)  # type: ignore[call-overload]
+        return int(raw)
     except (TypeError, ValueError):
         return RESULT_UNKNOWN
 
