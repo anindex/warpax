@@ -5,6 +5,8 @@ import jax.numpy as jnp
 
 from warpax.benchmarks.minkowski import MinkowskiMetric
 
+from .._helpers import ETA
+
 
 class TestMinkowski:
     """Tests for MinkowskiMetric."""
@@ -13,15 +15,13 @@ class TestMinkowski:
         """Evaluate at arbitrary coords, verify diag(-1,1,1,1)."""
         m = MinkowskiMetric()
         g = m(sample_coords)
-        expected = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, expected, atol=1e-15)
+        assert jnp.allclose(g, ETA, atol=1e-15)
 
     def test_minkowski_jit(self, sample_coords):
         """jax.jit(MinkowskiMetric)(coords) returns correct result."""
         m = MinkowskiMetric()
         g = jax.jit(m)(sample_coords)
-        expected = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, expected, atol=1e-15)
+        assert jnp.allclose(g, ETA, atol=1e-15)
 
     def test_minkowski_pytree(self):
         """MinkowskiMetric is a valid pytree with no dynamic leaves."""

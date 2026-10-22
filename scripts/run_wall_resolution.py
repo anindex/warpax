@@ -36,19 +36,23 @@ from _json_io import write_table as write_tex_table
 
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
+from _paths import RESULTS_DIR, TABLES_DIR
 
 from warpax.benchmarks.alcubierre import alcubierre_shape
 
-TABLES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "warpax_arxiv", "tables")
-
 
 def main():
-    results_dir = os.path.join(os.path.dirname(__file__), "..", "results")
+    """Measure cells across the wall for every metric configuration.
+
+    The 10-90% wall width comes from bisection on the actual top-hat shape
+    function; the asymptotic 2*atanh(0.8)/sigma holds only for sigma*R >> 1 and
+    gives 73.24 against the true 72.53 at Rodal's sigma*R = 3. Configurations
+    match run_analysis.py METRICS exactly; WarpShell uses
+    smooth_width = 0.12 * (R_2 - R_1) and Schwarzschild has no shape function.
+    """
+    results_dir = RESULTS_DIR
     os.makedirs(results_dir, exist_ok=True)
 
-    # The 10-90% width of the ACTUAL top-hat shape function, by bisection.
-    # The asymptotic form 2*atanh(0.8)/sigma is only the sigma*R >> 1 limit; at
-    # Rodal's sigma*R = 3 it gives 73.24 against the true 72.53.
     def _width_10_90(sigma, R):
         f = lambda r: float(alcubierre_shape(jnp.asarray(r), R, sigma))
 
@@ -64,7 +68,6 @@ def main():
         hi = R + 40.0 / sigma
         return root(0.1, R, hi) - root(0.9, 0.0, R + hi)
 
-    # Metric configurations matching run_analysis.py METRICS dict exactly
     metrics = [
         {
             "metric": "alcubierre",
@@ -122,7 +125,6 @@ def main():
                 "while floating-point curvature errors remain"
             )
         elif m["shape_function"] == "hermite":
-            # WarpShell: smooth_width = 0.12 * (R_2 - R_1)
             smooth_width = 0.12 * (m["R_2"] - m["R_1"])
             wall_width = smooth_width
             cells = wall_width / dx
@@ -132,7 +134,6 @@ def main():
                 f"0.12 * (R_2 - R_1) = {smooth_width:.4f}"
             )
         else:
-            # Schwarzschild: no shape function
             wall_width = None
             cells = None
             resolved = None
@@ -156,7 +157,6 @@ def main():
         }
         results.append(row)
 
-    # Print formatted table
     print(
         f"{'Metric':>14s}  {'Shape':>8s}  {'sigma':>7s}  {'wall_w':>8s}  "
         f"{'dx':>8s}  {'cells':>6s}  {'resolved':>8s}"
@@ -175,7 +175,6 @@ def main():
             f"{cells_str:>6s}  {resolved_str:>8s}"
         )
 
-    # Save JSON
     out_path = os.path.join(results_dir, "wall_resolution.json")
     dump_json(results, out_path)
     print(f"\nSaved: {out_path}")

@@ -5,6 +5,9 @@ spatial resolution. The observed exponent spread does not certify a leading
 asymptotic power or a continuum maximum. The invariants exist for all types.
 
 Outputs: results/curvature_convergence.json and tables/curvature_convergence.tex.
+
+VELOCITIES is the subluminal branch used for the exponent fit, the same window
+as run_curvature_scaling.py; three or more points are required.
 """
 
 from __future__ import annotations
@@ -16,18 +19,13 @@ import numpy as np
 from _benchmark_grid import BOX, CLUSTER_A, N_LADDER
 from _json_io import dump_json
 from _json_io import write_table as write_tex_table
+from _paths import RESULTS_DIR, TABLES_DIR
 from run_curvature_scaling import (
     METRIC_ORDER,
     fit_power_law,
     run_point,
 )
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
-
-# Subluminal branch used for the exponent fit (three or more points required).
-# Same subluminal window as run_curvature_scaling.py.
 VELOCITIES = [0.1, 0.2, 0.3, 0.5, 0.7, 0.9]
 INVARIANTS = (("weyl_squared", r"Weyl $|C^2|$"), ("ricci_squared", r"Ricci $|R_{ab}R^{ab}|$"))
 
@@ -117,7 +115,6 @@ def main():
                 f"  {name:16s} q(C^2)={_f(qs['weyl_squared'])}  q(Ricci)={_f(qs['ricci_squared'])}"
             )
 
-    # Stability summary across the ladder.
     summary = {}
     for name in args.metrics:
         summary[name] = {}

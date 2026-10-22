@@ -19,6 +19,9 @@ Outputs
   - Console table of WEC / NEC margins (Eulerian + robust) and missed fractions
   - results/zeta_sensitivity.npz with full numerical data
 
+The algebraic minimum is the merged margin over Type-I points only, since
+eigenvalue margins are cap-independent at Type-I points.
+
 Usage
 -----
     python scripts/run_zeta_sensitivity.py
@@ -29,7 +32,6 @@ from __future__ import annotations
 import os
 import time
 
-# Non-interactive backend (before any other matplotlib import)
 import matplotlib
 
 matplotlib.use("Agg")
@@ -39,12 +41,11 @@ import numpy as np
 
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
+from _paths import RESULTS_DIR
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
-
-# Configuration
 
 V_S = 0.5
 R = 1.0
@@ -54,10 +55,7 @@ BOUNDS = [(-5.0, 5.0)] * 3
 ZETA_MAX_VALUES = [1.0, 3.0, 5.0, 7.0]
 N_STARTS = 8
 BATCH_SIZE = 64
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 OUTPUT_PATH = os.path.join(RESULTS_DIR, "zeta_sensitivity.npz")
-
-# Main
 
 
 def main():
@@ -71,7 +69,6 @@ def main():
     print(f"  zeta_max: {ZETA_MAX_VALUES}")
     print("=" * 72)
 
-    # --- Step 1: build metric and curvature grid (shared across all zeta_max) ---
     metric = AlcubierreMetric(v_s=V_S, R=R, sigma=SIGMA)
     grid_spec = GridSpec(bounds=BOUNDS, shape=GRID_SHAPE)
 
@@ -81,12 +78,10 @@ def main():
     t_curv = time.time() - t0
     print(f"  Curvature grid computed in {t_curv:.1f}s")
 
-    T_field = curv.stress_energy  # (*grid_shape, 4, 4)
-    g_field = curv.metric  # (*grid_shape, 4, 4)
-    g_inv_field = curv.metric_inv  # (*grid_shape, 4, 4)
+    T_field = curv.stress_energy
+    g_field = curv.metric
+    g_inv_field = curv.metric_inv
 
-    # --- Step 2: sweep over zeta_max values ---
-    # Storage for results
     results = {
         "zeta_max_values": np.array(ZETA_MAX_VALUES),
         "v_s": V_S,
@@ -125,18 +120,14 @@ def main():
         elapsed = time.time() - t0
         print(f"  Completed in {elapsed:.1f}s")
 
-        # Extract WEC results
         wec_eul = float(jnp.min(comparison.eulerian_margins["wec"]))
         wec_rob = float(jnp.min(comparison.robust_margins["wec"]))
         wec_opt = float(jnp.min(comparison.opt_margins["wec"]))
         wec_miss = comparison.pct_missed["wec"]
 
-        # Algebraic min: min of merged margin over Type-I points only
-        # (eigenvalue margins are cap-independent at Type-I points)
         is_type_i = comparison.he_types == 1.0
         wec_alg = float(jnp.min(jnp.where(is_type_i, comparison.robust_margins["wec"], jnp.inf)))
 
-        # Extract NEC results
         nec_eul = float(jnp.min(comparison.eulerian_margins["nec"]))
         nec_rob = float(jnp.min(comparison.robust_margins["nec"]))
         nec_miss = comparison.pct_missed["nec"]
@@ -167,7 +158,6 @@ def main():
             f"max |Im λ|: {cls_stats['max_imag_eigenvalue']:.2e}"
         )
 
-    # Convert to arrays
     wec_eul_min = np.array(wec_eul_min_list)
     wec_rob_min = np.array(wec_rob_min_list)
     wec_alg_min = np.array(wec_alg_min_list)
@@ -177,7 +167,6 @@ def main():
     nec_rob_min = np.array(nec_rob_min_list)
     nec_missed_pct = np.array(nec_missed_pct_list)
 
-    # --- Step 3: save results ---
     results.update(
         {
             "wec_eulerian_min": wec_eul_min,
@@ -196,7 +185,6 @@ def main():
     np.savez(OUTPUT_PATH, **results)
     print(f"\nResults saved to {OUTPUT_PATH}")
 
-    # --- Step 4: print summary table ---
     print("\n" + "=" * 72)
     print("SUMMARY TABLE: zeta_max sensitivity (Alcubierre, v_s=0.5)")
     print("=" * 72)

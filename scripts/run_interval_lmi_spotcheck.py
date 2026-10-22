@@ -13,6 +13,14 @@ Outputs
 -------
 - results/interval_lmi_spotcheck.json
 - ../warpax_arxiv/tables/interval_lmi_spotcheck.tex
+
+POINTS are (x, s) on the axisymmetry-reduced half-plane, all inside the f in
+[0.1, 0.9] band at these parameters. The axis point and the deep off-axis one
+are chosen so that both verdicts are exercised: Van den Broeck's Type-I
+remainder reaches the axis, and its Type-IV region does not. The table prints
+the enclosure width because the two endpoints agree to the six decimals a table
+can carry, and two identical numbers would ask the reader to take the enclosure
+on trust.
 """
 
 from __future__ import annotations
@@ -22,6 +30,7 @@ import os
 
 from _json_io import dump_json
 from _json_io import write_table as write_tex_table
+from _paths import RESULTS_DIR, TABLES_DIR
 
 from warpax.energy_conditions.enclosure import (
     alcubierre_metric,
@@ -30,10 +39,6 @@ from warpax.energy_conditions.enclosure import (
     van_den_broeck_metric,
 )
 from warpax.energy_conditions.interval_lmi import certify_point_from_metric
-
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 V_S, R_B, SIGMA = 0.5, 1.0, 8.0
 VDB_KW = dict(R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
@@ -46,10 +51,6 @@ BUILDERS = {
 }
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 
-# (x, s) on the axisymmetry-reduced half-plane, all inside the f in [0.1, 0.9]
-# band at these parameters. The axis point and the deep off-axis one are chosen so
-# that both verdicts are exercised: Van den Broeck's Type-I remainder reaches the
-# axis, and its Type-IV region does not.
 POINTS = [("on axis", 1.0, 0.0), ("wall, $s=0.35$", 0.9, 0.35), ("wall, $s=0.5$", 0.95, 0.5)]
 
 
@@ -91,9 +92,6 @@ def main():
 
 
 def write_table(rows, out_path):
-    # The two endpoints agree to the six decimals a table can carry, so printing
-    # them alone shows a reader two identical numbers and asks them to take the
-    # enclosure on trust. The measured width is the whole content of the row.
     lines = [
         r"\begin{tabular}{@{}l l rr r c@{}}",
         r"  \toprule",

@@ -7,6 +7,10 @@
 
 Usage:
     python scripts/generate_vdb_comparison_figures.py
+
+VDB_PARAMS match run_analysis.py and paper Table 1. No cache is written:
+results/vdb_vs{V_S}.npz is run_analysis.py's path at the same parameters, and
+the figures here are computed from scratch.
 """
 
 from __future__ import annotations
@@ -23,19 +27,16 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 import numpy as np
+from _paths import FIGURES_DIR
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import VanDenBroeckMetric
 from warpax.visualization.comparison_plots import plot_comparison_panel
 
-# VdB parameters matching run_analysis.py and paper Table 1
 VDB_PARAMS = {"R": 1.0, "sigma": 8.0, "R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0}
 GRID = GridSpec(bounds=[(-5, 5)] * 3, shape=(50, 50, 50))
 V_S = 0.5
-
-# Output directory
-FIGURES_DIR = os.path.join(os.path.dirname(__file__), "..", "figures")
 
 
 def main():
@@ -94,9 +95,6 @@ def main():
             save_path=path,
         )
         print(f"  Saved: {path}")
-
-    # No cache is written here: results/vdb_vs{V_S}.npz is run_analysis.py's path at
-    # the same parameters, and the figures below are computed from scratch.
 
     print("\nDone!")
 

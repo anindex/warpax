@@ -14,17 +14,12 @@ from warpax.benchmarks.minkowski import MinkowskiMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
 from warpax.geometry.metric import sympy_metric_to_jax
 
-# Test coordinate points
-
 TEST_POINTS = [
-    jnp.array([0.0, 1.0, 2.0, 3.0]),  # standard
-    jnp.array([0.0, 0.01, 0.01, 0.01]),  # near-origin
-    jnp.array([0.0, 100.0, 0.0, 0.0]),  # far field
-    jnp.array([0.0, 1.0, 1.0, 1.0]),  # off-axis
+    jnp.array([0.0, 1.0, 2.0, 3.0]),
+    jnp.array([0.0, 0.01, 0.01, 0.01]),
+    jnp.array([0.0, 100.0, 0.0, 0.0]),
+    jnp.array([0.0, 1.0, 1.0, 1.0]),
 ]
-
-
-# Minkowski bridge tests
 
 
 class TestMinkowskiSympyBridge:
@@ -55,9 +50,6 @@ class TestMinkowskiSympyBridge:
         assert jnp.allclose(g, bridge_fn(coords), atol=1e-15)
 
 
-# Schwarzschild bridge tests
-
-
 class TestSchwarzschildSympyBridge:
     """SymPy bridge cross-validation for Schwarzschild.
 
@@ -68,7 +60,6 @@ class TestSchwarzschildSympyBridge:
         """Build a bridge function with concrete parameter value."""
         m = SchwarzschildMetric(M=M_val)
         sm = m.symbolic()
-        # Substitute concrete M value into symbolic expression
         M_sym = sp.Symbol("M", positive=True)
         g_concrete = sm.g.subs(M_sym, M_val)
         from warpax.geometry.metric import SymbolicMetric
@@ -100,9 +91,6 @@ class TestSchwarzschildSympyBridge:
         assert jnp.allclose(g, bridge_fn(coords), atol=1e-15)
 
 
-# Alcubierre bridge tests
-
-
 class TestAlcubierreSympyBridge:
     """SymPy bridge cross-validation for Alcubierre.
 
@@ -114,7 +102,6 @@ class TestAlcubierreSympyBridge:
         """Build a bridge function with concrete parameter values."""
         m = AlcubierreMetric(v_s=v_s_val, R=R_val, sigma=sigma_val, x_s=0.0)
         sm = m.symbolic()
-        # Substitute concrete parameter values
         v_s_sym = sp.Symbol("v_s", positive=True)
         R_sym = sp.Symbol("R", positive=True)
         sigma_sym = sp.Symbol("sigma", positive=True)

@@ -47,6 +47,7 @@ import time
 import mpmath
 from _json_io import dump_json
 from _json_io import write_table as write_tex_table
+from _paths import RESULTS_DIR, TABLES_DIR
 from mpmath import iv
 
 from warpax.energy_conditions.enclosure import (
@@ -59,10 +60,6 @@ from warpax.energy_conditions.enclosure import (
     van_den_broeck_metric,
 )
 from warpax.energy_conditions.interval_lmi import certify_point_from_metric
-
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 V_S, R_B, SIGMA = 0.5, 1.0, 8.0
 VDB_KW = dict(R_tilde=1.0, alpha_vdb=0.5, sigma_B=8.0)
@@ -155,6 +152,12 @@ def _init_worker(name: str, prec: int) -> None:
 
 
 def _certify_one_point(xs: tuple[float, float]) -> dict:
+    """Certify one (x, s) point in the worker process.
+
+    A chain that could not be evaluated (status chain_failed) and a chain that
+    evaluated and could not decide (refused) are different failures; the first
+    is never folded into the second.
+    """
     x, s = xs
     band = in_band(_WORKER["shape"], x, s)
     if band is None:
@@ -162,8 +165,6 @@ def _certify_one_point(xs: tuple[float, float]) -> dict:
     try:
         r = certify_point_from_metric(_WORKER["metric"], (0.0, x, s, 0.0), prec=_WORKER["prec"])
     except (ZeroDivisionError, ValueError) as exc:
-        # A chain that could not be EVALUATED and a chain that evaluated and could
-        # not DECIDE are different failures. Never fold the first into "refused".
         return {"x": x, "s": s, "status": "chain_failed", "error": f"{type(exc).__name__}: {exc}"}
     r["x"], r["s"], r["f"] = x, s, list(band)
     r["status"] = "ok"

@@ -1,9 +1,21 @@
 """Elastic-shell equilibrium, frame dragging, centrifugal tides and clock shifts.
 
 Run with `python examples/11_elastic_shell.py` after installing the solver
-extra. Profiles and numerical comparisons are written to results/elastic_shell.
-The exact response coefficients in that directory are input data from the
-six free-traction equations. No sibling manuscript checkout is required.
+extra; it finishes in a few seconds. Profiles and numerical comparisons are
+written to results/elastic_shell. The exact response coefficients in that
+directory are input data from the six free-traction equations.
+
+The exact anisotropic counterexample has M = 1, R1 = 10, R2 = 20. The elastic
+model is a full finite-strain quasi-Hookean energy with a relaxed compressional
+state; the material radius R is the independent variable, with stretches a =
+n_r and b = n_t = R/r. The longitudinal principal speed is n_i dp_i/dn_i / (rho
++ p_i). The collocation solve is an independent discretization that includes
+the lapse normalization, and the local-energy and redshifted active-source
+integrals are kept separate. In the frame-dragging ODE the state k = df/dr even
+though the integration variable is R. The endpoint-mass variation displaces
+both free faces and compares the sensitivity ODEs to the derived radial
+quadratic form at G = 1; the sampled radial diagnostic is kept separate from
+the continuum enclosure.
 """
 
 import csv
@@ -46,7 +58,6 @@ def isotropic(tol):
     return float(sol.y[0, -1])
 
 
-# The exact anisotropic counterexample has M=1, R1=10, R2=20.
 r = np.linspace(10, 20, 1001)
 m = mass(r)
 rho = density(r)
@@ -63,8 +74,6 @@ with (OUT / "static_counterexample.csv").open("w", newline="") as f:
     w.writerow(["r", "m", "rho", "p_r", "p_t", "DEC_slack", "circular_speed_squared"])
     w.writerows(zip(r, m, rho, np.zeros_like(r), pt, rho - pt, speed2, strict=True))
 
-# Full, finite-strain quasi-Hookean energy with a relaxed compressional state.
-# Material radius R is the independent variable. a=n_r, b=n_t=R/r.
 a, b = sp.symbols("a b", positive=True)
 m0 = 1e-6
 bulk = 0.2 * m0
@@ -119,7 +128,6 @@ def elastic(tol, step=0.1):
     rho, pr, pt, pa, pb = constitutive(nr, nt)
     assert np.all(rho - np.maximum(abs(pr), abs(pt)) > 0)
     assert abs(pr[0]) < 1e-16 and abs(pr[-1]) < 1e-14
-    # Longitudinal principal speed: n_i dp_i/dn_i /(rho+p_i).
     cr2 = nr * pa / (rho + pr)
     assert np.all((cr2 > 0) & (cr2 < 1))
     assert np.all((nr > 0.99) & (nr < 1.01) & (nt > 0.99) & (nt < 1.01))
@@ -333,7 +341,6 @@ if __name__ == "__main__":
     for tol, step in ((1e-7, 1.0), (1e-9, 0.5), (1e-11, 0.1)):
         result, values = elastic(tol, step)
         res["elastic"].append(result)
-    # Independent collocation discretization, including the lapse normalization.
     R, rad, massval, nr, nt, rho, pr, pt, phi = values
     phi = phi - phi[-1] + np.log(1 - 2 * massval[-1] / rad[-1]) / 2
 
@@ -365,7 +372,6 @@ if __name__ == "__main__":
         "boundary_residuals": bc(coll.y[:, 0], coll.y[:, -1]),
     }
 
-    # Separate integrals of local energy and redshifted active source.
     def mass_integrands(R):
         r, m, nr, phi = coll.sol(R)
         rho, pr, pt, *_ = constitutive(nr, R / r)
@@ -403,13 +409,12 @@ if __name__ == "__main__":
         ),
     }
 
-    # First-order rotational response on the independently normalized static BVP.
     def dragging_rhs(R, y):
         rad, mass, nr, _ = coll.sol(R)
         rho, pr, pt, *_ = constitutive(nr, R / rad)
         F = 1 - 2 * mass / rad
         slope = np.sqrt(F) / nr
-        f, k = y  # k = df/dr, even though the integration variable is R.
+        f, k = y
         return [
             k * slope,
             ((4 * np.pi * rad * (rho + pr) / F - 4 / rad) * k + 16 * np.pi * (rho + pt) * f / F)
@@ -472,8 +477,6 @@ if __name__ == "__main__":
         "dragging_relative_correction": float(omega[0] / dragging_leading - 1),
         "scope": "Comparison at chi=1e-4, beta=2; not a bound on the asymptotic remainder.",
     }
-    # Independent endpoint-mass variation, with both free faces displaced.
-    # Compare sensitivity ODEs to the derived radial quadratic form at G=1.
     Rv, rv, sv, Vv, Mv = sp.symbols("R r slope V M", positive=True)
     mass_rhs = (
         4 * sp.pi * rv**2 * sv * energy.subs({a: sp.sqrt(1 + Vv**2 - 2 * Mv / rv) / sv, b: Rv / rv})
@@ -491,7 +494,6 @@ if __name__ == "__main__":
         "numpy",
         cse=True,
     )
-    # Sampled radial diagnostic, kept separate from the continuum enclosure.
     Am, Bm, Dm = moduli(nr, nt)
     F = 1 - 2 * massval / rad
     phip = (massval + 4 * np.pi * rad**3 * pr) / (rad**2 * F)

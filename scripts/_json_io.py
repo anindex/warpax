@@ -14,21 +14,34 @@ import math
 import os
 from typing import Any
 
+import numpy as np
+
 
 def sanitize_nonfinite(obj: Any) -> Any:
     """Recursively replace non-finite floats with ``None``.
 
     Returns a new structure (dicts/lists rebuilt; tuples become lists,
-    matching what ``json.dump`` would emit anyway). Non-float leaves are
-    passed through unchanged.
+    matching what ``json.dump`` would emit anyway). NumPy floating scalars
+    become builtin floats; other leaves pass through unchanged.
     """
     if isinstance(obj, dict):
         return {k: sanitize_nonfinite(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [sanitize_nonfinite(v) for v in obj]
-    if isinstance(obj, float):  # includes np.float64 (a float subclass)
-        return obj if math.isfinite(obj) else None
+    if isinstance(obj, (float, np.floating)):
+        return float(obj) if math.isfinite(obj) else None
     return obj
+
+
+def load_json(path: str | os.PathLike[str]) -> Any:
+    """Read one JSON file."""
+    with open(path) as f:
+        return json.load(f)
+
+
+def fmt(x: float, spec: str = ".3g") -> str:
+    """Format ``x`` with ``spec``; non-finite values print as ``nan``."""
+    return format(x, spec) if math.isfinite(x) else "nan"
 
 
 def dump_json(

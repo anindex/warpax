@@ -8,7 +8,7 @@ autodifferentiated pointwise, the wall-cell count governs only the sampling of t
 discrete summaries, not the accuracy of the field.
 
 Grid family (anchored two-sided sinh stretch, densest exactly at the wall and
-symmetric about the centre; see grids/_clustered.py):
+symmetric about the center; see grids/_clustered.py):
   - box   : +-3 R_b per axis
   - a*    : 2.0  (clustering strength)
   - ladder: N = [80, 100, 120]  -> 5.9 / 7.6 / 8.9 cells across the 10-90% wall,
@@ -44,8 +44,8 @@ def wall_cells(metric, N: int) -> tuple[float, float]:
 
     Delegates to the single shared witness, :func:`warpax.grids.wall_cells_on_axis`,
     measured on the grid this module actually builds. Worst case over every wall
-    crossing the axis makes, see that module for why the previous best-case,
-    single-crossing, asymptotic-width variant read high.
+    crossing the axis makes; a best-case, single-crossing, asymptotic-width
+    count reads high, see that module.
     """
     xs = np.asarray(benchmark_grid(metric, N).axes[0], dtype=float)
     res = wall_cells_on_axis(metric, xs)

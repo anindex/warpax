@@ -1,20 +1,26 @@
-"""Sampled energy-condition diagnostics for the legacy T-shell prescription.
+"""Sampled energy-condition sweep over the prescribed T-shell profiles.
 
 Sweeps (compactness, thickness) and draws the resulting diagnostic margins.
 Passing those tests does not establish source closure or an elastic
-equilibrium. Example 11 implements the revised Einstein--elastic shell.
+equilibrium; example 11 solves the Einstein-elastic shell.
 
-    .venv/bin/python examples/10_phase_diagram.py          # 8x6 demo (~5 min)
-    .venv/bin/python examples/10_phase_diagram.py --full    # 20x15 (~1 hour)
+    python examples/10_phase_diagram.py          (8x6 demo, about 20 s)
+    python examples/10_phase_diagram.py --full   (20x15, about a minute)
+
+The GPU autotuner is disabled (``--xla_gpu_autotune_level=0``) because it
+crashes on f64 reductions in the optimistix vmap. Grid points whose
+construction fails carry NaN margins and are counted separately. When no
+sampled case passes, the closest approach is reported as a sampled margin
+without inferring a universal shell bound.
 """
 
 from __future__ import annotations
 
+import math
 import os
 import sys
 from pathlib import Path
 
-# Disable GPU autotuner (crashes on f64 reductions in optimistix vmap).
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
 import matplotlib
@@ -34,16 +40,10 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if "--full" in sys.argv:
-        n_compactness = 20
-        n_thickness = 15
-        n_probes = 15
-        n_ec_starts = 8
+        n_compactness, n_thickness, n_probes = 20, 15, 15
         print("FULL sweep (20x15)...")
     else:
-        n_compactness = 8
-        n_thickness = 6
-        n_probes = 10
-        n_ec_starts = 4
+        n_compactness, n_thickness, n_probes = 8, 6, 10
         print("DEMO sweep (8x6). Use --full for a larger sampled grid.")
 
     sweep_path = str(output_dir / "sweep_results.npz")
@@ -58,16 +58,18 @@ def main():
         n_velocity=4,
         n_grid=512,
         n_probes=n_probes,
-        n_ec_starts=n_ec_starts,
         progress=True,
         save_path=sweep_path,
     )
 
-    n_feasible = sum(1 for pt in result.points if pt.ec_feasible)
-    n_total = len(result.points)
-    print(f"\nSweep complete: {n_feasible}/{n_total} pass the sampled EC tests")
+    evaluated = [pt for pt in result.points if math.isfinite(pt.worst_ec_margin)]
+    n_failed = len(result.points) - len(evaluated)
+    admissible = [pt for pt in evaluated if pt.ec_feasible]
+    print(
+        f"\nSweep complete: {len(admissible)}/{len(result.points)} pass the sampled EC tests"
+        f" ({n_failed} grid points failed to build and carry NaN)"
+    )
 
-    admissible = [pt for pt in result.points if pt.ec_feasible]
     if admissible:
         best = max(admissible, key=lambda pt: pt.transport)
         print(
@@ -76,9 +78,8 @@ def main():
             f"|beta^x|={best.transport:.5f}, "
             f"M={best.mass:.2f}"
         )
-    else:
-        # Report the sampled margin without inferring a universal shell bound.
-        closest = max(result.points, key=lambda pt: pt.worst_ec_margin)
+    elif evaluated:
+        closest = max(evaluated, key=lambda pt: pt.worst_ec_margin)
         print("  No sampled case passed. Closest approach:")
         print(
             f"    C={closest.compactness:.3f}, "
@@ -87,16 +88,10 @@ def main():
             f"|beta^x|={closest.transport:.5f}"
         )
 
-    plot_phase_diagram(
-        result,
-        save_path=str(output_dir / "phase_diagram.pdf"),
-    )
+    plot_phase_diagram(result, save_path=str(output_dir / "phase_diagram.pdf"))
     print(f"  -> {output_dir / 'phase_diagram.pdf'}")
 
-    plot_phase_summary(
-        result,
-        save_path=str(output_dir / "phase_summary.pdf"),
-    )
+    plot_phase_summary(result, save_path=str(output_dir / "phase_summary.pdf"))
     print(f"  -> {output_dir / 'phase_summary.pdf'}")
 
 

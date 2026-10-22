@@ -34,6 +34,7 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
+from _paths import FIGURES_DIR, RESULTS_DIR
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.benchmarks import AlcubierreMetric
@@ -52,8 +53,6 @@ from warpax.visualization._style import (
     metric_color,
 )
 
-# Baseline parameters
-
 BASELINE = {
     "v_s": 0.5,
     "R_rodal": 100.0,
@@ -65,9 +64,6 @@ BASELINE = {
     "batch_size_curv": 256,
     "batch_size_opt": 64,
 }
-
-
-# Sweep functions
 
 
 def _run_single(metric, grid, label="", return_full=False):
@@ -158,7 +154,6 @@ def run_resolution_sweep():
     for N in N_values:
         print(f"\n--- N = {N} ---")
 
-        # Rodal
         grid_r = GridSpec(bounds=[(-300, 300)] * 3, shape=(N, N, N))
         metric_r = RodalMetric(
             v_s=BASELINE["v_s"],
@@ -168,7 +163,6 @@ def run_resolution_sweep():
         dec_miss_r = _run_single(metric_r, grid_r, label="Rodal")
         rodal_results.append(dec_miss_r)
 
-        # Alcubierre
         grid_a = GridSpec(bounds=[(-5, 5)] * 3, shape=(N, N, N))
         metric_a = AlcubierreMetric(
             v_s=BASELINE["v_s"],
@@ -189,7 +183,11 @@ def run_resolution_sweep():
 
 
 def run_regularization_sweep():
-    """Sweep regularization eps^2 in {1e-24, 1e-18, 1e-12, 1e-6}."""
+    """Sweep regularization eps^2 in {1e-24, 1e-18, 1e-12, 1e-6}.
+
+    Alcubierre has no eps^2 parameter and runs once as the control; the Rodal
+    eps^2 is varied by monkey-patching ``warpax.metrics.rodal._stable_logcosh``.
+    """
     print("\n" + "=" * 70)
     print("SWEEP 2: Regularization (eps^2)")
     print("=" * 70)
@@ -198,7 +196,6 @@ def run_regularization_sweep():
     rodal_results = []
     N = 50
 
-    # Alcubierre control: run once (no eps^2 parameter)
     print("\n--- Alcubierre control (single run) ---")
     grid_a = GridSpec(bounds=[(-5, 5)] * 3, shape=(N, N, N))
     metric_a = AlcubierreMetric(
@@ -208,7 +205,6 @@ def run_regularization_sweep():
     )
     alc_dec_miss = _run_single(metric_a, grid_a, label="Alcubierre")
 
-    # Rodal: vary eps^2 via monkey-patching
     import warpax.metrics.rodal as rodal_module
     from warpax.metrics.rodal import _stable_logcosh
 
@@ -272,7 +268,6 @@ def run_sigma_sweep():
     ):
         print(f"\n--- Rodal sigma={sig_r}, Alcubierre sigma={sig_a} ---")
 
-        # Rodal: compute DEC miss + wall-restricted stats (reusing curvature)
         grid_r = GridSpec(bounds=[(-300, 300)] * 3, shape=(N, N, N))
         metric_r = RodalMetric(
             v_s=BASELINE["v_s"],
@@ -316,7 +311,6 @@ def run_sigma_sweep():
             f"DEC miss={stats_r.dec_miss_rate}"
         )
 
-        # Alcubierre: same treatment
         grid_a = GridSpec(bounds=[(-5, 5)] * 3, shape=(N, N, N))
         metric_a = AlcubierreMetric(
             v_s=BASELINE["v_s"],
@@ -372,9 +366,6 @@ def run_sigma_sweep():
         "wall_alcubierre_results": wall_alcubierre,
         "sensitivity": ("sensitive" if _max_variation(rodal_rounded) > 5.0 else "insensitive"),
     }
-
-
-# Diagnosis logic
 
 
 def _max_variation(values):
@@ -435,20 +426,17 @@ def classify_diagnosis(sweeps):
             f"irrotational warp drive geometry."
         )
 
-    # Alcubierre control validation
     alc_max = 0.0
     for sweep_data in sweeps.values():
         alc_values = sweep_data.get("alcubierre_dec_miss_pct", [])
         clean = [v for v in alc_values if v is not None]
         if clean:
             alc_max = max(alc_max, max(clean))
-        # Also check static control
         if "alcubierre_control_dec_miss_pct" in sweep_data:
             alc_max = max(alc_max, sweep_data["alcubierre_control_dec_miss_pct"])
 
     control_valid = alc_max < 1.0
 
-    # Rodal baseline (50^3, default sigma, default eps^2)
     rodal_baseline = None
     for v in sweeps["resolution"]["rodal_dec_miss_pct"]:
         if (
@@ -475,12 +463,8 @@ def classify_diagnosis(sweeps):
     }
 
 
-# Output: JSON diagnosis
-
-
 def save_diagnosis(sweeps, diagnosis, start_time):
     """Save structured diagnosis to JSON."""
-    # Build summary paragraph
     if diagnosis["classification"] == "genuine_physics":
         summary = (
             f"Controlled experiments indicate the Rodal DEC anomaly "
@@ -532,28 +516,25 @@ def save_diagnosis(sweeps, diagnosis, start_time):
         "summary": summary,
     }
 
-    outpath = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "results",
-        "rodal_dec_diagnosis.json",
-    )
+    outpath = os.path.join(RESULTS_DIR, "rodal_dec_diagnosis.json")
     os.makedirs(os.path.dirname(outpath), exist_ok=True)
     dump_json(output, outpath)
     print(f"\nDiagnosis saved to {outpath}")
     return output
 
 
-# Output: 3-panel ablation figure
-
-
 def plot_ablation(sweeps):
-    """Generate 3-panel ablation figure."""
+    """Generate 3-panel ablation figure.
+
+    Panel 2 plots the wall-restricted conditional DEC miss rate, the fraction of
+    wall DEC violations the Eulerian frame misses, normalized by the active wall
+    volume rather than the diluted grid fraction. Alcubierre sits on a twin
+    x-axis because its sigma range differs.
+    """
     apply_style()
 
     fig, axes = plt.subplots(1, 3, figsize=(DOUBLE_COL, 2.5), sharey=True)
 
-    # Panel 0: Resolution sweep
     ax = axes[0]
     x_res = sweeps["resolution"]["values"]
     ax.plot(
@@ -574,7 +555,6 @@ def plot_ablation(sweeps):
     ax.set_title("Resolution")
     ax.set_ylabel(r"DEC miss (\%)")
 
-    # Panel 1: Regularization sweep
     ax = axes[1]
     x_reg = sweeps["regularization"]["values"]
     ax.plot(
@@ -584,7 +564,6 @@ def plot_ablation(sweeps):
         label="Rodal",
         **LINE_STYLES[0],
     )
-    # Alcubierre static control as visible marker + horizontal line
     alc_ctrl = sweeps["regularization"]["alcubierre_control_dec_miss_pct"]
     ax.axhline(
         y=alc_ctrl,
@@ -594,7 +573,6 @@ def plot_ablation(sweeps):
         alpha=0.7,
         label="Alcubierre",
     )
-    # Add a visible scatter marker at the geometric center of log-scale x-range
     x_center = np.sqrt(x_reg[0] * x_reg[-1]) if x_reg[0] > 0 else x_reg[len(x_reg) // 2]
     ax.scatter(
         [x_center],
@@ -619,7 +597,6 @@ def plot_ablation(sweeps):
     ax.set_xlabel(r"$\varepsilon^2$")
     ax.set_title("Regularization")
 
-    # Panel 2: sigma sweep, grid (volume-diluted) vs wall-restricted (intrinsic)
     ax = axes[2]
     x_sig_r = sweeps["sigma"]["values_rodal"]
     ax.plot(
@@ -629,9 +606,6 @@ def plot_ablation(sweeps):
         label="Rodal (grid)",
         **LINE_STYLES[0],
     )
-    # Intrinsic wall-restricted conditional DEC miss rate: the fraction of wall DEC
-    # violations the Eulerian frame misses (rises as the wall sharpens), the quantity
-    # normalized by the active wall volume rather than the diluted grid fraction.
     wall_style = dict(linestyle="--", marker="s", markersize=5, markerfacecolor="none")
     wall_pct = [r["wall_dec_miss_rate"] * 100.0 for r in sweeps["sigma"]["wall_rodal_results"]]
     ax.plot(
@@ -642,7 +616,6 @@ def plot_ablation(sweeps):
         **wall_style,
     )
     x_sig_a = sweeps["sigma"]["values_alcubierre"]
-    # Plot Alcubierre on a separate x-axis (twin) since sigma ranges differ
     ax2 = ax.twiny()
     ax2.plot(
         x_sig_a,
@@ -655,8 +628,6 @@ def plot_ablation(sweeps):
     ax2.tick_params(labelsize=8)
     ax.set_title("Wall thickness")
 
-    # Legend on last panel (primary axis)
-    # Create proxy artists for legend since Alcubierre is on twin axis
     from matplotlib.lines import Line2D
 
     handles = [
@@ -667,19 +638,11 @@ def plot_ablation(sweeps):
     axes[2].legend(handles=handles, loc="center right", fontsize=6)
 
     fig.tight_layout()
-    outpath = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "figures",
-        "rodal_dec_ablation.pdf",
-    )
+    outpath = os.path.join(FIGURES_DIR, "rodal_dec_ablation.pdf")
     os.makedirs(os.path.dirname(outpath), exist_ok=True)
     fig.savefig(outpath)
     plt.close(fig)
     print(f"Figure saved to {outpath}")
-
-
-# Main
 
 
 def main():
@@ -689,7 +652,6 @@ def main():
     print(f"Started: {start_time}")
     print("=" * 70)
 
-    # Run all 3 sweeps
     resolution_data = run_resolution_sweep()
     regularization_data = run_regularization_sweep()
     sigma_data = run_sigma_sweep()
@@ -700,7 +662,6 @@ def main():
         "sigma": sigma_data,
     }
 
-    # Classify diagnosis
     diagnosis = classify_diagnosis(sweeps)
     print("\n" + "=" * 70)
     print("DIAGNOSIS")
@@ -711,13 +672,10 @@ def main():
     print(f"Alcubierre control valid: {diagnosis['control_valid']}")
     print(f"Rodal baseline DEC miss: {diagnosis['rodal_baseline_dec_miss_pct']:.1f}%")
 
-    # Save JSON
     output = save_diagnosis(sweeps, diagnosis, start_time)
 
-    # Plot figure
     plot_ablation(sweeps)
 
-    # Final summary
     print("\n" + "=" * 70)
     print("SUMMARY")
     print("=" * 70)

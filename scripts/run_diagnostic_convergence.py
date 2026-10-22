@@ -23,6 +23,20 @@ numerical status for each wall diagnostic:
 No Richardson order is asserted for any quantity: fractions are non-smooth,
 extrema are polished within the selected basin.
 
+The wall vorticity fraction R_omega is the proper-volume-weighted ratio of
+the vorticity scalar to the full shift-gradient magnitude, the same definition
+as ``run_shift_vorticity.wall_decomposition``, reported across the ladder to
+show it is grid-stable. The wall-restricted conditional WEC/DEC miss rates are
+the volume-weighted fraction of wall violations a single-frame Eulerian
+reading misses; no optimizer is needed, since Type I is exact by eigenvalue
+and Type IV is flagged by the certifier. Miss rates are None when the wall
+has no violations of that condition. The polish is seeded from the most
+extreme sample across the whole ladder, not just the finest grid, because a
+coarser grid can catch a deeper sample the finest grid misses by alignment;
+the polished value is then taken at least as extreme as every sample, since a
+grid sample is a valid field value and the continuum extremum cannot be less
+extreme than it.
+
 Outputs
 - results/diagnostic_convergence.json
 - ../warpax_arxiv/tables/diagnostic_convergence.tex
@@ -42,6 +56,7 @@ from types import SimpleNamespace
 
 import jax.numpy as jnp
 import numpy as np
+from _paths import RESULTS_DIR, TABLES_DIR
 
 from warpax.analysis.convergence import f_miss_stability
 from warpax.analysis.extrema import refine_extremum, seed_from_grid_index
@@ -57,10 +72,6 @@ from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
-
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 V_S = 0.5
 
@@ -85,7 +96,7 @@ def _field_typeI(curv, which):
     ff = certify_grid_frame_free(curv.stress_energy, curv.metric, curv.metric_inv)
     he = np.asarray(ff.he_types)
     margins = np.asarray(ff.nec_margins if which == "nec" else ff.dec_margins)
-    return np.where(he == 1.0, margins, np.inf)  # min over Type-I only
+    return np.where(he == 1.0, margins, np.inf)
 
 
 def _grid_diagnostics(metric, N):
@@ -113,10 +124,6 @@ def _grid_diagnostics(metric, N):
     nec_min, seed_nec = _masked_min(nec, typeI_wall, grid.shape, axes)
     dec_min, seed_dec = _masked_min(dec, typeI_wall, grid.shape, axes)
 
-    # Wall vorticity fraction R_omega (proper-volume-weighted ratio of the
-    # vorticity scalar to the full shift-gradient magnitude). Same definition as
-    # run_shift_vorticity.wall_decomposition; reported across the ladder to show
-    # it is grid-stable.
     theta, sigma_sq, omega_sq = compute_shift_kinematics_grid(metric, grid, t=0.0, batch_size=512)
     wv = np.where(m, np.asarray(vol_w).reshape(-1), 0.0)
     wsum = float(wv.sum())
@@ -125,9 +132,6 @@ def _grid_diagnostics(metric, N):
     vor = float((wv * np.asarray(omega_sq).reshape(-1)).sum() / wsum)
     r_omega = vor / (exp + she + vor + 1e-300)
 
-    # Wall-restricted conditional WEC/DEC miss rates: the volume-weighted fraction of
-    # wall violations a single-frame Eulerian reading misses. No optimizer is needed,
-    # since Type I is exact by eigenvalue and Type IV is flagged by the certifier.
     eul = jax.vmap(_eulerian_ec_point)(
         jnp.reshape(curv.stress_energy, (-1, 4, 4)),
         jnp.reshape(curv.metric, (-1, 4, 4)),
@@ -256,9 +260,6 @@ def main():
                 "dec_miss",
             )
         }
-        # Track the most extreme SAMPLE across the whole ladder (not just the
-        # finest grid): a coarser grid can catch a deeper/higher sample the finest
-        # grid misses by alignment, and the polish must be seeded from that.
         best = {"max_imag": (-np.inf, None), "nec_min": (np.inf, None), "dec_min": (np.inf, None)}
         for N in N_LADDER:
             d = _grid_diagnostics(metric, N)
@@ -274,9 +275,6 @@ def main():
                 f"  N={N}: TypeIV={d['type_iv_frac']:.3f} max|Im|={d['max_imag']:.4f} "
                 f"NECmin={_f(d['nec_min'])} DECmin={_f(d['dec_min'])}"
             )
-        # Continuum polish, seeded from the ladder's most extreme sample and
-        # guaranteed at least as extreme as every sample (a grid sample is a valid
-        # field value, so the continuum extremum cannot be less extreme than it).
         pi = _polish(metric, best["max_imag"][1], _field_max_imag, "max")
         pol_imag = max(best["max_imag"][0], pi) if pi is not None else best["max_imag"][0]
         pn = _polish(metric, best["nec_min"][1], lambda c: _field_typeI(c, "nec"), "min")
@@ -295,8 +293,6 @@ def main():
 
         st = f_miss_stability([v * 100 for v in series["type_iv_frac"]])
         stw = f_miss_stability([v * 100 for v in series["r_omega"]])
-        # Miss rates are ratios in [0,1] (or None if the wall has no violations of
-        # that condition); report their grid stability like the other fractions.
         stwec = f_miss_stability(
             [(v if v is not None else float("nan")) * 100 for v in series["wec_miss"]]
         )

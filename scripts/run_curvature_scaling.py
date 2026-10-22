@@ -9,6 +9,9 @@ defined for every algebraic type.
 Minkowski and Schwarzschild checks are in tests/test_curvature_scaling.py.
 Outputs: results/curvature_scaling.json, tables/curvature_scaling.tex and
 figures/curvature_scaling.pdf.
+
+The table labels the fit quality R^2_log because R^2 of a power law is
+ambiguous and the convention must be named.
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from _paper_metrics import METRIC_ORDER, instantiate
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from _paths import FIGURES_DIR, RESULTS_DIR, TABLES_DIR
 
 from warpax.visualization._style import (
     DOUBLE_COL,
@@ -50,16 +54,10 @@ from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import wall_clustered
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
-FIG_DIR = os.path.join(HERE, "..", "figures")
-
 BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
 
 
-# Invariants reported, in (json key, latex symbol) form.
 INVARIANTS = (
     ("kretschmann", r"$|K|$"),
     ("weyl_squared", r"$|C^2|$"),
@@ -68,7 +66,11 @@ INVARIANTS = (
 
 
 def run_point(name, v_s, N):
-    """Wall-peak curvature invariants at one (metric, v_s)."""
+    """Wall-peak curvature invariants at one (metric, v_s).
+
+    The grid maximum is polished to the continuum because the raw grid max
+    undershoots by 1-15%, speed-dependently, which tilts the exponent.
+    """
     shape = (N, N, N)
     metric = instantiate(name, v_s)
     grid = wall_clustered(metric, BOUNDS, shape, a=CLUSTER_A)
@@ -91,8 +93,6 @@ def run_point(name, v_s, N):
             out[f"{key}_max"] = float("nan")
             out[f"{key}_max_grid"] = float("nan")
             continue
-        # Polish to the continuum: the raw grid max undershoots by 1-15%,
-        # speed-dependently, which tilts the exponent.
         seed = seed_from_grid_index(k, shape, axes)
         polished = refine_extremum(
             metric,
@@ -134,6 +134,11 @@ def fit_power_law(rows, metric, key, v_max=1.0):
     ``r_squared`` is the log-space R^2 of the regression actually performed;
     ``r_squared_linear`` is the same curve scored in linear space. They differ
     because the two statistics weight the residuals differently.
+
+    max_rel_dev is the worst single-point deviation, as run_ssv_bound.py
+    reports it: R^2 alone hides a fit driven by one sample. Alcubierre's Ricci
+    branch sits 21% off at v_s = 0.9, where the wall-peak argmax migrates to
+    another basin.
     """
     vs, xs, dropped = _branch(rows, metric, key, v_max)
     if len(vs) < 3:
@@ -155,9 +160,6 @@ def fit_power_law(rows, metric, key, v_max=1.0):
     pred_lin = np.exp(logA) * vs**q
     tot_lin = float(np.sum((xs - xs.mean()) ** 2))
     r2_lin = 1.0 - float(np.sum((xs - pred_lin) ** 2)) / tot_lin if tot_lin > 0 else 1.0
-    # Worst single-point deviation, as run_ssv_bound.py reports: R^2 alone hides
-    # a fit driven by one sample. Alcubierre's Ricci branch sits 21% off at
-    # v_s = 0.9, where the wall-peak argmax migrates to another basin.
     max_rel_dev = float(np.max(np.abs(xs - pred_lin) / xs))
     return {
         "A": float(np.exp(logA)),
@@ -212,7 +214,6 @@ def write_table(fits, out_path):
         r"  & \multicolumn{3}{c}{Weyl $|C^2|$} "
         r"& \multicolumn{3}{c}{Ricci $|R_{ab}R^{ab}|$} \\",
         r"  \cmidrule(lr){2-4}\cmidrule(lr){5-7}",
-        # R^2 of a power law is ambiguous; name the convention.
         r"  Metric & $q$ & $A$ & $R^2_{\log}$ & $q$ & $A$ & $R^2_{\log}$ \\",
         r"  \midrule",
     ]
@@ -239,7 +240,7 @@ _MARKERS = {"Alcubierre": "o", "Natário": "s", "Van den Broeck": "^", "Rodal": 
 
 
 def make_figure(rows, fits):
-    os.makedirs(FIG_DIR, exist_ok=True)
+    os.makedirs(FIGURES_DIR, exist_ok=True)
     fig, (ax_w, ax_r) = plt.subplots(1, 2, figsize=(DOUBLE_COL, DOUBLE_COL * 0.44))
     for ax, key, title in (
         (ax_w, "weyl_squared", "(a) Weyl $|C^2|$"),
@@ -270,7 +271,7 @@ def make_figure(rows, fits):
         ax.set_title(title, fontsize=9)
     ax_w.legend(fontsize=7.5, frameon=False, loc="upper left")
     fig.tight_layout()
-    p = os.path.join(FIG_DIR, "curvature_scaling.pdf")
+    p = os.path.join(FIGURES_DIR, "curvature_scaling.pdf")
     fig.savefig(p)
     plt.close(fig)
     print(f"  Wrote {p}")

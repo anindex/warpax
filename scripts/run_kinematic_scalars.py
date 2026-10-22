@@ -11,6 +11,10 @@ All metrics (default):
 
 Specific metrics:
     python scripts/run_kinematic_scalars.py --metrics alcubierre natario
+
+Metric configuration matches run_analysis.py. Natario should have theta ~ 0
+since it is zero-expansion by construction; the summary reports whether |theta|
+< 1e-6 holds.
 """
 
 from __future__ import annotations
@@ -35,8 +39,6 @@ from warpax.metrics import (
     VanDenBroeckMetric,
     WarpShellMetric,
 )
-
-# Metric configuration (same as run_analysis.py)
 
 METRICS: dict[str, tuple[type, dict]] = {
     "alcubierre": (AlcubierreMetric, {"R": 1.0, "sigma": 8.0}),
@@ -63,9 +65,6 @@ GRID_MAP: dict[str, GridSpec] = {
 }
 
 DEFAULT_V_S = 0.5
-
-
-# Main
 
 
 def main():
@@ -148,12 +147,10 @@ def main():
             )
             print(f"  Saved: {cache_path}")
 
-        # Summary
         theta_min = float(np.nanmin(theta))
         theta_max = float(np.nanmax(theta))
         print(f"  theta (expansion): min={theta_min:.4e}, max={theta_max:.4e}")
 
-        # Natario should have theta ~ 0 (zero-expansion by construction)
         if name == "natario":
             if abs(theta_min) < 1e-6 and abs(theta_max) < 1e-6:
                 print("  [OK] Natario: theta ~ 0 (zero-expansion confirmed)")

@@ -18,6 +18,22 @@ Core results (all metrics at v_s=0.5 + Schwarzschild):
 
 Specific metrics/velocities:
     python scripts/run_analysis.py --metrics alcubierre lentz --velocities 0.1 0.5
+
+Configuration
+-------------
+``METRICS`` maps each name to its class and default parameter overrides
+(excluding ``v_s``, which varies). ``WARP_METRICS`` participate in the
+``v_s`` sweep. ``BENCHMARK_METRICS`` are the metrics whose wall is resolved
+at default parameters and are the only ones in the comparison table: Lentz
+is excluded because its wall is sub-grid at about 0.02 cells and not
+comparable, but it is still evaluated and cached in the sweep as a
+qualitative consistency check. ``F_LOW``/``F_HIGH`` bound the active
+warp-wall transition region ``f in [F_LOW, F_HIGH]``, excluding the bubble
+interior (``f ~ 1``) and the external vacuum (``f ~ 0``) where the
+near-vacuum early-out would otherwise inflate the Type-I fraction. Grids:
+standard metrics (``R ~ 1``) use ``[-5, 5]^3``, large-R metrics (Rodal and
+Lentz, ``R = 100``) use ``[-300, 300]^3``, Schwarzschild uses ``[-20, 20]^3``.
+The matplotlib backend is set to Agg before any other matplotlib import.
 """
 
 from __future__ import annotations
@@ -26,7 +42,6 @@ import argparse
 import os
 import time
 
-# Non-interactive backend (before any other matplotlib import)
 import matplotlib
 
 matplotlib.use("Agg")
@@ -50,9 +65,6 @@ from warpax.metrics import (
     WarpShellMetric,
 )
 
-# Metric configuration
-
-# Metric class + default parameter overrides (excluding v_s which varies)
 METRICS: dict[str, tuple[type, dict]] = {
     "alcubierre": (AlcubierreMetric, {"R": 1.0, "sigma": 8.0}),
     "rodal": (RodalMetric, {"R": 100.0, "sigma": 0.03}),
@@ -66,29 +78,17 @@ METRICS: dict[str, tuple[type, dict]] = {
     "schwarzschild": (SchwarzschildMetric, {"M": 1.0}),
 }
 
-# Warp metrics: these participate in the v_s sweep
 WARP_METRICS = ["alcubierre", "rodal", "vdb", "natario", "lentz", "warpshell"]
 
-# Metrics whose wall is resolved at default parameters. Lentz is excluded
-# (wall sub-grid at ~0.02 cells, not comparable); it is still evaluated in
-# the v_s sweep above as a qualitative consistency check.
 BENCHMARK_METRICS = ["alcubierre", "rodal", "vdb", "natario", "warpshell"]
 
-# Active warp-wall transition region: f in [F_LOW, F_HIGH] excludes the
-# bubble interior (f~1) and external vacuum (f~0), where the near-vacuum
-# early-out would otherwise inflate the Type-I fraction.
 F_LOW = 0.1
 F_HIGH = 0.9
 
-# Velocity sweep values
 V_S_VALUES = [0.1, 0.5, 0.9, 0.99]
 
-# Grid specs per metric category
-# Standard metrics (R ~ 1): spatial domain [-5, 5]^3
 GRID_STANDARD = GridSpec(bounds=[(-5, 5)] * 3, shape=(50, 50, 50))
-# Large-R metrics (Rodal R=100, Lentz R=100): domain [-300, 300]^3
 GRID_LARGE_R = GridSpec(bounds=[(-300, 300)] * 3, shape=(50, 50, 50))
-# Schwarzschild: domain [-20, 20]^3
 GRID_SCHWARZSCHILD = GridSpec(bounds=[(-20, 20)] * 3, shape=(50, 50, 50))
 
 GRID_MAP: dict[str, GridSpec] = {
@@ -100,9 +100,6 @@ GRID_MAP: dict[str, GridSpec] = {
     "warpshell": GRID_STANDARD,
     "schwarzschild": GRID_SCHWARZSCHILD,
 }
-
-
-# Core analysis helper
 
 
 def analyze_single(
@@ -123,6 +120,18 @@ def analyze_single(
     4. Run verify_grid (compute_eulerian=False) for worst_params/worst_observers.
     5. Save all data to .npz cache.
     6. Print summary.
+
+    The full-domain classification counts are vacuum-dominated on a box much
+    larger than the wall, so the wall-restricted counts are the physically
+    meaningful statistics. ``n_vacuum`` counts near-vacuum points
+    (``max|Re lambda| < tol``); these are folded into ``n_type_i``, and
+    tracking them separately lets callers remove the vacuum contribution
+    from the Type-I count. The wall-restricted statistics condition on the
+    active wall region, excluding the surrounding near-vacuum that the
+    full-domain Type-I/IV fractions inherit via the classifier's near-vacuum
+    early-out. Metrics with no ``[0, 1]`` shape-function transition (e.g.
+    Schwarzschild) have no wall mask; they fall back to full-domain stats
+    with ``wall_n_total = 0``, which downstream consumers gate on.
     """
     if os.path.exists(cache_path):
         print(f"  [CACHED] {cache_path} exists, skipping.")
@@ -135,7 +144,6 @@ def analyze_single(
     t_curv = time.time() - t0
     print(f"    Curvature grid: {t_curv:.1f}s")
 
-    # Run comparison (Eulerian + robust, separate)
     print(f"  Running Eulerian vs robust comparison (n_starts={n_starts})...")
     t0 = time.time()
     comparison = compare_eulerian_vs_robust(
@@ -149,7 +157,6 @@ def analyze_single(
     t_comp = time.time() - t0
     print(f"    Comparison: {t_comp:.1f}s")
 
-    # Run verify_grid for worst_params and worst_observers
     print("  Running verify_grid for worst-observer data...")
     t0 = time.time()
     ec_grid = verify_grid(
@@ -164,7 +171,6 @@ def analyze_single(
     t_vg = time.time() - t0
     print(f"    verify_grid: {t_vg:.1f}s")
 
-    # Save all data
     save_dict: dict[str, np.ndarray] = {}
     for cond in ("nec", "wec", "sec", "dec"):
         save_dict[f"{cond}_eulerian"] = np.asarray(comparison.eulerian_margins[cond])
@@ -177,27 +183,17 @@ def analyze_single(
             comparison.conditional_miss_rate[cond]
         )
 
-    # Worst-observer data from ECGridResult
     save_dict["worst_params"] = np.asarray(ec_grid.worst_params)
     save_dict["worst_observers"] = np.asarray(ec_grid.worst_observers)
     save_dict["he_types"] = np.asarray(ec_grid.he_types)
 
-    # Full-domain classification counts. These are vacuum-dominated on a
-    # box much larger than the wall, so the wall-restricted counts below
-    # are the physically meaningful statistics.
     save_dict["n_type_i"] = np.array(ec_grid.n_type_i)
     save_dict["n_type_ii"] = np.array(ec_grid.n_type_ii)
     save_dict["n_type_iii"] = np.array(ec_grid.n_type_iii)
     save_dict["n_type_iv"] = np.array(ec_grid.n_type_iv)
-    # Count of near-vacuum points (max|Re lambda| < tol). These are folded
-    # into n_type_i; tracking them separately lets callers remove the
-    # vacuum contribution from the Type-I count.
     save_dict["n_vacuum"] = np.array(ec_grid.n_vacuum if ec_grid.n_vacuum is not None else -1)
     save_dict["max_imag_eigenvalue"] = np.array(ec_grid.max_imag_eigenvalue)
 
-    # Wall-restricted statistics: counts conditioned on the active wall
-    # region, excluding the surrounding near-vacuum that the full-domain
-    # Type-I/IV fractions inherit via the classifier's near-vacuum early-out.
     print("  Computing wall-restricted statistics...")
     coords_batch = build_coord_batch(grid_spec, t=0.0)
     try:
@@ -235,13 +231,9 @@ def analyze_single(
             f"%Type-IV={100 * float(wall_stats.frac_type_iv):.1f}"
         )
     except Exception as exc:
-        # Some metrics have no [0,1] shape-function transition (e.g.
-        # Schwarzschild), so the wall mask is undefined. Fall back to
-        # full-domain stats; downstream consumers gate on wall_n_total > 0.
         print(f"    WARNING: wall-restricted stats failed: {exc}")
         save_dict["wall_n_total"] = np.array(0)
 
-    # Optimizer convergence diagnostics
     for cond in ("nec", "wec", "sec", "dec"):
         conv_field = getattr(ec_grid, f"{cond}_opt_converged", None)
         nsteps_field = getattr(ec_grid, f"{cond}_opt_n_steps", None)
@@ -250,14 +242,12 @@ def analyze_single(
         if nsteps_field is not None:
             save_dict[f"{cond}_opt_n_steps"] = np.asarray(nsteps_field)
 
-    # Grid metadata
     save_dict["grid_bounds"] = np.array(grid_spec.bounds)
     save_dict["grid_shape"] = np.array(grid_spec.shape)
 
     np.savez(cache_path, **save_dict)
     print(f"  Saved: {cache_path}")
 
-    # Summary
     for cond in ("nec", "wec", "sec", "dec"):
         eul_min = float(np.nanmin(save_dict[f"{cond}_eulerian"]))
         rob_min = float(np.nanmin(save_dict[f"{cond}_robust"]))
@@ -266,9 +256,6 @@ def analyze_single(
             f"    {cond.upper()}: Eulerian min={eul_min:.4e}, "
             f"Robust min={rob_min:.4e}, Missed={pct_m:.2f}%"
         )
-
-
-# Main
 
 
 def main():
@@ -354,9 +341,6 @@ def main():
     results_dir = args.results_dir
     os.makedirs(results_dir, exist_ok=True)
 
-    # -----------------------------------------------------------------------
-    # Schwarzschild baseline: velocity-independent, outside v_s loop
-    # -----------------------------------------------------------------------
     if "schwarzschild" in run_metrics:
         print("=" * 60)
         print("Schwarzschild baseline (v_s=0.0)")
@@ -374,9 +358,6 @@ def main():
             strategy=args.strategy,
         )
 
-    # -----------------------------------------------------------------------
-    # Main v_s sweep: warp metrics only
-    # -----------------------------------------------------------------------
     warp_to_run = [m for m in run_metrics if m != "schwarzschild"]
 
     for v_s in run_velocities:
@@ -409,15 +390,10 @@ def main():
                 strategy=args.strategy,
             )
 
-    # -----------------------------------------------------------------------
-    # Build comparison table
-    # -----------------------------------------------------------------------
     print("\n" + "=" * 60)
     print("Building comparison table...")
     print("=" * 60)
 
-    # The comparison table excludes Lentz (wall sub-grid at default
-    # parameters); it is still cached above for the qualitative check.
     all_metrics_for_table = [m for m in warp_to_run if m in BENCHMARK_METRICS] + (
         ["schwarzschild"] if "schwarzschild" in run_metrics else []
     )
@@ -428,7 +404,6 @@ def main():
     rows = build_comparison_table(results_dir, all_metrics_for_table, all_vs_for_table)
     print(f"  Table: {len(rows)} rows written to {results_dir}/comparison_table.json")
 
-    # Print summary
     for row in rows:
         metric = row["metric"]
         v_s = row["v_s"]

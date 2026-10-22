@@ -37,19 +37,13 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 from _benchmark_grid import benchmark_grid
+from _paths import FIGURES_DIR, RESULTS_DIR, TABLES_DIR
 
 from warpax.analysis.shift_kinematics import compute_shift_kinematics_grid
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
 from warpax.visualization.shift_vorticity_plots import plot_shift_vorticity
-
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
-# Figures are generated into the codebase, then copied to the paper folder
-# by reproduce_all.sh (sync_figures_to_paper).
-FIG_DIR = os.path.join(HERE, "..", "figures")
 
 BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
@@ -110,6 +104,13 @@ def write_table(fingerprint, type_iv_range, out_path):
 
 
 def main():
+    """Decompose the shift kinematics per metric and velocity.
+
+    R_omega is the ratio of wall-averaged scalars
+    <omega^2> / (<theta^2/3> + <sigma^2> + <omega^2>), the volume aggregate of
+    the pointwise analysis.rotationality(); it equals the reported vorticity
+    fraction by construction and is v_s-independent to numerics.
+    """
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--fingerprint-velocities", type=float, nargs="+", default=[0.1, 0.5, 0.9, 1.5, 2.5]
@@ -121,7 +122,6 @@ def main():
         args.fingerprint_velocities = [0.5]
         args.N = 24
 
-    # Cached Type-IV wall fractions (the expensive eigenstructure).
     with open(os.path.join(RESULTS_DIR, "velocity_sweep.json")) as f:
         sweep = json.load(f)
     type_iv = {}
@@ -140,11 +140,6 @@ def main():
     print(f"SHIFT VORTICITY (R=1, sigma=8, N={args.N}, wall-clustered)")
     print("=" * 72)
 
-    # Per-(metric, v_s) decomposition; confirm R_omega is v_s-independent.
-    # R_omega here is the ratio of wall-averaged scalars,
-    # <omega^2> / (<theta^2/3> + <sigma^2> + <omega^2>), the wall fingerprint.
-    # This is the volume aggregate of the pointwise analysis.rotationality(),
-    # and equals the reported vorticity fraction by construction.
     raw = {m: [] for m in ORDER}
     for name in ORDER:
         for v_s in args.fingerprint_velocities:
@@ -166,7 +161,6 @@ def main():
                 f"R_omega={r_omega_avg:.4f}"
             )
 
-    # Velocity-averaged fingerprint (R_omega is v_s-independent to numerics).
     fingerprint = {}
     for m in ORDER:
         rows = raw[m]
@@ -177,7 +171,6 @@ def main():
         m: (min(t for _, t in type_iv[m]), max(t for _, t in type_iv[m])) for m in ORDER
     }
 
-    # Figure sweep data: pair each metric's mean R_omega with all cached Type-IV.
     fig_sweep = {}
     for m in ORDER:
         r_mean = fingerprint[m]["vorticity"]
@@ -197,8 +190,8 @@ def main():
 
     if not args.smoke:
         write_table(fingerprint, type_iv_range, os.path.join(TABLES_DIR, "shift_vorticity.tex"))
-        os.makedirs(FIG_DIR, exist_ok=True)
-        out = os.path.join(FIG_DIR, "shift_vorticity.pdf")
+        os.makedirs(FIGURES_DIR, exist_ok=True)
+        out = os.path.join(FIGURES_DIR, "shift_vorticity.pdf")
         plot_shift_vorticity(fingerprint, fig_sweep, ORDER, save_path=out)
         print(f"  Wrote {out}")
 

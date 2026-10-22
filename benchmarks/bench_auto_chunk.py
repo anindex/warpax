@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 
-os.environ.setdefault("JAX_PLATFORMS", "cpu")  # CPU canonical
+os.environ.setdefault("JAX_PLATFORMS", "cpu")
 
 import jax
 import jax.numpy as jnp
@@ -51,7 +51,6 @@ class AutoChunkMemoryEnvelope:
         self.fn_full = jax.jit(_run_full)
         self.fn_chunked = jax.jit(_run_chunked)
 
-        # JIT warmup - keep timed methods lean
         _ = self.fn_full(self.metric).block_until_ready()
         _ = self.fn_chunked(self.metric).block_until_ready()
 

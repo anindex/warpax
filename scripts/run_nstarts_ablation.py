@@ -16,6 +16,8 @@ Usage
 -----
     python scripts/run_nstarts_ablation.py
     python scripts/run_nstarts_ablation.py --n-starts 1 2 4 8 16 32
+
+The algebraic minimum is the merged margin over Type-I points only.
 """
 
 from __future__ import annotations
@@ -38,8 +40,6 @@ from warpax.analysis import compare_eulerian_vs_robust
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import RodalMetric, WarpShellMetric
-
-# Configuration
 
 METRICS: dict[str, tuple[type, dict, GridSpec]] = {
     "alcubierre": (
@@ -101,7 +101,6 @@ def main():
         print(f"Metric: {name} (v_s = {params.get('v_s', '?')})")
         print("=" * 60)
 
-        # Build metric and evaluate curvature grid ONCE
         metric = metric_cls(**params)
         print(" Computing curvature grid (one-time cost)...")
         t0 = time.time()
@@ -143,7 +142,6 @@ def main():
             pct_dec = comparison.pct_missed["dec"]
             cls_stats = comparison.classification_stats
 
-            # Algebraic min: min of merged margin over Type-I points only
             is_type_i = np.asarray(comparison.he_types) == 1.0
             min_wec_alg = float(
                 np.nanmin(np.where(is_type_i, np.asarray(comparison.robust_margins["wec"]), np.inf))
@@ -171,12 +169,10 @@ def main():
 
         results[name] = metric_results
 
-    # Save results
     out_path = os.path.join(results_dir, "nstarts_ablation.json")
     dump_json(results, out_path)
     print(f"\nResults saved to {out_path}")
 
-    # Print summary table
     print("\n" + "=" * 80)
     print("SUMMARY")
     print("=" * 80)

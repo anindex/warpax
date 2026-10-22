@@ -5,6 +5,17 @@ Compare N=30,50,70 using the maximum deviation from the mean:
 not continuum convergence. Results and report are written to
 results/rodal_matched_resolution.json and results/rodal_matched_report.md.
 
+``R = 1, sigma = 8`` are the matched parameters (the native Rodal
+configuration is ``R = 100, sigma = 0.03``), so the domain is the compact
+``[-3, 3]^3`` rather than ``[-300, 300]^3``. ``TOLERANCE = 0.05`` is the
+relative stability criterion and ``ABS_TOL_PP = 0.5`` the absolute floor: a
+spread within 0.5 percentage points is stable. The optimizer uses
+``n_starts=8`` for consistency with the paper analysis. A point counts as
+missed when the Eulerian margin is ``>= 0.0`` (the ``comparison.py``
+convention) and the robust margin is ``< -1e-10``. In the stability output
+``max_deviation`` is the legacy key for the relative deviation; a zero miss
+rate at every resolution is trivially stable.
+
 Run: python scripts/run_rodal_matched_resolution.py
 """
 
@@ -13,6 +24,7 @@ from __future__ import annotations
 import os
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 import matplotlib
 from _json_io import dump_json
@@ -24,26 +36,21 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
+from _paths import RESULTS_DIR
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.analysis.convergence import f_miss_stability
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import RodalMetric
 
-# Constants
-
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
-RESOLUTIONS = [30, 50, 70]  # three-point resolution sweep
+RESOLUTIONS = [30, 50, 70]
 V_S = 0.5
-R = 1.0  # matched parameter (was R=100 in the native Rodal config)
-SIGMA = 8.0  # matched parameter (was sigma=0.03 in the native Rodal config)
-DOMAIN = [(-3, 3)] * 3  # compact domain for R=1 (not [-300,300]^3)
-TOLERANCE = 0.05  # +/-5% relative stability criterion across resolutions
-ABS_TOL_PP = 0.5  # absolute-floor: spread within 0.5 percentage points is stable
+R = 1.0
+SIGMA = 8.0
+DOMAIN = [(-3, 3)] * 3
+TOLERANCE = 0.05
+ABS_TOL_PP = 0.5
 CONDITIONS = ["nec", "wec", "sec", "dec"]
-
-
-# Resolution study
 
 
 def run_resolution_study():
@@ -65,7 +72,6 @@ def run_resolution_study():
         t0 = time.time()
         curv = evaluate_curvature_grid(metric, grid, batch_size=256)
 
-        # Use n_starts=8 for consistency with paper analysis
         comparison = compare_eulerian_vs_robust(
             curv.stress_energy,
             curv.metric,
@@ -76,7 +82,6 @@ def run_resolution_study():
         )
         elapsed = time.time() - t0
 
-        # Extract missed fractions per condition
         row = {
             "N": N,
             "n_total": n_total,
@@ -85,10 +90,7 @@ def run_resolution_study():
             rob_margins = comparison.robust_margins[cond]
             eul_margins = comparison.eulerian_margins[cond]
 
-            # Total violations (from robust/hybrid truth)
             violated = float(jnp.sum(rob_margins < -1e-10)) / n_total * 100
-            # Missed: Eulerian says OK but robust says violated
-            # Use >= 0.0 threshold to match comparison.py convention
             missed = float(jnp.sum((eul_margins >= 0.0) & (rob_margins < -1e-10))) / n_total * 100
             min_margin = float(jnp.nanmin(rob_margins))
 
@@ -96,7 +98,6 @@ def run_resolution_study():
             row[f"{cond}_missed"] = missed
             row[f"{cond}_min"] = min_margin
 
-        # Classification stats
         type_i_count = int(jnp.sum(comparison.he_types == 1))
         row["type_i_count"] = type_i_count
         row["type_i_pct"] = type_i_count / n_total * 100
@@ -110,7 +111,6 @@ def run_resolution_study():
         print(f"  Type I: {type_i_count} / {n_total} ({row['type_i_pct']:.1f}%)")
         print(f"  Time: {elapsed:.1f}s")
 
-    # Summary table
     print("\n" + "=" * 70)
     print("SUMMARY: Missed Fraction (%) by Resolution")
     print("=" * 70)
@@ -129,9 +129,6 @@ def run_resolution_study():
         )
 
     return results
-
-
-# Stability analysis
 
 
 def check_f_miss_stability(results):
@@ -159,7 +156,6 @@ def check_f_miss_stability(results):
         values = [r[f"{cond}_missed"] for r in results]
 
         if all(v == 0.0 for v in values):
-            # Zero miss rate everywhere is trivially stable
             stability[cond] = {
                 "values": [float(v) for v in values],
                 "mean": 0.0,
@@ -173,15 +169,12 @@ def check_f_miss_stability(results):
         stability[cond] = {
             "values": s["values"],
             "mean": s["mean"],
-            "max_deviation": s["max_dev_rel"],  # legacy key (relative)
+            "max_deviation": s["max_dev_rel"],
             "max_dev_pp": s["max_dev_pp"],
             "stable": s["stable"],
         }
 
     return stability
-
-
-# JSON output
 
 
 def save_json(results, stability, start_time):
@@ -214,9 +207,6 @@ def save_json(results, stability, start_time):
     dump_json(output, outpath)
     print(f"\nJSON saved to {outpath}")
     return output
-
-
-# Markdown report
 
 
 def save_report(results, stability, start_time):
@@ -260,12 +250,8 @@ def save_report(results, stability, start_time):
         )
     lines.append("")
     path = os.path.join(RESULTS_DIR, "rodal_matched_report.md")
-    with open(path, "w") as f:
-        f.write("\n".join(lines))
+    Path(path).write_text("\n".join(lines))
     print(f"Report saved to {path}")
-
-
-# Main
 
 
 def main():
@@ -275,7 +261,6 @@ def main():
     results = run_resolution_study()
     stability = check_f_miss_stability(results)
 
-    # Print stability summary
     print("\n" + "=" * 70)
     print("STABILITY ANALYSIS (+/-5% criterion)")
     print("=" * 70)

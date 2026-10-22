@@ -7,29 +7,24 @@ Alcubierre are capped at 1, all three axes are floored at 1e-4, then geometrical
 averaged. It is not an observer-independent severity or complete-geodesic ANEC
 ranking. The fitted exponents are empirical except where an independent j=0
 quadratic theorem applies on a fixed domain.
+
+A power law is reported only where the fit is clean (R^2 >= 0.99); a noisy
+Type-IV-dominated wall (e.g. Van den Broeck) has no resolved Type-I branch. The
+geometric mean floors every axis at 1e-4 so a zero axis does not annihilate it.
 """
 
 from __future__ import annotations
 
-import json
 import math
 import os
 
 import numpy as np
-from _json_io import dump_json
+from _json_io import dump_json, load_json
 from _json_io import write_table as write_tex_table
-
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
+from _paths import RESULTS_DIR, TABLES_DIR
 
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 REF_V_S = 0.5
-
-
-def _load(path):
-    with open(path) as f:
-        return json.load(f)
 
 
 def scaling_law_fit(rows, metric):
@@ -86,7 +81,6 @@ def exoticity_index(axes, baseline_axes):
     subs = [s for s in (s_nec, s_iv, s_anec) if np.isfinite(s)]
     if len(subs) != 3:
         return {"index": float("nan"), "s_nec": s_nec, "s_type_iv": s_iv, "s_anec": s_anec}
-    # Geometric mean with a small floor so a zero axis does not annihilate it.
     floored = [max(s, 1e-4) for s in subs]
     idx = math.exp(sum(math.log(s) for s in floored) / len(floored))
     return {"index": idx, "s_nec": s_nec, "s_type_iv": s_iv, "s_anec": s_anec}
@@ -106,8 +100,6 @@ def write_scaling_table(fits, out_path):
     for name in ORDER:
         fit = fits.get(name, {})
         r2 = fit.get("r_squared")
-        # Only report a power law where the fit is clean (R^2 >= 0.99); a noisy
-        # Type-IV-dominated wall (e.g. VdB) has no resolved Type-I branch.
         if r2 is not None and np.isfinite(r2) and r2 >= 0.99:
             lines.append(
                 f"  {name} & {_f(fit.get('p'), 2)} & {_f(fit.get('A'), 3)} & {_f(r2, 4)} \\\\"
@@ -154,10 +146,10 @@ def write_ranking_table(scores, out_path):
 
 
 def main():
-    sweep = _load(os.path.join(RESULTS_DIR, "velocity_sweep.json"))
+    sweep = load_json(os.path.join(RESULTS_DIR, "velocity_sweep.json"))
     rows = sweep["rows"]
     anec_path = os.path.join(RESULTS_DIR, "anec", "retained_symplectic.json")
-    anec = _load(anec_path) if os.path.exists(anec_path) else None
+    anec = load_json(anec_path) if os.path.exists(anec_path) else None
 
     print("=" * 70)
     print(f"SLICE COMPOSITE + EMPIRICAL SCALING FITS  (reference v_s={REF_V_S})")

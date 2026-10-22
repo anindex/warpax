@@ -26,6 +26,10 @@ Force recomputation::
 Show help::
 
     python scripts/run_geodesics.py --help
+
+``MAX_STEPS_HIGH_VS`` applies for v_s >= 0.95, where the near-ergo region
+needs more steps. Tidal scaling ratios are normalized to v_s = 0.5, or the
+first available velocity.
 """
 
 from __future__ import annotations
@@ -38,6 +42,7 @@ import diffrax
 import jax.numpy as jnp
 import numpy as np
 from _json_io import dump_json
+from _paths import RESULTS_DIR
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geodesics import (
@@ -49,29 +54,15 @@ from warpax.geodesics import (
     timelike_ic,
 )
 
-# Configuration
-
-RESULTS_DIR = "results/"
-
-# Alcubierre metric parameters
 V_S_VALUES = [0.1, 0.5, 0.9, 0.99]
 R_BUBBLE = 1.0
 SIGMA = 8.0
 
-# Integration parameters
 MAX_STEPS = 16384
-MAX_STEPS_HIGH_VS = 32768  # For v_s >= 0.95 (near-ergo-region needs more steps)
+MAX_STEPS_HIGH_VS = 32768
 NUM_POINTS = 500
 TAU_SPAN_TIMELIKE = (0.0, 20.0)
 TAU_SPAN_NULL = (0.0, 15.0)
-
-
-def _ensure_dir(path: str) -> None:
-    """Create directory if it does not exist."""
-    os.makedirs(path, exist_ok=True)
-
-
-# Tidal force analysis (timelike geodesic with deviation)
 
 
 def compute_tidal_analysis(results_dir: str, v_s: float = 0.5, force: bool = False) -> str:
@@ -101,25 +92,20 @@ def compute_tidal_analysis(results_dir: str, v_s: float = 0.5, force: bool = Fal
         print(f"  [CACHED] {cache_path} exists, skipping.")
         return cache_path
 
-    _ensure_dir(results_dir)
+    os.makedirs(results_dir, exist_ok=True)
 
     print(f"  Setting up Alcubierre metric (v_s={v_s})...")
     metric = AlcubierreMetric(v_s=v_s, R=R_BUBBLE, sigma=SIGMA)
 
-    # Initial conditions: timelike geodesic
-    # Start at (t=0, x=5.0, y=0.1, z=0) moving in -x direction
     x0_pos = jnp.array([0.0, 5.0, 0.1, 0.0])
-    v_spatial = jnp.array([-0.3, 0.0, 0.0])  # Moderate inward velocity
+    v_spatial = jnp.array([-0.3, 0.0, 0.0])
     x0, v0 = timelike_ic(metric, x0_pos, v_spatial)
 
-    # Deviation initial conditions (spatial perturbation in y-direction)
     xi0 = jnp.array([0.0, 0.0, 1e-6, 0.0])
     w0 = jnp.array([0.0, 0.0, 0.0, 0.0])
 
-    # Use more steps for high v_s (near ergo-region)
     max_steps = MAX_STEPS_HIGH_VS if v_s >= 0.95 else MAX_STEPS
 
-    # Integrate geodesic with deviation
     print(" Integrating timelike geodesic with deviation equations...")
     print(f"    x0 = {x0}, v0 = {v0}")
     print(f"    tau_span = {TAU_SPAN_TIMELIKE}, max_steps = {max_steps}")
@@ -142,7 +128,6 @@ def compute_tidal_analysis(results_dir: str, v_s: float = 0.5, force: bool = Fal
     if dev_result.result == diffrax.RESULTS.max_steps_reached:
         print(" WARNING: Integrator hit max_steps. Partial data will be used.")
 
-    # Extract tidal eigenvalues at each saved point
     print(" Computing tidal eigenvalues along trajectory...")
     t0 = time.time()
     all_eigs = []
@@ -151,11 +136,10 @@ def compute_tidal_analysis(results_dir: str, v_s: float = 0.5, force: bool = Fal
         vel = dev_result.velocities[i]
         eigs = tidal_eigenvalues(metric, pos, vel)
         all_eigs.append(np.asarray(eigs))
-    tidal_eigs = np.stack(all_eigs, axis=0)  # (N, 4)
+    tidal_eigs = np.stack(all_eigs, axis=0)
     t_tidal = time.time() - t0
     print(f"    Tidal eigenvalue computation: {t_tidal:.1f}s")
 
-    # Save results
     np.savez(
         cache_path,
         tidal_eigenvalues=tidal_eigs,
@@ -169,7 +153,6 @@ def compute_tidal_analysis(results_dir: str, v_s: float = 0.5, force: bool = Fal
     )
     print(f"  Saved: {cache_path}")
 
-    # Summary
     peak_tidal = float(np.nanmax(np.abs(tidal_eigs)))
     print(f"  Peak tidal eigenvalue magnitude: {peak_tidal:.6e}")
     print(
@@ -180,15 +163,14 @@ def compute_tidal_analysis(results_dir: str, v_s: float = 0.5, force: bool = Fal
     return cache_path
 
 
-# Blueshift analysis (null geodesic)
-
-
 def compute_blueshift_analysis(results_dir: str, v_s: float = 0.5, force: bool = False) -> str:
     """Compute blueshift along a null geodesic through Alcubierre bubble.
 
     Sets up a null geodesic (photon) starting at (t=0, x=5.0, y=0.0, z=0)
     moving in the -x direction. Computes the blueshift factor at each saved
-    step using a static observer field.
+    step using a static observer field. g_00 = -(1 - v_s^2 f^2) can be
+    positive inside the bubble, so the observer normalization uses a
+    sign-safe square root.
 
     Parameters
     ----------
@@ -209,21 +191,17 @@ def compute_blueshift_analysis(results_dir: str, v_s: float = 0.5, force: bool =
         print(f"  [CACHED] {cache_path} exists, skipping.")
         return cache_path
 
-    _ensure_dir(results_dir)
+    os.makedirs(results_dir, exist_ok=True)
 
     print(f"  Setting up Alcubierre metric (v_s={v_s})...")
     metric = AlcubierreMetric(v_s=v_s, R=R_BUBBLE, sigma=SIGMA)
 
-    # Initial conditions: null geodesic (photon)
-    # Start at (t=0, x=5.0, y=0.0, z=0) moving in -x direction
     x0_pos = jnp.array([0.0, 5.0, 0.0, 0.0])
-    n_spatial = jnp.array([-1.0, 0.0, 0.0])  # -x direction
+    n_spatial = jnp.array([-1.0, 0.0, 0.0])
     x0, k0 = null_ic(metric, x0_pos, n_spatial)
 
-    # Use more steps for high v_s (near ergo-region)
     max_steps = MAX_STEPS_HIGH_VS if v_s >= 0.95 else MAX_STEPS
 
-    # Integrate null geodesic
     print(" Integrating null geodesic...")
     print(f"    x0 = {x0}, k0 = {k0}")
     print(f"    tau_span = {TAU_SPAN_NULL}, max_steps = {max_steps}")
@@ -244,8 +222,6 @@ def compute_blueshift_analysis(results_dir: str, v_s: float = 0.5, force: bool =
     if null_result.result == diffrax.RESULTS.max_steps_reached:
         print(" WARNING: Integrator hit max_steps. Partial data will be used.")
 
-    # Compute blueshift along trajectory using static observers
-    # Static observer 4-velocity: u^a = (1/sqrt(-g_00), 0, 0, 0)
     print(" Computing blueshift along trajectory...")
     t0 = time.time()
 
@@ -253,8 +229,6 @@ def compute_blueshift_analysis(results_dir: str, v_s: float = 0.5, force: bool =
         """Static observer 4-velocity at position x."""
         g = metric(x)
         g00 = g[0, 0]
-        # For Alcubierre, g_00 = -(1 - v_s^2 f^2) which can be positive
-        # inside the bubble. Use safe sqrt with sign handling.
         u_t = 1.0 / jnp.sqrt(jnp.abs(g00))
         return jnp.array([u_t, 0.0, 0.0, 0.0])
 
@@ -262,7 +236,6 @@ def compute_blueshift_analysis(results_dir: str, v_s: float = 0.5, force: bool =
     t_bs = time.time() - t0
     print(f"    Blueshift computation: {t_bs:.1f}s")
 
-    # Save results
     positions_x = np.asarray(null_result.positions[:, 1])
     np.savez(
         cache_path,
@@ -277,15 +250,11 @@ def compute_blueshift_analysis(results_dir: str, v_s: float = 0.5, force: bool =
     )
     print(f"  Saved: {cache_path}")
 
-    # Summary
     max_bs = float(np.nanmax(np.abs(np.asarray(blueshift))))
     print(f"  Max blueshift factor: {max_bs:.6e}")
     print(f"  Trajectory x-range: [{np.min(positions_x):.2f}, {np.max(positions_x):.2f}]")
 
     return cache_path
-
-
-# Post-computation analysis
 
 
 def analyze_tidal_scaling(results_dir: str, velocities: list[float]) -> dict:
@@ -312,7 +281,6 @@ def analyze_tidal_scaling(results_dir: str, velocities: list[float]) -> dict:
         peak_tidal_by_vs[str(v_s)] = peak
         print(f"  v_s={v_s}: peak tidal = {peak:.6e}")
 
-    # Compute scaling ratios normalized to v_s=0.5 (or first available)
     ref_vs = 0.5 if "0.5" in peak_tidal_by_vs else velocities[0]
     ref_peak = peak_tidal_by_vs[str(ref_vs)]
     ref_expected = ref_vs**2 / SIGMA
@@ -322,7 +290,6 @@ def analyze_tidal_scaling(results_dir: str, velocities: list[float]) -> dict:
     for vs_str, peak in peak_tidal_by_vs.items():
         v_s = float(vs_str)
         expected = v_s**2 / SIGMA
-        # Ratio of (actual/expected) normalized to reference
         if ref_peak > 0 and ref_expected > 0:
             ratio = (peak / expected) / (ref_peak / ref_expected)
         else:
@@ -362,7 +329,6 @@ def analyze_blueshift_divergence(results_dir: str, velocities: list[float]) -> d
         max_blueshift_by_vs[str(v_s)] = max_bs
         print(f"  v_s={v_s}: max |blueshift| = {max_bs:.6e}")
 
-    # Check monotonic increase
     sorted_vs = sorted(max_blueshift_by_vs.keys(), key=float)
     vals = [max_blueshift_by_vs[k] for k in sorted_vs]
     monotonic = all(vals[i] <= vals[i + 1] for i in range(len(vals) - 1))
@@ -392,9 +358,6 @@ def save_scaling_json(
     dump_json(payload, out_path)
     print(f"\n  Saved scaling data: {out_path}")
     return out_path
-
-
-# Main
 
 
 def main():
@@ -432,7 +395,6 @@ def main():
     print(f"  R = {R_BUBBLE}, sigma = {SIGMA}")
     print("=" * 60)
 
-    # Run tidal + blueshift analysis at each velocity
     for v_s in velocities:
         print(f"\n{'=' * 50}")
         print(f"v_s = {v_s}")
@@ -444,7 +406,6 @@ def main():
         print("\n  --- Blueshift Analysis (null geodesic) ---")
         compute_blueshift_analysis(results_dir, v_s=v_s, force=args.force)
 
-    # Post-computation analysis (only if we have multiple velocities)
     if len(velocities) > 1:
         tidal_data = analyze_tidal_scaling(results_dir, velocities)
         blueshift_data = analyze_blueshift_divergence(results_dir, velocities)

@@ -16,6 +16,7 @@ import time
 
 import matplotlib
 from _json_io import dump_json
+from _paths import RESULTS_DIR
 
 matplotlib.use("Agg")
 
@@ -36,7 +37,13 @@ N_STARTS = 8
 
 
 def main():
-    os.makedirs("results", exist_ok=True)
+    """WarpShell resolution study.
+
+    nansum keeps shell-boundary NaNs out of the integrated margins. The robust
+    search runs only at 25^3 and 50^3; 100^3 is Eulerian-only. Richardson
+    extrapolation uses f_extrap = f_100 + (f_100 - f_50) / (2^p - 1).
+    """
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     metric = WarpShellMetric(**METRIC_PARAMS)
 
     results = {
@@ -59,14 +66,12 @@ def main():
         print(f"Resolution: {N}^3 = {n_points} points")
         print(f"{'=' * 60}")
 
-        # Step 1: Compute curvature grid
         print(" Computing curvature grid...")
         t0 = time.time()
         curv = evaluate_curvature_grid(metric, grid_spec, batch_size=256)
         t_curv = time.time() - t0
         print(f"  Curvature grid: {t_curv:.1f}s")
 
-        # Step 2: Eulerian EC evaluation (always)
         print(" Computing Eulerian EC margins...")
         flat_T = curv.stress_energy.reshape(n_points, 4, 4)
         flat_g = curv.metric.reshape(n_points, 4, 4)
@@ -82,7 +87,6 @@ def main():
 
         min_nec_eul = float(np.nanmin(eul_nec))
         min_wec_eul = float(np.nanmin(eul_wec))
-        # Use nansum to avoid NaN propagation from shell boundary points
         integrated_nec_eul = float(np.nansum(np.minimum(np.nan_to_num(eul_nec, nan=0.0), 0.0)))
 
         results["min_nec_margin_eulerian"].append(min_nec_eul)
@@ -93,7 +97,6 @@ def main():
         print(f"  Eulerian min WEC: {min_wec_eul:.6e}")
         print(f"  Eulerian integrated NEC violation: {integrated_nec_eul:.6e}")
 
-        # Step 3: Robust EC (only at 25^3 and 50^3)
         if N <= 50:
             print(f"  Computing robust EC (n_starts={N_STARTS})...")
             t1 = time.time()
@@ -129,7 +132,6 @@ def main():
             print(f"  Type I: {comparison.classification_stats['n_type_i']}")
             print(f"  Type IV: {comparison.classification_stats['n_type_iv']}")
         else:
-            # 100^3: Eulerian-only (robust too expensive)
             results["min_nec_margin_robust"].append(None)
             results["min_wec_margin_robust"].append(None)
             results["integrated_nec_violation_robust"].append(None)
@@ -138,13 +140,11 @@ def main():
             results["time_s"].append(round(t_curv, 1))
             print(" [Skipping robust EC at 100^3 Eulerian-only]")
 
-    # Step 4: Richardson extrapolation on Eulerian min NEC margin
     f25, f50, f100 = results["min_nec_margin_eulerian"]
     diff1 = f25 - f50
     diff2 = f50 - f100
     if abs(diff2) > 1e-30 and abs(diff1) > 1e-30 and diff1 / diff2 > 0:
         p = math.log2(diff1 / diff2)
-        # Richardson extrapolation: f_extrap = f_100 + (f_100 - f_50) / (2^p - 1)
         extrapolated = f100 + (f100 - f50) / (2**p - 1)
     else:
         p = None
@@ -153,7 +153,6 @@ def main():
     results["richardson_order_min_nec_eulerian"] = p
     results["extrapolated_min_nec_eulerian"] = extrapolated
 
-    # Also Richardson on integrated violation
     iv25, iv50, iv100 = results["integrated_nec_violation_eulerian"]
     diff1_iv = iv25 - iv50
     diff2_iv = iv50 - iv100
@@ -172,12 +171,10 @@ def main():
     results["richardson_order_integrated_nec_eulerian"] = p_iv
     results["extrapolated_integrated_nec_eulerian"] = extrapolated_iv
 
-    # Save
-    out_path = "results/warpshell_convergence.json"
+    out_path = os.path.join(RESULTS_DIR, "warpshell_convergence.json")
     dump_json(results, out_path)
     print(f"\nResults saved to {out_path}")
 
-    # Summary
     print(f"\n{'=' * 60}")
     print("SUMMARY")
     print(f"{'=' * 60}")

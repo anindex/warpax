@@ -19,6 +19,7 @@ from _json_io import write_table as write_tex_table
 jax.config.update("jax_enable_x64", True)
 
 import numpy as np
+from _paths import RESULTS_DIR, TABLES_DIR
 
 from warpax.analysis.construction_adapter import (
     MATCHED_R_C,
@@ -36,16 +37,25 @@ from warpax.energy_conditions.verifier import _eulerian_ec_point
 from warpax.geometry import evaluate_curvature_points
 from warpax.grids import axisymmetric_grid, proper_volume_weights, wall_cells_on_axis
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
-
 ORDER = ["Alcubierre", "Rodal", "Fuchs", "Garattini"]
 LADDER = ((32, 32), (48, 48), (64, 64))
 F_LOW, F_HIGH = 0.1, 0.9
 
 
 def verify_one(spec, n_r: int, n_mu: int) -> dict:
+    """Run the ladder diagnostics for one construction at one resolution.
+
+    The resolution witness is measured on the axis the grid samples, shifted
+    for an off-origin bubble: on grid.r alone the Garattini wall reads 1.5
+    cells against 4.5 through the bubble center, and grid.r may start at 0,
+    which the mirror would duplicate. For Garattini the matched-motion shift is
+    a gradient, so its exact Type-I reduction through the Eulerian normal is
+    used instead of defective eigensolver labels. The ADM normal is unit
+    timelike at every speed. nec_min_dimensionless multiplies by wall_radius^2
+    because curvature carries 1/L^2. A miss_rate of None means nothing violates
+    at all (empty denominator), which is the meaningful outcome of a
+    construction that clears the all-observer check on its wall, not an error.
+    """
     metric = spec.metric()
     center = spec.center_of(metric)
     grid = axisymmetric_grid(
@@ -56,9 +66,6 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
         a=spec.cluster_a,
         center=center,
     )
-    # Measure the resolution witness on the axis the grid samples, the shifted one for
-    # an off-origin bubble: on grid.r alone the Garattini wall reads 1.5 cells against
-    # 4.5 through the bubble centre. grid.r may start at 0, which the mirror duplicates.
     r_pos = grid.r[grid.r > 0.0]
     axis = center + np.concatenate([-r_pos[::-1], grid.r])
     res = wall_cells_on_axis(metric, axis)
@@ -95,8 +102,6 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
 
     nec = np.asarray(ff.nec_margins).ravel()
     if spec.name == "Garattini":
-        # The matched-motion shift is a gradient. Use its exact Type-I reduction
-        # through the Eulerian normal, avoiding defective eigensolver labels.
         normal = -np.asarray(gi)[:, :, 0]
         rho = np.einsum("ni,nij,nj->n", normal, np.asarray(T), normal)
         pressures = np.linalg.eigvalsh(np.asarray(T)[:, 1:, 1:])
@@ -134,7 +139,6 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
     typeI_wall = sel & (he == 1.0) & np.isfinite(nec)
     nec_min = float(np.min(nec[typeI_wall])) if typeI_wall.any() else float("nan")
 
-    # The ADM normal is unit timelike at every speed.
     eulerian_valid = True
 
     row.update(
@@ -144,14 +148,10 @@ def verify_one(spec, n_r: int, n_mu: int) -> dict:
             "frac_type_iv": float(w[sel & (he == 4.0)].sum() / w_wall) if w_wall else float("nan"),
             "frac_type_ii": float(w[sel & (he == 2.0)].sum() / w_wall) if w_wall else float("nan"),
             "invariant_nec_min": nec_min,
-            # Curvature carries 1/L^2, so this is the comparable quantity.
             "nec_min_dimensionless": nec_min * spec.wall_radius**2,
             "eulerian_valid": eulerian_valid,
         }
     )
-    # miss_rate is None when nothing violates at all (empty denominator), which
-    # is a meaningful outcome here, not an error: it is what a construction that
-    # clears the all-observer check on its wall looks like.
     for cond in ("wec", "nec", "dec"):
         rate = miss[cond]["miss_rate"] if miss else None
         row[f"miss_{cond}_pct"] = 100.0 * rate if rate is not None else None

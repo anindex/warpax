@@ -5,6 +5,18 @@ rays are recomputed at at least three step densities with fixed endpoints and
 impact parameter; unstable rays receive further step doubling. Constraint drift
 and observed spreads do not bound omitted tails or trajectory error and do not
 establish complete-geodesic ANEC.
+
+Constants: ``NUM_STEPS`` is the step count at ``SPAN0`` and scales with the
+span so the step density is fixed. ``B_SCAN`` is dense near the wall
+(``r_s ~ R_b = 1``) and extends to 5.0 so the Rodal minimum is interior
+rather than pinned to the scan edge at 2.5; ``b_bracketed`` records
+interiority. The coarse scan has
+``db = 0.102`` and misses a narrower minimum between nodes by a factor of two
+on Natario, so the argmin bracket is refined until it stops moving; both the
+coarse and refined values are kept with the witness, since the refined ray is
+worse conditioned. ``WALL_SUPPORT_R = 3.0`` is the radius outside which
+``tail_bound`` certifies the shape function below 1.3e-14; that bounds ``f``,
+not ``T_ab k^a k^b``, so it is a truncation margin, not a support theorem.
 """
 
 from __future__ import annotations
@@ -20,6 +32,7 @@ from _anec_window import crossing_span
 from _json_io import dump_json
 from _json_io import write_table as write_tex_table
 from _paper_metrics import METRIC_ORDER, instantiate
+from _paths import REPO_ROOT, RESULTS_DIR, TABLES_DIR
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -33,23 +46,16 @@ from warpax.averaged.anec import anec_rigorous, null_ic_canonical
 from warpax.benchmarks import MinkowskiMetric
 from warpax.geodesics import eulerian_affine_scale, integrate_geodesic_symplectic
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results", "anec")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
+ANEC_DIR = os.path.join(RESULTS_DIR, "anec")
 
 V_S, R_B, SIGMA = 0.5, 1.0, 8.0
 X_START = -8.0
-SPAN0 = 16.0  # reference span for the step density
-NUM_STEPS = 32768  # at SPAN0; scaled with the span so the step density is fixed
+SPAN0 = 16.0
+NUM_STEPS = 32768
 ORDER = 4
 NULL_TOL = 1e-6
-# Impact parameters, dense near the wall (r_s ~ R_b = 1). The upper end was 2.5
-# and Rodal's minimum sat on it; "b_bracketed" below records interiority.
 B_SCAN = np.linspace(1.0e-3, 5.0, 50)
 SENTINEL_TOL = 1.0e-6
-# The coarse scan has db = 0.102 and misses a narrower minimum between nodes, by a
-# factor of two on Natario, so the argmin bracket is refined until it stops moving.
-# Both values are kept, with the witness, since the refined ray is worse conditioned.
 B_REFINE_POINTS = 21
 B_REFINE_LEVELS = 4
 B_REFINE_RTOL = 1.0e-4
@@ -89,7 +95,7 @@ class Checkpoint:
 
 
 def _provenance() -> dict:
-    root = Path(HERE).resolve().parent
+    root = Path(REPO_ROOT)
     sources = [
         *sorted((root / "src" / "warpax").rglob("*.py")),
         Path(__file__).resolve(),
@@ -172,22 +178,26 @@ def _affine_scale(metric, x0) -> float:
 
 
 def _rigorous_at(metric, b: float, span: float, base_steps: int = NUM_STEPS):
+    """Rigorous ANEC along the ray at impact parameter ``b``.
+
+    The tangent is rescaled and the affine window shrunk by the same factor
+    ``s``, so the geodesic covers an identical coordinate path and only its
+    parametrization (hence the reported magnitude) is pinned. The step count
+    scales with ``span`` (fixed step density) and every step is a quadrature
+    node. ``K = d_t + v_s d_x`` is Killing; ``E_K = -p_a K^a`` is the second
+    witness.
+    """
     x0 = jnp.array([0.0, X_START, b, 0.0], dtype=jnp.float64)
     s = _affine_scale(metric, x0)
-    # Rescale the tangent AND shrink the affine window by the same factor, so the
-    # geodesic covers an identical coordinate path and only its parametrization
-    # (hence the reported magnitude) is pinned.
     return anec_rigorous(
         metric,
         x0,
         jnp.array([s, 0.0, 0.0]),
         affine_bounds=(0.0, span / s),
-        # Fixed step density.
         num_steps=int(round(base_steps * span / SPAN0)),
-        num_save=None,  # quadrature nodes = every step
+        num_save=None,
         order=ORDER,
         null_tol=NULL_TOL,
-        # K = d_t + v_s d_x is Killing; E_K = -p_a K^a is the second witness.
         killing=jnp.array([1.0, V_S, 0.0, 0.0], dtype=jnp.float64),
     )
 
@@ -207,7 +217,7 @@ def _finite_argmin(values, eligible):
 
 
 def _coarse_basin(values, eligible):
-    """Select an interior finite local minimum with two completed neighbours."""
+    """Select an interior finite local minimum with two completed neighbors."""
     finite = [
         bool(ok) and value is not None and np.isfinite(value)
         for value, ok in zip(values, eligible, strict=True)
@@ -307,8 +317,6 @@ def selected_ray_convergence(metric, b: float, span: float, checkpoint=None, nam
     return summary
 
 
-# tail_bound certifies the shape function below 1.3e-14 outside this radius. That
-# bounds f, not T_ab k^a k^b: a truncation margin, not a support theorem.
 WALL_SUPPORT_R = 3.0
 PROBE_SPAN = 128.0
 
@@ -344,15 +352,23 @@ def _minkowski_sentinel() -> tuple[float, float]:
 
 
 def main() -> None:
+    """Run the retained symplectic ANEC scan.
+
+    The Minkowski sentinel rays must also stay on the null cone, or the on-cone
+    witness reported for the warp metrics is meaningless. The reported minimum
+    is the refined one, since the coarse grid is too wide to resolve it on
+    every drive, and an argmin at a scan endpoint is recorded as unbracketed
+    rather than passed off as a minimum.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--first", choices=METRIC_ORDER, help="Evaluate this metric first; all are retained."
     )
     args = parser.parse_args()
-    Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
+    Path(ANEC_DIR).mkdir(parents=True, exist_ok=True)
     provenance = _provenance()
     digest = hashlib.sha256(json.dumps(provenance, sort_keys=True).encode()).hexdigest()
-    checkpoint = Checkpoint(Path(RESULTS_DIR) / "checkpoints" / f"{digest}.json", provenance)
+    checkpoint = Checkpoint(Path(ANEC_DIR) / "checkpoints" / f"{digest}.json", provenance)
     print(
         f"Ray checkpoint: {checkpoint.path} ({len(checkpoint.data['records'])} saved entries)",
         flush=True,
@@ -362,9 +378,6 @@ def main() -> None:
     print(f"Minkowski sentinel: |ANEC|_max={sent_anec:.2e}  witness_max={sent_wit:.2e}")
     if sent_anec >= SENTINEL_TOL:
         raise RuntimeError(f"Minkowski ANEC sentinel {sent_anec:.2e} exceeds tol {SENTINEL_TOL}")
-    # The flat-space rays must also stay on the null cone; a regressed
-    # integrator that drifts off-cone even in Minkowski would invalidate the
-    # on-cone witness reported for the warp metrics below.
     if sent_wit >= NULL_TOL:
         raise RuntimeError(f"Minkowski g(k,k) witness {sent_wit:.2e} exceeds tol {NULL_TOL}")
 
@@ -509,8 +522,6 @@ def main() -> None:
             "all_selected_null_preserved": all(
                 r["null_preserved"] and r["geodesic_complete"] for r in selected_records
             ),
-            # The reported minimum is the refined one: the coarse grid is too wide to
-            # resolve it on every drive.
             "min_line_integral": v_ref,
             "b_at_min": b_ref,
             "min_line_integral_coarse": float(anec_arr[j]),
@@ -522,8 +533,6 @@ def main() -> None:
             "refinement_killing_drift": k_ref,
             "refinement_converged": bool(ref_conv),
             "refinement_history": ref_hist,
-            # An argmin at an endpoint is not a minimum. Record it rather than let a
-            # reader assume the scan bracketed the extremum.
             "b_bracketed": minimum_bracketed,
             "affine_span": float(span),
             "affine_span_covers_crossing": bool(span_converged),
@@ -586,11 +595,10 @@ def main() -> None:
         "order": METRIC_ORDER,
         "metrics": per_metric,
     }
-    out_path = os.path.join(RESULTS_DIR, "retained_symplectic.json")
+    out_path = os.path.join(ANEC_DIR, "retained_symplectic.json")
     _atomic_json(out, Path(out_path))
     print(f"Wrote {out_path}")
 
-    # Paper table: finite-segment diagnostics and monitored constraint drifts.
     def _w(b):
         return "symplectic" if b else "fallback"
 

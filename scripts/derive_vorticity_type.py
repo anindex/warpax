@@ -23,6 +23,7 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 import sympy as sp
+from _paths import ARXIV_DIR, RESULTS_DIR, TABLES_DIR
 
 from warpax.analysis.shift_kinematics import compute_shift_kinematics
 from warpax.analysis.vorticity_type_analytic import (
@@ -32,14 +33,12 @@ from warpax.analysis.vorticity_type_analytic import (
 )
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.classification import classify_hawking_ellis
+from warpax.energy_conditions.frame_free import eulerian_momentum_frame
 from warpax.geometry.geometry import compute_curvature_chain
 from warpax.geometry.metric import ADMMetric, SymbolicMetric
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-FIG_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "figures")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
+FIG_DIR = os.path.join(ARXIV_DIR, "figures")
 
 
 class _RotationShift(ADMMetric):
@@ -124,7 +123,7 @@ def controlled_family() -> dict:
 
 def cross_metric(kappa: float) -> dict:
     """Validate f vs kappa*omega across the retained metrics at a wall point."""
-    point = jnp.array([0.0, 1.0, 0.3, 0.0])  # off-axis wall sample
+    point = jnp.array([0.0, 1.0, 0.3, 0.0])
     metrics = {
         "Rodal": RodalMetric(v_s=0.5, R=1.0, sigma=8.0),
         "Alcubierre": AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0),
@@ -152,23 +151,12 @@ def cross_metric(kappa: float) -> dict:
 
 
 def _eulerian_decomp(T_ab, g_ab, g_inv):
-    """Eulerian density, momentum magnitude, and stress along resolved momentum."""
-    n_low = jnp.array([-1.0, 0.0, 0.0, 0.0])
-    n_up = g_inv @ n_low
-    n_up = n_up / jnp.sqrt(jnp.abs(n_low @ n_up))
-    n_low2 = g_ab @ n_up
-    proj = jnp.eye(4) + jnp.outer(n_up, n_low2)
-    T_mixed = g_inv @ T_ab
-    rho = float(n_up @ (T_ab @ n_up))
-    j_up = -(proj @ (T_mixed @ n_up))
-    j2 = float(j_up @ (g_ab @ j_up))
-    jmag = float(np.sqrt(max(j2, 0.0)))
-    if jmag > 1e-14:
-        jhat = j_up / np.sqrt(max(j2, 1e-300))
-        S_par = float(jhat @ (g_ab @ ((proj @ (T_mixed @ proj)) @ jhat)))
-    else:
-        S_par = None  # The momentum direction is undefined at zero momentum.
-    return rho, jmag, S_par
+    """Eulerian density, momentum magnitude, and stress along resolved momentum.
+
+    ``S_par`` is ``None`` at zero momentum, where its direction is undefined.
+    """
+    rho, S_par, jmag = (float(x) for x in eulerian_momentum_frame(T_ab, g_ab, g_inv))
+    return rho, jmag, S_par if jmag > 1e-14 else None
 
 
 def discriminant_at(metric, point):

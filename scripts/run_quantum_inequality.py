@@ -11,6 +11,10 @@ The flat-space massless-scalar inequality is used as an illustrative diagnostic
 on a curved worldline; neither the finite integration window nor curvature
 corrections are bounded here. Null integrals read from run_anec_retained.py are
 finite-segment diagnostics and local minima found.
+
+QI_METRICS is restricted to Alcubierre and Rodal because those two coordinate-
+static density extrema have retained resolution checks; omitting the other
+metrics makes no claim about their smoothness or algebraic type.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from pathlib import Path
 from _json_io import dump_json
 from _json_io import write_table as write_tex_table
 from _paper_metrics import instantiate
+from _paths import ARXIV_DIR, FIGURES_DIR, RESULTS_DIR, TABLES_DIR
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -36,12 +41,9 @@ from warpax.benchmarks import MinkowskiMetric
 from warpax.benchmarks.alcubierre import alcubierre_shape
 from warpax.quantum.ford_roman import _rho_at_tau, ford_roman
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results", "quantum")
-ANEC_JSON = os.path.join(HERE, "..", "results", "anec", "retained.json")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
-FIG_DIR = os.path.join(HERE, "..", "figures")
-PAPER_FIG_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "figures")
+QUANTUM_DIR = os.path.join(RESULTS_DIR, "quantum")
+ANEC_JSON = os.path.join(RESULTS_DIR, "anec", "retained.json")
+PAPER_FIG_DIR = os.path.join(ARXIV_DIR, "figures")
 
 V_S, R_B, SIGMA = 0.5, 1.0, 8.0
 N_SAMPLES = 1024
@@ -49,8 +51,6 @@ TAU0_GRID = np.geomspace(0.1, 40.0, 200)
 F_LOW, F_HIGH = 0.1, 0.9
 
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
-# These two coordinate-static density extrema have retained resolution checks.
-# Omitting the other metrics makes no claim about their smoothness or algebraic type.
 QI_METRICS = ["Alcubierre", "Rodal"]
 
 
@@ -66,6 +66,9 @@ def _worst_static_point(metric) -> tuple[float, float, float]:
 
     Restricted to the active wall ``f in [F_LOW, F_HIGH]`` for consistency with
     the rest of the paper. Used only for the smooth-wall drives.
+
+    A coarse 61x61 scan is followed by six zoom levels, because the raw 61x61
+    argmin misses the minimum by 2.8% and puts it at the wrong x.
     """
 
     def rho0(x, y):
@@ -84,8 +87,6 @@ def _worst_static_point(metric) -> tuple[float, float, float]:
                     best_rho, best_xy = rho, (float(x), float(y))
         return best_rho, best_xy
 
-    # Coarse scan, then zoom. The raw 61x61 argmin missed the minimum by 2.8%
-    # and put it at the wrong x.
     best_rho, best_xy = scan(-1.5, 1.5, 0.05, 1.6, 61)
     if best_xy is None:
         return 0.0, 0.0, 1.0
@@ -175,12 +176,13 @@ def _write_table(anec: dict, qi: dict) -> None:
 
 
 def _make_figure(anec: dict, qi: dict) -> None:
+    """Draw the figure headless and mirror it into the paper tree.
+
+    reproduce_all.sh runs on machines with no display, where matplotlib would
+    otherwise fall back to Tk and die after the results JSON was written.
+    """
     import matplotlib
 
-    # Headless by default: reproduce_all.sh runs on machines with no display,
-    # and matplotlib otherwise falls back to Tk and dies here, *after* the
-    # results JSON has already been written, so the run looks like a physics
-    # failure when it is only a missing display.
     matplotlib.use("Agg")
 
     import matplotlib.pyplot as plt
@@ -218,19 +220,23 @@ def _make_figure(anec: dict, qi: dict) -> None:
     ax_b.legend(frameon=False, fontsize=7)
 
     fig.tight_layout()
-    Path(FIG_DIR).mkdir(parents=True, exist_ok=True)
-    out = os.path.join(FIG_DIR, "averaged_quantum.pdf")
+    Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
+    out = os.path.join(FIGURES_DIR, "averaged_quantum.pdf")
     fig.savefig(out, format="pdf")
     plt.close(fig)
-    # mirror into the paper tree (reproduce_all.sh also syncs figures)
     Path(PAPER_FIG_DIR).mkdir(parents=True, exist_ok=True)
     shutil.copy(out, os.path.join(PAPER_FIG_DIR, "averaged_quantum.pdf"))
 
 
 def main() -> None:
-    Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
+    """Run the Ford-Roman bound for every retained drive.
 
-    # Minkowski sentinel: vacuum QI margin must be strictly positive (=+C/tau0^4).
+    The Minkowski sentinel requires a strictly positive vacuum QI margin
+    (+C/tau0^4). ``rho_min`` is a legacy key duplicating ``rho_static_min``;
+    the observer is coordinate-static.
+    """
+    Path(QUANTUM_DIR).mkdir(parents=True, exist_ok=True)
+
     mink_margin = float(
         ford_roman(
             MinkowskiMetric(), _static_worldline(0.0, 1.0), tau0=1.0, n_samples=N_SAMPLES
@@ -249,7 +255,7 @@ def main() -> None:
         tau_th = _threshold(metric, x_w, y_w, margins)
         per_metric[name] = {
             "robust": True,
-            "rho_min": rho_min,  # Legacy key; the observer is coordinate-static.
+            "rho_min": rho_min,
             "rho_static_min": rho_min,
             "short_window_coefficient": _short_window_coefficient(rho_min, R_B),
             "x_w": x_w,
@@ -293,8 +299,8 @@ def main() -> None:
         "order": ORDER,
         "metrics": per_metric,
     }
-    dump_json(qi, os.path.join(RESULTS_DIR, "ford_roman.json"))
-    print(f"Wrote {os.path.join(RESULTS_DIR, 'ford_roman.json')}")
+    dump_json(qi, os.path.join(QUANTUM_DIR, "ford_roman.json"))
+    print(f"Wrote {os.path.join(QUANTUM_DIR, 'ford_roman.json')}")
 
     with open(ANEC_JSON) as f:
         anec = json.load(f)
@@ -302,7 +308,7 @@ def main() -> None:
     _make_figure(anec, qi)
     print(
         f"Wrote {os.path.join(TABLES_DIR, 'averaged_quantum.tex')} "
-        f"and {os.path.join(FIG_DIR, 'averaged_quantum.pdf')}"
+        f"and {os.path.join(FIGURES_DIR, 'averaged_quantum.pdf')}"
     )
 
 

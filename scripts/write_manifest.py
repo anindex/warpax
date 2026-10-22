@@ -5,14 +5,13 @@ not under version control and reach a reader only through the archived release. 
 manifest is the only record that lets that reader tell whether the files they have are
 the files the paper was written from.
 
-It had drifted: the committed copy was four months old, listed two files that no
-longer exist, and gave a size for every large grid that disagreed with the file on
-disk, which made all twenty-four of its SHA256 values wrong. A stale integrity record
-is worse than none, so this script both writes it and checks it, and the check is
-wired into ``check_paper_numbers.py`` so the two cannot drift apart again.
+A stale integrity record is worse than none, so this script both writes it
+and checks it, and the check is wired into ``check_paper_numbers.py`` so the
+two cannot drift apart. Manifest lines starting with ``#`` are header lines
+and are skipped by the check.
 
-    python scripts/write_manifest.py            # rewrite results/MANIFEST.txt
-    python scripts/write_manifest.py --check    # exit non-zero if it is stale
+    python scripts/write_manifest.py            (rewrite results/MANIFEST.txt)
+    python scripts/write_manifest.py --check    (exit non-zero if it is stale)
 """
 
 from __future__ import annotations
@@ -23,14 +22,20 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-RESULTS = Path(__file__).resolve().parents[1] / "results"
+from _paths import RESULTS_DIR
+
+RESULTS = Path(RESULTS_DIR)
 MANIFEST = RESULTS / "MANIFEST.txt"
 
-_HEADER = """# warpax/results/ MANIFEST - SHA256 + size per cache file.
-# Generated {stamp}
-# Regen recipe: JAX_PLATFORMS=cpu bash reproduce_all.sh --stage core
-# Per-file recipe: python scripts/run_analysis.py --metric <M> --v_s <V> --deterministic
-"""
+_HEADER = "\n".join(
+    [
+        "# warpax/results/ MANIFEST - SHA256 + size per cache file.",
+        "# Generated {stamp}",
+        "# Regen recipe: JAX_PLATFORMS=cpu bash reproduce_all.sh --stage core",
+        "# Per-file recipe: python scripts/run_analysis.py --metric <M> --v_s <V> --deterministic",
+        "",
+    ]
+)
 
 
 def _sha256(path: Path) -> str:

@@ -31,14 +31,13 @@ from pathlib import Path
 import jax
 import numpy as np
 from _json_io import dump_json
+from _paths import REPO_ROOT
 
 from warpax.analysis import compare_eulerian_vs_robust, compute_convergence_quantity
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.verifier import _eulerian_ec_point
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import RodalMetric, WarpShellMetric
-
-# Metric and parameter configuration
 
 METRIC_CONFIGS = {
     "alcubierre": {
@@ -65,9 +64,6 @@ def _cell_volume(grid_spec: GridSpec) -> float:
     for b, n in zip(grid_spec.bounds, grid_spec.shape, strict=True):
         vol *= (b[1] - b[0]) / max(n - 1, 1)
     return vol
-
-
-# Main
 
 
 def main():
@@ -124,7 +120,6 @@ def main():
     print(f"Resolutions: {resolutions}")
     print("=" * 60)
 
-    # Collect convergence quantities at each resolution
     quantities = {
         "min_margin_nec": [],
         "l2_violation_nec": [],
@@ -137,17 +132,14 @@ def main():
         grid_spec = GridSpec(bounds=bounds, shape=(N, N, N))
         cell_vol = _cell_volume(grid_spec)
 
-        # Batch sizes: smaller for larger grids
         curv_batch = 256 if N <= 50 else 128
         ec_batch = 64 if N <= 50 else 16
 
-        # Step 1: Curvature grid
         print(f"  Computing curvature grid (batch_size={curv_batch})...")
         t0 = time.time()
         curv = evaluate_curvature_grid(metric, grid_spec, batch_size=curv_batch)
         print(f"    Curvature: {time.time() - t0:.1f}s")
 
-        # Step 2: EC analysis
         if args.full_100:
             print(f"  Running full Eulerian vs robust comparison (batch_size={ec_batch})...")
             t0 = time.time()
@@ -172,7 +164,6 @@ def main():
             nec_margin = np.asarray(eul["nec"]).reshape(grid_spec.shape)
             print(f"    Eulerian EC: {time.time() - t0:.1f}s")
 
-        # Extract convergence quantities
         q_min = compute_convergence_quantity(nec_margin, "min_margin")
         q_l2 = compute_convergence_quantity(nec_margin, "l2_violation", cell_volume=cell_vol)
         q_int = compute_convergence_quantity(
@@ -195,13 +186,15 @@ def main():
     source_paths = [
         Path(__file__).resolve(),
         Path(inspect.getfile(metric_class)).resolve(),
-        Path(inspect.getfile(compute_convergence_quantity)).resolve(),
-        Path(inspect.getfile(_eulerian_ec_point)).resolve(),
-        Path(__file__).resolve().parents[1] / "src/warpax/metrics/_common.py",
+        Path(inspect.getfile(inspect.unwrap(compute_convergence_quantity))).resolve(),
+        Path(inspect.getfile(inspect.unwrap(_eulerian_ec_point))).resolve(),
+        Path(REPO_ROOT) / "src/warpax/metrics/_common.py",
     ]
     if args.full_100:
-        source_paths.append(Path(inspect.getfile(compare_eulerian_vs_robust)).resolve())
-    repo_root = Path(__file__).resolve().parents[1]
+        source_paths.append(
+            Path(inspect.getfile(inspect.unwrap(compare_eulerian_vs_robust))).resolve()
+        )
+    repo_root = Path(REPO_ROOT)
     convergence_data: dict = {
         "summary_method": "observed_grid_spread",
         "metric": args.metric,
@@ -247,7 +240,6 @@ def main():
         print(f"    Mean: {mean:.6e}")
         print(f"    Max absolute departure from mean: {max_abs_deviation:.6e}")
 
-    # Save convergence data
     output_path = os.path.join(results_dir, "convergence_data.json")
     dump_json(convergence_data, output_path)
     print(f"\nSaved: {output_path}")

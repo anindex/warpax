@@ -32,8 +32,6 @@ from warpax.analysis import compare_eulerian_vs_robust
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 from warpax.metrics import WarpShellMetric
 
-# Configuration
-
 DEFAULT_SMOOTH_WIDTHS = [0.03, 0.06, 0.12, 0.24]
 GRID_SPEC = GridSpec(bounds=[(-5, 5)] * 3, shape=(25, 25, 25))
 V_S = 0.5
@@ -102,17 +100,14 @@ def main():
         print(f"smooth_width = {sw}  ({sw / default_sw:.1f}x default)")
         print("=" * 60)
 
-        # Build metric with explicit smooth_width
         metric = WarpShellMetric(R_1=R_1, R_2=R_2, v_s=V_S, smooth_width=sw)
 
-        # Compute curvature grid (must recompute metric changes)
         print(" Computing curvature grid...")
         t0 = time.time()
         curv = evaluate_curvature_grid(metric, GRID_SPEC, batch_size=256)
         t_curv = time.time() - t0
         print(f"    Curvature grid: {t_curv:.1f}s")
 
-        # Run comparison
         print(f"  Running comparison (n_starts={n_starts})...")
         t0 = time.time()
         comparison = compare_eulerian_vs_robust(
@@ -128,7 +123,6 @@ def main():
 
         elapsed = t_curv + t_comp
 
-        # Extract results
         cls_stats = comparison.classification_stats
         total_points = int(
             cls_stats["n_type_i"]
@@ -163,7 +157,6 @@ def main():
         }
         ablation_results.append(row)
 
-        # Print summary for this width
         print(f"    Type I fraction: {type_i_frac:.4f}")
         print(f"    NEC missed: {comparison.pct_missed['nec']:.2f}%")
         print(f"    WEC missed: {comparison.pct_missed['wec']:.2f}%")
@@ -173,13 +166,11 @@ def main():
         print(f"    Time: {elapsed:.1f}s")
         print()
 
-    # Save results
     output = {"metadata": metadata, "results": ablation_results}
     out_path = os.path.join(results_dir, "smoothwidth_ablation.json")
     dump_json(output, out_path)
     print(f"Results saved to {out_path}")
 
-    # Summary table
     print("\n" + "=" * 80)
     print("SUMMARY")
     print("=" * 80)
@@ -200,7 +191,6 @@ def main():
             f"{r['time_s']:>5.0f}s"
         )
 
-    # Qualitative robustness check
     type_i_fracs = [r["type_i_frac"] for r in ablation_results]
     max_variation = max(type_i_fracs) - min(type_i_fracs)
     print(f"\nType I fraction range: [{min(type_i_fracs):.4f}, {max(type_i_fracs):.4f}]")

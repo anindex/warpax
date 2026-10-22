@@ -18,6 +18,29 @@ Skip GIF conversion::
 
     python scripts/render_all_scenes.py --skip-gif
 
+Renderer policy
+---------------
+Manim's 3D Cairo camera projects every sub-mobject recursively and corrupts
+the C heap on the heavy dual-layer 32x32 + 48x48 surfaces (segfault/SIGILL
+mid-render, independent of Python version or stack size). The 3D scenes in
+``_OPENGL_SCENES`` therefore render with ``--renderer=opengl`` under EGL
+(``PYOPENGL_PLATFORM=egl``); the 2D scenes keep the stable Cairo renderer.
+Do not raise the stack (``ulimit -s unlimited``) for OpenGL: an unlimited
+main-thread stack destabilizes the EGL/GL driver threads and segfaults late
+in the render, and since OpenGL already avoids the Cairo recursion no stack
+raise is needed anywhere. The OpenGL/EGL renderer occasionally segfaults
+transiently (driver-side) and succeeds on a clean retry, so each render gets
+up to three attempts.
+
+GIF policy
+----------
+The 2D scenes are short and mostly flat color, so they encode to about
+100 kB at full width (``_GIF_SETTINGS``). The 3D sweeps carry a wireframe
+mesh over a dithered slab in every frame, which GIF handles badly: at
+1280/10fps the wall sweep lands at 8.8 MB. Encoding those near the width the
+README displays (760) at 8 fps brings it to about 3 MB with no visible loss,
+so they get ``_GIF_SETTINGS_3D``.
+
 Custom output directory::
 
     python scripts/render_all_scenes.py --output-dir /tmp/manim_output
@@ -43,15 +66,8 @@ import sys
 import time
 from pathlib import Path
 
-# Project root (scripts/ is one level below)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MANIM_DIR = PROJECT_ROOT / "src" / "warpax" / "visualization" / "manim"
-
-# Manim's 3D *Cairo* camera projects every sub-mobject recursively and corrupts
-# the C heap on the heavy dual-layer surfaces (segfault/SIGILL mid-render,
-# independent of Python version or stack size). The 3D scenes therefore render
-# with the GPU OpenGL renderer instead (see ``_OPENGL_SCENES`` /
-# ``render_scene``); the 2D scenes keep the stable Cairo renderer.
 
 
 def _render_env() -> dict:
@@ -74,9 +90,7 @@ def _render_env() -> dict:
     return env
 
 
-# All 9 scenes: (module_path_relative_to_project, class_name, description)
 SCENES = [
-    # 3D scenes
     (
         "src/warpax/visualization/manim/_wall_velocity_sweep.py",
         "WallAndVelocitySweep",
@@ -92,7 +106,6 @@ SCENES = [
         "BoostRapiditySweep",
         "Boosted-observer energy density vs rapidity",
     ),
-    # 2D heatmap scenes
     (
         "src/warpax/visualization/manim/_nec_margin.py",
         "NECMargin2D",
@@ -147,7 +160,6 @@ def find_mp4(
     if expected.exists():
         return expected
 
-    # Fallback: search recursively
     candidates = list((media_dir / "videos").rglob(f"{scene_class}.mp4"))
     if candidates:
         return max(candidates, key=lambda p: p.stat().st_mtime)
@@ -155,8 +167,6 @@ def find_mp4(
     return None
 
 
-# Cairo's recursive 3D projection segfaults on the heavy 32x32 + 48x48 surfaces,
-# so these scenes render with ``--renderer=opengl`` under EGL. 2D keeps Cairo.
 _OPENGL_SCENES = frozenset({"VelocitySweep", "BoostRapiditySweep"})
 
 
@@ -166,7 +176,12 @@ def render_scene(
     quality: str,
     media_dir: Path,
 ) -> Path | None:
-    """Render a single Manim scene and return the MP4 path on success."""
+    """Render a single Manim scene and return the MP4 path on success.
+
+    Scenes in ``_OPENGL_SCENES`` use the OpenGL renderer under EGL; every
+    render is retried up to three times because the EGL driver segfaults
+    transiently (see the module docstring).
+    """
     use_opengl = scene_class in _OPENGL_SCENES
     cmd = [
         sys.executable,
@@ -178,10 +193,11 @@ def render_scene(
         "mp4",
         "--media_dir",
         str(media_dir),
+        "--max-inflight-encoders",
+        "4",
     ]
     if use_opengl:
-        # OpenGL needs an explicit movie write (it otherwise opens a preview).
-        cmd += ["--renderer", "opengl", "--write_to_movie"]
+        cmd += ["--renderer", "opengl"]
     cmd += [str(PROJECT_ROOT / module_path), scene_class]
 
     logger.info(
@@ -193,15 +209,8 @@ def render_scene(
 
     env = _render_env()
     if use_opengl:
-        # Headless GPU context for the OpenGL renderer (the box has EGL). Note:
-        # do NOT raise the stack (``ulimit -s unlimited``) for OpenGL, an
-        # unlimited main-thread stack destabilises the EGL/GL driver threads and
-        # segfaults late in the render. The 3D scenes use OpenGL precisely to
-        # avoid the Cairo recursion, so no stack raise is needed anywhere.
         env.setdefault("PYOPENGL_PLATFORM", "egl")
 
-    # The OpenGL/EGL renderer occasionally segfaults transiently (driver-side)
-    # and succeeds on a clean retry, so give each render up to three attempts.
     max_attempts = 3
     for attempt in range(1, max_attempts + 1):
         t0 = time.monotonic()
@@ -250,18 +259,12 @@ def render_scene(
     return mp4_path
 
 
-# The 2D scenes are short and mostly flat colour, so they encode to ~100 kB at
-# full width. The 3D sweeps carry a wireframe mesh over a dithered slab in every
-# frame, which GIF handles badly: at 1280/10fps the wall sweep lands at 8.8 MB.
-# Encoding those at the width the README actually displays (760) and 8 fps brings
-# it to ~3 MB with no visible loss, so they get their own settings.
 _GIF_SETTINGS = {"width": 1280, "fps": 10, "colors": 64, "lossy": 120}
 _GIF_SETTINGS_3D = {"width": 832, "fps": 8, "colors": 64, "lossy": 120}
 
 
 def convert_to_gif(mp4_path: Path, scene_class: str = "") -> Path | None:
     """Convert an MP4 to optimized GIF, returning the GIF path on success."""
-    # Import from the project package
     from warpax.visualization.manim._gif_utils import mp4_to_gif
 
     settings = (
@@ -318,7 +321,6 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Draft mode overrides
     if args.draft:
         args.quality = "l"
         args.skip_gif = True
@@ -329,14 +331,12 @@ def main() -> None:
         datefmt="%H:%M:%S",
     )
 
-    # Determine output directory
     if args.output_dir is not None:
         media_dir = Path(args.output_dir).resolve()
     else:
         media_dir = PROJECT_ROOT / "media"
     media_dir.mkdir(parents=True, exist_ok=True)
 
-    # Filter scenes if --scene is specified
     if args.scene is not None:
         matching = [(m, c, d) for m, c, d in SCENES if c == args.scene]
         if not matching:
@@ -346,7 +346,6 @@ def main() -> None:
     else:
         scenes = SCENES
 
-    # Render loop
     results: list[tuple[str, str, Path | None, Path | None]] = []
     total = len(scenes)
 
@@ -366,7 +365,6 @@ def main() -> None:
 
     t_total = time.monotonic() - t_total_start
 
-    # Summary
     succeeded = sum(1 for _, _, mp4, _ in results if mp4 is not None)
     gifs_ok = sum(1 for _, _, _, gif in results if gif is not None)
 
@@ -386,7 +384,6 @@ def main() -> None:
 
     print()
 
-    # Exit with error code if any scene failed
     if succeeded < total:
         sys.exit(1)
 

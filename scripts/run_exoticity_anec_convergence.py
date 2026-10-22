@@ -11,7 +11,20 @@
 The exoticity index includes a thresholded fraction. We report its observed
 grid spread without assuming a convergence order. Selected fixed rays retain
 their full step ladders and the production finest-pair acceptance criterion. Matched family R_b = 1,
-sigma = 8, v_s = 0.5 for all four drives.
+sigma = 8, v_s = 0.5 for all four drives, Rodal included: at its native R = 100, sigma = 0.03 the
+wall sits at r ~ 100 and the ANEC minimum is shallow and far off-axis, so both ANEC tables are
+generated from the matched family; regenerate them by running ``run_anec_symplectic.py`` and
+then this script with the matched parameters.
+
+``ANEC_STEPS = [16384, 32768, 65536]`` brackets the production setting
+(``run_anec_symplectic.py`` uses 32768 at SPAN0), so the ladder checks the
+resolution the paper reports; ``num_save`` follows ``num_steps``, so the
+ladder refines the quadrature as well as the path. The impact-parameter fan
+and the selected ray (fixed ``b`` and span) are read from
+``results/anec/retained_symplectic.json`` rather than restated, so the two
+scripts report the same selected finite-ray integral: a different fan
+(count or range) selects a different ray and a different value. Regenerate
+``run_anec_symplectic.py`` before this script whenever the fan changes.
 
 Outputs: results/exoticity_anec_convergence.json, ../warpax_arxiv/tables/extra_convergence.tex
 """
@@ -29,14 +42,14 @@ from pathlib import Path
 import jax
 from _benchmark_grid import N_LADDER, benchmark_grid
 from _json_io import dump_json
+from _json_io import write_table as write_tex_table
+from _paper_metrics import instantiate
 
 jax.config.update("jax_enable_x64", True)
 import numpy as np
-
-# Reuse the exoticity index and the impact fan (no re-implementation).
+from _paths import REPO_ROOT, RESULTS_DIR, TABLES_DIR
 from run_exoticity_ranking import exoticity_index
 
-from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions import (
     certify_grid_frame_free,
     type_fractions,
@@ -46,7 +59,6 @@ from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
 
 
 def _stability(values):
@@ -61,41 +73,14 @@ def _stability(values):
     }
 
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
-
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 V_S = 0.5
-# (class, kwargs, bounds, R). Matched family R_b=1, sigma=8 for all four drives.
-FAMILY = {
-    "Alcubierre": (AlcubierreMetric, {"R": 1.0, "sigma": 8.0}, [(-3.0, 3.0)] * 3, 1.0),
-    "Natário": (NatarioMetric, {"R": 1.0, "sigma": 8.0}, [(-3.0, 3.0)] * 3, 1.0),
-    "Van den Broeck": (
-        VanDenBroeckMetric,
-        {"R": 1.0, "sigma": 8.0, "R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0},
-        [(-3.0, 3.0)] * 3,
-        1.0,
-    ),
-    # Matched family (R=1, sigma=8), same as run_anec_symplectic / run_velocity_sweep
-    # -> run_exoticity_ranking. At native R=100/sigma=0.03 the wall sits at r~100 and
-    # the ANEC min is a shallow ~-3e-5 near b~210, not the published -0.0041 @ b~1.90;
-    # matching the family reproduces both published tables (ANEC -0.0041, exoticity 0.014).
-    "Rodal": (RodalMetric, {"R": 1.0, "sigma": 8.0}, [(-3.0, 3.0)] * 3, 1.0),
-}
-GRID_N = N_LADDER  # exoticity-index spatial resolutions (wall-resolved ladder)
-# Brackets the production setting (run_anec_symplectic.py uses 32768 at SPAN0),
-# so the ladder checks the resolution the paper actually reports. Now that
-# num_save follows num_steps, it refines the quadrature as well as the path.
+GRID_N = N_LADDER
 ANEC_STEPS = [16384, 32768, 65536]
-# The impact-parameter fan IS run_anec_symplectic's, imported rather than
-# restated: the two scripts report the same selected finite-ray integral, and when this one kept
-# 30 points on [1e-3, 2.5] while that one moved to 50 on [1e-3, 5.0] the same
-# quantity came out -0.1416 here and -0.1461 there.
 
 
 def grid_axes_provenance():
-    root = Path(HERE).resolve().parent
+    root = Path(REPO_ROOT)
     sources = [
         *sorted((root / "src/warpax").rglob("*.py")),
         Path(__file__).resolve(),
@@ -110,7 +95,7 @@ def grid_axes_provenance():
         "configuration": {
             "grid_N": GRID_N,
             "v_s": V_S,
-            "family": {n: repr(_instantiate(n)) for n in ORDER},
+            "family": {n: repr(instantiate(n, V_S)) for n in ORDER},
             "jax_enable_x64": True,
             "jax_backend": jax.default_backend(),
         },
@@ -132,15 +117,9 @@ def load_grid_axes(path):
     return data["axes"]
 
 
-def _instantiate(name):
-    cls, kw, _, _ = FAMILY[name]
-    return cls(v_s=V_S, **kw)
-
-
-# ------------------------------------------------------------- exoticity axes
 def _grid_axes(name, N):
     """Wall NEC severity + wall Type-IV fraction on the N^3 wall-clustered grid."""
-    metric = _instantiate(name)
+    metric = instantiate(name, V_S)
     grid = benchmark_grid(metric, N)
     bs = 4096 if N < 100 else 2048
     curv = evaluate_curvature_grid(metric, grid, batch_size=bs)
@@ -192,7 +171,6 @@ def selected_series(ray, name):
 
 def write_table(results, out_path):
     lines = [
-        "% Generated by scripts/run_exoticity_anec_convergence.py; do not edit.",
         "% Every selected fixed-ray level is shown as steps per reference span: integral.",
         "% The step verdict uses the finest pair: delta <= 1e-8 + 1e-4*abs(I_finest).",
         r"\begin{tabular}{@{}l ccc l l l@{}}",
@@ -221,8 +199,7 @@ def write_table(results, out_path):
         )
     lines += [r"  \bottomrule", r"\end{tabular}"]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    write_tex_table(out_path, lines, script="scripts/run_exoticity_anec_convergence.py")
     print(f"  Wrote {out_path}")
 
 
@@ -235,7 +212,6 @@ def main():
     print("EXTRA CONVERGENCE: exoticity index + selected finite-ray integral")
     print("=" * 72)
 
-    # Reuse the convergence of the actual selected ray, with fixed b and span.
     with open(os.path.join(RESULTS_DIR, "anec", "retained_symplectic.json")) as fh:
         selected = json.load(fh)["metrics"]
     anec_series, anec_spans, anec_min_abs, anec_summaries = {}, {}, {}, {}
@@ -246,7 +222,6 @@ def main():
         anec_spans[name] = {"affine_span": ray["span"], "b": ray["b"]}
         anec_min_abs[name] = abs(anec_series[name][-1])
 
-    # ---- Exoticity index vs wall grid resolution
     print("\nExoticity index vs wall grid resolution:")
     raw_axes = {N: {} for N in GRID_N}
     for N in GRID_N:
@@ -265,7 +240,6 @@ def main():
     for name in ORDER:
         print(f"  {name:16s} " + " ".join(f"{v:.4f}" for v in exo_series[name]))
 
-    # ---- Report observed spreads
     results = {}
     for name in ORDER:
         results[name] = {

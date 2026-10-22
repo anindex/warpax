@@ -35,6 +35,7 @@ import time
 import jax
 from _json_io import dump_json
 from _json_io import write_table as write_tex_table
+from _paths import RESULTS_DIR, TABLES_DIR
 
 jax.config.update("jax_enable_x64", True)
 
@@ -74,6 +75,12 @@ def run_single(
     miss rates are then volume-weighted on the (non-uniform) clustered
     grid via ``grid_spec.volume_weights_array``, so the reported rates
     are unbiased toward the densely-sampled wall band.
+
+    A lightweight namespace exposing exactly the fields
+    compute_wall_restricted_stats reads (he_types and robust margins) stands in
+    for an ECGridResult, avoiding a redundant verify_grid pass. Proper per-cell
+    volume weights are used on clustered grids; None (uniform) recovers raw
+    point-fraction behavior exactly.
     """
     t0 = time.time()
     curv = evaluate_curvature_grid(metric, grid_spec, batch_size=256)
@@ -90,8 +97,6 @@ def run_single(
     )
     t_vg = time.time() - t0
 
-    # Lightweight shim exposing exactly the fields compute_wall_restricted_stats
-    # reads (he_types + robust margins), avoiding a redundant verify_grid pass.
     ec = SimpleNamespace(
         he_types=comparison.he_types,
         nec_margins=comparison.robust_margins["nec"],
@@ -103,8 +108,6 @@ def run_single(
 
     coords = build_coord_batch(grid_spec, t=0.0)
     mask = shape_function_mask(metric, coords, grid_spec.shape, f_low=F_LOW, f_high=F_HIGH)
-    # Proper per-cell volume weights on clustered grids; None (uniform) recovers
-    # raw point-fraction behavior exactly.
     vol_w = proper_volume_weights(grid_spec.volume_weights_array, curv.metric)
     wall = compute_wall_restricted_stats(
         ec,
@@ -145,7 +148,11 @@ def run_single(
 
 
 def alcubierre_panel(args) -> dict:
-    """Alcubierre at (R=1, sigma=8) on uniform vs clustered grids."""
+    """Alcubierre at (R=1, sigma=8) on uniform vs clustered grids.
+
+    The clustering strength a = 1.2 is empirical and the wall radius is
+    inferred from the metric.
+    """
     metric_params = {"v_s": 0.5, "R": 1.0, "sigma": 8.0}
     bounds = [(-5, 5)] * 3
     metric = AlcubierreMetric(**metric_params)
@@ -154,7 +161,6 @@ def alcubierre_panel(args) -> dict:
 
     for N in args.resolutions:
         shape = (N, N, N)
-        # Uniform grid
         gs_uniform = GridSpec(bounds=bounds, shape=shape)
         print(f"\n--- Alcubierre uniform {N}^3 ---")
         panel["results"].append(
@@ -167,7 +173,6 @@ def alcubierre_panel(args) -> dict:
                 batch_size=args.batch_size,
             )
         )
-        # Wall-clustered grid (a=1.2 empirical, wall radius inferred)
         gs_clustered = wall_clustered(metric, bounds, shape, a=1.2)
         print(f"\n--- Alcubierre wall-clustered {N}^3 (a=1.2) ---")
         panel["results"].append(
@@ -191,9 +196,11 @@ def rodal_matched_panel(args) -> dict:
     clustered grid concentrates ~50% of points within a +/-0.5-unit band
     around the wall radius; if matched-parameter Rodal is still unstable
     here, that negative result is recorded rather than suppressed.
+
+    The domain is the tighter [-3, 3]^3 for the matched-parameter run.
     """
     metric_params = {"v_s": 0.5, "R": 1.0, "sigma": 8.0}
-    bounds = [(-3, 3)] * 3  # tighter domain for the matched-parameter run
+    bounds = [(-3, 3)] * 3
     metric = RodalMetric(**metric_params)
 
     panel = {"metric": "rodal_matched", "params": metric_params, "results": []}
@@ -274,11 +281,15 @@ def write_convergence_table(panel: dict, out_path: str) -> None:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--resolutions", type=int, nargs="+", default=[25, 50]
-    )  # 100^3 too expensive at default
+        "--resolutions",
+        type=int,
+        nargs="+",
+        default=[25, 50],
+        help="Grid resolutions; 100^3 is too expensive by default.",
+    )
     parser.add_argument("--n-starts", type=int, default=4)
     parser.add_argument("--batch-size", type=int, default=64)
-    parser.add_argument("--results-dir", type=str, default="results")
+    parser.add_argument("--results-dir", type=str, default=RESULTS_DIR)
     parser.add_argument(
         "--include-rodal-matched",
         action="store_true",
@@ -293,7 +304,7 @@ def main():
     dump_json(alc_panel, out_alc)
     print(f"\nWrote {out_alc}")
 
-    write_convergence_table(alc_panel, "../warpax_arxiv/tables/clustered_convergence.tex")
+    write_convergence_table(alc_panel, os.path.join(TABLES_DIR, "clustered_convergence.tex"))
 
     if args.include_rodal_matched:
         rodal_panel = rodal_matched_panel(args)
@@ -301,7 +312,6 @@ def main():
         dump_json(rodal_panel, out_rodal)
         print(f"Wrote {out_rodal}")
 
-    # Print summary
     print("\n" + "=" * 60)
     print("Summary: Alcubierre clustered-vs-uniform")
     print("=" * 60)

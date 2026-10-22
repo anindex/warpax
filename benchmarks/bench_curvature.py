@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-os.environ.setdefault("JAX_PLATFORMS", "cpu")  # CPU canonical
+os.environ.setdefault("JAX_PLATFORMS", "cpu")
 
 import jax
 import jax.numpy as jnp
@@ -35,7 +35,7 @@ class CurvatureChain32:
             return result.stress_energy
 
         self.fn = jax.jit(_run)
-        _ = self.fn(self.metric)  # JIT warmup
+        _ = self.fn(self.metric)
 
     def time_compute_chain(self) -> None:
         self.fn(self.metric).block_until_ready()
@@ -58,7 +58,7 @@ class CurvatureChain64:
             return result.stress_energy
 
         self.fn = jax.jit(_run)
-        _ = self.fn(self.metric)  # JIT warmup
+        _ = self.fn(self.metric)
 
     def time_compute_chain(self) -> None:
         self.fn(self.metric).block_until_ready()

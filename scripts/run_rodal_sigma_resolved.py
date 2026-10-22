@@ -7,6 +7,13 @@ resolution; the output records cell counts and convergence across the ladder.
 
 Outputs: results/rodal_sigma_resolved.json and
 ../warpax_arxiv/tables/rodal_sigma_resolved.tex.
+
+CLUSTER_A sets the radial clustering strength per sigma: a thin wall inside a
+wide box needs more stretching, and the values are chosen so the coarsest
+ladder level already clears the four-cell floor; they are reported in the
+output. The table's uncertainty is the full ladder spread, not the last-two
+gap, because at sigma = 0.1 the top two levels nearly coincide and the gap
+understates the drift 51x.
 """
 
 from __future__ import annotations
@@ -21,6 +28,7 @@ from _json_io import write_table as write_tex_table
 jax.config.update("jax_enable_x64", True)
 
 import numpy as np
+from _paths import RESULTS_DIR, TABLES_DIR
 
 from warpax.analysis.invariant_verification import single_frame_miss
 from warpax.energy_conditions.frame_free import certify_grid_frame_free
@@ -28,18 +36,11 @@ from warpax.geometry import evaluate_curvature_points
 from warpax.grids import axisymmetric_grid, proper_volume_weights, wall_cells_on_axis
 from warpax.metrics import RodalMetric
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
-
 V_S = 0.5
 R_B = 100.0
 R_MAX = 300.0
 SIGMAS = (0.01, 0.03, 0.1, 0.3)
 LADDER = ((48, 48), (64, 64), (80, 80), (96, 96))
-# Radial clustering strength per sigma. A thin wall inside a wide box needs more
-# stretching; chosen once here so the coarsest ladder level already clears the
-# four-cell floor, and reported in the output.
 CLUSTER_A = {0.01: 1.0, 0.03: 1.5, 0.1: 3.0, 0.3: 4.5}
 F_LOW, F_HIGH = 0.1, 0.9
 MIN_WALL_CELLS = 4.0
@@ -67,7 +68,6 @@ def run_one(sigma: float, n_r: int, n_mu: int) -> dict:
     sel = wall & np.isfinite(he)
     w_wall = w[sel].sum()
 
-    # Conditional miss rates over the full sampled ball and within the wall.
     grid_miss = single_frame_miss(T, g, gi, volume_weights=w)
     wall_miss = single_frame_miss(T, g, gi, mask=wall, volume_weights=w)
 
@@ -103,8 +103,6 @@ def write_table(rows_by_sigma: dict, out_path: str) -> None:
         rows = rows_by_sigma[str(sigma)]
         fine = rows[-1]
         series = [r["wall_dec_miss_pct"] for r in rows]
-        # Full ladder spread, not the last-two gap: at sigma = 0.1 the top two
-        # levels nearly coincide and the gap understates the drift 51x.
         spread2 = max(abs(v - series[-1]) for v in series) if len(series) > 1 else 0.0
         pts = f"{fine['n_wall_points']:,}".replace(",", r"{,}")
         lines.append(

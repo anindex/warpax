@@ -6,8 +6,8 @@ Compares:
 3. ``hard_bound`` + ``warm_start='spatial_neighbor'``.
 4. ``hard_bound`` + ``starts='fibonacci+bfgs_top_k'``.
 
-Single-point evaluation at Alcubierre ``v_s=0.5, R=1.0, sigma=8.0``;
-CPU-only with the asv 20 % noise budget.
+Single wall-point evaluation (``_build_wall_point`` from
+``bench_energy_conditions``); CPU-only with the asv 20 % noise budget.
 """
 
 from __future__ import annotations
@@ -19,10 +19,8 @@ os.environ.setdefault("JAX_PLATFORMS", "cpu")
 import jax
 
 import warpax  # noqa: F401
-from warpax.benchmarks import AlcubierreMetric
+from benchmarks.bench_energy_conditions import _build_wall_point
 from warpax.energy_conditions import optimize_wec
-from warpax.geometry import evaluate_curvature_grid
-from warpax.geometry.types import GridSpec
 
 
 class ECFourWayAlcubierre:
@@ -34,15 +32,11 @@ class ECFourWayAlcubierre:
     timeout = 240.0
 
     def setup(self) -> None:
-        self.metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
-        # Single-point grid at (t=0, x=0, y=0, z=0) - compact benchmark target
-        grid = GridSpec(bounds=[(-0.1, 0.1)] * 3, shape=(1, 1, 1))
-        r = evaluate_curvature_grid(self.metric, grid, t=0.0)
-
-        # Extract the one point's stress-energy + metric for optimize_* input
-        self.T = r.stress_energy[0, 0, 0]
-        self.g = r.metric[0, 0, 0]
+        self.T, self.g = _build_wall_point()
         self.key = jax.random.PRNGKey(42)
+        self.neighbor = optimize_wec(
+            self.T, self.g, key=jax.random.PRNGKey(7), strategy="tanh"
+        ).worst_observer
 
     def time_tanh_baseline(self) -> None:
         """Curve 1: tanh + cold + axis+gaussian (baseline)."""
@@ -76,6 +70,7 @@ class ECFourWayAlcubierre:
             key=self.key,
             strategy="hard_bound",
             warm_start="spatial_neighbor",
+            neighbor_observer=self.neighbor,
             starts="axis+gaussian",
         )
         r.margin.block_until_ready()

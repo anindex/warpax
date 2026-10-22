@@ -17,6 +17,10 @@ Selective regeneration:
 Available figure sets: comparison, velocity_convergence, velocity, observer,
     convergence, kinematic, missed, geodesic,
     rodal_dec_ablation, fibonacci_dec, shift_vorticity, velocity_summary
+
+The standalone-script figure wrappers exist because those figures require
+computation, not just cached data; they call the standalone scripts via
+subprocess so this file remains the single entry point for all paper figures.
 """
 
 from __future__ import annotations
@@ -26,7 +30,6 @@ import os
 import sys
 import warnings
 
-# Non-interactive backend (before any other matplotlib import)
 import matplotlib
 
 matplotlib.use("Agg")
@@ -37,6 +40,8 @@ import numpy as np
 from warpax.visualization._style import DOUBLE_COL, apply_style
 
 apply_style()
+
+from _paths import FIGURES_DIR, HERE, RESULTS_DIR
 
 from warpax.geometry.types import GridSpec
 from warpax.visualization.comparison_plots import (
@@ -55,24 +60,11 @@ from warpax.visualization.geodesic_plots import (
 )
 from warpax.visualization.kinematic_plots import plot_kinematic_scalars
 
-# Configuration
-
-FIGURES_DIR = "figures/"
-RESULTS_DIR = "results/"
-
-# Core 4 metrics for main paper figures
 CORE_METRICS = ["alcubierre", "lentz", "warpshell", "rodal"]
 
-# All 6 warp metrics for kinematic figures
 ALL_WARP_METRICS = ["alcubierre", "rodal", "vdb", "natario", "lentz", "warpshell"]
 
-# Velocity sweep values for the missed-violations figure
 MISSED_VELOCITIES = [0.1, 0.5, 0.9, 0.99]
-
-
-def _ensure_dir(path: str) -> None:
-    """Create directory if it does not exist."""
-    os.makedirs(path, exist_ok=True)
 
 
 def _load_npz(path: str) -> np.lib.npyio.NpzFile | None:
@@ -81,9 +73,6 @@ def _load_npz(path: str) -> np.lib.npyio.NpzFile | None:
         warnings.warn(f"Skipping: {path} not found", stacklevel=2)
         return None
     return np.load(path)
-
-
-# Figure generation functions
 
 
 def generate_comparison_figures(figures_dir: str, results_dir: str) -> int:
@@ -95,9 +84,8 @@ def generate_comparison_figures(figures_dir: str, results_dir: str) -> int:
     Returns the number of figures generated.
     """
     count = 0
-    _ensure_dir(figures_dir)
+    os.makedirs(figures_dir, exist_ok=True)
 
-    # Per-metric comparison panels (NEC and WEC)
     for name in CORE_METRICS:
         npz_path = os.path.join(results_dir, f"{name}_vs0.5.npz")
         data = _load_npz(npz_path)
@@ -132,7 +120,6 @@ def generate_comparison_figures(figures_dir: str, results_dir: str) -> int:
             print(f"  Generated: {save_path}")
             count += 1
 
-    # Comparison table
     table_path = os.path.join(results_dir, "comparison_table.json")
     if os.path.exists(table_path):
         save_path = os.path.join(figures_dir, "comparison_table.pdf")
@@ -151,7 +138,7 @@ def generate_velocity_sweep_figures(figures_dir: str, results_dir: str) -> int:
     Returns the number of figures generated.
     """
     count = 0
-    _ensure_dir(figures_dir)
+    os.makedirs(figures_dir, exist_ok=True)
 
     for cond in ("nec", "wec"):
         save_path = os.path.join(figures_dir, f"alcubierre_velocity_sweep_{cond}.pdf")
@@ -171,12 +158,14 @@ def generate_worst_observer_figures(figures_dir: str, results_dir: str) -> int:
     """Generate worst-observer boost direction quiver plots.
 
     For each core metric at v_s=0.5: loads worst_params from cached .npz
-    and passes to plot_worst_observer_field.
+    and passes to plot_worst_observer_field. Arrows are drawn only where
+    |robust - eulerian| clears a 5% significance threshold, which suppresses
+    noise in near-flat regions.
 
     Returns the number of figures generated.
     """
     count = 0
-    _ensure_dir(figures_dir)
+    os.makedirs(figures_dir, exist_ok=True)
 
     for name in CORE_METRICS:
         npz_path = os.path.join(results_dir, f"{name}_vs0.5.npz")
@@ -197,8 +186,6 @@ def generate_worst_observer_figures(figures_dir: str, results_dir: str) -> int:
         grid_shape = tuple(data["grid_shape"])
         grid = GridSpec(bounds=grid_bounds, shape=grid_shape)
 
-        # Build significance mask: where |robust - eulerian| is meaningful
-        # Use 5% threshold to suppress noisy arrows in near-flat regions
         significance_mask = None
         for cond in ("nec", "wec"):
             eul_key, rob_key = f"{cond}_eulerian", f"{cond}_robust"
@@ -241,20 +228,18 @@ def generate_convergence_figures(figures_dir: str, results_dir: str) -> int:
     Returns the number of figures generated.
     """
     count = 0
-    _ensure_dir(figures_dir)
+    os.makedirs(figures_dir, exist_ok=True)
 
     json_path = os.path.join(results_dir, "convergence_data.json")
     if not os.path.exists(json_path):
         warnings.warn(f"Skipping convergence figures: {json_path} not found", stacklevel=2)
         return 0
 
-    # The plot follows the cached study's descriptive or Richardson schema.
     save_path = os.path.join(figures_dir, "convergence_nec.pdf")
     plot_convergence(json_path, quantity="min_margin_nec", save_path=save_path)
     print(f"  Generated: {save_path}")
     count += 1
 
-    # Convergence table
     save_path = os.path.join(figures_dir, "convergence_table.pdf")
     plot_convergence_table(json_path, save_path=save_path)
     print(f"  Generated: {save_path}")
@@ -269,7 +254,7 @@ def generate_kinematic_figures(figures_dir: str, results_dir: str) -> int:
     Returns the number of figures generated.
     """
     count = 0
-    _ensure_dir(figures_dir)
+    os.makedirs(figures_dir, exist_ok=True)
 
     for name in ALL_WARP_METRICS:
         npz_path = os.path.join(results_dir, f"{name}_kinematic_vs0.5.npz")
@@ -304,13 +289,12 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
 
     2x2 grid showing missed WEC violations for Rodal at
     v_s = 0.1, 0.5, 0.9, 0.99. Rodal shows ~15% WEC missed by Eulerian
-    analysis.
+    analysis, the strongest demonstration of observer-dependent misses.
 
     Returns the number of figures generated.
     """
-    _ensure_dir(figures_dir)
+    os.makedirs(figures_dir, exist_ok=True)
 
-    # Use Rodal WEC - the strongest demonstration of observer-dependent misses
     metric_name = "rodal"
     condition = "wec"
 
@@ -333,7 +317,6 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
     else:
         nrows, ncols = 2, 2
 
-    # GridSpec: 2×2 panels + 1 shared colorbar column
     fig = plt.figure(figsize=(DOUBLE_COL, DOUBLE_COL * 0.48 * nrows))
     gs = fig.add_gridspec(
         nrows,
@@ -381,7 +364,6 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
             rf"$v_s = {v_s}$ ({pct_missed:.1f}\% vol)",
             fontsize=8,
         )
-        # y-label on leftmost column only, x-label on bottom row only
         row_i, col_i = divmod(idx, ncols)
         if col_i == 0:
             ax.set_ylabel("y")
@@ -395,7 +377,6 @@ def generate_missed_violations_figure(figures_dir: str, results_dir: str) -> int
     for idx in range(len(available_data), len(axes_flat)):
         axes_flat[idx].set_visible(False)
 
-    # Shared colorbar
     if last_im is not None:
         fig.colorbar(last_im, cax=cax, label="Missed fraction")
 
@@ -421,12 +402,9 @@ def generate_geodesic_figures(figures_dir: str, results_dir: str) -> int:
     Returns the number of figures generated.
     """
     count = 0
-    _ensure_dir(figures_dir)
+    os.makedirs(figures_dir, exist_ok=True)
 
-    # Tidal force figure try versioned filename first, then legacy
     tidal_path = os.path.join(results_dir, "geodesic_alcubierre_tidal_vs0.5.npz")
-    if not os.path.exists(tidal_path):
-        tidal_path = os.path.join(results_dir, "geodesic_alcubierre_tidal.npz")
     data = _load_npz(tidal_path)
     if data is not None:
         tidal_eigenvalues = data["tidal_eigenvalues"]
@@ -441,10 +419,7 @@ def generate_geodesic_figures(figures_dir: str, results_dir: str) -> int:
         print(f"  Generated: {save_path}")
         count += 1
 
-    # Blueshift figure try versioned filename first, then legacy
     bs_path = os.path.join(results_dir, "geodesic_alcubierre_blueshift_vs0.5.npz")
-    if not os.path.exists(bs_path):
-        bs_path = os.path.join(results_dir, "geodesic_alcubierre_blueshift.npz")
     data = _load_npz(bs_path)
     if data is not None:
         blueshift = data["blueshift"]
@@ -464,17 +439,11 @@ def generate_geodesic_figures(figures_dir: str, results_dir: str) -> int:
     return count
 
 
-# Standalone-script figure wrappers
-# These figures require computation (not just cached data). The wrapper
-# functions call the standalone scripts via subprocess so that
-# ``reproduce_figures.py`` remains a single entry-point for ALL paper figures.
-
-
 def _run_standalone_script(script_name, figures_dir, *extra_args):
     """Run a standalone script and return 1 if its expected figure was produced."""
     import subprocess
 
-    script = os.path.join(os.path.dirname(__file__), script_name)
+    script = os.path.join(HERE, script_name)
     if not os.path.isfile(script):
         print(f"  WARNING: {script} not found")
         return 0
@@ -546,7 +515,7 @@ def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> 
 
     Returns the number of figures generated.
     """
-    _ensure_dir(figures_dir)
+    os.makedirs(figures_dir, exist_ok=True)
 
     json_path = os.path.join(results_dir, "convergence_data.json")
     has_convergence = os.path.exists(json_path)
@@ -565,11 +534,9 @@ def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> 
         figsize=(DOUBLE_COL, DOUBLE_COL * 0.4),
     )
 
-    # Panel (a): Velocity sweep
     plot_velocity_sweep(results_dir, "alcubierre", condition="nec", ax=ax1)
     ax1.set_title("(a) Min NEC margin vs velocity", fontsize=9)
 
-    # Panel (b): The cached grid study selects its own plotting scale.
     plot_convergence(json_path, quantity="min_margin_nec", ax=ax2, show_fit=False)
     ax2.set_title("(b) Uniform-grid diagnostic", fontsize=9)
 
@@ -580,8 +547,6 @@ def generate_merged_velocity_convergence(figures_dir: str, results_dir: str) -> 
     print(f"  Generated: {save_path}")
     return 1
 
-
-# Figure set registry
 
 FIGURE_SETS = {
     "comparison": generate_comparison_figures,
@@ -597,9 +562,6 @@ FIGURE_SETS = {
     "shift_vorticity": generate_shift_vorticity_figure,
     "velocity_summary": generate_velocity_summary_figure,
 }
-
-
-# Main
 
 
 def main():
@@ -635,7 +597,7 @@ def main():
 
     figures_dir = args.figures_dir
     results_dir = args.results_dir
-    _ensure_dir(figures_dir)
+    os.makedirs(figures_dir, exist_ok=True)
 
     if not os.path.isdir(results_dir):
         print(f"WARNING: Results directory '{results_dir}' does not exist.")

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-os.environ.setdefault("JAX_PLATFORMS", "cpu")  # CPU canonical
+os.environ.setdefault("JAX_PLATFORMS", "cpu")
 
 import jax
 import jax.numpy as jnp
@@ -29,20 +29,25 @@ class ClassifierGrid32:
     timeout = 120.0
 
     def setup(self) -> None:
+        """Build the 32^3 Alcubierre grid inputs and warm up the JIT.
+
+        Both T_ab and the mixed T^a_b are kept in scope because the generalized
+        branch needs T_ab for the pencil solver. The 600 s timeout is about
+        five times the ClassifierGrid32 budget to cover the host-callback
+        overhead.
+        """
         metric = AlcubierreMetric(v_s=0.5, R=2.0, sigma=8.0)
         grid = GridSpec(bounds=[(-6.0, 6.0)] * 3, shape=(32, 32, 32))
         chain = evaluate_curvature_grid(metric, grid, t=0.0, compute_invariants=False)
-        # Flatten grid dims: (Nx, Ny, Nz, 4, 4) -> (Nx*Ny*Nz, 4, 4).
         T = chain.stress_energy
         g = chain.metric
         g_inv = chain.metric_inv
-        # Compute mixed-index T^a_{\;b} = g^{ac} T_{cb}.
         T_mixed = jnp.einsum("...ac,...cb->...ab", g_inv, T)
         flat_shape = (-1, 4, 4)
         self.T_mixed_flat = T_mixed.reshape(flat_shape)
         self.g_flat = g.reshape(flat_shape)
         self.fn = jax.jit(jax.vmap(classify_hawking_ellis, in_axes=(0, 0)))
-        _ = self.fn(self.T_mixed_flat, self.g_flat)  # JIT warmup
+        _ = self.fn(self.T_mixed_flat, self.g_flat)
 
     def time_classify_grid(self) -> None:
         result = self.fn(self.T_mixed_flat, self.g_flat)
@@ -68,25 +73,21 @@ class ClassifierGrid32Generalized:
     warmup_time = 3.0
     number = 2
     repeat = (2, 3, 60.0)
-    timeout = 600.0  # ~5x ClassifierGrid32 budget - host-callback overhead
+    timeout = 600.0
 
     def setup(self) -> None:
         metric = AlcubierreMetric(v_s=0.5, R=2.0, sigma=8.0)
         grid = GridSpec(bounds=[(-6.0, 6.0)] * 3, shape=(32, 32, 32))
         chain = evaluate_curvature_grid(metric, grid, t=0.0, compute_invariants=False)
-        # Flatten grid dims: (Nx, Ny, Nz, 4, 4) -> (Nx*Ny*Nz, 4, 4).
         T = chain.stress_energy
         g = chain.metric
         g_inv = chain.metric_inv
-        # Compute mixed-index T^a_{\;b} = g^{ac} T_{cb}; keep both T_ab and T_mixed
-        # in scope - generalized branch needs T_ab for the pencil solver.
         T_mixed = jnp.einsum("...ac,...cb->...ab", g_inv, T)
         flat_shape = (-1, 4, 4)
         self.T_flat = T.reshape(flat_shape)
         self.T_mixed_flat = T_mixed.reshape(flat_shape)
         self.g_flat = g.reshape(flat_shape)
 
-        # vmap the generalized path; pure_callback is sequential per vmap_method.
         def _classify_gen(T_mixed_i, g_i, T_ab_i):
             return classify_hawking_ellis(
                 T_mixed_i,
@@ -96,7 +97,7 @@ class ClassifierGrid32Generalized:
             )
 
         self.fn = jax.jit(jax.vmap(_classify_gen, in_axes=(0, 0, 0)))
-        _ = self.fn(self.T_mixed_flat, self.g_flat, self.T_flat)  # JIT warmup
+        _ = self.fn(self.T_mixed_flat, self.g_flat, self.T_flat)
 
     def time_classify_grid_generalized(self) -> None:
         result = self.fn(self.T_mixed_flat, self.g_flat, self.T_flat)

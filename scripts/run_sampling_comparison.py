@@ -9,6 +9,9 @@ and report how often BFGS finds equal or lower minima.
 Additionally, for Rodal DEC, compares deterministic Fibonacci-lattice
 sampling (N_dir = {10, 50, 200, 1000} x N_zeta = 10) against BFGS
 and algebraic truth, producing a convergence-of-sampled-min figure.
+
+Random observer directions are uniform on S^2 (cos theta ~ U[-1, 1], phi ~ U[0,
+2 pi]); the compared subset is drawn from violating points.
 """
 
 from __future__ import annotations
@@ -23,6 +26,8 @@ import numpy as np
 from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
+
+from _paths import FIGURES_DIR, RESULTS_DIR
 
 from warpax.energy_conditions.observer import (
     compute_orthonormal_tetrad,
@@ -50,7 +55,6 @@ def dense_sampling_wec(
 
     k1, k2, k3 = jax.random.split(key, 3)
     zetas = jax.random.uniform(k1, (n_samples,), minval=0.0, maxval=zeta_max)
-    # Uniform on S^2: cos(theta) ~ U[-1,1], phi ~ U[0,2pi]
     cos_thetas = jax.random.uniform(k2, (n_samples,), minval=-1.0, maxval=1.0)
     thetas = jnp.arccos(cos_thetas)
     phis = jax.random.uniform(k3, (n_samples,), minval=0.0, maxval=2.0 * jnp.pi)
@@ -94,19 +98,16 @@ def main():
         grid_half = 2.0 * R
         N = 50
 
-        # Generate grid
         ax = np.linspace(-grid_half, grid_half, N)
         xs, ys, zs = np.meshgrid(ax, ax, ax, indexing="ij")
         coords = np.stack([np.zeros_like(xs), xs, ys, zs], axis=-1)
         flat_coords = coords.reshape(-1, 4)
 
-        # Evaluate curvature chain
         print(" Computing curvature chain...")
         t0 = time.time()
         chain_fn = lambda x: compute_curvature_chain(metric, x)
         chain_batch = jax.vmap(chain_fn)
 
-        # Process in chunks to avoid memory issues
         chunk_size = 5000
         all_T = []
         all_g = []
@@ -119,7 +120,6 @@ def main():
         g_all = np.concatenate(all_g, axis=0)
         print(f"  Curvature chain: {time.time() - t0:.1f}s")
 
-        # Select random subset of VIOLATING points (more interesting)
         key = jax.random.PRNGKey(123)
         n_pts = min(args.n_points, len(T_all))
         indices = np.random.RandomState(42).choice(len(T_all), n_pts, replace=False)
@@ -138,13 +138,11 @@ def main():
                 T_ab = jnp.array(T_all[idx])
                 g_ab = jnp.array(g_all[idx])
 
-                # BFGS with 8 starts
                 bfgs_result = optimize_wec(
                     T_ab, g_ab, n_starts=8, zeta_max=5.0, key=jax.random.PRNGKey(idx)
                 )
                 bfgs_min = float(bfgs_result.margin)
 
-                # Dense sampling
                 samp_min = dense_sampling_wec(
                     T_ab,
                     g_ab,
@@ -174,7 +172,7 @@ def main():
 
             bfgs_arr = np.array(bfgs_margins)
             samp_arr = np.array(samp_margins)
-            diff = samp_arr - bfgs_arr  # positive = BFGS found lower
+            diff = samp_arr - bfgs_arr
 
             metric_results["sampling_densities"][n_samp] = {
                 "bfgs_wins": bfgs_wins,
@@ -195,7 +193,6 @@ def main():
 
         results[name] = metric_results
 
-    # Save results
     out_path = f"{args.results_dir}/sampling_comparison.json"
     dump_json(results, out_path)
     print(f"\nResults saved to {out_path}")
@@ -216,8 +213,9 @@ def fibonacci_sphere(n_points: int) -> np.ndarray:
 def fibonacci_dec_comparison():
     """Deterministic Fibonacci-lattice DEC comparison for Rodal.
 
-    Compares finite observer sampling with the Type-I algebraic DEC test.
-    Vectorized with JAX for performance.
+    Compares finite observer sampling with the Type-I algebraic DEC test,
+    where the verifier uses its algebraic shortcut. Points are processed in
+    vmapped chunks to bound JIT recompilation and memory.
     """
     import matplotlib
 
@@ -253,12 +251,10 @@ def fibonacci_dec_comparison():
     flat_g_inv = curv.metric_inv.reshape(-1, 4, 4)
     n_points = flat_T.shape[0]
 
-    # Algebraic truth
     flat_T_mixed = jax.vmap(jnp.matmul)(flat_g_inv, flat_T)
     cls_results = jax.vmap(classify_hawking_ellis)(flat_T_mixed, flat_g)
     alg_dec = np.array(jax.vmap(check_dec)(cls_results.rho, cls_results.pressures))
 
-    # The verifier uses its algebraic shortcut at Type-I points.
     print("Running Type-I verification...")
     ec_bfgs = verify_grid(
         curv.stress_energy,
@@ -269,27 +265,19 @@ def fibonacci_dec_comparison():
     )
     bfgs_dec = np.array(ec_bfgs.dec_margins.reshape(-1))
 
-    # Violation points
     viol_mask = alg_dec < -1e-10
     n_viol = int(np.sum(viol_mask))
     print(f"Algebraic DEC violations: {n_viol}/{n_points}")
 
     zetas = jnp.linspace(0, zeta_max, n_zeta)
 
-    # ---- Vectorized DEC sampling kernel ----
-    # For a single point, evaluate all (direction, zeta) pairs at once.
-
     @jax.jit
     def _dec_margin_single_observer(T_ab, T_mixed, g_ab, tetrad, zeta, theta, phi):
         """Compute DEC margin for one observer (zeta, theta, phi) at one point."""
         u = timelike_from_rapidity(zeta, theta, phi, tetrad)
-        # WEC: T_{ab} u^a u^b
         wec = jnp.einsum("a,ab,b->", u, T_ab, u)
-        # Energy-momentum current: j^a = -T^a_b u^b
         j = -jnp.einsum("ab,b->a", T_mixed, u)
-        # Causal flux: -j^a g_{ab} j^b (should be >= 0 if j is causal)
         flux = -jnp.einsum("a,ab,b->", j, g_ab, j)
-        # Future-directed: -j^a n_a (should be >= 0)
         n_down = jnp.einsum("ab,b->a", g_ab, tetrad[0])
         future = -jnp.einsum("a,a->", j, n_down)
         return jnp.minimum(wec, jnp.minimum(flux, future))
@@ -302,17 +290,15 @@ def fibonacci_dec_comparison():
         zetas: shape (n_zeta,)
         Returns scalar: worst margin over n_dir * n_zeta observers.
         """
-        # Create all combinations: (n_dir, n_zeta)
-        th_grid = jnp.repeat(thetas, len(zetas))  # (n_dir * n_zeta,)
-        ph_grid = jnp.repeat(phis, len(zetas))  # (n_dir * n_zeta,)
-        z_grid = jnp.tile(zetas, len(thetas))  # (n_dir * n_zeta,)
+        th_grid = jnp.repeat(thetas, len(zetas))
+        ph_grid = jnp.repeat(phis, len(zetas))
+        z_grid = jnp.tile(zetas, len(thetas))
 
         margins = jax.vmap(
             lambda z, th, ph: _dec_margin_single_observer(T_ab, T_mixed, g_ab, tetrad, z, th, ph)
         )(z_grid, th_grid, ph_grid)
         return jnp.nanmin(margins)
 
-    # Precompute tetrads for all points (vectorized)
     print("Computing tetrads...")
     t0 = time.time()
     all_tetrads = jax.vmap(compute_orthonormal_tetrad)(flat_g)
@@ -328,12 +314,9 @@ def fibonacci_dec_comparison():
 
         t0 = time.time()
 
-        # Process points in chunks to avoid excessive JIT recompilation
-        # and memory usage. Each chunk is vmapped.
         chunk_size = 256
         sampled_mins = np.full(n_points, np.inf)
 
-        # Define the per-point function for this n_dir
         def _point_fn(args):
             T_ab, T_mixed, g_ab, tetrad = args
             return _sample_dec_at_point(T_ab, T_mixed, g_ab, tetrad, thetas_arr, phis_arr, zetas)
@@ -373,7 +356,6 @@ def fibonacci_dec_comparison():
         )
         print(f"  Detection: {rate:.1f}% ({detects}/{n_viol}), time={elapsed:.1f}s")
 
-    # Summary table
     print("\n" + "=" * 70)
     print(f"{'N_dir':>8} {'N_total':>8} {'Detection%':>12} {'Min margin':>14} {'Time(s)':>10}")
     print("-" * 70)
@@ -386,8 +368,7 @@ def fibonacci_dec_comparison():
     print(f"Verifier min DEC margin: {float(np.nanmin(bfgs_dec)):.6e}")
     print(f"Algebraic min DEC margin: {float(np.nanmin(alg_dec)):.6e}")
 
-    # Plot
-    os.makedirs("results", exist_ok=True)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.semilogx(
         [r["n_dir"] for r in results],
@@ -402,14 +383,13 @@ def fibonacci_dec_comparison():
     ax.legend()
     ax.set_ylim(0, 105)
     fig.tight_layout()
-    fig_dir = os.path.join(os.path.dirname(__file__), "..", "figures")
+    fig_dir = FIGURES_DIR
     os.makedirs(fig_dir, exist_ok=True)
     fig_path = os.path.join(fig_dir, "fibonacci_vs_bfgs_dec.pdf")
     fig.savefig(fig_path, dpi=150)
     print(f"\nFigure saved: {fig_path}")
 
-    # Save JSON
-    json_out = "results/fibonacci_dec_comparison.json"
+    json_out = os.path.join(RESULTS_DIR, "fibonacci_dec_comparison.json")
     dump_json(
         {
             "n_zeta": n_zeta,

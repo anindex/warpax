@@ -16,7 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
-from _json_io import dump_json, sanitize_nonfinite
+from _json_io import dump_json, fmt, load_json, sanitize_nonfinite
 
 
 def test_sanitize_nonfinite_recursive():
@@ -83,3 +83,25 @@ def test_dump_json_numpy_float64_nan(tmp_path):
     parsed = json.loads(path.read_text())
     assert parsed == {"v": None, "w": 1.5}
     assert math.isfinite(parsed["w"])
+
+
+def test_sanitize_numpy_float32():
+    """np.float32 is not a float subclass; NaN becomes None, finite becomes float."""
+    import numpy as np
+
+    out = sanitize_nonfinite({"v": np.float32("nan"), "w": np.float32(1.5)})
+    assert out == {"v": None, "w": 1.5}
+    assert type(out["w"]) is float
+
+
+def test_load_json_round_trip(tmp_path):
+    path = tmp_path / "x.json"
+    dump_json({"a": [1, 2.5]}, path)
+    assert load_json(path) == {"a": [1, 2.5]}
+
+
+def test_fmt():
+    assert fmt(0.123456) == "0.123"
+    assert fmt(2.0, ".1f") == "2.0"
+    assert fmt(float("nan")) == "nan"
+    assert fmt(float("-inf")) == "nan"

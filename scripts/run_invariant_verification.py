@@ -9,6 +9,10 @@ The Eulerian normal remains timelike at any speed for valid ADM data.
 
 Outputs: results/invariant_verification.json and the sibling manuscript's
 invariant_benchmark.tex table.
+
+The sampled Type-I NEC minimum is refined locally, and the polished value is
+taken no shallower than the grid sample; this supplies a numerical estimate,
+not a continuum bound.
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
+from _paths import RESULTS_DIR, TABLES_DIR
 
 from warpax.analysis.extrema import refine_extremum
 from warpax.analysis.invariant_verification import (
@@ -39,10 +44,6 @@ from warpax.energy_conditions.frame_free import certify_grid_frame_free, type_fr
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
-
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
 
 F_LOW, F_HIGH = 0.1, 0.9
 
@@ -76,7 +77,6 @@ def verify_metric(name, v_s, N):
     exotic = integrated_exotic_content(T, g, gi, vol_w, mask=mask)
     peaks = peak_proper_energy_deficit(T, g, gi, mask=mask_flat)
 
-    # Refine the sampled Type-I minimum locally; this supplies no continuum bound.
     nec_inv = np.asarray(ff.nec_margins).ravel()
     typeI_wall = mask_flat & (np.asarray(ff.he_types).ravel() == 1.0) & np.isfinite(nec_inv)
     nec_min_grid = float(np.min(nec_inv[typeI_wall])) if typeI_wall.any() else float("nan")
@@ -91,7 +91,6 @@ def verify_metric(name, v_s, N):
             metric, nec_coord, _field_nec_typeI, mode="min", half_width=0.15, n=9, levels=7
         )
         if pol["value"] is not None and np.isfinite(pol["value"]):
-            # guarantee the polished value is at least as deep as the grid sample
             nec_min = float(min(nec_min_grid, pol["value"]))
 
     wc, dxw = wall_cells(metric, N)

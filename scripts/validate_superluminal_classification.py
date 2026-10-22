@@ -9,6 +9,12 @@ The stored type_iv_trustworthy flag accepts omitted refinement or mpmath
 checks. The Markdown report distinguishes those incomplete cases from
 rows that pass all three checks. Neither is a continuum certification.
 
+``CLASSIFIER_TOLS`` sweeps the real-spectrum threshold ``tol``, the knob
+that enters the real/complex decision; ``imag_rtol`` only selects the
+auto-solver and never enters that decision, so a sweep over it has a vacuous
+zero spread. The mpmath cross-check uses ``imag_rtol=3e-3`` to reproduce the
+float64 verdict as a physical check.
+
 Outputs: results/superluminal_gate.json and results/superluminal_gate_report.md.
 Run: python scripts/validate_superluminal_classification.py [--smoke]
 """
@@ -26,9 +32,10 @@ jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
+from _paper_metrics import instantiate
+from _paths import RESULTS_DIR
 
 from warpax.analysis.convergence import f_miss_stability
-from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.classification import classify_hawking_ellis
 from warpax.energy_conditions.classification_mpmath import (
     verify_classification_at_points,
@@ -38,34 +45,18 @@ from warpax.energy_conditions.verifier import _classify_grid_batch
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights, wall_clustered
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
-
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 
 BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
-# Sweep the real-spectrum threshold, which is `tol`. This used to sweep
-# `imag_rtol`, which only selects the auto-solver and never enters the
-# real/complex decision, so the zero spread it reported was vacuous.
 CLASSIFIER_TOLS = [1e-12, 1e-10, 1e-8]
 
-# Matched family parameters (R = 1, sigma = 8): the wall-resolved regime in
-# which a cross-metric comparison is meaningful (mirrors run_matched_benchmark).
-METRICS: dict[str, tuple] = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natario": (NatarioMetric, {}),
-    "VanDenBroeck": (
-        VanDenBroeckMetric,
-        {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0},
-    ),
-    "Rodal": (RodalMetric, {}),
-}
 METRIC_ORDER = ["Alcubierre", "Natario", "VanDenBroeck", "Rodal"]
+PAPER_NAME = {"Natario": "Natário", "VanDenBroeck": "Van den Broeck"}
 
 
 def _instantiate(name: str, v_s: float):
-    cls, extra = METRICS[name]
-    return cls(v_s=v_s, R=1.0, sigma=8.0, **extra)
+    """Matched family (R = 1, sigma = 8) under this script's ASCII CLI names."""
+    return instantiate(PAPER_NAME.get(name, name), v_s)
 
 
 def _flat_curv(metric, N: int):
@@ -110,14 +101,12 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
     metric = _instantiate(name, v_s)
     flat_T, flat_g, flat_ginv, flat_Tmixed, wall_flat, vol_w = _flat_curv(metric, N_main)
 
-    # --- finiteness / signature sanity ----------------------------------
     dets = np.asarray(jnp.linalg.det(flat_g))
     out["det_g_median"] = float(np.median(dets))
     out["any_nan_T"] = bool(np.any(np.isnan(np.asarray(flat_T))))
     cond_g = np.asarray(jnp.linalg.cond(flat_g[wall_flat])) if wall_flat.any() else np.array([])
     out["cond_g_wall_p95"] = float(np.percentile(cond_g, 95)) if cond_g.size else None
 
-    # --- float64 standard census (full grid) ----------------------------
     cls_std = _classify_grid_batch(flat_Tmixed, flat_g, flat_T, solver="standard")
     he_std = np.asarray(cls_std.he_type)
     imag_std = np.abs(np.asarray(cls_std.eigenvalues_imag))
@@ -127,7 +116,6 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
     for t, key in [(1, "I"), (2, "II"), (3, "III"), (4, "IV")]:
         out[f"wall_frac_type_{key}"] = _vw_type_fraction(he_std, wall_flat, vol_w, t)
 
-    # |Im|/|Re| scaling on wall Type-IV-flagged points
     wall_iv = wall_flat & (he_std == 4.0)
     if wall_iv.any():
         ratio = imag_std[wall_iv].max(axis=-1) / np.maximum(real_std[wall_iv].max(axis=-1), 1e-30)
@@ -135,19 +123,16 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
     else:
         out["wall_iv_imag_re_ratio_median"] = None
 
-    # --- tolerance sensitivity (full grid, wall-restricted) -------------
     tol_fracs = {}
     for tv in CLASSIFIER_TOLS:
         he_tv = _classify_types_tol(flat_Tmixed, flat_g, tv)
         tol_fracs[f"{tv:.0e}"] = _vw_type_fraction(he_tv, wall_flat, vol_w, 4)
     out["tol_type_iv_frac"] = tol_fracs
-    tol_vals = [v * 100.0 for v in tol_fracs.values()]  # to pp
+    tol_vals = [v * 100.0 for v in tol_fracs.values()]
     out["tol_spread_pp"] = float(max(tol_vals) - min(tol_vals))
     out["tol_insensitive"] = out["tol_spread_pp"] <= 0.5
 
-    # --- solver agreement on a wall subset (standard vs generalized) ----
     wall_idx = np.where(wall_flat)[0]
-    # prioritize Type-IV-flagged points, then fill with a deterministic sample
     iv_idx = wall_idx[he_std[wall_idx] == 4.0]
     other_idx = wall_idx[he_std[wall_idx] != 4.0]
     take_iv = iv_idx[: gen_cap // 2]
@@ -167,7 +152,6 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
         out["std_gen_agreement"] = None
         out["std_gen_iv_agreement"] = None
 
-    # --- mpmath 50-digit cross-check on a small wall subset -------------
     mp_idx = sub[:mpmath_cap] if sub.size else wall_idx[:0]
     out["mpmath_n"] = int(mp_idx.size)
     if mp_idx.size:
@@ -176,7 +160,7 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
             np.asarray(flat_g[mp_idx]),
             he_std[mp_idx],
             precision=50,
-            imag_rtol=3e-3,  # reproduce the float64 verdict (physical check)
+            imag_rtol=3e-3,
         )
         out["mpmath_flip_rate"] = float(rep["flip_rate"])
         out["mpmath_uncertain_frac"] = float(np.mean(rep["uncertain_mask"]))
@@ -184,7 +168,6 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
         out["mpmath_flip_rate"] = None
         out["mpmath_uncertain_frac"] = None
 
-    # --- refinement stability of wall Type-IV fraction ------------------
     if do_refine:
         fracs = []
         for N in refine_Ns:
@@ -202,7 +185,6 @@ def run_cell(name, v_s, N_main, refine_Ns, mpmath_cap, gen_cap, do_refine):
     else:
         out["refine_stable"] = None
 
-    # --- VERDICT --------------------------------------------------------
     flip_ok = (out["mpmath_flip_rate"] is None) or (out["mpmath_flip_rate"] <= 0.01)
     refine_ok = (out["refine_stable"] is None) or out["refine_stable"]
     tol_ok = out["tol_insensitive"]

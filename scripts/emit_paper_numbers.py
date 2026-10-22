@@ -17,10 +17,9 @@ import os
 import re
 
 from _paper_numbers_map import AUTO_SOURCED, MANUAL, recompute_auto
+from _paths import ARXIV_DIR
 
-PAPER_NUMBERS = os.path.join(
-    os.path.dirname(__file__), "..", "..", "warpax_arxiv", "paper_numbers.tex"
-)
+PAPER_NUMBERS = os.path.join(ARXIV_DIR, "paper_numbers.tex")
 
 _MACRO_RE = re.compile(r"\\newcommand\{\\(\w+)\}\{([^}]*)\}")
 

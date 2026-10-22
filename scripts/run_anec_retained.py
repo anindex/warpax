@@ -17,6 +17,16 @@ consistent with, but not a proof of, a violation of the averaged null energy
 condition along a complete geodesic. The Minkowski ray integrates to zero and
 is retained as a sentinel.
 
+Window rule: ``SPAN0 = X_END - X_START = 16 = 2|X_START|`` ends at the
+receding bubble's center and would integrate only half the crossing, so the
+span is measured per metric with ``_anec_window.crossing_span`` rather than
+fixed. ``N_SAMPLES`` is the count at ``SPAN0`` and scales with the span so the
+step density is fixed. ``B_SCAN`` is dense near the wall (``r_s ~ R_b = 1``)
+where the off-axis null violations concentrate. ``WALL_SUPPORT_R`` and the
+doubling margin match ``run_anec_symplectic.py`` because the two tables sit
+side by side and must share one window rule; stationarity of the on-axis
+integral is reached before the crossing is covered, so it is not the test.
+
 Outputs:
 - ../results/anec/retained.json
 """
@@ -29,6 +39,7 @@ from pathlib import Path
 from _anec_window import crossing_span
 from _json_io import dump_json
 from _paper_metrics import instantiate
+from _paths import RESULTS_DIR
 
 os.environ.setdefault("XLA_FLAGS", "--xla_gpu_autotune_level=0")
 
@@ -41,19 +52,13 @@ import numpy as np
 from warpax.averaged.anec import anec
 from warpax.benchmarks import MinkowskiMetric
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results", "anec")
+ANEC_DIR = os.path.join(RESULTS_DIR, "anec")
 
 V_S, R_B, SIGMA = 0.5, 1.0, 8.0
 X_START, X_END = -8.0, 8.0
-# The span was X_END - X_START = 16 = 2|X_START|, which ends at the receding
-# bubble's centre: every published value here was exactly half (2.00, 2.02 for
-# Rodal). Measured now, not assumed, see _anec_window.
 SPAN0 = X_END - X_START
-N_SAMPLES = 1024  # at SPAN0; scaled with the span so the step density is fixed
+N_SAMPLES = 1024
 TANGENT_NORM = "null_projected"
-# Impact parameters: dense near the wall (r_s ~ R_b = 1) where the off-axis
-# null violations concentrate.
 B_SCAN = np.linspace(1.0e-3, 2.5, 80)
 SENTINEL_TOL = 1.0e-8
 
@@ -81,17 +86,12 @@ def _anec_along(metric, b: float, span: float, base_samples: int = N_SAMPLES) ->
         metric,
         _axial_ray(b),
         tangent_norm=TANGENT_NORM,
-        # Fixed step density: the sample count scales with the span, so a
-        # longer window does not silently coarsen the quadrature.
         n_samples=int(round(base_samples * span / SPAN0)),
         affine_bounds=(0.0, span),
     )
     return float(res.line_integral)
 
 
-# Same truncation radius and doubling margin as run_anec_symplectic.py: the two
-# tables sit side by side, so they share one window rule. Stationarity of the
-# on-axis integral is reached before the crossing is covered, so it is not it.
 WALL_SUPPORT_R = 3.0
 PROBE_SPAN = 128.0
 N_PROBE = 4096
@@ -101,7 +101,7 @@ def _measure_span(metric) -> tuple[float, bool]:
     """Affine span covering the crossing, from the ray's own trajectory.
 
     The path here is analytic, ``x^mu(lam) = (lam, X_START + lam, b, 0)`` with
-    the bubble centre at ``x_s = v_s lam``, so ``r_s(lam)`` is closed form and
+    the bubble center at ``x_s = v_s lam``, so ``r_s(lam)`` is closed form and
     needs no integration to measure.
     """
     b0 = float(B_SCAN[0])
@@ -118,7 +118,7 @@ def _minkowski_sentinel() -> float:
 
 
 def main() -> None:
-    Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
+    Path(ANEC_DIR).mkdir(parents=True, exist_ok=True)
 
     sentinel = _minkowski_sentinel()
     print(
@@ -192,7 +192,7 @@ def main() -> None:
         "order": ORDER,
         "metrics": per_metric,
     }
-    out_path = os.path.join(RESULTS_DIR, "retained.json")
+    out_path = os.path.join(ANEC_DIR, "retained.json")
     dump_json(out, out_path)
     print(f"Wrote {out_path}")
 

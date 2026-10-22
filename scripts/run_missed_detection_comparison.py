@@ -28,15 +28,15 @@ from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
 
+from _paths import RESULTS_DIR
+
 from warpax.energy_conditions.observer import (
     compute_orthonormal_tetrad,
     timelike_from_rapidity,
 )
 
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 CONDITIONS = ["nec", "wec", "dec"]
 
-# Metrics and velocities to test
 CASES = [
     ("rodal", 0.1),
     ("rodal", 0.5),
@@ -57,7 +57,16 @@ def dense_sample_margin(
     key=None,
     condition: str = "wec",
 ) -> float:
-    """Evaluate EC margin via dense random observer sampling."""
+    """Evaluate EC margin via dense random observer sampling.
+
+    The sampled quantity is the contraction for ``condition`` itself, so the
+    detection rate for each condition is compared against a point set
+    selected by that same condition's robust margin: SEC uses the
+    trace-reversed ``T_ab - (1/2) T g_ab``, DEC the minimum of ``T_ab u^a u^b``
+    and the flux ``-T g^-1 T``, NEC the null limit of the same family
+    (``k = n + s`` with ``s`` the unit spatial part of the boosted observer),
+    and WEC the plain ``T_ab u^a u^b``.
+    """
     if key is None:
         key = jax.random.PRNGKey(42)
     tetrad = compute_orthonormal_tetrad(g_ab)
@@ -68,13 +77,10 @@ def dense_sample_margin(
     thetas = jnp.arccos(cos_thetas)
     phis = jax.random.uniform(k3, (n_samples,), minval=0.0, maxval=2.0 * jnp.pi)
 
-    # The condition was accepted and ignored: this always returned the WEC
-    # contraction, so the NEC and DEC detection rates compared a WEC quantity
-    # against a point set selected by the NEC/DEC robust margins.
     g_inv = jnp.linalg.inv(g_ab)
     trace = jnp.einsum("ab,ab->", g_inv, T_ab)
-    theta_ab = T_ab - 0.5 * trace * g_ab  # trace-reversed
-    flux_ab = -jnp.einsum("ac,cd,db->ab", T_ab, g_inv, T_ab)  # -T g^-1 T
+    theta_ab = T_ab - 0.5 * trace * g_ab
+    flux_ab = -jnp.einsum("ac,cd,db->ab", T_ab, g_inv, T_ab)
 
     def eval_single(zeta, theta, phi):
         u = timelike_from_rapidity(zeta, theta, phi, tetrad)
@@ -86,7 +92,6 @@ def dense_sample_margin(
                 jnp.einsum("a,ab,b->", u, flux_ab, u),
             )
         if condition == "nec":
-            # Null limit of the same family: k = u + spatial unit along the boost.
             k = timelike_from_rapidity(zeta, theta, phi, tetrad)
             n = tetrad[:, 0]
             s = k + jnp.einsum("a,ab,b->", k, g_ab, n) * n
@@ -99,7 +104,6 @@ def dense_sample_margin(
     return float(jnp.min(margins))
 
 
-# JIT the inner loop for speed
 @jax.jit
 def _batch_tetrad(g_batch):
     return jax.vmap(compute_orthonormal_tetrad)(g_batch)
@@ -139,7 +143,6 @@ def main():
             eul = data[eul_key].ravel()
             rob = data[rob_key].ravel()
 
-            # Points missed by Eulerian but detected by BFGS
             missed_mask = (eul >= 0) & (rob < -1e-10)
             n_missed = int(np.sum(missed_mask))
             n_total = len(eul)
@@ -153,7 +156,6 @@ def main():
                 f"({100 * n_missed / n_total:.3f}%)"
             )
 
-            # Select subset of missed points
             missed_indices = np.where(missed_mask)[0]
             if len(missed_indices) > args.max_points:
                 rng = np.random.RandomState(42)
@@ -164,15 +166,10 @@ def main():
 
             print(f"  Testing {n_test} missed points...")
 
-            # The cached .npz stores only margins; recompute T_ab and g_ab
-            # from the metric at the missed points.
-
-            # Grid params
             grid_bounds = data["grid_bounds"]
             grid_shape = tuple(data["grid_shape"])
             n_grid = int(np.prod(grid_shape))
 
-            # Reconstruct grid coordinates
             axes = [
                 np.linspace(lo, hi, int(n))
                 for (lo, hi), n in zip(grid_bounds, grid_shape, strict=True)
@@ -181,7 +178,6 @@ def main():
             T_grid = np.zeros_like(X)
             coords = np.stack([T_grid, X, Y, Z], axis=-1).reshape(-1, 4)
 
-            # Import metric class
             if metric_name == "rodal":
                 from warpax.metrics import RodalMetric
 
@@ -193,7 +189,6 @@ def main():
             else:
                 continue
 
-            # Compute curvature chain for the missed points only
             from warpax.geometry.geometry import compute_curvature_chain
 
             missed_coords = jnp.array(coords[missed_indices])
@@ -203,7 +198,6 @@ def main():
 
             chain_fn = lambda x: compute_curvature_chain(metric, x)
 
-            # Process in chunks
             chunk_size = 500
             T_missed = []
             g_missed = []
@@ -217,7 +211,6 @@ def main():
             g_missed = np.concatenate(g_missed, axis=0)
             print(f"  Curvature: {time.time() - t0:.1f}s")
 
-            # Test each sampling density
             cond_results = {}
             for n_samp in SAMPLING_DENSITIES:
                 print(f"\n    Sampling N={n_samp}:")
@@ -254,7 +247,6 @@ def main():
                     f"      Detected: {detected}/{n_test} ({detection_rate:.1f}%) in {elapsed:.1f}s"
                 )
 
-            # Summary for this condition
             print(f"\n    Summary for {cond.upper()}:")
             print(f"      {'Method':>12s} | {'Detected':>8s} | {'Rate':>6s}")
             print(f"      {'-' * 12}-+-{'-' * 8}-+-{'-' * 6}")
@@ -276,9 +268,7 @@ def main():
                 "sampling_results": cond_results,
             }
 
-    # Save results
     out_path = os.path.join(RESULTS_DIR, "missed_detection_comparison.json")
-    # Convert to serializable
     serializable = {}
     for k, v in all_results.items():
         serializable[k] = {}

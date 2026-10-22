@@ -8,6 +8,10 @@ Exact Types III and IV violate NEC. A positive binary64 LMI margin above
 its recorded floor at such a numerical label is a detected contradiction
 between numerical routes, not an independently certified label error.
 
+The grid is ``[-25, 25]^3`` because WarpShell's shell sits at R_1 = 10 to
+R_2 = 20 and the +/-3 box used elsewhere in the pipeline contains no shell at
+all; the bounds are recorded in the output.
+
 Run: JAX_PLATFORMS=cpu python scripts/run_classifier_error_rate.py
 """
 
@@ -18,14 +22,13 @@ import pathlib
 
 import jax.numpy as jnp
 import numpy as np
+from _paths import RESULTS_DIR
 
 import warpax  # noqa: F401  (installs the x64 config on import)
 from warpax import certify
 from warpax.energy_conditions.classification import classify_hawking_ellis
 from warpax.metrics.warpshell import WarpShellMetric
 
-# WarpShell's shell sits at R_1=10 to R_2=20, so the +/-3 box used elsewhere in
-# the pipeline contains no shell at all. The bounds are recorded in the output.
 V_S = 0.5
 SHAPE = (50, 50, 50)
 BOUNDS = [(-25.0, 25.0)] * 3
@@ -34,14 +37,21 @@ ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
 
 
 def jordan_split_scale():
-    """Measured eigenvalue splitting of exact J_2 and J_3 blocks in float64."""
+    """Measured eigenvalue splitting of exact J_2 and J_3 blocks in float64.
+
+    Conditioning is measured by perturbing with a symmetric delta and fitting
+    the eigenvalue displacement, whose log-log slope is 1/m for a J_m block; a
+    single unperturbed split understates it, since LAPACK can return dyadic
+    entries exactly. The fit uses only the m eigenvalues of the defective
+    cluster, since the decoupled eigenvalue sits O(1) away and would swamp it.
+    Unperturbed repeated eigenvalues: the J_2 block has ``(lam + mu)^2``, J_3
+    has ``(lam + rho)^3``. ``generic_type_iii_label`` is what the classifier
+    returns for a fixed generic Type III at default tolerance.
+    """
     out = {}
     eta = np.diag([-1.0, 1, 1, 1])
     rng = np.random.default_rng(0)
 
-    # Measure conditioning: perturb by a symmetric delta and fit the eigenvalue
-    # displacement, whose slope in log-log is 1/m for a J_m block. A single
-    # unperturbed split understates it, since LAPACK can return dyadic entries exactly.
     def exponent(builder, lam_of, m, n=48):
         """Fitted slope of log(eigenvalue displacement) against log(perturbation).
 
@@ -62,8 +72,6 @@ def jordan_split_scale():
                 E = rng.normal(size=(4, 4))
                 ev = np.linalg.eigvals(eta @ (T + d * (E + E.T) / 2.0))
                 lam0 = lam_of(*params)
-                # only the m eigenvalues of the defective cluster; the decoupled
-                # eigenvalue sits O(1) away and would swamp the fit.
                 near = np.sort(np.abs(ev - lam0))[:m]
                 vals.append(float(near.max()))
             med.append(max(np.median(vals), 1e-300))
@@ -77,11 +85,9 @@ def jordan_split_scale():
         [[rho, 0, -f, 0], [0, -rho, f, 0], [-f, f, -rho, 0], [0, 0, 0, p + 2.0]]
     )
 
-    # unperturbed repeated eigenvalues: J_2 block has (lam + mu)^2, J_3 has (lam + rho)^3
     out["J2_exponent"], out["J2_split_at_1e-8"] = exponent(j2, lambda mu, f, p: -mu, 2)
     out["J3_exponent"], out["J3_split_at_1e-8"] = exponent(j3, lambda rho, f, p: -rho, 3)
 
-    # a fixed generic Type III, for the label check below
     rho, f3, p = 1.0, 1.0, 3.0
     T3 = np.array([[rho, 0, -f3, 0], [0, -rho, f3, 0], [-f3, f3, -rho, 0], [0, 0, 0, p]])
     A3 = eta @ T3
@@ -90,14 +96,19 @@ def jordan_split_scale():
     out["eps"] = eps
     out["eps_sqrt"] = eps**0.5
     out["eps_cbrt"] = eps ** (1.0 / 3.0)
-    # what the classifier returns for the generic Type III, at default tolerance
     r = classify_hawking_ellis(jnp.asarray(A3), ETA, T_ab=jnp.asarray(T3))
     out["generic_type_iii_label"] = int(r.he_type)
     return out
 
 
 def compare_grid():
-    """Type census on the WarpShell wall, plus the LMI cross-check."""
+    """Type census on the WarpShell wall, plus the LMI cross-check.
+
+    The LMI comparison runs on the non-Type-I points: Types III and IV must
+    violate everything. Contradictions are counted only above the recorded
+    binary64 noise floor, and the comparison cannot identify which numerical
+    route failed.
+    """
     metric = WarpShellMetric(v_s=V_S)
     res = certify(metric, shape=SHAPE, bounds=BOUNDS)
     ff = res.frame_free
@@ -107,7 +118,6 @@ def compare_grid():
     counts["vacuum"] = int(ff.n_vacuum)
     counts["total"] = int(he.size)
 
-    # LMI comparison on the non-Type-I points: Types III and IV must violate everything.
     nec = np.asarray(ff.nec_margins).ravel()
     wec = np.asarray(ff.wec_margins).ravel()
     comparison = {}
@@ -117,8 +127,6 @@ def compare_grid():
         if n == 0:
             comparison[f"type_{t}"] = {"n": 0}
             continue
-        # Count contradictions only above the recorded binary64 noise floor.
-        # This comparison cannot identify which numerical route failed.
         floor = np.asarray(ff.nec_noise_floor).ravel()[sel]
         clean = int(np.sum(nec[sel] > floor))
         comparison[f"type_{t}"] = {
@@ -147,7 +155,7 @@ def main():
         f"   (cf. eps^(1/3) = {split['eps_cbrt']:.3e})"
     )
     print(
-        f"  generic Type III is labelled Type  {split['generic_type_iii_label']}"
+        f"  generic Type III is labeled Type  {split['generic_type_iii_label']}"
         "   <- must read 3; 4 means unresolvable"
     )
     print()
@@ -173,7 +181,7 @@ def main():
             f"{v['wec_violated_percent']:.1f}%"
         )
 
-    out = pathlib.Path(__file__).resolve().parents[1] / "results" / "classifier_error_rate.json"
+    out = pathlib.Path(RESULTS_DIR) / "classifier_error_rate.json"
     out.parent.mkdir(exist_ok=True)
     payload = {
         "v_s": V_S,

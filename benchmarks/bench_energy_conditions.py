@@ -1,6 +1,6 @@
 """asv benchmarks - energy-condition optimizer multistart (#3-6).
 
-Four benchmarks running the Optimistix BFGS multistart over the bounded
+Four benchmarks running the Optimiztix BFGS multistart over the bounded
 timelike observer manifold for NEC / WEC / SEC / DEC on a single
 Alcubierre wall point. Uses the default ``n_starts=16`` and
 ``zeta_max=5.0``.
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 
-os.environ.setdefault("JAX_PLATFORMS", "cpu")  # CPU canonical
+os.environ.setdefault("JAX_PLATFORMS", "cpu")
 
 import jax
 import jax.numpy as jnp
@@ -29,7 +29,7 @@ from warpax.geometry import compute_curvature_chain
 def _build_wall_point() -> tuple[jnp.ndarray, jnp.ndarray]:
     """Compute (T_ab, g_ab) at a representative Alcubierre wall point."""
     metric = AlcubierreMetric(v_s=0.5, R=2.0, sigma=8.0)
-    coords = jnp.array([0.0, 2.0, 0.5, 0.0])  # near wall
+    coords = jnp.array([0.0, 2.0, 0.5, 0.0])
     chain = compute_curvature_chain(metric, coords)
     return chain.stress_energy, chain.metric
 
@@ -48,7 +48,7 @@ class _OptimizerBenchmark:
         self.g = g
         self.key = jax.random.PRNGKey(0)
         self.fn = jax.jit(self._run)
-        _ = self.fn(self.T, self.g, self.key)  # JIT warmup
+        _ = self.fn(self.T, self.g, self.key)
 
     def _run(self, T, g, key):  # pragma: no cover - overridden
         raise NotImplementedError
@@ -88,7 +88,6 @@ class DECOptimizer(_OptimizerBenchmark):
     """asv benchmark - optimize_dec multistart, three-term-min (#6)."""
 
     def _run(self, T, g, key):
-        # Default mode='three_term_min'.
         return optimize_dec(T, g, key=key).margin
 
     def time_multistart_dec(self) -> None:

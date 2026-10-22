@@ -31,6 +31,17 @@ Outputs
 -------
 - results/closing_speed.json
 - ../warpax_arxiv/tables/closing_speed.tex
+
+A_FLOOR_REL guards a = 0, where the pair never closes, relative to the tensor
+scale; d = 0 (irrotational) closes at zero speed and is never Type IV in this
+channel. ``--check-v`` is a second speed used only to measure that a and d
+really are speed-independent, which is the whole premise. S_par = S(jhat, jhat)
+needs a momentum direction, so a is only defined where d > 0; on an
+irrotational drive that set is empty and the momentum channel is identically
+closed, which is not a premise failure. The active set is thresholded against
+the tensor scale, not max(d), because on an irrotational drive max(d) is itself
+roundoff and a relative floor would select the noise. The reported gap is a
+signed difference of sampled fractions, without a type implication.
 """
 
 from __future__ import annotations
@@ -49,6 +60,7 @@ jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
+from _paths import RESULTS_DIR, TABLES_DIR
 
 from warpax.energy_conditions.filtering import shape_function_mask
 from warpax.energy_conditions.frame_free import eulerian_momentum_frame
@@ -56,12 +68,7 @@ from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
-
 F_LOW, F_HIGH = 0.1, 0.9
-# a = 0 means the pair never closes; guarded relative to the tensor scale.
 A_FLOOR_REL = 1e-12
 
 
@@ -96,7 +103,6 @@ def closing_speeds(a, d):
     scale = max(float(np.max(np.abs(a))), 1e-300)
     open_forever = np.abs(a) <= A_FLOOR_REL * scale
     v_star = np.where(open_forever, np.inf, 2.0 * d / np.maximum(np.abs(a), 1e-300))
-    # d = 0 (irrotational) closes at zero speed: never Type IV in this channel.
     return np.where(d <= 0.0, 0.0, v_star)
 
 
@@ -104,7 +110,6 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--N", type=int, default=100)
     p.add_argument("--reference-v", type=float, default=1.0)
-    # Second speed, used only to check that a and d really are speed-independent.
     p.add_argument("--check-v", type=float, default=0.5)
     p.add_argument("--metrics", nargs="+", default=METRIC_ORDER)
     p.add_argument("--smoke", action="store_true")
@@ -124,14 +129,8 @@ def main():
     for name in args.metrics:
         a, d, w = coefficients(name, args.reference_v, args.N)
         a2, d2, _ = coefficients(name, args.check_v, args.N)
-        # Speed-independence of the coefficients is the whole premise; measure it.
-        # S_par = S(jhat, jhat) needs a momentum direction, so `a` is only defined
-        # where d > 0. On an irrotational drive that set is empty and the momentum
-        # channel is identically closed, which is not a premise failure.
         scale_a = max(float(np.max(np.abs(a))), 1e-300)
         scale_d = max(float(np.max(np.abs(d))), 1e-300)
-        # Against the tensor scale, not max(d): on an irrotational drive max(d)
-        # is itself roundoff, and a relative floor would select the noise.
         active = d > 1e-9 * scale_a * args.reference_v
         a_dev = float(np.max(np.abs(a - a2)[active])) / scale_a if active.any() else 0.0
         d_dev = float(np.max(np.abs(d - d2))) / scale_d
@@ -139,7 +138,6 @@ def main():
         v_star = closing_speeds(a, d)
         wt = float(np.sum(w))
         pred = {v: float(np.sum(w * (v_star > v)) / wt) for v in speeds}
-        # A signed difference of sampled fractions, without a type implication.
         gaps = [measured[(name, v)] - pred[v] for v in speeds if (name, v) in measured]
         scaling_agrees = a_dev < 1e-9 and (not active.any() or d_dev < 1e-9)
         rows.append(

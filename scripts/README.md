@@ -104,7 +104,8 @@ matched quantitative comparison (their thin walls are not resolved at common par
 
 | Module | Provides |
 |--------|----------|
-| `_json_io.py` | RFC 8259 JSON output without bare `NaN` or `Infinity` |
+| `_paths.py` | Absolute `results/`, `figures/` and paper `tables/` locations |
+| `_json_io.py` | RFC 8259 JSON output without bare `NaN` or `Infinity`, `load_json`, `fmt` and the provenance-headed `write_table` |
 | `_paper_metrics.py` | The four swept constructions and their instantiation |
 | `_benchmark_grid.py` | The matched wall-resolved benchmark grid |
 | `_anec_window.py` | Prescribed coordinate/affine windows for finite null-energy diagnostics |

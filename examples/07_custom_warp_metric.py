@@ -1,21 +1,21 @@
-"""Custom warp drive metric with full EC pipeline + wall-restricted diagnostics.
+"""Custom warp drive metric with the full EC pipeline and wall-restricted diagnostics.
 
-This is the canonical custom-metric workflow. A user defines a new warp
-spacetime by subclassing :class:`ADMMetric` (implementing ``lapse``,
-``shift``, ``spatial_metric``, ``symbolic``, ``name`` and the
-abstract method ``shape_function_value``), then runs:
+A new warp spacetime subclasses :class:`ADMMetric` (``lapse``, ``shift``,
+``spatial_metric``, ``shape_function_value``, ``symbolic``, ``name``), then:
 
-    1. Single-point curvature + EC verification at the bubble wall
+    1. Single-point curvature and EC verification at the bubble wall, with the
+       ADM-assembled metric checked against the symbolic ``g_ab``.
     2. Grid-level Eulerian vs robust comparison
-       (:func:`compare_eulerian_vs_robust`)
-    3. Wall-restricted statistics via :func:`shape_function_mask` +
-       :func:`compute_wall_restricted_stats`
-    4. Figure output (3-panel comparison)
+       (:func:`compare_eulerian_vs_robust`).
+    3. Wall-restricted statistics via :func:`shape_function_mask` and
+       :func:`compute_wall_restricted_stats`, which consumes the
+       :class:`ECGridResult` of a separate :func:`verify_grid` pass together
+       with the comparison's Eulerian margins.
+    4. A 3-panel comparison figure.
 
-The example metric is a "Gaussian warp bubble", the shift uses a
-Gaussian envelope rather than the Alcubierre tanh top-hat. Runtime target:
-under 30 seconds on a laptop CPU (float64, no GPU). To scale up, increase
-``grid_n`` from 16 to 50+ at the cost of minutes rather than seconds.
+The example metric is a Gaussian warp bubble: the shift carries a Gaussian
+envelope along x instead of the Alcubierre tanh top-hat. The default 16^3 grid
+runs in about 30 s on a laptop CPU; ``grid_n = 50`` takes minutes.
 
 Outputs
 -------
@@ -25,6 +25,10 @@ Outputs
 Usage
 -----
     python examples/07_custom_warp_metric.py
+    python examples/07_custom_warp_metric.py --readme-figure
+
+``--readme-figure`` renders the SEC panels on a thin slab for the README and
+downscales the PNG to 1432 px.
 """
 
 from __future__ import annotations
@@ -32,7 +36,6 @@ from __future__ import annotations
 import argparse
 import os
 
-# Non-interactive backend (before any other matplotlib import)
 import matplotlib
 
 matplotlib.use("Agg")
@@ -45,9 +48,6 @@ import sympy as sp
 from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
-# Ensure float64 for standalone script execution
-# (warpax/__init__.py already enables this; keep the redundant call so
-# the script also works when run standalone with a stale import order.)
 jax.config.update("jax_enable_x64", True)
 
 from warpax.analysis import compare_eulerian_vs_robust
@@ -67,8 +67,6 @@ from warpax.geometry import (
 )
 from warpax.geometry.metric import ADMMetric, SymbolicMetric
 from warpax.visualization import plot_comparison_panel
-
-# Step 1: Define a custom warp drive metric
 
 
 class GaussianWarpMetric(ADMMetric):
@@ -100,7 +98,6 @@ class GaussianWarpMetric(ADMMetric):
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         f = self.shape_function_value(coords)
-        # Shift acts only along x (warp propagation axis), like Alcubierre.
         return jnp.array([-self.v_s * f, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)
@@ -109,11 +106,7 @@ class GaussianWarpMetric(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
-        """abstract method: return f(coords) in [0, 1].
-
-        For this Gaussian bubble: ``f = exp(-r_s^2 / (2 w^2))``.
-        ``f = 1`` at the bubble center, ``f -> 0`` far from the bubble.
-        """
+        """``f = exp(-r_s^2 / (2 w^2))``: 1 at the bubble center, 0 far away."""
         t, x, y, z = coords
         dx = x - self.v_s * t
         r_squared = dx * dx + y * y + z * z
@@ -144,13 +137,12 @@ class GaussianWarpMetric(ADMMetric):
         return "GaussianWarp"
 
 
-# Step 2: Single-point curvature + EC verification
-
-
 def run_single_point(metric: GaussianWarpMetric) -> None:
-    """Compute the curvature chain at a wall point; print EC margins."""
-    # Probe at r_s ~ w (on the wall, where the gradient is steep):
-    # f(r_s=w) = exp(-0.5) ~ 0.607.
+    """Compute the curvature chain at a wall point; print EC margins.
+
+    The probe sits at ``r_s ~ w``, on the wall where the gradient is steep:
+    ``f(r_s = w) = exp(-0.5) ~ 0.607``.
+    """
     coords = jnp.array([0.0, 1.0, 0.5, 0.0])
     f_at_wall = float(metric.shape_function_value(coords))
 
@@ -163,15 +155,24 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
     print(f"Radial distance: r_s = {r_s:.4f}")
     print(f"Shape function f at probe: {f_at_wall:.4f}")
 
-    # Compute curvature chain via autodiff
     result = compute_curvature_chain(metric, coords)
+    sym = metric.symbolic()
+    params = {sp.Symbol("v_s", positive=True): metric.v_s, sp.Symbol("w", positive=True): metric.w}
+    g_sym = np.array(
+        sym.g.subs(params)
+        .subs(dict(zip(sym.coords, coords.tolist(), strict=True)))
+        .evalf()
+        .tolist(),
+        dtype=np.float64,
+    )
+    assert np.allclose(g_sym, np.asarray(result.metric), atol=1e-12), "ADM metric != symbolic"
+    print("ADM lapse/shift/spatial metric agree with the symbolic g_ab at the probe.")
     K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
 
     print(f"\nRicci scalar:       {float(result.ricci_scalar):+.6e}")
     print(f"Kretschmann scalar: {float(K):+.6e}")
     print(f"Max |T_ab|:        {float(jnp.max(jnp.abs(result.stress_energy))):+.6e}")
 
-    # Observer-robust EC verification (all four conditions)
     ec = verify_point(result.stress_energy, result.metric, result.metric_inv)
 
     print("\nObserver-robust EC margins (negative = violated):")
@@ -181,7 +182,6 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
     print(f"  DEC: {float(ec.dec_margin):+.6e}")
     print(f"  Hawking-Ellis type: {int(ec.he_type)}")
 
-    # Eulerian-frame EC for comparison
     eul_ec = compute_eulerian_ec(result.stress_energy, result.metric, result.metric_inv)
     print("\nEulerian-frame EC margins:")
     print(f"  NEC: {float(eul_ec['nec']):+.6e}")
@@ -193,22 +193,12 @@ def run_single_point(metric: GaussianWarpMetric) -> None:
         print(" A boosted observer sees a worse violation than the Eulerian one.")
 
 
-# Step 3: Grid-level Eulerian vs robust comparison
-
-
 def run_grid_comparison(
     metric: GaussianWarpMetric,
     grid_n: int = 16,
     shape: tuple[int, int, int] | None = None,
 ) -> tuple:
-    """Run the full grid EC + Eulerian comparison.
-
-    Uses a small grid (default ``16^3 = 4096`` points) so the end-to-end
-    script (grid comparison + a second verify_grid pass for wall-restricted
-    stats) stays under 30 seconds on a laptop CPU. Increase
-    ``grid_n`` to 50+ for higher-resolution density at the cost of
-    minutes rather than seconds.
-    """
+    """Run the grid EC evaluation and the Eulerian vs robust comparison."""
     grid = GridSpec(
         bounds=[(-3.0, 3.0), (-3.0, 3.0), (-3.0, 3.0)],
         shape=shape if shape is not None else (grid_n, grid_n, grid_n),
@@ -252,9 +242,6 @@ def run_grid_comparison(
     return grid, grid_result, comparison
 
 
-# Step 4: Wall-restricted statistics via the filtering API
-
-
 def run_wall_restricted(
     metric: GaussianWarpMetric,
     grid: GridSpec,
@@ -271,7 +258,6 @@ def run_wall_restricted(
     print("Wall-Restricted Analysis (f in [0.1, 0.9])")
     print("=" * 55)
 
-    # Build a flat coord batch and apply the shape-function mask.
     coords_batch = build_coord_batch(grid, t=0.0)
     wall_mask = shape_function_mask(
         metric,
@@ -291,8 +277,6 @@ def run_wall_restricted(
         )
         return
 
-    # compute_wall_restricted_stats consumes an ECGridResult, not the
-    # ComparisonResult. Run verify_grid on the curvature data to obtain it.
     ec_grid = verify_grid(
         grid_result.stress_energy,
         grid_result.metric,
@@ -302,8 +286,6 @@ def run_wall_restricted(
         batch_size=256,
     )
 
-    # Pass the comparison's Eulerian margins to enable wall-restricted
-    # conditional miss rates (Eulerian-says-satisfied / robust-says-violated).
     stats = compute_wall_restricted_stats(
         ec_grid,
         wall_mask,
@@ -332,9 +314,6 @@ def run_wall_restricted(
     print(f"  DEC:  {_fmt_rate(stats.dec_miss_rate)}")
 
 
-# Step 5: Save comparison figure
-
-
 def save_figure(
     grid: GridSpec,
     comparison,
@@ -356,9 +335,6 @@ def save_figure(
     )
     print(f"\nSaved figure: {out_path}")
     plt.close(fig)
-
-
-# Main
 
 
 def render_readme_figure() -> None:
@@ -387,8 +363,6 @@ def render_readme_figure() -> None:
     )
     plt.close(fig)
 
-    # matplotlib writes at rcParam dpi 300; the README shows the panel at 1432 px,
-    # so downscale rather than commit four times the pixels the page ever uses.
     from PIL import Image
 
     img = Image.open(out_path).convert("RGB")

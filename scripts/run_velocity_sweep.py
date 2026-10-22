@@ -16,6 +16,20 @@ labels here are certified physical (not numerical artifact) by the companion
 gate ``validate_superluminal_classification.py`` (3-solver + 50-digit mpmath
 agreement); this production sweep therefore uses the fast standard eig solver.
 
+Only wall-restricted statistics are computed, so the LMI runs on the wall
+band (about 1% of the grid) rather than on every non-Type-I point (about
+80%). Fractions are weighted by proper volume, not coordinate volume: Van den
+Broeck's slice carries ``gamma_ij = B^2 delta_ij`` with ``sqrt(det gamma) =
+B^3`` running over ``[1, 3.4]``. The default ``--N 100`` is the published
+grid; ``reproduce_all.sh`` invokes the script with no arguments, so a
+differing default makes the run unreproducible from its own driver. A
+``--smoke`` run writes ``velocity_sweep_smoke.json`` rather than the
+production artifact, since an N=24 two-metric JSON beside an N=100 table is
+not detectable downstream. Progress lines are flushed because the sweep is
+48 points at N=100 and runs for hours, and Python block-buffers stdout when
+redirected to a file. ``_PCT`` is a backslash-escaped percent under usetex,
+where ``%`` is a comment character, and a literal ``%`` under mathtext.
+
 Outputs
 -------
 - results/velocity_sweep.json
@@ -38,6 +52,7 @@ from _paper_metrics import METRIC_ORDER, instantiate
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from _paths import FIGURES_DIR, RESULTS_DIR, TABLES_DIR
 
 from warpax.visualization._style import (
     COLORS,
@@ -49,7 +64,6 @@ from warpax.visualization._style import (
 
 apply_style()
 
-# "%" is a comment char under usetex but literal under mathtext; pick per backend.
 _PCT = r"\%" if USE_TEX else "%"
 
 import jax
@@ -69,13 +83,6 @@ from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
 
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
-TABLES_DIR = os.path.join(HERE, "..", "..", "warpax_arxiv", "tables")
-# Figures are generated into the codebase, then copied to the paper folder
-# by reproduce_all.sh (sync_figures_to_paper).
-FIG_DIR = os.path.join(HERE, "..", "figures")
-
 BOUNDS = [(-3, 3)] * 3
 F_LOW, F_HIGH = 0.1, 0.9
 
@@ -87,8 +94,6 @@ def run_point(name, v_s, N):
     curv = evaluate_curvature_grid(metric, grid, batch_size=2048)
     coords = build_coord_batch(grid, t=0.0)
     mask = shape_function_mask(metric, coords, shape, f_low=F_LOW, f_high=F_HIGH)
-    # Wall-restricted statistics only, so the LMI runs on the wall band (~1% of
-    # the grid) rather than on every non-Type-I point (~80%).
     ff = certify_grid_frame_free(
         curv.stress_energy,
         curv.metric,
@@ -96,8 +101,6 @@ def run_point(name, v_s, N):
         solver="standard",
         lmi_where=mask,
     )
-    # Proper volume, not coordinate volume: Van den Broeck's slice carries
-    # gamma_ij = B^2 delta_ij, with sqrt(det gamma) = B^3 running over [1, 3.4].
     vol_w = proper_volume_weights(grid.volume_weights_array, curv.metric)
     fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
     mm = typeI_min_margins(ff, mask=np.asarray(jnp.reshape(mask, (-1,))).astype(bool))
@@ -116,7 +119,11 @@ def run_point(name, v_s, N):
 
 
 def write_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
-    """Wall Type-I / Type-IV fractions at sub/luminal/super velocities."""
+    """Wall Type-I / Type-IV fractions at sub/luminal/super velocities.
+
+    Headings are built from ``table_vels``, not typed, so a change to the
+    speeds cannot mislabel the columns.
+    """
 
     def cell(name, v, key):
         for r in rows:
@@ -124,8 +131,6 @@ def write_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
                 return r[key] * 100.0
         return None
 
-    # Headings built from table_vels, not typed: a change to the speeds must not
-    # be able to mislabel the columns.
     def _band(v):
         return "sub" if v < 1.0 else ("luminal" if v == 1.0 else "super")
 
@@ -153,7 +158,6 @@ def write_table(rows, out_path, table_vels=(0.5, 1.0, 2.0)):
     print(f"  Wrote {out_path}")
 
 
-# Per-metric marker, paired with the shared metric color.
 _MARKERS = {"Alcubierre": "o", "Natário": "s", "Van den Broeck": "^", "Rodal": "D"}
 
 
@@ -169,7 +173,6 @@ def _panel_typeiv(ax, rows):
     ax.set_xlabel(r"warp speed $v_s$")
     ax.set_ylabel(f"wall Type-IV fraction ({_PCT})")
     ax.set_ylim(-5, 108)
-    # Legend in the empty mid band (Rodal sits at 0, the rest above ~60).
     ax.legend(loc="center right", bbox_to_anchor=(0.99, 0.30), fontsize=7.5, frameon=False)
 
 
@@ -199,27 +202,24 @@ def _panel_rodal_margins(ax, rows):
     ax.axvline(1.0, color="0.6", ls="--", lw=0.8)
     ax.set_xlabel(r"warp speed $v_s$")
     ax.set_ylabel("invariant eigenvalue margin")
-    # Curves run from near 0 (top-left) to deep negative (bottom-right); the
-    # top-right is empty.
     ax.legend(loc="upper right", fontsize=8, frameon=False)
 
 
 def make_figures(rows):
-    os.makedirs(FIG_DIR, exist_ok=True)
+    """Write the merged paper figure (Fig 1) and the individual panels kept for standalone use."""
+    os.makedirs(FIGURES_DIR, exist_ok=True)
 
-    # Merged side-by-side figure used by the paper (Fig 1).
     fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(DOUBLE_COL, DOUBLE_COL * 0.42))
     _panel_typeiv(ax_a, rows)
     _panel_rodal_margins(ax_b, rows)
     ax_a.set_title("(a) wall Type-IV fraction", fontsize=9)
     ax_b.set_title("(b) Rodal all-observer margins", fontsize=9)
     fig.tight_layout()
-    pm = os.path.join(FIG_DIR, "velocity_summary.pdf")
+    pm = os.path.join(FIGURES_DIR, "velocity_summary.pdf")
     fig.savefig(pm)
     plt.close(fig)
     print(f"  Wrote {pm}")
 
-    # Individual panels (kept for backward compatibility / standalone use).
     for fname, panel in (
         ("velocity_type_structure.pdf", _panel_typeiv),
         ("rodal_invariant_margins.pdf", _panel_rodal_margins),
@@ -227,7 +227,7 @@ def make_figures(rows):
         fig, ax = plt.subplots(figsize=(DOUBLE_COL * 0.6, DOUBLE_COL * 0.5))
         panel(ax, rows)
         fig.tight_layout()
-        p = os.path.join(FIG_DIR, fname)
+        p = os.path.join(FIGURES_DIR, fname)
         fig.savefig(p)
         plt.close(fig)
         print(f"  Wrote {p}")
@@ -241,9 +241,6 @@ def main():
         nargs="+",
         default=[0.1, 0.3, 0.5, 0.7, 0.9, 0.99, 1.0, 1.1, 1.3, 1.5, 2.0, 2.5],
     )
-    # This default IS the published grid. reproduce_all.sh invokes the script with
-    # no arguments, so a differing default makes the run unreproducible from its
-    # own driver.
     p.add_argument("--N", type=int, default=100)
     p.add_argument("--metrics", type=str, nargs="+", default=METRIC_ORDER)
     p.add_argument("--smoke", action="store_true")
@@ -277,11 +274,6 @@ def main():
         for v_s in args.velocities:
             r = run_point(name, v_s, args.N)
             rows.append(r)
-            # flush: this loop is 48 points at N=100 and runs for hours. Python
-            # block-buffers stdout when it is redirected to a file, so without this
-            # a reproduce_all.sh log shows the banner and then nothing at all until
-            # the whole sweep finishes, there is no way to tell a job that is
-            # nearly done from one that is wedged.
             print(
                 f"  {len(rows):2d}/{len(args.metrics) * len(args.velocities)} "
                 f"{name:>15s} v_s={v_s:.2f}  "
@@ -291,8 +283,6 @@ def main():
                 flush=True,
             )
 
-    # A smoke run must not land on the production artifact: separate filenames, since
-    # an N=24 two-metric JSON beside an N=100 table is not detectable downstream.
     name = "velocity_sweep_smoke.json" if args.smoke else "velocity_sweep.json"
     out = os.path.join(RESULTS_DIR, name)
     dump_json({"config": vars(args), "rows": rows}, out)

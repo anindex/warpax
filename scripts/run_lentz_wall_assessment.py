@@ -1,8 +1,13 @@
 """Compare Lentz wall width with the spacing of a specified 3D grid.
 
-A 500-point radial cut supplements the width estimate with local curvature
-diagnostics. The outputs describe sampling at the tested resolution:
-results/lentz_wall_assessment.json and results/lentz_wall_report.md.
+A 500-point radial cut on r in [50, 150] around the wall at R = 100
+supplements the width estimate with local curvature diagnostics (the
+coordinate-invariant Kretschmann scalar K = R_abcd R^abcd), sampled at a
+y = 0.01 offset to avoid the L1 kink. ``TANH_10_90 = 2 atanh(0.8)`` is the
+10-90% transition width factor; Lentz parameters are the LentzMetric
+defaults and GRID_N = 50 the standard 3D resolution. The outputs describe
+sampling at the tested resolution: results/lentz_wall_assessment.json and
+results/lentz_wall_report.md.
 
 Run: python scripts/run_lentz_wall_assessment.py
 """
@@ -13,6 +18,7 @@ import math
 import os
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 import matplotlib
 from _json_io import dump_json
@@ -25,27 +31,20 @@ jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
+from _paths import RESULTS_DIR
 
 from warpax.geometry import compute_curvature_chain, kretschmann_scalar
 from warpax.metrics import LentzMetric
 
-# Constants
+TANH_10_90 = 2.0 * math.atanh(0.8)
 
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
-TANH_10_90 = 2.0 * math.atanh(0.8)  # 10-90% transition width factor
-
-# Lentz parameters (defaults from LentzMetric)
 R_LENTZ = 100.0
 SIGMA_LENTZ = 8.0
-GRID_N = 50  # Standard 3D grid resolution
+GRID_N = 50
 DOMAIN_LENTZ = (-300, 300)
 
-# Radial sampling parameters.
 N_RADIAL = 500
-RADIAL_RANGE = (50.0, 150.0)  # Focus on wall region around R=100
-
-
-# Analytical assessment
+RADIAL_RANGE = (50.0, 150.0)
 
 
 def analytical_assessment():
@@ -91,9 +90,6 @@ def analytical_assessment():
     return result
 
 
-# 1D radial cut assessment
-
-
 def radial_cut_assessment():
     """Evaluate curvature along 1D radial cut through the Lentz wall.
 
@@ -117,7 +113,6 @@ def radial_cut_assessment():
         coords = jnp.array([0.0, float(r), 0.01, 0.0])
         curv = compute_curvature_chain(metric, coords)
 
-        # Coordinate-invariant Kretschmann scalar K = R_{abcd} R^{abcd}.
         K = float(kretschmann_scalar(curv.riemann, curv.metric, curv.metric_inv))
         T_frobenius = float(jnp.linalg.norm(curv.stress_energy))
         f_val = float(metric.shape_function_value(coords))
@@ -151,9 +146,6 @@ def radial_cut_assessment():
     return results
 
 
-# JSON output
-
-
 def save_json(analytical, radial_cut, start_time):
     """Save structured assessment to JSON."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -184,9 +176,6 @@ def save_json(analytical, radial_cut, start_time):
     dump_json(output, outpath)
     print(f"\nJSON saved to {outpath}")
     return output
-
-
-# Markdown report
 
 
 def save_report(analytical, radial_cut, start_time):
@@ -235,12 +224,8 @@ def save_report(analytical, radial_cut, start_time):
         )
     lines.append("")
     path = os.path.join(RESULTS_DIR, "lentz_wall_report.md")
-    with open(path, "w") as f:
-        f.write("\n".join(lines))
+    Path(path).write_text("\n".join(lines))
     print(f"Report saved to {path}")
-
-
-# Main
 
 
 def main():
@@ -253,17 +238,13 @@ def main():
     print(f"Started: {start_time}")
     print("=" * 70)
 
-    # Part 1: Analytical wall-width assessment
     analytical = analytical_assessment()
 
-    # Part 2: 1D radial cut with JAX curvature computation
     radial_cut = radial_cut_assessment()
 
-    # Save outputs
     save_json(analytical, radial_cut, start_time)
     save_report(analytical, radial_cut, start_time)
 
-    # Final summary
     print("\n" + "=" * 70)
     print("ASSESSMENT COMPLETE")
     print("=" * 70)

@@ -48,10 +48,11 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import numpy as np
 from _benchmark_grid import CLUSTER_A, N_LADDER, benchmark_grid
+from _paper_metrics import METRIC_ORDER, instantiate
+from _paths import RESULTS_DIR, TABLES_DIR
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.analysis.convergence import f_miss_stability
-from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions.filtering import (
     compute_wall_restricted_stats,
     shape_function_mask,
@@ -59,32 +60,10 @@ from warpax.energy_conditions.filtering import (
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import proper_volume_weights
-from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
-
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
-TABLES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "warpax_arxiv", "tables")
 
 V_S = 0.5
-BOUNDS = [(-3, 3)] * 3  # identical compact domain for every metric
-F_LOW, F_HIGH = 0.1, 0.9  # active warp-wall region
-
-# Matched family parameters (R = 1, sigma = 8) for every retained metric.
-# Display name -> (constructor, extra kwargs beyond v_s/R/sigma).
-METRICS: dict[str, tuple] = {
-    "Alcubierre": (AlcubierreMetric, {}),
-    "Natário": (NatarioMetric, {}),
-    "Van den Broeck": (
-        VanDenBroeckMetric,
-        {"R_tilde": 1.0, "alpha_vdb": 0.5, "sigma_B": 8.0},
-    ),
-    "Rodal": (RodalMetric, {}),
-}
-METRIC_ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
-
-
-def _instantiate(name: str):
-    cls, extra = METRICS[name]
-    return cls(v_s=V_S, R=1.0, sigma=8.0, **extra)
+BOUNDS = [(-3, 3)] * 3
+F_LOW, F_HIGH = 0.1, 0.9
 
 
 def run_single(name: str, metric, N: int, n_starts: int, batch_size: int) -> dict:
@@ -142,9 +121,6 @@ def run_single(name: str, metric, N: int, n_starts: int, batch_size: int) -> dic
         "dec_min": float(jnp.min(comparison.robust_margins["dec"])),
         "elapsed_s": elapsed,
     }
-
-
-# ---------------------------------------------------------------- table writers
 
 
 def _fmt_pct(x: float | None) -> str:
@@ -231,6 +207,11 @@ def write_convergence_table(
 
 
 def main():
+    """Run the resolution ladder and write results and tables.
+
+    The recorded grid string reports the clustering strength from
+    _benchmark_grid.CLUSTER_A, the one benchmark_grid() actually uses.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resolutions", type=int, nargs="+", default=N_LADDER)
     parser.add_argument("--n-starts", type=int, default=2)
@@ -246,7 +227,7 @@ def main():
 
     panels: dict[str, list[dict]] = {name: [] for name in METRIC_ORDER}
     for name in METRIC_ORDER:
-        metric = _instantiate(name)
+        metric = instantiate(name, V_S)
         for N in resolutions:
             print(f"\n--- {name} clustered {N}^3 ---")
             r = run_single(name, metric, N, args.n_starts, args.batch_size)
@@ -269,10 +250,6 @@ def main():
                 "bounds": [list(b) for b in BOUNDS],
                 "resolutions": resolutions,
                 "n_starts": args.n_starts,
-                # Report the clustering strength actually used, which comes from
-                # _benchmark_grid.CLUSTER_A via benchmark_grid(). This string was
-                # hardcoded to a stale 1.2 and so claimed a second grid family
-                # that the run never used.
                 "wall_bounds": [F_LOW, F_HIGH],
                 "grid": f"wall_clustered(a={CLUSTER_A})",
                 "statistic": "volume-weighted wall-restricted conditional miss rate",

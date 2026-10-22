@@ -18,19 +18,17 @@ import jax
 from _json_io import dump_json
 
 jax.config.update("jax_enable_x64", True)
-import jax.numpy as jnp
 import numpy as np
+from _paths import RESULTS_DIR
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions import certify_grid_frame_free
 from warpax.energy_conditions.filtering import shape_function_mask
+from warpax.energy_conditions.frame_free import eulerian_momentum_frame
 from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import wall_clustered
 from warpax.metrics import NatarioMetric, RodalMetric, VanDenBroeckMetric
-
-HERE = os.path.dirname(__file__)
-RESULTS_DIR = os.path.join(HERE, "..", "results")
 
 ORDER = ["Alcubierre", "Natário", "Van den Broeck", "Rodal"]
 FAMILY = {
@@ -44,7 +42,7 @@ FAMILY = {
     "Rodal": (RodalMetric, {"R": 100.0, "sigma": 0.03}, [(-300.0, 300.0)] * 3),
 }
 V_S = 0.5
-N = 60  # wall-clustered resolution
+N = 60
 
 
 def _sampling_parameters():
@@ -82,26 +80,23 @@ def _instantiate(name):
 
 def _eulerian_delta(T_ab, g_ab, g_inv):
     """Momentum discriminant Delta = (rho+S_par)^2 - 4|j|^2 (mirrors the witness)."""
-    n_low = jnp.array([-1.0, 0.0, 0.0, 0.0])
-    n_up = g_inv @ n_low
-    n_up = n_up / jnp.sqrt(jnp.abs(n_low @ n_up))
-    n_low2 = g_ab @ n_up
-    proj = jnp.eye(4) + jnp.outer(n_up, n_low2)  # h^a_b = delta + n^a n_b
-    T_mixed = g_inv @ T_ab
-    rho = n_up @ (T_ab @ n_up)
-    j_up = -(proj @ (T_mixed @ n_up))
-    j2 = j_up @ (g_ab @ j_up)
-    jmag = jnp.sqrt(jnp.clip(j2, min=0.0))
-    jhat = j_up / jnp.where(jmag > 1e-30, jnp.sqrt(jnp.clip(j2, min=1e-300)), 1.0)
-    S_par = jhat @ (g_ab @ ((proj @ (T_mixed @ proj)) @ jhat))
-    delta = (rho + S_par) ** 2 - 4.0 * j2
-    return delta, jmag
+    rho, S_par, jmag = eulerian_momentum_frame(T_ab, g_ab, g_inv)
+    return (rho + S_par) ** 2 - 4.0 * jmag**2, jmag
 
 
 _delta_grid = jax.jit(jax.vmap(_eulerian_delta))
 
 
 def _analyze(name):
+    """Compare eigensolver Type-IV labels with the sign of Delta on one metric.
+
+    Uses the wall-clustered grid at N = 60. In the statistics,
+    eig_iv_delta_nonneg counts eigensolver Type-IV labels with Delta >= 0 (no
+    mechanism is inferred), delta_only counts Delta < 0 without a Type-IV label
+    (the splitting premise is not checked), n_delta_typeIV is the legacy key
+    for the count with Delta < 0, and the median numerical |Im lambda| on the
+    exception points does not certify type.
+    """
     metric = _instantiate(name)
     bounds = FAMILY[name][2]
     grid = wall_clustered(metric, bounds, (N, N, N), a=1.2)
@@ -129,10 +124,8 @@ def _analyze(name):
         im = imag[sel]
         n = int(np.sum(sel))
         agree = int(np.sum(e == d))
-        # Eigensolver Type-IV labels with Delta>=0; no mechanism is inferred.
         exc = e & ~d
         n_exc = int(np.sum(exc))
-        # Delta<0 without a Type-IV label; the splitting premise is not checked.
         delta_only = int(np.sum(~e & d))
         active = e | d
         n_active = int(np.sum(active))
@@ -140,13 +133,12 @@ def _analyze(name):
         return {
             "n_points": n,
             "n_eig_typeIV": int(np.sum(e)),
-            "n_delta_typeIV": int(np.sum(d)),  # Legacy key: count with Delta<0.
+            "n_delta_typeIV": int(np.sum(d)),
             "agreement_rate": (agree / n) if n else float("nan"),
             "n_active": n_active,
             "agreement_rate_active": (agree_active / n_active) if n_active else 1.0,
-            "eig_iv_delta_nonneg": n_exc,  # eig-IV & Delta>=0
-            "delta_only": delta_only,  # Delta<0 & not eig-IV
-            # Median numerical |Im lambda| on those points does not certify type.
+            "eig_iv_delta_nonneg": n_exc,
+            "delta_only": delta_only,
             "exc_median_abs_imag": float(np.median(im[exc])) if n_exc else 0.0,
         }
 

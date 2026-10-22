@@ -5,6 +5,8 @@ import jax.numpy as jnp
 
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
 
+from .._helpers import ETA
+
 
 class TestSchwarzschild:
     """Tests for SchwarzschildMetric in isotropic Cartesian coordinates."""
@@ -17,14 +19,12 @@ class TestSchwarzschild:
         m = SchwarzschildMetric(M=1.0)
         far_coords = jnp.array([0.0, 1e6, 0.0, 0.0])
         g = m(far_coords)
-        minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-        assert jnp.allclose(g, minkowski, atol=1e-5)
+        assert jnp.allclose(g, ETA, atol=1e-5)
 
     def test_schwarzschild_symmetry(self, sample_coords):
         """g(t, x, y, z) is diagonal (off-diagonal = 0)."""
         m = SchwarzschildMetric()
         g = m(sample_coords)
-        # Off-diagonal elements should be zero
         for i in range(4):
             for j in range(4):
                 if i != j:

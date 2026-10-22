@@ -1,80 +1,61 @@
 """asv benchmark - persistent JIT cache cold-vs-warm wall-clock.
 
-Compares the wall-clock of a curvature-chain evaluation when the JAX
-compilation cache is (a) cold (fresh temp cache dir, no prior artifacts) vs
-(b) warm (same temp cache dir pre-populated by one prior evaluation).
-
-The benchmark respects the 20% noise budget and uses the CPU
-platform (canonical reproduction). It targets a >= 30% cold-to-warm
-reduction, reported through the asv time harness.
+Each timed call runs a child interpreter that imports warpax and evaluates
+the curvature chain on an Alcubierre 16^3 grid, so equinox's in-memory
+trace cache cannot short-circuit the measurement. ``time_cold`` points the
+child at a fresh persistent cache directory; ``time_warm`` reuses a
+directory populated by one child run in ``setup``.
 """
 
 from __future__ import annotations
 
 import os
-
-os.environ.setdefault("JAX_PLATFORMS", "cpu")  # CPU canonical
-
+import subprocess
+import sys
 import tempfile
 
-import jax
-import jax.numpy as jnp
-
-import warpax  # noqa: F401, triggers jax_enable_x64 and the cache dir
+_SCRIPT = """
+import warpax
 from warpax.benchmarks import AlcubierreMetric
 from warpax.geometry import GridSpec, evaluate_curvature_grid
 
+metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(16, 16, 16))
+evaluate_curvature_grid(metric, grid, t=0.0, compute_invariants=False).stress_energy.block_until_ready()
+"""
 
-def _run_curvature(metric: AlcubierreMetric, grid: GridSpec) -> jnp.ndarray:
-    """Pointwise curvature-chain invocation used by both cold and warm paths."""
-    result = evaluate_curvature_grid(metric, grid, t=0.0, compute_invariants=False)
-    return result.stress_energy
+
+def _run_child(cache_dir: str) -> None:
+    env = {
+        **os.environ,
+        "JAX_PLATFORMS": "cpu",
+        "WARPAX_JIT_CACHE": "1",
+        "JAX_COMPILATION_CACHE_DIR": cache_dir,
+        "JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS": "0",
+    }
+    subprocess.run([sys.executable, "-c", _SCRIPT], env=env, check=True)
 
 
 class JITCacheColdVsWarm:
-    """Cold-vs-warm JIT cache wall-clock on Alcubierre 16^3.
+    """Cold-vs-warm persistent JIT cache wall-clock on Alcubierre 16^3."""
 
-    ``time_cold_import_and_eval`` points the JAX persistent cache at a fresh
-    ``TemporaryDirectory`` for each repeat (asv isolates repeats). The first
-    compile populates the cache; subsequent logical repeats share the dir.
-
-    ``time_warm_import_and_eval`` points at a pre-populated cache dir built
-    during ``setup`` so no compile happens during the timed body.
-    """
-
-    warmup_time = 1.0
+    warmup_time = 0.0
     number = 1
-    repeat = (2, 3, 30.0)
-    timeout = 120.0
+    repeat = (2, 3, 120.0)
+    timeout = 600.0
 
     def setup(self) -> None:
-        self.metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
-        self.grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(16, 16, 16))
-
-        # Two distinct temp dirs: cold (fresh per setup) and warm (pre-warmed).
-        self._cold_tmp = tempfile.TemporaryDirectory(prefix="warpax-jit-cold-")
         self._warm_tmp = tempfile.TemporaryDirectory(prefix="warpax-jit-warm-")
-        self._cold_dir = self._cold_tmp.name
-        self._warm_dir = self._warm_tmp.name
-
-        # Pre-populate the warm cache by running one compile+eval there.
-        jax.config.update("jax_compilation_cache_dir", self._warm_dir)
-        _run_curvature(self.metric, self.grid).block_until_ready()
+        _run_child(self._warm_tmp.name)
 
     def teardown(self) -> None:
-        # Clean up temp dirs between benchmark invocations.
-        try:
-            self._cold_tmp.cleanup()
-            self._warm_tmp.cleanup()
-        except Exception:
-            pass
+        self._warm_tmp.cleanup()
 
-    def time_cold_import_and_eval(self) -> None:
-        """Cold-cache path: fresh temp dir, first compile must fill the cache."""
-        jax.config.update("jax_compilation_cache_dir", self._cold_dir)
-        _run_curvature(self.metric, self.grid).block_until_ready()
+    def time_cold(self) -> None:
+        """Fresh cache directory: the child must compile and populate it."""
+        with tempfile.TemporaryDirectory(prefix="warpax-jit-cold-") as cold:
+            _run_child(cold)
 
-    def time_warm_import_and_eval(self) -> None:
-        """Warm-cache path: pre-populated dir, compile is short-circuited."""
-        jax.config.update("jax_compilation_cache_dir", self._warm_dir)
-        _run_curvature(self.metric, self.grid).block_until_ready()
+    def time_warm(self) -> None:
+        """Pre-populated cache directory: the child loads compiled executables."""
+        _run_child(self._warm_tmp.name)

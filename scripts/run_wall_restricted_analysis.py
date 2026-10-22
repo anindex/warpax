@@ -6,6 +6,12 @@ meaningful warp-wall region where the shape function ``f(coords)`` lies
 in ``[0.1, 0.9]``. Full-grid statistics are reported alongside for
 comparison.
 
+Constants (``METRICS``, grids, ``F_LOW``/``F_HIGH``) are identical to
+``run_analysis.py`` so rows line up with Table 8. ``V_S = 0.5`` is the
+subluminal reference velocity. Optimizer settings are kept modest to bound
+total runtime across the 4 metrics. Lentz carries the explicit caveat
+``unresolved_lower_bound`` because its wall is sub-grid at this resolution.
+
 Outputs
 ------------------------------------
 - results/wall_restricted_analysis.json
@@ -22,6 +28,7 @@ from __future__ import annotations
 import os
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 import matplotlib
 from _json_io import dump_json
@@ -35,6 +42,7 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
+from _paths import FIGURES_DIR, RESULTS_DIR
 
 from warpax.analysis import compare_eulerian_vs_robust
 from warpax.benchmarks import AlcubierreMetric
@@ -53,11 +61,6 @@ from warpax.metrics import (
     WarpShellMetric,
 )
 from warpax.visualization._style import COLORS, DOUBLE_COL, apply_style
-
-# Constants (identical to run_analysis.py so rows line up with Table 8)
-
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
-FIGURES_DIR = os.path.join(os.path.dirname(__file__), "..", "figures")
 
 METRICS: dict[str, tuple[type, dict]] = {
     "alcubierre": (AlcubierreMetric, {"R": 1.0, "sigma": 8.0}),
@@ -91,20 +94,14 @@ GRID_MAP: dict[str, GridSpec] = {
 
 WARP_METRICS = ["alcubierre", "rodal", "vdb", "natario"]
 
-# Subluminal reference velocity.
 V_S = 0.5
 
-# Wall bounds used to define the active warp-wall region.
 F_LOW = 0.1
 F_HIGH = 0.9
 
-# Shared optimizer settings (kept modest to bound total runtime across 4 metrics)
 N_STARTS = 8
 BATCH_SIZE_OPT = 64
 BATCH_SIZE_CURV = 256
-
-
-# Core analysis function
 
 
 def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
@@ -129,12 +126,10 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
     print(f"\n--- {name} ---")
     t0 = time.time()
 
-    # 1. Curvature chain on the grid
     t_curv0 = time.time()
     curv = evaluate_curvature_grid(metric, grid_spec, batch_size=BATCH_SIZE_CURV)
     print(f"  Curvature grid: {time.time() - t_curv0:.1f}s")
 
-    # 2. Eulerian vs robust comparison (provides Eulerian margins + pct_missed)
     t_cmp0 = time.time()
     comparison = compare_eulerian_vs_robust(
         curv.stress_energy,
@@ -146,7 +141,6 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
     )
     print(f"  Comparison: {time.time() - t_cmp0:.1f}s")
 
-    # 3. Robust grid (HE types + robust margins) for wall-restricted stats
     t_vg0 = time.time()
     ec_grid = verify_grid(
         curv.stress_energy,
@@ -158,7 +152,6 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
     )
     print(f"  verify_grid: {time.time() - t_vg0:.1f}s")
 
-    # 4. Wall mask from shape_function_value
     coords_batch = build_coord_batch(grid_spec, t=0.0)
     wall_mask = shape_function_mask(
         metric,
@@ -169,17 +162,14 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
     )
     wall_mask_sum = int(jnp.sum(wall_mask))
 
-    # 5. Eulerian margins dict for miss-rate computation
     eulerian_margins = {c: comparison.eulerian_margins[c] for c in ("nec", "wec", "sec", "dec")}
 
-    # 6. Wall-restricted stats
     stats = compute_wall_restricted_stats(
         ec_grid,
         wall_mask,
         eulerian_margins=eulerian_margins,
     )
 
-    # 7. Full-grid stats (mask of all-True) for side-by-side comparison
     full_mask = jnp.ones(grid_spec.shape, dtype=bool)
     full_stats = compute_wall_restricted_stats(
         ec_grid,
@@ -187,7 +177,6 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
         eulerian_margins=eulerian_margins,
     )
 
-    # 8. Lentz caveat (unresolved-lower-bound, reported explicitly)
     caveat = "unresolved_lower_bound" if name == "lentz" else None
     if name == "lentz" and stats.n_total == 0:
         print(" WARNING: Lentz wall_n_total=0 at this resolution")
@@ -243,9 +232,6 @@ def analyze_metric(name: str, metric, grid_spec: GridSpec) -> dict:
     }
 
 
-# Output: JSON
-
-
 def save_json(results: dict, start_time: str) -> None:
     """Persist structured wall-restricted diagnostics to JSON."""
     output = {
@@ -262,9 +248,6 @@ def save_json(results: dict, start_time: str) -> None:
     outpath = os.path.join(RESULTS_DIR, "wall_restricted_analysis.json")
     dump_json(output, outpath)
     print(f"\nJSON saved to {outpath}")
-
-
-# Output: human-readable markdown
 
 
 def _fmt_miss(value):
@@ -322,12 +305,8 @@ def save_report(results: dict, start_time: str) -> None:
             )
     lines.append("")
     outpath = os.path.join(RESULTS_DIR, "wall_restricted_report.md")
-    with open(outpath, "w") as f:
-        f.write("\n".join(lines))
+    Path(outpath).write_text("\n".join(lines))
     print(f"Report saved to {outpath}")
-
-
-# Output: Type I/II/III/IV breakdown figure
 
 
 def plot_type_breakdown(results: dict) -> None:
@@ -348,11 +327,9 @@ def plot_type_breakdown(results: dict) -> None:
     bar_width = group_width / 2.0
     x_centers = np.arange(n_metrics)
 
-    # Type colors: reuse the accessibility palette (Type I, II, III, IV)
     type_colors = [COLORS[0], COLORS[2], COLORS[4], COLORS[1]]
     type_labels = ["Type I", "Type II", "Type III", "Type IV"]
 
-    # Draw stacked bars per metric
     for i, name in enumerate(metric_names):
         r = results[name]
         full = r["full_grid"]
@@ -379,7 +356,6 @@ def plot_type_breakdown(results: dict) -> None:
         bottom_full = 0.0
         bottom_wall = 0.0
         for j in range(4):
-            # full-grid (thin edge, no hatch unless lentz)
             ax.bar(
                 x_full,
                 full_fracs[j],
@@ -392,7 +368,6 @@ def plot_type_breakdown(results: dict) -> None:
                 label=type_labels[j] if i == 0 else None,
             )
             bottom_full += full_fracs[j]
-            # wall-restricted (same color, distinct edge)
             ax.bar(
                 x_wall,
                 wall_fracs[j],
@@ -405,14 +380,12 @@ def plot_type_breakdown(results: dict) -> None:
             )
             bottom_wall += wall_fracs[j]
 
-    # Ticks / labels
     ax.set_xticks(x_centers)
     ax.set_xticklabels(metric_names, rotation=0)
     ax.set_ylabel("Type fraction")
     ax.set_ylim(0.0, 1.05)
     ax.set_title(f"Full grid (thin edge) vs wall f in [{F_LOW}, {F_HIGH}] (thick edge)")
 
-    # Legend: one entry per type, one entry explaining pairing
     from matplotlib.patches import Patch
 
     legend_handles = [
@@ -428,9 +401,6 @@ def plot_type_breakdown(results: dict) -> None:
     fig.savefig(outpath)
     plt.close(fig)
     print(f"Figure saved to {outpath}")
-
-
-# Main
 
 
 def _instantiate(name: str):
@@ -463,7 +433,6 @@ def main():
     save_report(results, start_time)
     plot_type_breakdown(results)
 
-    # Console summary
     print("\n" + "=" * 70)
     print("SUMMARY")
     print("=" * 70)

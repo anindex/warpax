@@ -1,10 +1,10 @@
 """Affine window for a null line integral, chosen by convergence, not by hand.
 
-The published span was hard-coded at 2|x_start|, which ends at the bubble centre
-for a receding bubble and integrates only half the crossing. Here the span is
-doubled at fixed step density until the integral is stationary, and the achieved
-span is reported with the value. Measured once per metric on the smallest impact
-parameter, which sees the most of the bubble.
+A span of 2|x_start| ends at the bubble center for a receding bubble and
+integrates only half the crossing. Here the span is doubled at fixed step
+density until the integral is stationary, and the achieved span is reported
+with the value. Measured once per metric on the smallest impact parameter,
+which sees the most of the bubble.
 """
 
 from __future__ import annotations
@@ -16,8 +16,6 @@ def converged_window(
     integrate,
     span0: float,
     *,
-    # 1e-4: below the fourth significant figure these are reported to. Rodal's
-    # integrand decays like 1/lambda^2, so 1e-6 would need span ~ 4000.
     rtol: float = 1e-4,
     atol: float = 1e-12,
     max_doublings: int = 8,
@@ -32,7 +30,10 @@ def converged_window(
     span0 : float
         Starting affine span.
     rtol, atol : float
-        Stationarity test: ``|I(2s) - I(s)| <= atol + rtol |I(2s)|``.
+        Stationarity test: ``|I(2s) - I(s)| <= atol + rtol |I(2s)|``. The
+        default ``rtol=1e-4`` sits below the fourth significant figure the
+        integrals are reported to; Rodal's integrand decays like
+        ``1/lambda^2``, so ``1e-6`` would need a span of about 4000.
     max_doublings : int
         Give up after this many and report ``converged=False``.
 
@@ -52,19 +53,21 @@ def converged_window(
 
 
 def _demo() -> None:
-    """A decaying integrand converges; a non-decaying one is reported as such."""
+    """A decaying integrand converges; a non-decaying one is reported as such.
+
+    ``1 - exp(-s)`` converges to 1; the constant-rate integrand ``s`` never
+    converges and must not claim to; the half-crossing ``tanh(s - 16)`` is the
+    truncation signature this module exists to catch, since half of a
+    symmetric crossing looks stable only if the window is never extended.
+    """
     import math
 
-    # exp(-x) on [0, s]: converges to 1
     v, s, ok = converged_window(lambda s: 1.0 - math.exp(-s), 1.0)
     assert ok and abs(v - 1.0) < 1e-6, (v, s, ok)
 
-    # a constant integrand never converges, and must not claim to
     v, s, ok = converged_window(lambda s: s, 1.0)
-    assert not ok, (v, s, ok)
+    assert not ok, ("constant integrand must not report convergence", v, s, ok)
 
-    # the truncation signature this module exists to catch: half of a symmetric
-    # crossing looks stable only if you never extend the window
     def half(span):
         return math.tanh(span - 16.0) * 0.5 + 0.5
 
@@ -91,13 +94,13 @@ def crossing_span(lam, r_s, support_r: float, margin: float = 2.0) -> tuple[floa
     makes it a margin.
 
     Returns ``(span, left)``: the span, and whether the ray was ever seen to
-    leave. A ``False`` is reported, not raised.
+    leave. A ``False`` is reported, not raised. NaN samples (rays that need
+    projection) are dropped first; ``left`` is ``False`` when the last finite
+    sample is still inside ``support_r``.
     """
     lam = [float(v) for v in lam]
     r_s = [float(v) for v in r_s]
-    finite = [
-        i for i, (a, b) in enumerate(zip(lam, r_s, strict=True)) if a == a and b == b
-    ]  # drop NaN (some rays need projection)
+    finite = [i for i, (a, b) in enumerate(zip(lam, r_s, strict=True)) if a == a and b == b]
     if not finite:
         return float(lam[-1]), False
     inside = [i for i in finite if r_s[i] < support_r]
@@ -105,7 +108,7 @@ def crossing_span(lam, r_s, support_r: float, margin: float = 2.0) -> tuple[floa
         return float(lam[finite[0]]) * margin, True
     last = max(inside)
     if last == finite[-1]:
-        return float(lam[last]), False  # never left the support region
+        return float(lam[last]), False
     return float(lam[last]) * margin, True
 
 

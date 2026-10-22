@@ -6,6 +6,15 @@ the Eulerian normal remains timelike and the signature stays Lorentzian.
 Save radial diagnostics to results/superluminal_characterization.json
 and a summary to results/superluminal_report.md.
 
+Both metrics share ``R = 100, sigma = 8``. Radial samples are dense near the
+wall (``r = R = 100``) to capture the ``g_00`` transition, and every sample
+sits at ``y = 0.01`` so the Lentz L1 kink at the origin is avoided.
+``N_CHARACTERIZE`` points get the full (more expensive) EC characterization.
+At ``v_s = 1.0``, the transition case, a focused five-point analysis near
+the wall is added to the radial sweep. The ``g_00 = 0`` crossing is found
+by linear interpolation and requires a sign change with both sides clearly
+nonzero (``|g_00| > 1e-6``).
+
 Run: python scripts/run_superluminal_investigation.py
 """
 
@@ -14,6 +23,7 @@ from __future__ import annotations
 import os
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 import matplotlib
 from _json_io import dump_json
@@ -26,34 +36,23 @@ jax.config.update("jax_enable_x64", True)
 
 import jax.numpy as jnp
 import numpy as np
+from _paths import RESULTS_DIR
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.energy_conditions import classify_hawking_ellis, verify_point
 from warpax.geometry import compute_curvature_chain
 from warpax.metrics import LentzMetric
 
-# Constants
-
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
-
 VELOCITIES = [1.0, 1.5, 2.0]
 
-# Shared parameters for both metrics
 METRIC_CONFIGS = {
     "alcubierre": {"R": 100.0, "sigma": 8.0},
     "lentz": {"R": 100.0, "sigma": 8.0},
 }
 
-# Radial sample points for pointwise analysis.
-# Dense near wall (r=R=100) to capture g_00 transition.
-# For Lentz: use y=0.01 offset to avoid L1 kink at origin.
 N_RADIAL = 50
 
-# Number of radial points for full EC characterization (more expensive).
 N_CHARACTERIZE = 10
-
-
-# Core functions
 
 
 def compute_g00_transition(metric, v_s, r_values, t=0.0):
@@ -174,7 +173,6 @@ def _select_characterization_points(r_min, r_max, R, n_points):
     np.ndarray
         Selected radial positions.
     """
-    # Core regions: center, mid-interior, near-wall, wall, exterior
     center = r_min
     mid_interior = R * 0.5
     near_wall = R - 5.0
@@ -182,9 +180,7 @@ def _select_characterization_points(r_min, r_max, R, n_points):
     past_wall = R + 5.0
     exterior = r_max
 
-    # Add intermediate points to reach n_points
     base_points = [center, mid_interior, near_wall, wall, past_wall, exterior]
-    # Fill gaps
     extras = np.linspace(r_min, r_max, n_points - len(base_points) + 2)[1:-1]
     all_points = sorted(set(base_points) | set(extras.tolist()))
     return np.array(all_points[:n_points])
@@ -216,30 +212,24 @@ def analyze_metric(metric_cls, metric_name, config):
         print(f"\n  --- {metric_name} at v_s = {v_s} ---")
         t0 = time.time()
 
-        # Construct metric with the target velocity
         metric = metric_cls(v_s=v_s, **config)
 
-        # v_s=1.0 is the transition case; do a focused pointwise analysis
-        # near the wall in addition to the radial sweep.
         wall_analysis = None
         if v_s == 1.0:
             wall_r = np.linspace(R - 2.0, R + 2.0, 5)
             wall_analysis = compute_g00_transition(metric, v_s, wall_r)
             print(f"    Wall analysis (5 points near R={R}): done")
 
-        # g_00 transition profile across full radial range
         g00_transition = compute_g00_transition(metric, v_s, r_values)
         n_positive = sum(1 for pt in g00_transition if pt["g_00"] > 0)
         print(f"    g_00 transition: {n_positive}/{len(g00_transition)} points with g_00 > 0")
 
-        # Find g_00 = 0 crossing by interpolation
         g00_zero_r = _find_g00_zero_crossing(g00_transition)
         if g00_zero_r is not None:
             print(f"    g_00 = 0 crossing at r ~ {g00_zero_r:.2f}")
         else:
             print(" No g_00 = 0 crossing found in sampled range")
 
-        # Full EC characterization at selected radial points
         characterization = characterize_velocity(metric, metric_name, v_s, char_points)
         n_nan = sum(1 for pt in characterization if pt["has_nan_stress_energy"])
         elapsed = time.time() - t0
@@ -285,7 +275,6 @@ def _find_g00_zero_crossing(g00_data):
     for i in range(len(g00_data) - 1):
         g00_a = g00_data[i]["g_00"]
         g00_b = g00_data[i + 1]["g_00"]
-        # Require a sign change with both sides clearly nonzero
         if g00_a < -tol and g00_b > tol:
             r_a = g00_data[i]["r"]
             r_b = g00_data[i + 1]["r"]
@@ -329,7 +318,6 @@ def compute_summary(all_results):
         summary["ec_pipeline_status"][metric_name] = {}
 
         for v_key, v_data in vel_results.items():
-            # Check det(g) = -1 across all sampled points
             det_g_values = [pt["det_g"] for pt in v_data["g00_transition"] if "det_g" in pt]
             det_g_deviations = [abs(d - (-1.0)) for d in det_g_values]
             max_det_deviation = max(det_g_deviations) if det_g_deviations else 0.0
@@ -344,7 +332,6 @@ def compute_summary(all_results):
                 "n_points_checked": len(det_g_values),
             }
 
-            # g_00 sign flip summary
             n_positive = v_data["n_g00_positive"]
             g00_zero_r = v_data["g00_zero_crossing_r"]
 
@@ -354,12 +341,10 @@ def compute_summary(all_results):
                 "sign_flip_present": n_positive > 0,
             }
 
-            # EC pipeline status
             n_nan = v_data["n_nan_stress_energy"]
             if n_nan > 0:
                 any_nan = True
 
-            # Check EC margins are finite
             ec_finite = all(
                 all(
                     np.isfinite(pt[k])
@@ -368,7 +353,6 @@ def compute_summary(all_results):
                 for pt in v_data["characterization"]
             )
 
-            # Collect HE types
             he_types = [pt["he_type"] for pt in v_data["characterization"]]
 
             summary["ec_pipeline_status"][metric_name][v_key] = {
@@ -481,8 +465,7 @@ def save_report(results, summary, start_time):
         "",
     ]
     outpath = os.path.join(RESULTS_DIR, "superluminal_report.md")
-    with open(outpath, "w") as f:
-        f.write("\n".join(lines))
+    Path(outpath).write_text("\n".join(lines))
     print(f"Report saved to {outpath}")
 
 
@@ -512,7 +495,6 @@ def main():
     save_json(all_results, summary, start_time)
     save_report(all_results, summary, start_time)
 
-    # Print overall summary
     print("\n" + "=" * 70)
     print("SUMMARY")
     print("=" * 70)
