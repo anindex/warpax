@@ -28,6 +28,8 @@ def main(
     ny: int = 8,
     nz: int = 8,
 ) -> Path:
+    """Write a Minkowski slice (alpha = 1, beta = 0, gamma = eye(3) at every
+    point) with the (nz, ny, nx) shape convention."""
     if out_path is None:
         out_path = Path(__file__).parent / "minkowski_slice.h5"
     out_path = Path(out_path)
@@ -41,8 +43,6 @@ def main(
             "Install via `pip install 'warpax[interop]'`."
         ) from err
 
-    # Minkowski: alpha = 1, beta = 0, gamma = eye(3) at every point.
-    # Shape convention (ARCH-3 pin): (nz, ny, nx).
     ones_zyx = np.ones((nz, ny, nx), dtype=np.float64)
     zeros_zyx = np.zeros((nz, ny, nx), dtype=np.float64)
 

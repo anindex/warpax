@@ -46,7 +46,9 @@ from ._interpolated import InterpolatedADMMetric
 __all__ = ["load_cactus_slice"]
 
 
-def _read_slice_arrays(f, iteration: int, timelevel: int) -> dict[str, np.ndarray]:
+def _read_slice_arrays(
+    f, iteration: int, timelevel: int
+) -> dict[str, dict[str, np.ndarray] | dict[str, float]]:
     """Read the ET-canonical keys from the specified group."""
     group_path = f"ITERATION={iteration}/TIMELEVEL={timelevel}"
     if group_path not in f:
@@ -72,17 +74,21 @@ def _assemble_adm_from_zyx(
 ) -> tuple[
     np.ndarray, np.ndarray, np.ndarray, tuple[tuple[float, float], ...], tuple[int, int, int, int]
 ]:
-    """Transpose ET ``(nz, ny, nx)`` layout to warpax ``(nx, ny, nz)`` + wrap Nt=1."""
-    # Each ET array is (nz, ny, nx); transpose to (nx, ny, nz).
+    """Transpose ET ``(nz, ny, nx)`` layout to warpax ``(nx, ny, nz)`` + wrap Nt=1.
+
+    Einstein Toolkit ADMBase ``betax/betay/betaz`` are contravariant
+    ``beta^i``, the upper-index convention warpax stores, so no index
+    raising is needed. Bounds come from the ``x0..z0`` and ``dx..dz`` attrs,
+    defaulting to ``(-1, 1)``. The single timelevel is bounded by
+    ``[t, t + 1]`` so the interpolator's ``(high - low)`` division stays
+    finite; with ``Nt = 1`` the ``map_coordinates`` index 0 always selects
+    the slice.
+    """
     perm = (2, 1, 0)
     alp_zyx = data["alp"]
     nz, ny, nx = alp_zyx.shape
-    # Single timelevel wrapped into the warpax (Nt, Nx, Ny, Nz) shape.
-    alpha = alp_zyx.transpose(perm)[None, :, :, :]  # (1, nx, ny, nz)
+    alpha = alp_zyx.transpose(perm)[None, :, :, :]
 
-    # Shift: Einstein Toolkit ADMBase betax/betay/betaz are CONTRAVARIANT
-    # beta^i - exactly the upper-index convention warpax stores. No index
-    # raising is needed.
     beta_upper_3d = np.stack(
         [
             data["betax"].transpose(perm),
@@ -90,9 +96,8 @@ def _assemble_adm_from_zyx(
             data["betaz"].transpose(perm),
         ],
         axis=-1,
-    )  # (nx, ny, nz, 3)
+    )
 
-    # Assemble gamma_{ij}, symmetric.
     def _g(key: str) -> np.ndarray:
         return data[key].transpose(perm)
 
@@ -109,13 +114,11 @@ def _assemble_adm_from_zyx(
             np.stack([gxz, gyz, gzz], axis=-1),
         ],
         axis=-2,
-    )  # (nx, ny, nz, 3, 3)
+    )
 
-    # Wrap to (Nt=1, Nx, Ny, Nz, ...).
     beta = beta_upper_3d[None, ...]
     gamma4d = gamma[None, ...]
 
-    # Bounds: use x0..z0 + dx..dz attrs if present, else default to (-1, 1).
     x0 = attrs.get("x0", -1.0)
     y0 = attrs.get("y0", -1.0)
     z0 = attrs.get("z0", -1.0)
@@ -124,9 +127,6 @@ def _assemble_adm_from_zyx(
     dz = attrs.get("dz", 2.0 / max(nz - 1, 1))
     t_val = attrs.get("time", 0.0)
 
-    # Single-timelevel: bound t with a non-degenerate [t, t+1] interval so
-    # the interpolator's (high - low) division stays finite. Nt=1 means
-    # map_coordinates index=0 always selects the single slice.
     bounds = (
         (t_val, t_val + 1.0),
         (x0, x0 + dx * (nx - 1)),
@@ -155,7 +155,7 @@ def load_cactus_slice(
         Timelevel index (matches the ``TIMELEVEL={t}`` group prefix).
     interp_method : {"linear", "cubic"}, default ``"linear"``
         Interpolation scheme passed to :class:`InterpolatedADMMetric`.
-        ``"cubic"`` currently falls back to linear with a warning.
+        ``"cubic"`` is a C2 B-spline; linear reconstruction has no curvature.
 
     Returns
     -------
@@ -172,7 +172,9 @@ def load_cactus_slice(
         If ``path`` does not exist.
     ValueError
         If the HDF5 file does not carry the expected ET-canonical
-        iteration/timelevel group or dataset keys.
+        iteration/timelevel group or dataset keys, or if the slice has a
+        non-positive lapse or a spatial metric that is not symmetric
+        positive definite at any grid point.
     """
     path = Path(path)
     if not path.exists():

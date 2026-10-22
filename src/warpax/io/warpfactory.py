@@ -24,6 +24,7 @@ import numpy as np
 
 from warpax.geometry import GridSpec
 
+from ._adm_grid import adm_from_covariant_grid
 from ._interpolated import InterpolatedADMMetric
 
 __all__ = ["load_warpfactory"]
@@ -80,6 +81,8 @@ def _extract_adm_grids(
     So ``gamma_{ij}(t, x) = g_{ij}(t, x)``, ``beta^i = gamma^{ij} beta_j``
     with ``beta_j = g_{0j}``, and
     ``alpha = sqrt(beta^i beta_i - g_{00})`` (taking the positive branch).
+    Raises :class:`ValueError` if any grid point has no valid lapse or a
+    non-SPD spatial metric (see :func:`adm_from_covariant_grid`).
     """
     metric = mat_data.get("metric")
     if metric is None:
@@ -88,7 +91,6 @@ def _extract_adm_grids(
             "file may be a non-WarpFactory export."
         )
 
-    # metric dict vs scipy mat_struct: accessor varies
     def _get(obj: Any, key: str) -> Any:
         if isinstance(obj, dict):
             return obj.get(key)
@@ -102,27 +104,15 @@ def _extract_adm_grids(
             "file does not match WarpFactory v7.3 schema."
         )
 
-    g_full = np.asarray(tensor, dtype=np.float64)  # (4, 4, Nt, Nx, Ny, Nz)
+    g_full = np.asarray(tensor, dtype=np.float64)
     if g_full.ndim != 6 or g_full.shape[:2] != (4, 4):
         raise ValueError(
             f"WarpFactory 'metric.tensor' must have shape (4, 4, Nt, Nx, Ny, Nz); "
             f"got {g_full.shape}."
         )
 
-    # ADM decomposition from covariant g_{ab}.
-    # Shift: beta_i = g_{0i}. beta^i = gamma^{ij} beta_j. alpha^2 = beta^i beta_i - g_{00}.
-    gamma_dd = np.moveaxis(g_full[1:, 1:], (0, 1), (-2, -1))  # (Nt, Nx, Ny, Nz, 3, 3)
-    beta_lower = np.moveaxis(g_full[0, 1:], 0, -1)  # (Nt, Nx, Ny, Nz, 3)
-    g_00 = g_full[0, 0]  # (Nt, Nx, Ny, Nz)
+    alpha, beta_upper, gamma_dd = adm_from_covariant_grid(np.moveaxis(g_full, (0, 1), (-2, -1)))
 
-    # Invert gamma pointwise for beta^i computation.
-    gamma_uu = np.linalg.inv(gamma_dd)
-    beta_upper = np.einsum("...ij,...j->...i", gamma_uu, beta_lower)
-    beta_sq = np.einsum("...i,...i->...", beta_lower, beta_upper)
-    alpha_sq = beta_sq - g_00
-    alpha = np.sqrt(np.clip(alpha_sq, a_min=0.0, a_max=None))
-
-    # Coordinate arrays.
     t = np.asarray(_get(coords, "t"), dtype=np.float64).ravel()
     x = np.asarray(_get(coords, "x"), dtype=np.float64).ravel()
     y = np.asarray(_get(coords, "y"), dtype=np.float64).ravel()
@@ -135,7 +125,6 @@ def _extract_adm_grids(
     )
     shape = (t.size, x.size, y.size, z.size)
 
-    # Final shape assertion.
     if alpha.shape != shape:
         raise ValueError(
             f"Extracted alpha shape {alpha.shape} does not match implied 4D grid shape {shape}."
@@ -165,8 +154,8 @@ def load_warpfactory(path: str | Path, interp_method: str = "linear") -> Interpo
         autodetected from the file header.
     interp_method : {"linear", "cubic"}, default ``"linear"``
         Interpolation scheme passed through to
-        :class:`InterpolatedADMMetric`. ``"cubic"`` currently falls back
-        to linear; see :class:`InterpolatedADMMetric`.
+        :class:`InterpolatedADMMetric`; ``"cubic"`` is a C2 B-spline, the
+        only choice whose autodiff curvature is meaningful.
 
     Returns
     -------
@@ -196,7 +185,6 @@ def load_warpfactory(path: str | Path, interp_method: str = "linear") -> Interpo
     elif version == "v6_v7":
         mat_data = _load_v6_v7(path)
     else:
-        # Last-resort: try scipy first, then mat73.
         try:
             mat_data = _load_v6_v7(path)
         except Exception:

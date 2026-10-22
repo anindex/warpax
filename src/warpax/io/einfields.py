@@ -16,11 +16,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
 from warpax.geometry import GridSpec
 
+from ._adm_grid import adm_from_covariant_grid
 from ._interpolated import InterpolatedADMMetric
 
 __all__ = ["load_einfield"]
@@ -39,28 +41,9 @@ def _sample_on_grid(
         )
     axes = [np.linspace(lo, hi, n) for (lo, hi), n in zip(sample_bounds, sample_shape, strict=True)]
     mesh = np.meshgrid(*axes, indexing="ij")
-    coords = np.stack(mesh, axis=-1).reshape(-1, 4)  # (N, 4)
-    out = np.zeros((coords.shape[0], 4, 4), dtype=np.float64)
-    for i, c in enumerate(coords):
-        out[i] = np.asarray(network_call(jnp.asarray(c)), dtype=np.float64)
+    coords = np.stack(mesh, axis=-1).reshape(-1, 4)
+    out = np.asarray(jax.vmap(network_call)(jnp.asarray(coords)), dtype=np.float64)
     return out.reshape(*sample_shape, 4, 4)
-
-
-def _decompose_metric_grid(
-    g_grid: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Decompose a 4D grid of g_{ab} into ADM (alpha, beta^i, gamma_{ij})."""
-    # g_grid shape (Nt, Nx, Ny, Nz, 4, 4).
-    gamma_dd = g_grid[..., 1:, 1:]  # (..., 3, 3)
-    beta_lower = g_grid[..., 0, 1:]  # (..., 3)
-    g_00 = g_grid[..., 0, 0]  # (...)
-
-    gamma_uu = np.linalg.inv(gamma_dd)
-    beta_upper = np.einsum("...ij,...j->...i", gamma_uu, beta_lower)
-    beta_sq = np.einsum("...i,...i->...", beta_lower, beta_upper)
-    alpha_sq = beta_sq - g_00
-    alpha = np.sqrt(np.clip(alpha_sq, a_min=0.0, a_max=None))
-    return alpha, beta_upper, gamma_dd
 
 
 def load_einfield(
@@ -92,7 +75,7 @@ def load_einfield(
         Human-readable label; falls back to ``"einfield_<stem>"``.
     interp_method : {"linear", "cubic"}, default ``"linear"``
         Interpolation scheme (see :class:`InterpolatedADMMetric`).
-        ``"cubic"`` currently falls back to linear with a warning.
+        ``"cubic"`` is a C2 B-spline; linear reconstruction has no curvature.
 
     Returns
     -------
@@ -106,6 +89,9 @@ def load_einfield(
         Install via ``pip install 'warpax[einfields]'``.
     FileNotFoundError
         If ``checkpoint_path`` does not exist.
+    ValueError
+        If the sampled 4-metric has no valid lapse or a non-SPD spatial
+        metric at any grid point (see :func:`adm_from_covariant_grid`).
 
     Notes
     -----
@@ -120,7 +106,7 @@ def load_einfield(
         raise FileNotFoundError(f"EinFields checkpoint not found: {checkpoint_path}")
 
     try:
-        import orbax.checkpoint as ocp  # type: ignore[import-not-found]
+        import orbax.checkpoint as ocp
     except ImportError as err:
         raise ImportError(
             "Loading an EinFields Orbax checkpoint requires orbax-checkpoint. "
@@ -135,8 +121,6 @@ def load_einfield(
             "Install via `pip install 'warpax[einfields]'`."
         ) from err
 
-    # Restore the saved state. A real EinFields checkpoint needs a topology factory
-    # from the caller; without one this returns the identity fallback.
     checkpointer = ocp.StandardCheckpointer()
     try:
         state = checkpointer.restore(checkpoint_path)
@@ -147,13 +131,10 @@ def load_einfield(
             "factory (tracked as a follow-up)."
         ) from err
 
-    # The Minkowski fixture stores a single eta_{ab} 4x4 array; the
-    # network_call for the fixture is a constant function of coords.
     eta = None
     if isinstance(state, dict):
         eta = state.get("eta_metric", None)
     if eta is None:
-        # Non-Minkowski checkpoint - caller needs richer topology support.
         raise NotImplementedError(
             "Non-Minkowski EinFields checkpoints require a topology factory "
             "(deferred to follow-up). Minkowski fixture is supported via the "
@@ -166,7 +147,7 @@ def load_einfield(
         return jnp.asarray(eta_arr)
 
     g_grid = _sample_on_grid(_network_call, sample_bounds, sample_shape)
-    alpha, beta_upper, gamma_dd = _decompose_metric_grid(g_grid)
+    alpha, beta_upper, gamma_dd = adm_from_covariant_grid(g_grid)
 
     resolved_name = name or f"einfield_{checkpoint_path.stem}"
     return InterpolatedADMMetric(

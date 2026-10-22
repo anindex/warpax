@@ -12,11 +12,15 @@ Private module; consumers should import from :mod:`warpax.io`.
 from __future__ import annotations
 
 import equinox as eqx
-from jaxtyping import Array, Float
+import jax.numpy as jnp
+import numpy as np
+from jaxtyping import Array, Float, Real
 
 from warpax.geometry import ADMMetric, GridSpec
 
+from ._adm_grid import validate_adm_grids
 from ._interpolation import (
+    _bspline_prefilter,
     _interpolate_scalar,
     _interpolate_tensor,
     _interpolate_vector,
@@ -41,13 +45,24 @@ class InterpolatedADMMetric(ADMMetric):
     name : str, default "interpolated"
         Human-readable name (typically derived from source filename by loader).
     interp_method : {"linear", "cubic"}, default ``"linear"``
-        Interpolation scheme. JAX's ``map_coordinates`` only supports
-        ``order=1`` (linear); ``"cubic"`` is accepted as a forward-
-        compatible label and currently emits a once-per-process warning
-        before falling back to linear. Christoffel symbols computed
-        through this metric are therefore C\u2070 across cells. Pre-smooth
-        the input grid (e.g. Gaussian smoothing on the source) before
-        differentiating curvature if higher smoothness is required.
+        Interpolation scheme. ``"linear"`` is C\u2070 across cells with
+        vanishing second derivatives inside every cell, so Riemann and
+        anything downstream of it are meaningless; use it only for metric
+        values and first derivatives. ``"cubic"`` is a uniform cubic
+        B-spline (C\u00b2), the only choice suitable for curvature. With
+        ``"cubic"`` the three grid fields hold the prefiltered B-spline
+        coefficients, not the raw samples. The spline uses mirror-reflected
+        end conditions, so for data that is not even-symmetric about a grid
+        edge its second derivative (hence curvature) is wrong within about
+        two cells of that edge; trust curvature only in the interior.
+
+    Raises
+    ------
+    ValueError
+        If the lapse is non-finite or non-positive, the shift is non-finite,
+        or the spatial metric is non-finite, asymmetric or not positive
+        definite at any grid point (checked on the raw samples, before any
+        cubic prefiltering), or if the grid shapes are inconsistent.
 
     Notes
     -----
@@ -55,8 +70,8 @@ class InterpolatedADMMetric(ADMMetric):
       representation for externally-loaded metrics).
     - :meth:`shape_function_value` raises :class:`NotImplementedError`
       (shape function is not inferable from grid data).
-    - Out-of-bounds coordinates clip to grid edges via
-      ``map_coordinates(mode="nearest")`` - no NaN, no raise; JIT-safe.
+    - Out-of-bounds coordinates clip to grid edges - no NaN, no raise;
+      JIT-safe.
     """
 
     alpha_grid: Float[Array, "Nt Nx Ny Nz"]
@@ -76,6 +91,11 @@ class InterpolatedADMMetric(ADMMetric):
         name: str = "interpolated",
         interp_method: str = "linear",
     ) -> None:
+        validate_adm_grids(alpha_grid, beta_grid, gamma_grid)
+        if interp_method == "cubic":
+            alpha_grid = jnp.asarray(_bspline_prefilter(np.asarray(alpha_grid)))
+            beta_grid = jnp.asarray(_bspline_prefilter(np.asarray(beta_grid)))
+            gamma_grid = jnp.asarray(_bspline_prefilter(np.asarray(gamma_grid)))
         self.alpha_grid = alpha_grid
         self.beta_grid = beta_grid
         self.gamma_grid = gamma_grid
@@ -108,19 +128,19 @@ class InterpolatedADMMetric(ADMMetric):
                 f"interp_method must be 'linear' or 'cubic'; got {self.interp_method!r}"
             )
 
-    def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+    def lapse(self, coords: Real[Array, "4"]) -> Float[Array, ""]:
         """Lapse :math:`\\alpha(t, \\vec{x})` via grid interpolation."""
         return _interpolate_scalar(self.alpha_grid, coords, self.grid_spec, self.interp_method)
 
-    def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
+    def shift(self, coords: Real[Array, "4"]) -> Float[Array, "3"]:
         """Shift 3-vector :math:`\\beta^i(t, \\vec{x})` via grid interpolation."""
         return _interpolate_vector(self.beta_grid, coords, self.grid_spec, self.interp_method)
 
-    def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
+    def spatial_metric(self, coords: Real[Array, "4"]) -> Float[Array, "3 3"]:
         """Spatial metric :math:`\\gamma_{ij}(t, \\vec{x})` via grid interpolation."""
         return _interpolate_tensor(self.gamma_grid, coords, self.grid_spec, self.interp_method)
 
-    def symbolic(self):  # type: ignore[override]
+    def symbolic(self):
         """Raise :class:`NotImplementedError` - no closed form for external data."""
         raise NotImplementedError(
             "InterpolatedADMMetric has no closed-form symbolic representation. "
@@ -128,7 +148,7 @@ class InterpolatedADMMetric(ADMMetric):
             "externally-loaded metrics."
         )
 
-    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+    def shape_function_value(self, coords: Real[Array, "4"]) -> Float[Array, ""]:
         """Raise :class:`NotImplementedError` - shape function not inferable."""
         raise NotImplementedError(
             "Shape function for externally-loaded metric is not inferable "
