@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.6.0] - 2026-10-22
 
 Regenerate `results/` and the figures with `./reproduce_all.sh --stage core`.
 
@@ -176,6 +176,7 @@ optimization, source-first shells, external metric loaders, and metric design.
 | 0.2 | Generalized eigenvalue fallback, bounded observer optimization, metric-design API, averaged-energy and quantum-inequality diagnostics, external metric readers. |
 | 0.1 | Autodiff curvature, six warp metrics, classification and observer optimization, Diffrax geodesics. Accompanied [arXiv:2602.18023](https://arxiv.org/abs/2602.18023). |
 
+[1.6.0]: https://github.com/anindex/warpax/releases/tag/v1.6.0
 [1.5.1]: https://github.com/anindex/warpax/releases/tag/v1.5.1
 [1.5.0]: https://github.com/anindex/warpax/releases/tag/v1.5.0
 [1.4.0]: https://github.com/anindex/warpax/releases/tag/v1.4.0

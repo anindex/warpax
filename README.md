@@ -9,7 +9,7 @@
 JAX tools for curvature, energy conditions, and geodesics in prescribed
 spacetimes. `warpax` uses automatic differentiation to evaluate the Einstein
 tensor, then tests energy conditions across observer directions.
-See the [changelog](CHANGELOG.md) for version **1.5.1**.
+See the [changelog](CHANGELOG.md) for version **1.6.0**.
 
 ![Alcubierre bubble: expansion, Eulerian energy density and normalized null-energy margin](https://raw.githubusercontent.com/anindex/warpax/main/figures/wall_velocity_sweep.gif)
 

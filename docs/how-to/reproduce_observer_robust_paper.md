@@ -1,6 +1,6 @@
 # Reproducing "Observer-robust energy condition verification for warp drive spacetimes"
 
-This guide describes the **warpax v1.5.1** analysis workflow associated with
+This guide describes the **warpax v1.6.0** analysis workflow associated with
 [the paper](https://arxiv.org/abs/2602.18023). The manuscript is a separate sibling
 checkout, `../warpax_arxiv`; the input metrics are generated from their stated
 parameters.
