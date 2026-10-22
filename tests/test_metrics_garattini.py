@@ -78,7 +78,7 @@ class TestPublishedConstruction:
     matching the last two terms cancel and the shift becomes a sum of two radial
     gradients, hence irrotational, which is the property the paper's positive-energy
     claim rests on. An earlier implementation used gamma_ij = e^{2Ht} delta_ij with an
-    Alcubierre shift on a constant-velocity centre; that shift has |curl beta| ~ 0.29
+    Alcubierre shift on a constant-velocity center; that shift has |curl beta| ~ 0.29
     at a generic wall point and reported Type-IV wall structure the real construction
     does not have.
     """
@@ -104,7 +104,6 @@ class TestPublishedConstruction:
         from warpax.energy_conditions.classification import classify_hawking_ellis
 
         m = GarattiniMetric.matched(R=1.0, sigma=8.0, H=0.1)
-        # A point on the bubble wall: the centre sits at r_0 = v_s / H = 1 at t = 0.
         pt = jnp.array([0.0, 2.0, 0.0, 0.0])
         c = compute_curvature_chain(m, pt)
         T, gi, g = c.stress_energy, c.metric_inv, c.metric

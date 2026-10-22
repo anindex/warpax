@@ -126,7 +126,6 @@ def kretschmann_isotropic(
     return 48 * M**2 / r_schw**6
 
 
-# Ground truth for validation
 GROUND_TRUTH = {
     "stress_energy_zero": True,
     "energy_conditions": {"WEC": True, "NEC": True, "DEC": True, "SEC": True},

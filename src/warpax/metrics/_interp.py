@@ -12,7 +12,6 @@ def cubic_on_grid(
     grid_vals: Float[Array, "N"],
 ) -> Float[Array, ""]:
     """``grid_vals`` at ``r``, clamped to the grid span so extrapolation cannot run."""
-    import interpax
+    from ..numerics import cubic_interp
 
-    r_clamped = jnp.clip(r, r_grid[0], r_grid[-1])
-    return interpax.interp1d(r_clamped, r_grid, grid_vals, method="cubic")
+    return cubic_interp(jnp.clip(r, r_grid[0], r_grid[-1]), r_grid, grid_vals)

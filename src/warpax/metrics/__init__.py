@@ -1,10 +1,5 @@
 """Warp drive spacetime metrics."""
 
-from ._fuchs_legacy import (
-    FuchsShellProfiles,
-    fuchs_input_stress_energy,
-    fuchs_shell_profiles,
-)
 from .fuchs_construction import (
     FuchsMetric,
     build_fuchs_construction,
@@ -29,11 +24,10 @@ from .tshell_profiles import (
     parabolic_velocity_profiles,
 )
 from .van_den_broeck import VanDenBroeckMetric
-from .warpshell import WarpShellMetric, WarpShellPhysical, WarpShellStressTest
+from .warpshell import WarpShellMetric, WarpShellPhysical
 
 __all__ = [
     "FuchsMetric",
-    "FuchsShellProfiles",
     "GarattiniMetric",
     "LentzMetric",
     "NatarioMetric",
@@ -45,15 +39,12 @@ __all__ = [
     "VanDenBroeckMetric",
     "WarpShellMetric",
     "WarpShellPhysical",
-    "WarpShellStressTest",
     "bernstein_density_profiles",
     "bernstein_velocity_profiles",
     "build_fuchs_construction",
     "constant_density_profiles",
     "constant_velocity_profiles",
     "fuchs_default",
-    "fuchs_input_stress_energy",
-    "fuchs_shell_profiles",
     "garattini_default",
     "parabolic_density_profiles",
     "parabolic_velocity_profiles",

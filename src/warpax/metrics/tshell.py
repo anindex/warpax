@@ -26,6 +26,7 @@ Regions:
 
 from __future__ import annotations
 
+import equinox as eqx
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
@@ -49,12 +50,17 @@ class TShellMetric(ADMMetric):
     ----------
     _r_grid, _Phi_grid, _Lambda_grid, _m_grid, _beta_x_grid : array
         Pre-solved potential grids.
-    R_1, R_2 : float
+    _E_grid, _S_x_grid : array
+        Eulerian energy and momentum density the solver sourced from.
+    R_1, R_2 : Float[Array, ""]
         Inner/outer shell radii.
     total_mass : Float[Array, ""]
-        Total shell mass M = m(R_2), stored as a jnp scalar array leaf
-        (a Python float here would be partitioned as static by
-        ``eqx.filter_jit`` and force a retrace per mass value).
+        Total shell mass M = m(R_2).
+
+    Notes
+    -----
+    Every scalar is stored as a jnp array leaf: a Python float would be
+    partitioned as static by ``eqx.filter_jit`` and force a retrace per value.
     """
 
     _r_grid: Float[Array, "N"]
@@ -62,10 +68,12 @@ class TShellMetric(ADMMetric):
     _Lambda_grid: Float[Array, "N"]
     _m_grid: Float[Array, "N"]
     _beta_x_grid: Float[Array, "N"]
+    _E_grid: Float[Array, "N"]
+    _S_x_grid: Float[Array, "N"]
 
-    R_1: float
-    R_2: float
-    total_mass: Float[Array, ""]
+    R_1: Float[Array, ""] = eqx.field(converter=jnp.asarray)
+    R_2: Float[Array, ""] = eqx.field(converter=jnp.asarray)
+    total_mass: Float[Array, ""] = eqx.field(converter=jnp.asarray)
 
     def _interp(self, r: Float[Array, ""], grid_vals: Float[Array, "N"]) -> Float[Array, ""]:
         return cubic_on_grid(r, self._r_grid, grid_vals)
@@ -78,6 +86,18 @@ class TShellMetric(ADMMetric):
 
     def _beta_x(self, r: Float[Array, ""]) -> Float[Array, ""]:
         return self._interp(r, self._beta_x_grid)
+
+    def sources(self, r: Float[Array, ""]) -> tuple[Float[Array, ""], Float[Array, "3"]]:
+        """Prescribed ADM sources ``(E, S_i)`` at radius ``r`` on the x-axis.
+
+        ``E = Gamma^2 (rho + p v^2)`` and ``S_x = Gamma^2 (rho + p) v_x`` with
+        ``Gamma^2 = 1 / (1 - v_x^2)``, exactly the grids ``solve_tshell_potentials``
+        integrates and feeds to the shift BVP as ``8 pi alpha S_x``. The solver
+        treats ``velocity_x`` as the covariant component ``v_x`` with the flat
+        norm ``v^2 = v_x^2`` and applies no ``e^{2 Lambda}`` factor, so the
+        covariant ``S_x`` returned here carries none either.
+        """
+        return self._interp(r, self._E_grid), jnp.array([self._interp(r, self._S_x_grid), 0.0, 0.0])
 
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Lapse alpha = e^{Phi(r)}."""
@@ -139,6 +159,10 @@ class TShellMetric(ADMMetric):
     def name(self) -> str:
         return "TShell"
 
+    def killing_vector(self) -> Float[Array, "4"]:
+        """``d/dt``: the construction is stationary in ``x``, not in ``x - v_s t``."""
+        return jnp.array([1.0, 0.0, 0.0, 0.0])
+
 
 def tshell_from_potentials(
     potentials: TShellPotentials,
@@ -152,11 +176,11 @@ def tshell_from_potentials(
         _Lambda_grid=potentials.Lambda_grid,
         _m_grid=potentials.m_grid,
         _beta_x_grid=potentials.beta_x_grid,
+        _E_grid=potentials.E_grid,
+        _S_x_grid=potentials.S_x_grid,
         R_1=R_1,
         R_2=R_2,
-        # jnp.asarray: keep total_mass an array pytree leaf (retrace fix);
-        # the T-shell solver still reports a Python float.
-        total_mass=jnp.asarray(potentials.total_mass),
+        total_mass=potentials.total_mass,
     )
 
 

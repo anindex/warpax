@@ -33,7 +33,7 @@ import sympy as sp
 from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
-from ..geometry.metric import ADMMetric, SymbolicMetric
+from ..geometry.metric import ADMMetric, SymbolicMetric, flat_x_shift_symbolic
 
 
 def _diamond_shape(
@@ -64,7 +64,10 @@ class LentzMetric(ADMMetric):
     construction with L1 (Manhattan) distance for the rhomboidal
     bubble geometry.
 
-    All parameters are dynamic fields (no recompilation on change).
+    All parameters are dynamic fields (no recompilation on change). They are
+    stored as array leaves, not Python floats: ``eqx.filter_jit`` partitions on
+    the value, so a float field would be static and every distinct value would
+    retrace the whole curvature chain.
 
     Parameters
     ----------
@@ -83,9 +86,6 @@ class LentzMetric(ADMMetric):
         that those spikes are an implementation artifact of the L1 shape.
     """
 
-    # Array leaves, not Python floats: eqx.filter_jit partitions on the
-    # VALUE, so a float field is static and every distinct value retraced
-    # the whole curvature chain.
     v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.1)
     R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=100.0)
     sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=8.0)
@@ -97,10 +97,14 @@ class LentzMetric(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
+        """Shift beta^i = (-v_s f(d), 0, 0) on the L1 or L2 distance d.
+
+        ``rho_perp`` and the L2 distance carry a 1e-60 safe-sqrt floor so the
+        derivative of sqrt is not 0/0 at y = z = 0 (NaN Christoffels on-axis);
+        the floor is numerically negligible.
+        """
         t, x, y, z = coords
         x_rel = x - self.v_s * t
-        # Safe-sqrt floor: avoid 0/0 derivative of sqrt at y=z=0 (NaN
-        # Christoffels on-axis); 1e-60 is numerically negligible.
         rho_perp = jnp.sqrt(y**2 + z**2 + 1e-60)
 
         if self.distance == "L2":
@@ -117,20 +121,20 @@ class LentzMetric(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
-        """Shape function, on the same distance the shift uses."""
+        """Shape function, on the same distance the shift uses.
+
+        It must honor ``self.distance`` exactly as :meth:`shift` does;
+        otherwise the wall masks and grid clustering describe a different
+        bubble from the metric.
+        """
         t, x, y, z = coords
         x_rel = x - self.v_s * t
         rho_perp = jnp.sqrt(y**2 + z**2 + 1e-60)
-        # L1 was hard-coded here while shift() honoured self.distance, so with
-        # distance="L2" the wall masks and grid clustering described a different
-        # bubble from the metric.
         if self.distance == "L2":
             d = jnp.sqrt(x_rel**2 + y**2 + z**2 + 1e-60)
         else:
             d = jnp.abs(x_rel) + rho_perp
         return _diamond_shape(d, self.R, self.sigma)
-
-    # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 
     def symbolic(self) -> SymbolicMetric:
         """Return SymPy symbolic form for inspection and cross-validation."""
@@ -147,16 +151,7 @@ class LentzMetric(ADMMetric):
             2 * sp.tanh(sigma_val * R_val)
         )
 
-        # g_00 = -(1 - v_s^2 f^2); g_0x = -v_s f (gamma = delta); g_ij = delta_ij
-        g = sp.Matrix(
-            [
-                [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
-                [-v_s * f, 1, 0, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1],
-            ]
-        )
-        return SymbolicMetric([t, x, y, z], g)
+        return flat_x_shift_symbolic([t, x, y, z], v_s, f)
 
     def name(self) -> str:
         return "Lentz"

@@ -1,4 +1,14 @@
-"""Warp-metric construction and contracts: Lentz, Natario, Rodal, VdB, WarpShell."""
+"""Warp-metric construction and contracts: Lentz, Natario, Rodal, VdB, WarpShell.
+
+``CONTRACTS`` states the contract every warp metric owes, asserted once over the
+table: ``probe`` is a generic evaluation point, ``speed_point`` sits where changing
+v_s must move the metric, and ``wall`` tunes the metric so ``wall_point`` lands
+where curvature is nontrivial (Lentz's wall point is off-axis to avoid the L1
+kink). ``test_far_field_is_minkowski`` covers the metrics whose defaults give a
+Minkowski limit on the x-axis; Natario is co-moving, so its far field carries a
+uniform flow, and WarpShell checks its exterior at two radii, so both keep their
+own test.
+"""
 
 from pathlib import Path
 from runpy import run_path
@@ -17,26 +27,22 @@ from warpax.metrics import (
     VanDenBroeckMetric,
     WarpShellMetric,
     WarpShellPhysical,
-    WarpShellStressTest,
     tshell_default,
 )
+from warpax.metrics import warpshell as warpshell_module
 from warpax.metrics._common import alcubierre_shape
 from warpax.metrics.natario import natario_eulerian_energy_density
 from warpax.metrics.rodal import _rodal_G, _rodal_g_paper
 
-# The contract every warp metric owes, asserted once over the table rather than
-# copied per class. Only the points differ: ``probe`` is a generic evaluation
-# point, ``speed_point`` sits where changing v_s must move the metric, and
-# ``wall`` tunes the metric so ``wall_point`` lands where curvature is nontrivial.
 CONTRACTS = [
     dict(
         name="Lentz",
         build=LentzMetric,
         probe=[0.0, 5.0, 2.0, 3.0],
         speeds=({"v_s": 0.1}, {"v_s": 0.5}),
-        speed_point=[0.0, 10.0, 5.0, 0.0],  # inside the diamond
+        speed_point=[0.0, 10.0, 5.0, 0.0],
         wall={"v_s": 0.1, "R": 100.0, "sigma": 8.0},
-        wall_point=[0.0, 50.0, 50.0, 0.0],  # off-axis, avoiding the L1 kink
+        wall_point=[0.0, 50.0, 50.0, 0.0],
     ),
     dict(
         name="Natario",
@@ -70,16 +76,16 @@ CONTRACTS = [
             "alpha_vdb": 0.5,
             "sigma_B": 8.0,
         },
-        wall_point=[0.0, 200.0, 1.0, 0.0],  # the conformal wall
+        wall_point=[0.0, 200.0, 1.0, 0.0],
     ),
     dict(
         name="WarpShell",
         build=WarpShellMetric,
         probe=[0.0, 15.0, 2.0, 3.0],
         speeds=({"v_s": 0.02}, {"v_s": 0.1}),
-        speed_point=[0.0, 5.0, 0.0, 0.0],  # interior, r < R_1
+        speed_point=[0.0, 5.0, 0.0, 0.0],
         wall={"v_s": 0.02, "R_1": 10.0, "R_2": 20.0, "R_b": 1.0, "r_s_param": 5.0},
-        wall_point=[0.0, 15.0, 0.0, 0.0],  # inside the shell
+        wall_point=[0.0, 15.0, 0.0, 0.0],
     ),
     dict(
         name="WarpShellPhysical",
@@ -147,9 +153,6 @@ def test_gaussian_example_has_regular_center_curvature():
         assert jnp.allclose(hessian[1:, 1:], -jnp.eye(3) / metric.w**2, atol=1e-14)
 
 
-# Metrics whose defaults give a Minkowski limit on the x-axis. Natario is co-moving,
-# so its far field carries a uniform flow, and WarpShell checks its exterior at two
-# radii; both keep their own test.
 @pytest.mark.parametrize(
     "build",
     [LentzMetric, RodalMetric, VanDenBroeckMetric, WarpShellPhysical],
@@ -172,30 +175,24 @@ class TestLentz:
         Note: We use a point slightly off origin to avoid the L1 norm
         non-differentiable point at x_rel=0.
         """
-        m = LentzMetric()  # v_s=0.1, R=100.0, sigma=8.0
-        coords = jnp.array([0.0, 5.0, 0.0, 0.0])  # inside diamond
+        m = LentzMetric()
+        coords = jnp.array([0.0, 5.0, 0.0, 0.0])
         g = m(coords)
         assert g.shape == (4, 4)
-        # Spatial block should be flat identity
         assert jnp.allclose(g[1:, 1:], jnp.eye(3), atol=1e-14)
-        # g_00 = -(1 - v_s^2 * f^2) ~ -(1 - 0.01) = -0.99 for f~1
-        assert g[0, 0] < 0.0  # timelike
-
-    # ------------------------------------------------------------------
-    # Physics-specific tests
-    # ------------------------------------------------------------------
+        assert g[0, 0] < 0.0
 
     def test_lentz_subluminal_g00_negative(self):
         """For v_s=0.5, verify g_00 < 0 at bubble center (timelike preserved)."""
         m = LentzMetric(v_s=0.5, R=100.0, sigma=8.0)
-        coords = jnp.array([0.0, 5.0, 0.0, 0.0])  # near center
+        coords = jnp.array([0.0, 5.0, 0.0, 0.0])
         g = m(coords)
         assert g[0, 0] < 0.0, f"g_00 = {g[0, 0]}, expected < 0 for subluminal v_s=0.5"
 
     def test_lentz_superluminal_g00_positive(self):
         """For v_s=2.0, verify g_00 > 0 at bubble center (signature change)."""
         m = LentzMetric(v_s=2.0, R=100.0, sigma=8.0)
-        coords = jnp.array([0.0, 5.0, 0.0, 0.0])  # near center
+        coords = jnp.array([0.0, 5.0, 0.0, 0.0])
         g = m(coords)
         assert g[0, 0] > 0.0, f"g_00 = {g[0, 0]}, expected > 0 for superluminal v_s=2.0"
 
@@ -211,12 +208,10 @@ class TestLentz:
         lentz = LentzMetric(v_s=v_s, R=R, sigma=sigma)
         alc = AlcubierreMetric(v_s=v_s, R=R, sigma=sigma, x_s=0.0)
 
-        # 45-degree diagonal: L1 = 100 (on wall), L2 = 70.7 (inside)
         diag = jnp.array([0.0, 50.0, 50.0, 0.0])
         beta_lentz = lentz.shift(diag)
         beta_alc = alc.shift(diag)
 
-        # Shifts should differ significantly
         assert not jnp.allclose(beta_lentz, beta_alc, atol=1e-3), (
             f"Lentz shift = {beta_lentz}, Alcubierre shift = {beta_alc}. "
             "Diamond and spherical should produce different shifts at diagonal."
@@ -234,12 +229,10 @@ class TestLentz:
         """
         m = LentzMetric(v_s=0.1, R=100.0, sigma=8.0)
 
-        # Reference values computed from our pipeline (regression baseline)
-        # Points chosen to avoid L1 non-differentiable kink at x_rel=0
         test_cases = {
             "near_center": {
                 "coords": jnp.array([0.0, 5.0, 5.0, 0.0]),
-                "rho_euler": 0.0,  # Deep inside: flat, zero curvature
+                "rho_euler": 0.0,
             },
             "wall_diagonal": {
                 "coords": jnp.array([0.0, 50.0, 50.0, 0.0]),
@@ -247,7 +240,7 @@ class TestLentz:
             },
             "outside": {
                 "coords": jnp.array([0.0, 200.0, 200.0, 0.0]),
-                "rho_euler": 0.0,  # Far outside: flat, zero curvature
+                "rho_euler": 0.0,
             },
         }
 
@@ -255,8 +248,6 @@ class TestLentz:
             coords = case["coords"]
             result = compute_curvature_chain(m, coords)
 
-            # Eulerian energy density: T_ab n^a n^b
-            # For unit lapse and flat spatial: n^a = (1, -beta^i)
             beta = m.shift(coords)
             n_up = jnp.array([1.0, -beta[0], -beta[1], -beta[2]])
             T = result.stress_energy
@@ -269,10 +260,6 @@ class TestLentz:
 
 class TestNatario:
     """Tests for NatarioMetric."""
-
-    # ------------------------------------------------------------------
-    # Standard 8-test battery
-    # ------------------------------------------------------------------
 
     def test_natario_at_origin(self):
         """The moving laboratory center has a unit timelike tangent."""
@@ -289,10 +276,6 @@ class TestNatario:
         g = m(jnp.array([0.0, 1000.0, 0.0, 0.0]))
         assert jnp.allclose(g, jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0])), atol=1e-14)
 
-    # ------------------------------------------------------------------
-    # Physics-specific tests
-    # ------------------------------------------------------------------
-
     def test_natario_zero_expansion(self):
         """Verify div(beta) = 0 (zero expansion) at multiple points.
 
@@ -305,7 +288,6 @@ class TestNatario:
         def shift_fn(coords):
             return m.shift(coords)
 
-        # Test at several points including bubble wall region
         test_points = [
             jnp.array([0.0, 50.0, 10.0, 0.0]),
             jnp.array([0.0, 100.0, 5.0, 3.0]),
@@ -313,11 +295,7 @@ class TestNatario:
         ]
 
         for coords in test_points:
-            # Compute Jacobian of shift w.r.t. spatial coordinates
-            # shift returns (3,), coords are (4,), so Jacobian is (3, 4)
             J = jax.jacfwd(shift_fn)(coords)
-            # div(beta) = d(beta^x)/dx + d(beta^y)/dy + d(beta^z)/dz
-            # Spatial indices are 1,2,3 in coordinates
             div_beta = J[0, 1] + J[1, 2] + J[2, 3]
             assert jnp.isclose(div_beta, 0.0, atol=1e-8), (
                 f"div(beta) = {div_beta} at {coords}, expected ~0"
@@ -351,16 +329,11 @@ class TestNatario:
         rho = natario_eulerian_energy_density(X, Y, Z, v_s=0.1, R=100.0, sigma=0.03)
         assert jnp.all(rho <= 1e-15), f"max rho = {jnp.max(rho)}"
         assert rho.dtype == jnp.float64
-        # Check that some values are significantly negative (not all zero)
         assert jnp.min(rho) < -1e-10, f"min rho = {jnp.min(rho)}, should be significantly negative"
 
 
 class TestRodal:
     """Tests for RodalMetric."""
-
-    # ------------------------------------------------------------------
-    # Standard 8-test battery
-    # ------------------------------------------------------------------
 
     def test_rodal_at_origin(self):
         """Evaluate at origin, verify metric structure.
@@ -368,18 +341,12 @@ class TestRodal:
         At origin with r_s=0: F(0)~1, G(0)~1, so shift = (-v_s, 0, 0).
         g_00 = -(1 - v_s^2), g_01 = -v_s, spatial = delta_ij.
         """
-        m = RodalMetric()  # v_s=0.1, R=100.0, sigma=0.03
+        m = RodalMetric()
         coords = jnp.array([0.0, 0.0, 0.0, 0.0])
         g = m(coords)
         assert g.shape == (4, 4)
-        # Spatial block should be flat identity
         assert jnp.allclose(g[1:, 1:], jnp.eye(3), atol=1e-14)
-        # g_00 = -(1 - v_s^2) since f(0) ~ 1 for r inside bubble
-        assert g[0, 0] < 0.0  # timelike
-
-    # ------------------------------------------------------------------
-    # Physics-specific tests
-    # ------------------------------------------------------------------
+        assert g[0, 0] < 0.0
 
     def test_rodal_irrotational_shift(self):
         """Check that G_0i components of Einstein tensor are near-zero.
@@ -389,16 +356,13 @@ class TestRodal:
         tensor: G^mu_nu = g^{mu alpha} G_{alpha nu}.
         """
         m = RodalMetric(v_s=0.1, R=100.0, sigma=0.03)
-        # Point away from center, off-axis to probe angular components
         coords = jnp.array([0.0, 80.0, 20.0, 0.0])
         result = compute_curvature_chain(m, coords)
         G = result.einstein
         g_inv = result.metric_inv
 
-        # Raise first index: G^mu_nu = g^{mu alpha} G_{alpha nu}
         G_mixed = jnp.einsum("ma,an->mn", g_inv, G)
 
-        # G^0_i (momentum density) should be near zero for irrotational shift
         G_0i = G_mixed[0, 1:]
         assert jnp.allclose(G_0i, 0.0, atol=1e-8), (
             f"G^0_i = {G_0i}, expected ~0 for irrotational shift"
@@ -412,11 +376,13 @@ class TestRodal:
 
         Note: G(0) = 1 exactly for all R*sigma (via the analytic limit
         Delta'(0) = -2*sigma*tanh(sigma*R)). The physical behavior is
-        correct: G is 1 at center and 0 at far field.
+        correct: G is 1 at center and 0 at far field. G(r) has a 1/r tail
+        (slower convergence than F), so the test checks monotone decrease
+        and relies on the full-metric far-field test rather than requiring
+        G(1000) ~ 0.
         """
         R, sigma = 100.0, 0.03
 
-        # Radial shape F = f_Alc
         r_zero = jnp.array(0.0)
         r_far = jnp.array(1000.0)
         F_0 = alcubierre_shape(r_zero, R, sigma)
@@ -424,11 +390,6 @@ class TestRodal:
         assert jnp.isclose(F_0, 1.0, atol=1e-6), f"F(0) = {F_0}"
         assert jnp.isclose(F_inf, 0.0, atol=1e-6), f"F(inf) = {F_inf}"
 
-        # Angular shape G = 1 - g_paper
-        # G(0) is close to 1 but depends on R*sigma; with R*sigma=3, G(0)~0.989
-        # G(r) has a 1/r tail (slower convergence than F), so we test monotone
-        # decrease and that the far-field metric is still Minkowski (via the
-        # full metric test above), rather than requiring G(1000)~0.
         G_0 = _rodal_G(r_zero, R, sigma)
         G_mid = _rodal_G(jnp.array(500.0), R, sigma)
         G_far = _rodal_G(r_far, R, sigma)
@@ -448,13 +409,8 @@ class TestRodal:
         g_vals = jax.vmap(lambda r: _rodal_g_paper(r, R, sigma))(r_values)
         assert not jnp.any(jnp.isnan(g_vals)), f"NaN found in g_paper: {g_vals}"
         assert not jnp.any(jnp.isinf(g_vals)), f"Inf found in g_paper: {g_vals}"
-        # g_paper should be bounded in [0, 1]
         assert jnp.all(g_vals >= -1e-10), f"g_paper < 0: {g_vals}"
         assert jnp.all(g_vals <= 1.0 + 1e-10), f"g_paper > 1: {g_vals}"
-
-    # ------------------------------------------------------------------
-    # Cartesian shift & stable G(r) tests
-    # ------------------------------------------------------------------
 
     def test_rodal_cartesian_origin_regularity(self):
         """shift(origin) = (-v_s, 0, 0) without NaN.
@@ -467,7 +423,6 @@ class TestRodal:
         coords = jnp.array([0.0, 0.0, 0.0, 0.0])
         shift = m.shift(coords)
         assert not jnp.any(jnp.isnan(shift)), f"NaN in shift at origin: {shift}"
-        # G(0) ~ 1.0 (exact in analytic limit), so shift_x ~ -v_s
         assert jnp.isclose(shift[0], -m.v_s, atol=1e-8), (
             f"shift[0] = {shift[0]}, expected ~ {-m.v_s}"
         )
@@ -491,11 +446,9 @@ class TestRodal:
         The analytic limit Delta'(0) = -2*sigma*tanh(sigma*R) gives
         g_paper(0) = 0 exactly (G(0) = 1) for all R*sigma products.
         """
-        # R*sigma=3 (soft wall): G(0) should be very close to 1.0
         G_0_soft = _rodal_G(jnp.array(0.0), 100.0, 0.03)
         assert G_0_soft > 0.99, f"G(0) for R*sigma=3: {G_0_soft}, expected > 0.99"
         assert G_0_soft < 1.01, f"G(0) for R*sigma=3: {G_0_soft}, expected < 1.01"
-        # R*sigma=100 (sharp wall): G(0) -> 1 exactly
         G_0_sharp = _rodal_G(jnp.array(0.0), 100.0, 1.0)
         assert jnp.isclose(G_0_sharp, 1.0, atol=1e-6), (
             f"G(0) for R*sigma=100: {G_0_sharp}, expected ~ 1.0"
@@ -518,15 +471,13 @@ class TestRodal:
         Reference values computed from the algebraically equivalent
         spherical-tetrad form at points away from origin.
         """
-        m = RodalMetric()  # v_s=0.1, R=100.0, sigma=0.03
-        # Pre-computed reference values (from spherical-tetrad implementation)
+        m = RodalMetric()
         test_cases = [
-            # (coords, expected_shift) - values from original implementation
             (jnp.array([0.0, 50.0, 10.0, 0.0]), jnp.array([-0.09557155, 0.0006476, 0.0])),
             (jnp.array([0.0, 100.0, 1.0, 0.0]), jnp.array([-0.0502442, 0.00038641, 0.0])),
             (jnp.array([0.0, 0.0, 50.0, 50.0]), jnp.array([-0.09672827, 0.0, 0.0])),
             (jnp.array([0.0, 200.0, 0.0, 0.0]), jnp.array([-0.00024849, 0.0, 0.0])),
-            (jnp.array([0.0, 30.0, 20.0, 10.0]), None),  # just check no NaN
+            (jnp.array([0.0, 30.0, 20.0, 10.0]), None),
         ]
         for coords, expected in test_cases:
             shift = m.shift(coords)
@@ -540,39 +491,29 @@ class TestRodal:
 class TestVanDenBroeck:
     """Tests for VanDenBroeckMetric."""
 
-    # ------------------------------------------------------------------
-    # Standard 8-test battery
-    # ------------------------------------------------------------------
-
     def test_vdb_at_origin(self):
         """Evaluate at origin, verify metric structure.
 
         At origin with r_s=0: f(0)~1, B(0)=1+alpha_vdb.
         Spatial block = B^2 * I. Shift = (-v_s * f, 0, 0).
         """
-        m = VanDenBroeckMetric()  # v_s=0.1, R=350, sigma=8, R_tilde=200, alpha_vdb=0.5, sigma_B=8
+        m = VanDenBroeckMetric()
         coords = jnp.array([0.0, 0.0, 0.0, 0.0])
         g = m(coords)
         assert g.shape == (4, 4)
-        # Spatial block should be B^2 * I where B(0) = 1 + alpha_vdb = 1.5
         B_sq = (1.0 + m.alpha_vdb) ** 2
         assert jnp.allclose(g[1:, 1:], B_sq * jnp.eye(3), atol=1e-6)
-        # Timelike
         assert g[0, 0] < 0.0
-
-    # ------------------------------------------------------------------
-    # Physics-specific tests
-    # ------------------------------------------------------------------
 
     def test_vdb_conformal_factor(self):
         """At bubble center, B(0) = 1 + alpha_vdb, so gamma_ij = (1+alpha_vdb)^2 * I.
 
         Verify spatial metric diagonal has the expected conformal factor.
         """
-        m = VanDenBroeckMetric()  # alpha_vdb=0.5
+        m = VanDenBroeckMetric()
         coords = jnp.array([0.0, 0.0, 0.0, 0.0])
         gamma = m.spatial_metric(coords)
-        B_center = 1.0 + m.alpha_vdb  # = 1.5
+        B_center = 1.0 + m.alpha_vdb
         expected_gamma = B_center**2 * jnp.eye(3)
         assert jnp.allclose(gamma, expected_gamma, atol=1e-6), (
             f"gamma = {jnp.diag(gamma)}, expected diag = {B_center**2}"
@@ -584,7 +525,6 @@ class TestVanDenBroeck:
         Both use the same Alcubierre top-hat shape function for the shift,
         so at matching parameter values the shift vectors should be identical.
         """
-        # Use matching parameters (small R so we can test in reasonable coords)
         v_s, R, sigma = 0.1, 350.0, 8.0
         vdb = VanDenBroeckMetric(v_s=v_s, R=R, sigma=sigma)
         alc = AlcubierreMetric(v_s=v_s, R=R, sigma=sigma, x_s=0.0)
@@ -609,7 +549,6 @@ class TestVanDenBroeck:
         )
         alc = AlcubierreMetric(v_s=v_s, R=R, sigma=sigma, x_s=0.0)
 
-        # Point near the conformal bubble wall where B != 1
         coords = jnp.array([0.0, 200.0, 1.0, 0.0])
         result_vdb = compute_curvature_chain(vdb, coords)
         result_alc = compute_curvature_chain(alc, coords)
@@ -617,7 +556,6 @@ class TestVanDenBroeck:
         T_vdb = result_vdb.stress_energy
         T_alc = result_alc.stress_energy
 
-        # They should differ due to the conformal factor
         assert not jnp.allclose(T_vdb, T_alc, atol=1e-10), (
             "Stress-energy should differ between VdB and Alcubierre near conformal bubble wall"
         )
@@ -626,24 +564,20 @@ class TestVanDenBroeck:
 class TestWarpShell:
     """Tests for WarpShellMetric."""
 
-    # ------------------------------------------------------------------
-    # Standard 8-test battery
-    # ------------------------------------------------------------------
-
     def test_warpshell_at_origin(self):
         """Evaluate at origin, verify metric structure.
 
         At origin (deep interior, r=0 < R_1): lapse=1, shift=-v_s,
         spatial=identity. The metric should be a Minkowski-like metric
-        with uniform shift (co-moving with the bubble).
+        with uniform shift (co-moving with the bubble). At r=0 the spatial
+        block is forced to identity by the r < 1e-10 guard; S_warp(0)=1 and
+        lapse=1 exactly, so g_01 = -v_s and g_00 = -(1 - v_s^2).
         """
-        m = WarpShellMetric()  # v_s=0.02, R_1=10, R_2=20, R_b=1, r_s_param=5
+        m = WarpShellMetric()
         coords = jnp.array([0.0, 0.0, 0.0, 0.0])
         g = m(coords)
         assert g.shape == (4, 4)
-        # At r=0, deep inside, forced to identity by r < 1e-10 guard
         assert jnp.allclose(g[1:, 1:], jnp.eye(3), atol=1e-14)
-        # S_warp(0)=1 and lapse=1 exactly, so g_01 = -v_s, g_00 = -(1 - v_s^2)
         assert jnp.isclose(g[0, 1], -m.v_s, atol=1e-12)
         assert jnp.isclose(g[0, 0], -(1.0 - m.v_s**2), atol=1e-12)
 
@@ -652,7 +586,7 @@ class TestWarpShell:
 
         Checks both just outside the shell (r=50) and deep far field (r=1000).
         """
-        m = WarpShellMetric()  # R_2=20
+        m = WarpShellMetric()
         minkowski = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
         for r in (50.0, 1000.0):
             g = m(jnp.array([0.0, r, 0.0, 0.0]))
@@ -661,14 +595,10 @@ class TestWarpShell:
                 f"Got g_00={g[0, 0]}, diag_spatial={jnp.diag(g[1:, 1:])}"
             )
 
-    # ------------------------------------------------------------------
-    # Physics-specific tests
-    # ------------------------------------------------------------------
-
     def test_warpshell_interior_flat(self):
         """At r < R_1 (deep interior), spatial metric = identity, lapse = 1."""
-        m = WarpShellMetric()  # R_1=10
-        coords = jnp.array([0.0, 5.0, 0.0, 0.0])  # r=5 < R_1=10
+        m = WarpShellMetric()
+        coords = jnp.array([0.0, 5.0, 0.0, 0.0])
         gamma = m.spatial_metric(coords)
         alpha = m.lapse(coords)
         assert jnp.allclose(gamma, jnp.eye(3), atol=1e-10), (
@@ -681,21 +611,20 @@ class TestWarpShell:
 
         The Schwarzschild-like radial stretching gives gamma_rr > 1 in the shell.
         """
-        m = WarpShellMetric()  # R_1=10, R_2=20
-        coords = jnp.array([0.0, 15.0, 0.0, 0.0])  # r=15, in shell
+        m = WarpShellMetric()
+        coords = jnp.array([0.0, 15.0, 0.0, 0.0])
         gamma = m.spatial_metric(coords)
         assert not jnp.allclose(gamma, jnp.eye(3), atol=1e-6), (
             "Shell spatial metric should NOT be identity"
         )
-        # Along x-axis, radial direction = x, so gamma_xx should be > 1
         assert gamma[0, 0] > 1.0 + 1e-6, (
             f"gamma_xx = {gamma[0, 0]}, expected > 1 (Schwarzschild radial stretching)"
         )
 
     def test_warpshell_shell_lapse_reduced(self):
         """At r in shell, lapse < 1 (Schwarzschild time dilation)."""
-        m = WarpShellMetric()  # R_1=10, R_2=20
-        coords = jnp.array([0.0, 15.0, 0.0, 0.0])  # r=15, in shell
+        m = WarpShellMetric()
+        coords = jnp.array([0.0, 15.0, 0.0, 0.0])
         alpha = m.lapse(coords)
         assert alpha < 1.0 - 1e-6, (
             f"Shell lapse = {alpha}, expected < 1 (Schwarzschild time dilation)"
@@ -708,7 +637,6 @@ class TestWarpShell:
         The spherical-to-Cartesian tensor transformation must preserve symmetry.
         """
         m = WarpShellMetric()
-        # 5 points in the shell region (r between R_1=10 and R_2=20), off-axis
         shell_points = [
             jnp.array([0.0, 12.0, 3.0, 0.0]),
             jnp.array([0.0, 10.0, 10.0, 0.0]),
@@ -749,12 +677,10 @@ class TestWarpShell:
         Confirms the transition function correctly reduces to flat space at boundaries.
         """
         m = WarpShellMetric()
-        # Interior points
         interior_points = [
             jnp.array([0.0, 3.0, 0.0, 0.0]),
             jnp.array([0.0, 2.0, 2.0, 0.0]),
         ]
-        # Exterior points
         exterior_points = [
             jnp.array([0.0, 50.0, 0.0, 0.0]),
             jnp.array([0.0, 100.0, 0.0, 0.0]),
@@ -793,8 +719,6 @@ class TestWarpShell:
         for name, coords in points.items():
             result = compute_curvature_chain(m, coords)
 
-            # Eulerian energy density: T_ab n^a n^b
-            # For WarpShell: n^a = (1/alpha, -beta^i/alpha)
             alpha = m.lapse(coords)
             beta = m.shift(coords)
             n_up = jnp.array(
@@ -813,30 +737,23 @@ class TestWarpShell:
                 "expected ~0 (locally Schwarzschild shell is vacuum)"
             )
 
-    # ------------------------------------------------------------------
-    # C1 continuity tests
-    # ------------------------------------------------------------------
-
     def test_warpshell_c1_continuity(self):
-        """Lapse gradient stays bounded across shell transitions (C1)."""
+        """Lapse gradient stays bounded across shell transitions (C1).
+
+        For a C1 function the second derivative is bounded; a C0 transition
+        would give second-difference jumps >> 1e3 here.
+        """
         m = WarpShellMetric()
-        # Radial sweep along x-axis from interior through shell to exterior
         r_vals = jnp.linspace(5.0, 25.0, 200)
         coords_fn = lambda r: jnp.array([0.0, r, 0.0, 0.0])
 
-        # Gradient of lapse w.r.t. radial coordinate (x-component)
         dlapse_dr = jax.vmap(lambda r: jax.grad(lambda c: m.lapse(c))(coords_fn(r))[1])(r_vals)
 
-        # No NaN
         assert not jnp.any(jnp.isnan(dlapse_dr)), "Lapse gradient contains NaN values"
 
-        # C1 check: second differences should be bounded
-        # (no delta-function spikes in the derivative)
         d2 = jnp.diff(dlapse_dr)
         dr = float(r_vals[1] - r_vals[0])
         max_jump = float(jnp.max(jnp.abs(d2))) / dr
-        # For a C1 function, the second derivative is bounded.
-        # The old C0 functions would have jumps >> 1e3 here.
         assert max_jump < 1e3, (
             f"Lapse gradient has large jump (max_jump/dr={max_jump:.1f}), "
             f"suggesting C0 discontinuity"
@@ -848,13 +765,10 @@ class TestWarpShell:
         r_vals = jnp.linspace(5.0, 25.0, 200)
         coords_fn = lambda r: jnp.array([0.0, r, 0.0, 0.0])
 
-        # Gradient of shift_x w.r.t. x-coordinate
         dshift_dr = jax.vmap(lambda r: jax.grad(lambda c: m.shift(c)[0])(coords_fn(r))[1])(r_vals)
 
-        # No NaN
         assert not jnp.any(jnp.isnan(dshift_dr)), "Shift gradient contains NaN values"
 
-        # C1 check: bounded second differences
         d2 = jnp.diff(dshift_dr)
         dr = float(r_vals[1] - r_vals[0])
         max_jump = float(jnp.max(jnp.abs(d2))) / dr
@@ -870,31 +784,29 @@ class TestWarpShell:
         1. smooth_width can be passed as constructor parameter
         2. Different smooth_width values produce different metrics in transition zone
         3. Interior/exterior flatness is preserved regardless of smooth_width
+
+        smooth_width=None resolves to the default 1.2; r=9 lies in the
+        transition zone just inside R_1=10, r=5 is interior and the
+        exterior is checked beyond R_2.
         """
-        m_default = WarpShellMetric()  # smooth_width=None -> 1.2
+        m_default = WarpShellMetric()
         m_narrow = WarpShellMetric(smooth_width=0.5)
         m_wide = WarpShellMetric(smooth_width=3.0)
 
-        # Verify smooth_width field values
         assert m_default.smooth_width is None
         assert m_narrow.smooth_width == 0.5
         assert m_wide.smooth_width == 3.0
 
-        # In transition zone (just outside R_1), different smooth_width
-        # should produce different lapse values
-        coords_transition = jnp.array([0.0, 9.0, 0.0, 0.0])  # r=9 < R_1=10
+        coords_transition = jnp.array([0.0, 9.0, 0.0, 0.0])
         alpha_default = m_default.lapse(coords_transition)
         alpha_narrow = m_narrow.lapse(coords_transition)
         alpha_wide = m_wide.lapse(coords_transition)
 
-        # Wide smooth_width should have more blending at r=9
-        # (further from R_1 - smooth_width boundary)
         assert not jnp.isclose(alpha_narrow, alpha_wide, atol=1e-6), (
             f"Different smooth_width should produce different lapse in transition zone. "
             f"narrow={alpha_narrow}, wide={alpha_wide}"
         )
 
-        # Interior flatness preserved (r=5 is well inside for all smooth_width values)
         coords_interior = jnp.array([0.0, 5.0, 0.0, 0.0])
         for m_test in [m_default, m_narrow, m_wide]:
             alpha = m_test.lapse(coords_interior)
@@ -906,7 +818,6 @@ class TestWarpShell:
                 f"Interior spatial metric should be identity with smooth_width={m_test.smooth_width}"
             )
 
-        # Exterior flatness preserved
         coords_exterior = jnp.array([0.0, 50.0, 0.0, 0.0])
         for m_test in [m_default, m_narrow, m_wide]:
             alpha = m_test.lapse(coords_exterior)
@@ -918,10 +829,6 @@ class TestWarpShell:
                 f"Exterior spatial metric should be identity with smooth_width={m_test.smooth_width}"
             )
 
-    # ------------------------------------------------------------------
-    # C1 regression tests (lock legacy behavior)
-    # ------------------------------------------------------------------
-
     def test_warpshell_c1_regression(self):
         """C1 regression: pin the transition_order=1 code path.
 
@@ -932,7 +839,8 @@ class TestWarpShell:
            vacuum, so rho sits at machine epsilon ~1e-20).
         2. Pins that actually distinguish C1 from C2 in the transition
            zone at r=9.2: the cubic and quintic smoothsteps differ at
-           O(1e-2) there (C2 lapse is 0.9319294656761363).
+           O(1e-2) there (C2 lapse is 0.9319294656761363). The transition
+           zone is [R_1 - smooth_width, R_1] = [8.8, 10].
         """
         m = WarpShellMetric(
             v_s=0.02,
@@ -964,8 +872,6 @@ class TestWarpShell:
                 f"C1 regression r={r}: rho_euler = {rho_euler:.16e}, expected ~0"
             )
 
-        # C1-distinguishing pins, measured from the current pipeline.
-        # Transition zone is [R_1 - smooth_width, R_1] = [8.8, 10].
         seam = jnp.array([0.0, 9.2, 0.0, 0.0])
         lapse_c1 = m.lapse(seam)
         assert jnp.isclose(lapse_c1, 0.9159128693646388, atol=1e-12), (
@@ -978,10 +884,6 @@ class TestWarpShell:
             "expected 0.20735301228665254 (C2 gives 0.7242653636732740)"
         )
 
-    # ------------------------------------------------------------------
-    # C2 transition_order field tests
-    # ------------------------------------------------------------------
-
     def test_warpshell_transition_order_field(self):
         """Default transition_order=2, configurable to 1."""
         m_default = WarpShellMetric()
@@ -989,17 +891,14 @@ class TestWarpShell:
         assert m_default.transition_order == 2
         assert m_c1.transition_order == 1
 
-    # ------------------------------------------------------------------
-    # C2 continuity tests
-    # ------------------------------------------------------------------
-
     def test_warpshell_c2_second_derivative_continuity(self):
         """C2 lapse has bounded third differences (continuous second derivative).
 
         Sweeps lapse along r from 5 to 25 (200 points), computes second
         derivative via nested jax.grad, and checks that third differences
         are bounded. The C2 quintic should produce significantly smaller
-        jumps than C1 cubic at transition seams.
+        jumps than C1 cubic at transition seams, so the bound (< 100) is
+        tighter than the C1 bound (< 1e3).
         """
         m = WarpShellMetric(transition_order=2)
         r_vals = jnp.linspace(5.0, 25.0, 200)
@@ -1007,18 +906,14 @@ class TestWarpShell:
         def lapse_of_x(x):
             return m.lapse(jnp.array([0.0, x, 0.0, 0.0]))
 
-        # Second derivative of lapse w.r.t. x
         d2lapse = jax.vmap(jax.grad(jax.grad(lapse_of_x)))(r_vals)
 
-        # No NaN
         assert not jnp.any(jnp.isnan(d2lapse)), "C2 lapse second derivative contains NaN values"
 
-        # Third differences (proxy for third derivative discontinuity)
         d3 = jnp.diff(d2lapse)
         dr = float(r_vals[1] - r_vals[0])
         max_jump = float(jnp.max(jnp.abs(d3))) / dr
 
-        # C2 bound: significantly tighter than C1's < 1e3
         assert max_jump < 100, (
             f"C2 lapse second derivative has large jump (max_jump/dr={max_jump:.1f}), "
             f"expected < 100 for C2 smoothness"
@@ -1030,19 +925,17 @@ class TestWarpShell:
         At a point just outside the inner shell boundary (in the
         transition zone), the Riemann tensor components should differ
         between C1 and C2. This confirms the upgrade actually changes
-        something.
+        something. With R_1 = 10 and smooth_width = 1.2 the transition
+        spans [8.8, 10], so r=9.2 is inside it.
         """
         m_c1 = WarpShellMetric(transition_order=1)
         m_c2 = WarpShellMetric(transition_order=2)
 
-        # Point in the inner transition zone:
-        # R_1 = 10, smooth_width = 1.2, so transition spans [8.8, 10]
         coords = jnp.array([0.0, 9.2, 0.0, 0.0])
 
         result_c1 = compute_curvature_chain(m_c1, coords)
         result_c2 = compute_curvature_chain(m_c2, coords)
 
-        # Riemann tensors should differ
         riemann_diff = jnp.max(jnp.abs(result_c1.riemann - result_c2.riemann))
         assert riemann_diff > 1e-10, (
             f"C1 and C2 Riemann tensors are identical at seam "
@@ -1074,29 +967,71 @@ class TestWarpShellPhysical:
             WarpShellPhysical(r_s_param=15.0, R_1=10.0, R_2=20.0)
 
     def test_physical_matches_stress_test_in_physical_regime(self):
-        """When r_s_param < R_1, the clamp never triggers, so the two
-        variants produce identical metrics at every shell coordinate."""
+        """With r_s_param < R_1 - smooth_width neither variant clamps, so the two
+        agree everywhere, including the inner blend [8.8, 10] and the flat core."""
         phys = WarpShellPhysical(v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0)
-        stress = WarpShellStressTest(v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0)
-        for x in (5.0, 11.0, 15.0, 19.0, 25.0):
+        stress = WarpShellMetric(v_s=0.02, R_1=10.0, R_2=20.0, r_s_param=5.0)
+        for x in (0.5, 5.0, 8.9, 9.5, 11.0, 15.0, 19.0, 25.0):
             coords = jnp.array([0.0, x, 0.0, 0.0])
             assert jnp.allclose(phys(coords), stress(coords), atol=1e-14)
 
+    def test_inner_blend_is_c2(self):
+        """The Schwarzschild factor is evaluated at max(r, R_1 - sw), so one-sided
+        first and second derivatives of alpha and gamma_rr agree at R_1 and at
+        R_1 - sw, where the quintic indicator has S = S' = S'' = 0. A factor
+        frozen at R_1 would give alpha' and gamma_rr' jumps at R_1 of
+        r_s/(2 R_1^2 sqrt(1 - r_s/R_1)) = 0.035355339 and -0.2."""
+        m = WarpShellPhysical(v_s=0.0)
+        lapse = lambda x: m.lapse(jnp.array([0.0, x, 0.0, 0.0]))
+        gxx = lambda x: m.spatial_metric(jnp.array([0.0, x, 0.0, 0.0]))[0, 0]
+        for fn in (lapse, gxx):
+            d1 = jax.grad(fn)
+            d2 = jax.grad(d1)
+            for r in (m.R_1 - 0.12 * (m.R_2 - m.R_1), m.R_1):
+                assert abs(float(d1(r - 1e-9)) - float(d1(r + 1e-9))) < 1e-8
+                assert abs(float(d2(r - 1e-9)) - float(d2(r + 1e-9))) < 1e-6
+        assert abs(float(jax.grad(lapse)(m.R_1 + 1e-9)) - 0.035355339) < 1e-8
+        assert abs(float(jax.grad(gxx)(m.R_1 + 1e-9)) + 0.2) < 1e-8
+
+    def test_rejects_r_s_inside_blend(self):
+        with pytest.raises(ValueError, match="smooth_width"):
+            WarpShellPhysical(r_s_param=9.0, R_1=10.0, R_2=20.0)
+
+    def test_outer_blend_has_negative_energy(self):
+        """m(r) = (r/2)(1 - 1/gamma_rr) equals r_s/2 in the shell and 0 in the flat
+        exterior, so m' = 4 pi r^2 rho < 0 somewhere in the outer blend: at the
+        defaults rho(20.6) = -7.203278e-4 and min_i(rho + p_i)(20.9) = -1.93850e-2."""
+        from warpax.energy_conditions.classification import classify_hawking_ellis
+
+        m = WarpShellPhysical(v_s=0.0)
+
+        def rest_frame(x):
+            res = compute_curvature_chain(m, jnp.array([0.0, x, 0.0, 0.0]))
+            cls = classify_hawking_ellis(res.metric_inv @ res.stress_energy, res.metric)
+            assert int(cls.he_type) == 1
+            return float(cls.rho), float(jnp.min(cls.rho + cls.pressures))
+
+        rho, _ = rest_frame(20.6)
+        assert abs(rho + 7.203278e-4) < 1e-8
+        _, nec = rest_frame(20.9)
+        assert abs(nec + 1.93850e-2) < 1e-6
+        assert all(not v for v in warpshell_module.GROUND_TRUTH["energy_conditions"].values())
+
     def test_physical_lapse_positive_without_floor(self):
-        """Within the shell, r_s_param / r < 1 by construction, so the
-        lapse is strictly positive without relying on the 1e-12 floor."""
+        """Within the shell the lapse is sqrt(1 - r_s_param / r) with
+        r_s_param / r < 1 by construction, so it is strictly positive
+        without relying on the 1e-12 floor."""
         m = WarpShellPhysical(r_s_param=5.0, R_1=10.0, R_2=20.0)
         for x in (10.0, 12.5, 15.0, 17.5, 20.0):
             coords = jnp.array([0.0, x, 0.0, 0.0])
             alpha = m.lapse(coords)
-            # In the shell the lapse is sqrt(1 - r_s/r); well away from 0.
             assert float(alpha) > 0.1
 
     def test_stress_test_alias_matches_legacy_metric(self):
-        """WarpShellStressTest must expose the same behavior as the
+        """WarpShellMetric must expose the same behavior as the
         legacy WarpShellMetric class."""
         legacy = WarpShellMetric()
-        renamed = WarpShellStressTest()
+        renamed = WarpShellMetric()
         coords = jnp.array([0.0, 15.0, 2.0, 3.0])
         assert jnp.allclose(legacy(coords), renamed(coords), atol=1e-14)
 
@@ -1160,3 +1095,19 @@ class TestShellTotalMassArrayLeaf:
         )
         assert static.total_mass is None
         assert float(arrays.total_mass) > 0.0
+
+    def test_shell_scalars_are_array_leaves(self):
+        """``R_1, R_2, v_s, smooth_width`` live in the array partition, so
+        ``eqx.filter_jit`` does not retrace per radius or shift value."""
+        import equinox as eqx
+
+        from warpax.metrics import sshell_default, tshell_default
+
+        arrays, static = eqx.partition(sshell_default(v_s=0.02), eqx.is_array)
+        for name in ("R_1", "R_2", "v_s", "smooth_width"):
+            assert eqx.is_array(getattr(arrays, name)), name
+            assert getattr(static, name) is None, name
+        arrays, static = eqx.partition(tshell_default(), eqx.is_array)
+        for name in ("R_1", "R_2"):
+            assert eqx.is_array(getattr(arrays, name)), name
+            assert getattr(static, name) is None, name

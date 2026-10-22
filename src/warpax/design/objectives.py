@@ -24,21 +24,9 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
-from ..energy_conditions.optimization import (
-    optimize_dec,
-    optimize_nec,
-    optimize_sec,
-    optimize_wec,
-)
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
-
-_OPTIMIZER_MAP: dict[str, Callable] = {
-    "nec": optimize_nec,
-    "wec": optimize_wec,
-    "sec": optimize_sec,
-    "dec": optimize_dec,
-}
+from ..optimization.ec_constraints import EC_OPTIMIZERS
 
 
 def ec_margin_objective(
@@ -78,16 +66,16 @@ def ec_margin_objective(
     Returns
     -------
     Float[Array, ""]
-        Minimum (worst-point) EC margin across the probe grid.
+        Minimum (worst-point) EC margin across the probe grid, or NaN when
+        any probe margin is non-finite.
     """
-    if objective not in _OPTIMIZER_MAP:
+    if objective not in EC_OPTIMIZERS:
         raise ValueError(
             f"ec_margin_objective: unknown objective {objective!r}; "
-            f"expected one of {list(_OPTIMIZER_MAP)}."
+            f"expected one of {list(EC_OPTIMIZERS)}."
         )
-    optimizer = _OPTIMIZER_MAP[objective]
+    optimizer = EC_OPTIMIZERS[objective]
 
-    # Build flat probe grid (N, 4)
     xs = jnp.linspace(bounds[0][0], bounds[0][1], grid_shape[0])
     ys = jnp.linspace(bounds[1][0], bounds[1][1], grid_shape[1])
     zs = jnp.linspace(bounds[2][0], bounds[2][1], grid_shape[2])
@@ -96,11 +84,7 @@ def ec_margin_objective(
     coords_stack = jnp.stack([TT, XX, YY, ZZ], axis=-1).reshape(-1, 4)
 
     margins = _margins_over_grid(metric, coords_stack, optimizer, n_starts)
-    # Finite-filter: take min over finite margins only (defensive against
-    # NaN at degenerate probe points).
-    finite_mask = jnp.isfinite(margins)
-    safe_margins = jnp.where(finite_mask, margins, jnp.inf)
-    return jnp.min(safe_margins)
+    return jnp.where(jnp.all(jnp.isfinite(margins)), jnp.min(margins), jnp.nan)
 
 
 @eqx.filter_jit
@@ -114,8 +98,7 @@ def _margins_over_grid(metric, coords_stack, optimizer, n_starts):
 
     def one(coords):
         cc = compute_curvature_chain(metric, coords)
-        T = jnp.where(jnp.isnan(cc.stress_energy), 0.0, cc.stress_energy)
-        return optimizer(T, cc.metric, n_starts=n_starts).margin
+        return optimizer(cc.stress_energy, cc.metric, n_starts=n_starts).margin
 
     return jax.vmap(one)(coords_stack)
 

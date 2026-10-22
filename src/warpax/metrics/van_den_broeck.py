@@ -55,7 +55,10 @@ def _van_den_broeck_B(
 class VanDenBroeckMetric(ADMMetric):
     """Van Den Broeck volume-modified Alcubierre metric via ADM 3+1 decomposition.
 
-    All parameters are dynamic fields (no recompilation on change).
+    All parameters are dynamic fields (no recompilation on change). They are
+    stored as array leaves, not Python floats: ``eqx.filter_jit`` partitions on
+    the value, so a float field would be static and every distinct value would
+    retrace the whole curvature chain.
 
     Parameters
     ----------
@@ -73,9 +76,6 @@ class VanDenBroeckMetric(ADMMetric):
         Wall thickness for conformal factor shape function.
     """
 
-    # Array leaves, not Python floats: eqx.filter_jit partitions on the
-    # VALUE, so a float field is static and every distinct value retraced
-    # the whole curvature chain.
     v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.1)
     R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=350.0)
     sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=8.0)
@@ -108,8 +108,6 @@ class VanDenBroeckMetric(ADMMetric):
         r_s = jnp.sqrt((x - self.v_s * t) ** 2 + y**2 + z**2 + 1e-60)
         return alcubierre_shape(r_s, self.R, self.sigma)
 
-    # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
-
     def symbolic(self) -> SymbolicMetric:
         """Return SymPy symbolic form for inspection and cross-validation."""
         t, x, y, z = sp.symbols("t x y z")
@@ -133,7 +131,6 @@ class VanDenBroeckMetric(ADMMetric):
 
         beta_x = -v_s * f
 
-        # g_00 = -(1 - B^2 beta_x^2); g_0x = B^2 beta_x; g_ij = B^2 delta_ij
         g = sp.Matrix(
             [
                 [-(1 - B**2 * beta_x**2), B**2 * beta_x, 0, 0],

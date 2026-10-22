@@ -6,8 +6,6 @@
 Evaluated on a radial probe grid exploiting spherical symmetry.
 """
 
-from __future__ import annotations
-
 from typing import NamedTuple
 
 import jax
@@ -111,32 +109,24 @@ def evaluate_loss(
 
     r_probes = jnp.linspace(R_1, R_2, n_probes)
 
-    from ..constraints.residuals import squared_constraint_residual
+    from ..constraints.residuals import mean_squared_constraint_residual
 
-    constraint_vals = jax.vmap(lambda r: squared_constraint_residual(metric, r))(r_probes)
-    constraint_loss = jnp.mean(constraint_vals)
+    constraint_loss = mean_squared_constraint_residual(metric, r_probes)
 
     if skip_ec:
         ec_loss = jnp.float64(0.0)
     else:
-        from .ec_constraints import _ec_margins_at_point, _probe_T_g
+        from .ec_constraints import _ec_margins_over_probes, _probe_T_g
 
         if key is None:
             key = jax.random.PRNGKey(42)
         T_batch, g_batch = _probe_T_g(metric, r_probes)
-        conditions = ("nec", "wec", "dec")
-        ec_penalties = []
-        for i in range(n_probes):
-            point_key = jax.random.fold_in(key, i)
-            margins = _ec_margins_at_point(
-                T_batch[i], g_batch[i], conditions, n_ec_starts, point_key
-            )
-            ec_penalties.append(
-                jax.nn.softplus(-margins["nec"]) ** 2
-                + jax.nn.softplus(-margins["wec"]) ** 2
-                + jax.nn.softplus(-margins["dec"]) ** 2
-            )
-        ec_loss = jnp.mean(jnp.stack(ec_penalties))
+        margins = _ec_margins_over_probes(T_batch, g_batch, ("nec", "wec", "dec"), n_ec_starts, key)
+        ec_loss = jnp.mean(
+            jax.nn.softplus(-margins["nec"]) ** 2
+            + jax.nn.softplus(-margins["wec"]) ** 2
+            + jax.nn.softplus(-margins["dec"]) ** 2
+        )
 
     from ..transport.diagnostics import geodesic_deviation_diagnostic
 

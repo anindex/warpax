@@ -22,14 +22,19 @@ Class III: has_matter and is_shell_structured;
 Class II: has_matter and not is_shell_structured and
 shape_function_supported; Class I: no matter or pure-vacuum stationary
 metric; everything else -> 0 (unclassified).
-"""
 
-from __future__ import annotations
+The default radial probe ladder spans about three decades, covering
+Alcubierre (R=1), Rodal (R=100), WarpShell (R_1=10, R_2=20) and
+Schwarzschild at a safe range outside the horizon, and sits off-axis to
+avoid ``y = z = 0`` degeneracies.
+"""
 
 from typing import NamedTuple
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
@@ -52,10 +57,6 @@ class ClassifiedMetric(NamedTuple):
     shape_function_supported: bool
 
 
-# Default radial probe ladder; covers Alcubierre (R=1), Rodal (R=100),
-# WarpShell (R_1=10, R_2=20) and Schwarzschild at a safe range outside
-# horizon. Off-axis to avoid y=z=0 degeneracies. Spans ~3 decades on
-# logarithmic scale.
 _DEFAULT_RADIAL_PROBES: tuple[float, ...] = (
     0.3,
     0.6,
@@ -75,7 +76,7 @@ _DEFAULT_RADIAL_PROBES: tuple[float, ...] = (
 )
 
 
-def _probe_point(r: float) -> Float[Array, "4"]:
+def _probe_point(r: float | Float[Array, ""]) -> Float[Array, "4"]:
     """Off-axis probe at radius ``r``; avoids y=z=0 degeneracies."""
     return jnp.array([0.0, r * 0.6, r * 0.6, r * 0.529150262], dtype=jnp.float64)
 
@@ -103,23 +104,28 @@ def _energy_density_mixed(
     return -T_mixed[0, 0]
 
 
+@eqx.filter_jit
+def _probe_densities(metric: MetricSpecification) -> tuple[Float[Array, "P 4"], Float[Array, "P"]]:
+    """Probe coordinates and ``rho`` at every radius of the default ladder."""
+    coords = jax.vmap(_probe_point)(jnp.asarray(_DEFAULT_RADIAL_PROBES))
+    return coords, jax.vmap(lambda c: _energy_density_mixed(metric, c))(coords)
+
+
 def _scan_matter(
     metric: MetricSpecification,
-    tol_T: float,
-) -> tuple[float, Float[Array, "4"]]:
-    """Sweep radial probes; return (peak_rho_magnitude, peak_coords)."""
-    peak_mag = 0.0
-    peak_coords = _probe_point(1.0)
-    for r in _DEFAULT_RADIAL_PROBES:
-        coords = _probe_point(r)
-        rho = _energy_density_mixed(metric, coords)
-        mag = float(jnp.abs(rho))
-        if not jnp.isfinite(rho):
-            continue
-        if mag > peak_mag:
-            peak_mag = mag
-            peak_coords = coords
-    return peak_mag, peak_coords
+) -> tuple[float, Float[Array, "4"], float]:
+    """Sweep radial probes; return (peak_rho_magnitude, peak_coords, peak_rho).
+
+    The peak is the first strict maximum of ``|rho|`` over finite probes;
+    with no finite nonzero probe it is ``(0.0, probe(1.0), 0.0)``.
+    """
+    coords, rho = _probe_densities(metric)
+    rho = np.asarray(rho)
+    mags = np.where(np.isfinite(rho), np.abs(rho), 0.0)
+    idx = int(np.argmax(mags))
+    if mags[idx] <= 0.0:
+        return 0.0, _probe_point(1.0), 0.0
+    return float(mags[idx]), coords[idx], float(rho[idx])
 
 
 def _scan_inner_vacuum(
@@ -133,12 +139,14 @@ def _scan_inner_vacuum(
     A metric is deemed shell-structured when ``|rho(r_inner)|`` drops
     below ``1e-6 * peak_mag`` at ``r_inner = 0.2 * peak_r``. For smooth
     bubble profiles (Alcubierre-family), the inner density stays within
-    a few decades of the peak - ratio > 1e-4 typically.
+    a few decades of the peak - ratio > 1e-4 typically. Returns False when
+    ``r_inner < 0.05``: the peak is too close to the origin for the shell
+    test to be reliable.
     """
     peak_r = float(jnp.sqrt(jnp.sum(peak_coords[1:] ** 2)))
     inner_r = 0.2 * peak_r
     if inner_r < 0.05:
-        return False  # peak too close to origin; shell test unreliable
+        return False
     coords = _probe_point(inner_r)
     rho = _energy_density_mixed(metric, coords)
     if not jnp.isfinite(rho):
@@ -187,39 +195,35 @@ def bobrick_martire(
     Branches on Python booleans; not JIT-traceable. Deterministic for
     a fixed probe ladder.
     """
-    tol_t = max(1e-6, 1e3 * tol)  # stationary threshold
-    tol_s = 1e-6  # shape-function threshold
-    tol_T = 1e-8  # matter detection floor
+    tol_t = max(1e-6, 1e3 * tol)
+    tol_s = 1e-6
+    tol_T = 1e-8
 
-    peak_mag, peak_coords = _scan_matter(metric, tol_T)
+    peak_mag, peak_coords, rho_peak = _scan_matter(metric)
     has_matter = peak_mag > tol_T
 
-    # Probe at the matter peak (if any), else the supplied or default point.
     if probe_coords is None:
         diag_coords = peak_coords if has_matter else _probe_point(2.0)
     else:
         diag_coords = probe_coords
 
-    jac = _metric_jacobian(metric, diag_coords)  # shape (4, 4, 4)
+    jac = _metric_jacobian(metric, diag_coords)
     dg_dt = jac[:, :, 0]
     stationary = bool(jnp.all(jnp.abs(dg_dt) < tol_t))
 
     dg_dspatial = jac[:, :, 1:]
     shape_function_supported = bool(jnp.any(jnp.abs(dg_dspatial) > tol_s))
 
-    rho_peak = _energy_density_mixed(metric, peak_coords)
-    comoving_fluid = has_matter and bool(jnp.isfinite(rho_peak) & (rho_peak > 0.0))
+    comoving_fluid = has_matter and rho_peak > 0.0
 
     is_shell_structured = has_matter and _scan_inner_vacuum(metric, peak_mag, peak_coords)
 
     if not has_matter:
-        # Vacuum (Minkowski, Schwarzschild): Class I when stationary,
-        # otherwise unclassified.
         bobrick_class = 1 if stationary else 0
     elif is_shell_structured:
-        bobrick_class = 3  # matter bounded within a shell (WarpShell)
+        bobrick_class = 3
     elif shape_function_supported:
-        bobrick_class = 2  # bubble-like matter profile
+        bobrick_class = 2
     else:
         bobrick_class = 0
 

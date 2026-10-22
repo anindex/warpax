@@ -22,8 +22,6 @@ Fuchs, Helmerich, Bobrick, Sellers, Melcher, Martire (2024).
 Carroll, S. M. (2004). Spacetime and Geometry. Eqs. 5.143, 5.152.
 """
 
-from __future__ import annotations
-
 from typing import NamedTuple
 
 import equinox as eqx
@@ -45,7 +43,8 @@ def _gaussian_smooth(
 
     Convolves *values* with a normalized Gaussian kernel of width *sigma*.
     Boundary handling uses the ``reflect`` convention (mirror padding),
-    which preserves the integral and avoids boundary artifacts.
+    which preserves the integral and avoids boundary artifacts. The kernel
+    is truncated at 4 sigma (at least one and at most n // 2 grid points).
 
     Substitutes the moving average used in [Fuchs2024] (see module
     docstring); kernel widths matched as:
@@ -60,7 +59,6 @@ def _gaussian_smooth(
     """
     n = values.shape[0]
     dr = r_grid[1] - r_grid[0]
-    # Kernel radius in grid points (truncate at 4 sigma)
     k_radius = int(jnp.ceil(4.0 * sigma / dr))
     k_radius = max(k_radius, 1)
     k_radius = min(k_radius, n // 2)
@@ -69,7 +67,6 @@ def _gaussian_smooth(
     kernel = jnp.exp(-0.5 * (offsets * dr / sigma) ** 2)
     kernel = kernel / jnp.sum(kernel)
 
-    # Reflect-pad the signal
     padded = jnp.concatenate(
         [
             jnp.flip(values[1 : k_radius + 1]),
@@ -113,7 +110,6 @@ def _moving_average_smooth(
     half = max(half, 1)
     half = min(half, n // 2)
 
-    # Cell-integrated boxcar weights keep the physical span fixed as dr changes.
     offsets = jnp.arange(-half, half + 1, dtype=jnp.float64) * dr
     kernel = jnp.maximum(
         0.0,
@@ -175,17 +171,14 @@ def _solve_tov_inward(
     r_grid : radial grid (ascending order).
     R_1 : inner shell radius (p_r = 0 for r < R_1).
     """
-    # Descending grid for inward integration; r_rev[0] is the outer boundary.
     p_rev = integrate_tov_inward(jnp.flip(r_grid), jnp.flip(rho_grid), jnp.flip(m_grid))
     p_grid = jnp.flip(p_rev)
 
-    # Zero out pressure outside the shell
     p_grid = jnp.where(r_grid < R_1, 0.0, p_grid)
     return p_grid
 
 
 def _compute_metric_functions(
-    rho_tilde: Float[Array, "N"],
     P_tilde: Float[Array, "N"],
     m_tilde: Float[Array, "N"],
     r_grid: Float[Array, "N"],
@@ -197,15 +190,17 @@ def _compute_metric_functions(
     da/dr = (m + 4pi r^3 P_tilde) / (r(r - 2m)) , Eq. 5.152
 
     with Schwarzschild boundary: e^{2a(r>>R_2)} = e^{-2b(r>>R_2)}.
+
+    da/dr is zeroed in the vacuum interior (r < 0.5 r_grid[0]) and integrated
+    with the trapezoidal rule inward from the outer boundary, where
+    a(r_max) = -b(r_max).
     """
     r_safe = jnp.maximum(r_grid, 1e-30)
     compactness = 2.0 * m_tilde / r_safe
     compactness_safe = jnp.minimum(compactness, 1.0 - 1e-12)
 
-    # b(r): e^{2b} = 1 / (1 - 2m/r)
     b_grid = -0.5 * jnp.log(1.0 - compactness_safe)
 
-    # da/dr
     numer = m_tilde + 4.0 * jnp.pi * r_safe**3 * P_tilde
     denom = r_safe * (r_safe - 2.0 * m_tilde)
     denom_safe = jnp.where(
@@ -214,10 +209,8 @@ def _compute_metric_functions(
         denom,
     )
     da_dr = numer / denom_safe
-    # Zero out in vacuum interior
     da_dr = jnp.where(r_grid < r_grid[0] * 0.5, 0.0, da_dr)
 
-    # Integrate da/dr from the outer boundary inward
     dr = r_grid[1] - r_grid[0]
     forward_integral = jnp.concatenate(
         [
@@ -226,7 +219,6 @@ def _compute_metric_functions(
         ]
     )
 
-    # Schwarzschild boundary: a(r_max) = -b(r_max)
     total_mass = float(m_tilde[-1])
     a_boundary = 0.5 * jnp.log(jnp.maximum(1.0 - 2.0 * total_mass / r_grid[-1], 1e-30))
     a_grid = a_boundary - (forward_integral[-1] - forward_integral)
@@ -245,10 +237,11 @@ def _fuchs_shift_transition(
     On R_1 < r < R_2, S=sigmoid((R_2-R_1)(1/(r-R_2)+1/(r-R_1))).
     Extend S by 1 at/below R_1 and 0 at/above R_2. The exponential
     approach makes every derivative vanish at both natural endpoints.
-    R_b is retained for constructor compatibility but no longer truncates S.
+    R_b does not enter S; it is accepted for constructor compatibility only.
+    Outside the open shell the sigmoid argument is evaluated at the shell
+    midpoint so no reciprocal pole is hit, and the constant branches supply the
+    exact endpoint extension.
     """
-    # Outside the open shell evaluate a harmless interior argument; the constant
-    # branch supplies the exact endpoint extension without reciprocal poles.
     inside = (r > R_1) & (r < R_2)
     r_in = jnp.where(inside, r, 0.5 * (R_1 + R_2))
     arg = (R_2 - R_1) * (1.0 / (r_in - R_2) + 1.0 / (r_in - R_1))
@@ -292,6 +285,12 @@ def build_fuchs_construction(
 ) -> FuchsConstructionResult:
     """Build the Fuchs shell via iterative smoothing.
 
+    Steps: constant density in the shell; cumulative mass by trapezoidal rule;
+    TOV for the initial isotropic pressure; ``n_smooth`` smoothing passes on
+    density and pressure, both clipped to be non-negative afterwards; mass
+    recomputed from the smoothed density; metric potentials from the smoothed
+    profiles.
+
     Parameters
     ----------
     R_1, R_2 : inner/outer shell radii.
@@ -317,11 +316,9 @@ def build_fuchs_construction(
     r_grid = jnp.linspace(1e-6, r_max, n_grid)
     assert_uniform_grid(r_grid, name="fuchs_construction.r_grid")
 
-    # Step 1: Constant density
     in_shell = (r_grid >= R_1) & (r_grid <= R_2)
     rho_initial = jnp.where(in_shell, rho_0, 0.0)
 
-    # Cumulative mass from initial density (input to the TOV solve)
     dr = r_grid[1] - r_grid[0]
     integrand_m = 4.0 * jnp.pi * rho_initial * r_grid**2
     m_initial = jnp.concatenate(
@@ -331,10 +328,8 @@ def build_fuchs_construction(
         ]
     )
 
-    # Step 2: TOV for initial isotropic pressure
     P_initial = _solve_tov_inward(rho_initial, m_initial, r_grid, R_1)
 
-    # Step 3: Iterative Gaussian smoothing
     sigma_rho = sigma_rho_factor * (R_2 - R_1)
     sigma_P = sigma_rho / sigma_ratio
 
@@ -343,11 +338,9 @@ def build_fuchs_construction(
     )
     P_smoothed = _iterative_smooth(P_initial, r_grid, sigma_P, n_smooth, kernel_type=kernel_type)
 
-    # Ensure non-negative after smoothing
     rho_smoothed = jnp.maximum(rho_smoothed, 0.0)
     P_smoothed = jnp.maximum(P_smoothed, 0.0)
 
-    # Step 4: Recompute mass from smoothed density
     integrand_m_smooth = 4.0 * jnp.pi * rho_smoothed * r_grid**2
     m_smoothed = jnp.concatenate(
         [
@@ -357,9 +350,7 @@ def build_fuchs_construction(
     )
     total_mass = float(m_smoothed[-1])
 
-    # Step 5: Metric functions from smoothed profiles
     a_grid, b_grid = _compute_metric_functions(
-        rho_smoothed,
         P_smoothed,
         m_smoothed,
         r_grid,
@@ -406,7 +397,12 @@ class FuchsMetric(ADMMetric):
     _b_slope: Float[Array, "N"] = eqx.field(init=False)
 
     def __post_init__(self):
-        from interpax import approx_df
+        """Validate the radial profiles and cache the not-a-knot spline slopes.
+
+        The spline solve is done once here; evaluating curvature only needs
+        the local coefficients.
+        """
+        from ..numerics import not_a_knot_slopes
 
         profiles = (self._r_grid, self._a_grid, self._b_grid)
         if not all(p.ndim == 1 and p.shape == self._r_grid.shape for p in profiles):
@@ -423,18 +419,17 @@ class FuchsMetric(ADMMetric):
             raise ValueError("Fuchs radial grid must begin in [0, R_1/4] for a C2 inner join")
         if not (0 <= self.total_mass < self.R_2 / 2):
             raise ValueError("Fuchs exterior requires 0 <= 2M < R_2")
-        # Cache the spline solve; evaluating curvature only needs local coefficients.
-        self._a_slope = approx_df(self._r_grid, self._a_grid, method="cubic2", axis=0)
-        self._b_slope = approx_df(self._r_grid, self._b_grid, method="cubic2", axis=0)
+        self._a_slope = not_a_knot_slopes(self._r_grid, self._a_grid)
+        self._b_slope = not_a_knot_slopes(self._r_grid, self._b_grid)
 
     def _potentials(self, r: Float[Array, ""]) -> tuple[Float[Array, ""], Float[Array, ""]]:
         """C2 radial potentials with constant interior and Schwarzschild exterior."""
-        from interpax import interp1d
+        from ..numerics import hermite_cubic
 
         r_edge = self._r_grid[-1]
         r_eval = jnp.clip(r, self._r_grid[0], r_edge)
-        a_in = interp1d(r_eval, self._r_grid, self._a_grid, method="cubic2", fx=self._a_slope)
-        b_in = interp1d(r_eval, self._r_grid, self._b_grid, method="cubic2", fx=self._b_slope)
+        a_in = hermite_cubic(r_eval, self._r_grid, self._a_grid, self._a_slope)
+        b_in = hermite_cubic(r_eval, self._r_grid, self._b_grid, self._b_slope)
         inner = smoothstep_c2((r - self.R_1 / 4) / (self.R_1 / 4))
         a_in = self._a_grid[0] + inner * (a_in - self._a_grid[0])
         b_in = inner * b_in
@@ -509,6 +504,10 @@ class FuchsMetric(ADMMetric):
 
     def name(self) -> str:
         return "Fuchs"
+
+    def killing_vector(self) -> Float[Array, "4"]:
+        """``d/dt``: the construction is stationary in ``x``, not in ``x - v_s t``."""
+        return jnp.array([1.0, 0.0, 0.0, 0.0])
 
 
 def fuchs_default(

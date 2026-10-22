@@ -3,7 +3,7 @@
 Public API:
 
 - :class:`ShapeFunction` - differentiable basis library
-  (cubic B-spline via interpax + pure-JAX Bernstein + Gaussian-mixture-model).
+  (cubic Hermite spline + pure-JAX Bernstein + Gaussian-mixture-model).
 - :class:`ShapeFunctionMetric` - :class:`ADMMetric`
   subclass wrapping a :class:`ShapeFunction` with a construction-time
   ``verify_physical`` gate.

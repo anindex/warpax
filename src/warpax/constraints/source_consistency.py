@@ -49,7 +49,7 @@ def stress_energy_residual(
         'relative_residual' : max|DeltaT| / (max|T_derived| + eps)
     """
     curv = compute_curvature_chain(metric_fn, coords)
-    T_derived = curv.stress_energy  # G/(8pi), already symmetrized
+    T_derived = curv.stress_energy
 
     if T_input is None:
         T_input = jnp.zeros((4, 4), dtype=T_derived.dtype)

@@ -17,10 +17,10 @@ scale factor: this is de Sitter in Painleve-Gullstrand (flat-slicing) form. The
 bubble switches that background flow off inside the wall and replaces it with
 -v^i, which is what the interpolation by f does.
 
-An earlier implementation here used ``gamma_ij = e^{2Ht} delta_ij`` with an
-Alcubierre shift ``beta^x = -v_s f``. That is a different spacetime: it keeps the
+The conformally expanding form ``gamma_ij = e^{2Ht} delta_ij`` with an
+Alcubierre shift ``beta^x = -v_s f`` is a different spacetime: it keeps the
 Hubble flow everywhere instead of switching it off inside the bubble, its slices
-are not flat, and its shift is NOT irrotational, so it reported wall vorticity
+are not flat, and its shift is NOT irrotational, so it shows wall vorticity
 and Type-IV structure that the published construction does not have.
 
 Irrotationality is the point of the paper, and it holds under the matching condition
@@ -28,16 +28,16 @@ Irrotationality is the point of the paper, and it holds under the matching condi
 
     N = -x/L + f (x - x_s)/L,
 
-a sum of two radial gradients, about the origin and about the bubble centre,
+a sum of two radial gradients, about the origin and about the bubble center,
 hence curl N = 0 identically. By the momentum constraint the Eulerian momentum
 density then vanishes and the stress-energy is Hawking-Ellis Type I everywhere.
 
-This class realises the matched family and ONLY that family. ``shift`` takes
+This class realizes the matched family and ONLY that family. ``shift`` takes
 ``x_s(t) = (v_s/H) e^{Ht}`` and ``v = H x_s``, so ``v = r_0 / L`` is an identity of the
 parametrisation rather than a condition on it, so ``curl beta`` vanishes
 *identically* at every ``v_s``, ``R``, ``sigma`` and ``H``, an algebraic fact
 about the shift, not a numerical result. What the autodiff pipeline returns is
-that fact through float64: the realised values are rounding noise at 1e-18 to
+that fact through float64: the realized values are rounding noise at 1e-18 to
 1e-22, not a literal 0.0. No irrotationality tolerance appears anywhere
 downstream because the vanishing is structural, not because the measurement is
 exact.
@@ -62,6 +62,12 @@ expansion is carried entirely by the background shift ``-x^i/L``. The
 H-dependence enters through the shift and through its time derivative in the
 curvature chain. ANEC along a complete geodesic should be conditional on
 ``geodesic_complete`` because dS geodesics can leave the integration box.
+
+``GROUND_TRUTH`` records pointwise energy conditions as violated: they fail at
+the wall (it is still a warp bubble), and the Garattini-Zatrimaylov claim is
+about AVERAGED conditions at ``v_s = H R``. Under the matching condition the
+shift is irrotational, so the Eulerian momentum density vanishes and the wall
+is Hawking-Ellis Type I.
 """
 
 from __future__ import annotations
@@ -79,7 +85,14 @@ from ._common import alcubierre_shape
 class GarattiniMetric(ADMMetric):
     """Garattini-Zatrimaylov de Sitter warp bubble (ADM 3+1).
 
-    All parameters are dynamic fields (no recompilation on change).
+    The bubble center accelerates, ``x_s(t) = (v_s / H) e^{H t}``, so no
+    helical vector ``d_t + c d_x`` is Killing and :meth:`killing_vector`
+    returns NaN.
+
+    All parameters are dynamic fields (no recompilation on change). They are
+    stored as array leaves, not Python floats: ``eqx.filter_jit`` partitions on
+    the value, so a float field would be static and every distinct value would
+    retrace the whole curvature chain.
 
     Parameters
     ----------
@@ -96,9 +109,6 @@ class GarattiniMetric(ADMMetric):
         Unused compatibility parameter; it does not affect the metric.
     """
 
-    # Array leaves, not Python floats: eqx.filter_jit partitions on the
-    # VALUE, so a float field is static and every distinct value retraced
-    # the whole curvature chain.
     v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.1)
     R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=1.0)
     sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=8.0)
@@ -113,7 +123,7 @@ class GarattiniMetric(ADMMetric):
 
         ``r_0`` is the bubble's position at ``t = 0``; the shift is irrotational
         only on the slice where the bubble sits at ``r_0 = v_s / H``. Defaulting
-        ``r_0 = R`` reproduces the previous ``v_s = H R`` convention.
+        ``r_0 = R`` gives ``v_s = H R``.
         """
         r0 = R if r0 is None else r0
         return cls(v_s=H * r0, R=R, sigma=sigma, H=H, t0=0.0)
@@ -124,18 +134,21 @@ class GarattiniMetric(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
+        """Matched shift ``N^i = -(1 - f) H x^i - f v^i``.
+
+        The bubble co-moves with the Hubble flow, ``x_s(t) = r_0 e^{Ht}`` with
+        ``r_0 = v_s / H`` and ``v(t) = H x_s(t)``. A constant-velocity center
+        ``x_s = v_s t`` breaks the matching at every ``t != 0`` and the shift
+        is then not irrotational (``|curl beta| ~ 0.29`` at a generic wall
+        point). At ``H = 0`` the de Sitter flow is absent and the construction
+        degenerates to a constant-velocity Alcubierre bubble, which is the
+        limit the tests pin, so the code branches on ``|H| > 1e-30`` rather
+        than dividing by ``H``.
+        """
         t, x, y, z = coords
-        # The bubble co-moves with the Hubble flow: r(t) = r_0 e^{Ht}, so its
-        # velocity is v(t) = H r(t). A constant-velocity centre x_s = v_s t
-        # breaks the matching at every t != 0 and the shift is then NOT
-        # irrotational, measured |curl beta| ~ 0.29 at a generic wall point.
         H = jnp.asarray(self.H)
         big = jnp.abs(H) > 1e-30
         H_safe = jnp.where(big, H, 1.0)
-        # Matched bubble: r(t) = r_0 e^{Ht} with r_0 = v_s / H and v = H r(t).
-        # At H = 0 the de Sitter flow is absent and the construction degenerates
-        # to a constant-velocity Alcubierre bubble, which is the limit the tests
-        # pin; branch rather than divide by H.
         x_s = jnp.where(big, (self.v_s / H_safe) * jnp.exp(H * t), self.v_s * t)
         v_x = jnp.where(big, H * x_s, self.v_s)
         dx = x - x_s
@@ -160,10 +173,12 @@ class GarattiniMetric(ADMMetric):
         r_safe = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-60)
         return alcubierre_shape(r_safe, self.R, self.sigma)
 
-    # __call__ inherited from ADMMetric (adm_to_full_metric).
-
     def symbolic(self) -> SymbolicMetric:
-        """Faithful SymPy form: flat slices, interpolated Hubble/bubble shift."""
+        """Faithful SymPy form: flat slices, interpolated Hubble/bubble shift.
+
+        ``N^i = -(1 - f) H x^i - f v^i`` with ``v = H x_s``; ``gamma = delta``
+        so ``beta_i = beta^i``.
+        """
         t, x, y, z = sp.symbols("t x y z")
         v_s = sp.Symbol("v_s", positive=True)
         R_val = sp.Symbol("R", positive=True)
@@ -177,8 +192,6 @@ class GarattiniMetric(ADMMetric):
             2 * sp.tanh(sigma_val * R_val)
         )
 
-        # N^i = -(1 - f) H x^i - f v^i with v = H x_s; gamma = delta so
-        # beta_i = beta^i.
         b = [-(1 - f_alc) * H * c - f_alc * (H * x_s if c is x else 0) for c in (x, y, z)]
         beta_sq = sum(c * c for c in b)
 
@@ -192,6 +205,10 @@ class GarattiniMetric(ADMMetric):
         )
         return SymbolicMetric([t, x, y, z], g)
 
+    def killing_vector(self) -> Float[Array, "4"]:
+        """NaN: the accelerating center leaves no helical Killing vector."""
+        return jnp.full(4, jnp.nan)
+
     def name(self) -> str:
         return "Garattini"
 
@@ -203,12 +220,8 @@ def garattini_default(v_s: float = 0.1) -> GarattiniMetric:
 
 GROUND_TRUTH = {
     "stress_energy_zero": False,
-    # Pointwise conditions fail at the wall (it is still a warp bubble); the
-    # Garattini-Zatrimaylov claim is about AVERAGED conditions at v_s = H*R.
     "energy_conditions": {"WEC": False, "NEC": False, "DEC": False, "SEC": False},
     "averaged": {"ANEC_satisfied_at_matched_speed": True},
-    # Under the paper's matching condition the shift is irrotational, so the
-    # Eulerian momentum density vanishes and the wall is Hawking-Ellis Type I.
     "hawking_ellis_type": 1,
     "note": (
         "de Sitter background; averaged conditions satisfied when v_s = H*R "

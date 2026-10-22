@@ -22,7 +22,7 @@ import equinox as eqx
 import jax.numpy as jnp
 import sympy as sp
 from beartype import beartype
-from jaxtyping import Array, Float, jaxtyped
+from jaxtyping import Array, Float, Real, jaxtyped
 
 from ..geometry.metric import ADMMetric, SymbolicMetric
 from ._common import alcubierre_shape
@@ -63,14 +63,14 @@ def _rodal_profiles(r_squared, R, sigma):
 
 
 def _rodal_g_paper(
-    r: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
+    r: Float[Array, "..."], R: float | Real[Array, ""], sigma: float | Real[Array, ""]
 ) -> Float[Array, "..."]:
     """Paper-convention angular profile: g_paper(0)=0, g_paper(infinity)=1."""
     return 1.0 - _rodal_G(r, R, sigma)
 
 
 def _rodal_G(
-    r: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
+    r: float | Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
 ) -> Float[Array, "..."]:
     """Lab-frame irrotational angular profile G(r) = 1 - g_paper(r).
 
@@ -82,7 +82,10 @@ def _rodal_G(
 class RodalMetric(ADMMetric):
     """Rodal irrotational warp drive metric via ADM 3+1 decomposition.
 
-    All parameters are dynamic fields (no recompilation on change).
+    All parameters are dynamic fields (no recompilation on change). They are
+    stored as array leaves, not Python floats: ``eqx.filter_jit`` partitions on
+    the value, so a float field would be static and every distinct value would
+    retrace the whole curvature chain.
 
     Parameters
     ----------
@@ -94,9 +97,6 @@ class RodalMetric(ADMMetric):
         Wall thickness parameter (inverse thickness).
     """
 
-    # Array leaves, not Python floats: eqx.filter_jit partitions on the
-    # VALUE, so a float field is static and every distinct value retraced
-    # the whole curvature chain.
     v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.1)
     R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=100.0)
     sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.03)
@@ -124,8 +124,6 @@ class RodalMetric(ADMMetric):
         dx = x - self.v_s * t
         r_safe = jnp.sqrt(dx**2 + y**2 + z**2 + 1e-60)
         return alcubierre_shape(r_safe, self.R, self.sigma)
-
-    # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
 
     def symbolic(self) -> SymbolicMetric:
         """Return the full analytic laboratory tensor for ``r_s > 0``.

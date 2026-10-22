@@ -46,8 +46,6 @@ class TestDesignObjectives:
             m, objective="nec", grid_shape=(4, 4, 4), bounds=((-1, 1), (-1, 1), (-1, 1))
         )
         assert jnp.isfinite(margin)
-        # Vacuum: T_ab = 0, so the NEC margin is analytically 0 for all
-        # null directions (pipeline returns exactly 0.0)
         assert abs(float(margin)) <= 1e-10
 
     def test_wec_margin_on_minkowski(self):
@@ -63,7 +61,6 @@ class TestDesignObjectives:
         """OBJECTIVE_REGISTRY has all 7 keys and dispatches to ec_margin_objective."""
         for key in ["nec", "wec", "sec", "dec", "anec", "awec", "ford_roman"]:
             assert key in OBJECTIVE_REGISTRY, f"Missing key {key}"
-        # Check the NEC dispatcher is callable and returns finite
         m = MinkowskiMetric()
         margin_direct = ec_margin_objective(
             m, objective="nec", grid_shape=(4, 4, 4), bounds=((-1, 1), (-1, 1), (-1, 1))
@@ -79,7 +76,6 @@ class TestDesignObjectives:
 
         m = MinkowskiMetric()
 
-        # Straight null geodesic as a callable: gamma(lambda) = (lambda, lambda, 0, 0)
         def gamma(lam):
             return jnp.array([lam, lam, 0.0, 0.0])
 
@@ -93,7 +89,6 @@ class TestDesignObjectives:
 
         m = MinkowskiMetric()
 
-        # Static timelike worldline: (tau, 0, 0, 0)
         def worldline(tau):
             return jnp.array([tau, 0.0, 0.0, 0.0])
 
@@ -115,15 +110,14 @@ class TestDesignConstraints:
         res = bubble_size_constraint(sf, max_radius=10.0)
         assert isinstance(res, ConstraintResult)
         assert res.name == "bubble_size"
-        assert res.satisfied is True
+        assert bool(res.satisfied) is True
         assert float(res.margin) > 0.0
 
     def test_bubble_size_exceeds_bounds(self):
         """Non-decaying Bernstein at r=max_radius yields margin < 0, satisfied=False."""
-        # Constant Bernstein => f(r) ~ 1 at the r_max bound
         sf = ShapeFunction.bernstein(jnp.ones(4), r_max=10.0)
         res = bubble_size_constraint(sf, max_radius=10.0)
-        assert res.satisfied is False
+        assert bool(res.satisfied) is False
         assert float(res.margin) < 0.0
 
     def test_velocity_constraint_at_boundary(self):
@@ -132,7 +126,7 @@ class TestDesignConstraints:
         assert abs(float(res_boundary.margin)) < 1e-10
         res_safe = velocity_constraint(jnp.asarray(5.0), max_v=10.0)
         assert float(res_safe.margin) == 5.0
-        assert res_safe.satisfied is True
+        assert bool(res_safe.satisfied) is True
 
     def test_boundedness_constraint(self):
         """GMM with amps=2 (> amp_max=1) yields satisfied=False."""
@@ -142,7 +136,7 @@ class TestDesignConstraints:
             amps=jnp.asarray([2.0]),
         )
         res = boundedness_constraint(sf, amp_max=1.0)
-        assert res.satisfied is False
+        assert bool(res.satisfied) is False
         assert float(res.margin) < 0.0
 
     def test_registry_lookup(self):
@@ -192,7 +186,6 @@ class TestDesignOptimization:
             max_steps=4,
             key=jax.random.PRNGKey(123),
         )
-        # Output shape-function values must stay in [-1, 1] (sigmoid-bounded)
         out_values = metric.shape_fn.params["values"]
         assert jnp.all(jnp.abs(out_values) <= 1.0 + 1e-6), (
             f"Sigmoid-reparam violated: max |value| = {float(jnp.max(jnp.abs(out_values)))}"
@@ -201,13 +194,10 @@ class TestDesignOptimization:
     def test_alcubierre_recovery_e2_1(self, alcubierre_knots_values):
         """Optimizer never returns a loss worse than the Alcubierre seed.
 
-        Updated for the design/optimizer BFGS silent no-op bug fix:
-        the previous assertion (margin stays within 0.05 of the seed)
-        only held because ``ShapeFunctionMetric.__check_init__`` raised
-        ``TracerBoolConversionError`` under ``optx.minimise`` tracing,
-        silently degrading BFGS to a no-op. With BFGS actually running,
-        the guaranteed invariant is the seed baseline: ``design_metric``
-        never accepts an iterate with higher loss than the seed.
+        ``ShapeFunctionMetric.__check_init__`` must not raise
+        ``TracerBoolConversionError`` under ``optx.minimise`` tracing, and
+        ``design_metric`` never accepts an iterate with higher loss than
+        the seed.
         """
         knots, values = alcubierre_knots_values
         shape = ShapeFunction.spline(knots, values)
@@ -228,13 +218,13 @@ class TestDesignOptimization:
             max_steps=4,
             key=key,
         )
-        # Seed-baseline guarantee: best-of-N includes the seed evaluation,
-        # so the final loss is never worse than the seed loss (small slack
-        # for the sigmoid-reparam round trip at the tails).
-        assert float(report.final_margin) <= float(report_start.final_margin) + 1e-6
+        assert float(report.final_margin) >= float(report_start.final_margin) - 1e-6
 
     def test_spline_knot_interpolation_exact(self, alcubierre_knots_values):
         """Spline reproduction is exact at knots; mid-knot error is pinned.
+
+        The mid-knot pin is a dense 1000-point probe, peak-normalized, measured
+        at 0.611 (cf. examples/08_metric_design.py dense probe).
 
         Uses ``max_steps=0`` - the reproduction path where the
         optimizer short-circuits and returns the input spline unchanged.
@@ -251,18 +241,14 @@ class TestDesignOptimization:
             objective="nec",
             strategy="hard_bound",
             n_starts=2,
-            max_steps=0,  # reproduction path
+            max_steps=0,
             key=jax.random.PRNGKey(42),
         )
         R, sigma = 1.0, 0.1
-        # Knot points: interpolation is exact there
         truth = 1.0 - jnp.tanh((knots - R) / sigma) ** 2
         recovered = jax.vmap(metric.shape_fn)(knots)
         max_abs_err = float(jnp.max(jnp.abs(recovered - truth)))
         assert max_abs_err <= 1e-12, f"Knot interpolation not exact: max abs err={max_abs_err:.2e}"
-        # Mid-knot regression pin: dense 1000-point probe, peak-normalized.
-        # Measured 0.611 - the knots are too coarse for the wall, and that
-        # is the measured number (cf. examples/08_metric_design.py dense probe).
         x_dense = jnp.linspace(0.0, 12.0, 1000)
         truth_dense = 1.0 - jnp.tanh((x_dense - R) / sigma) ** 2
         recovered_dense = jax.vmap(metric.shape_fn)(x_dense)
@@ -288,7 +274,7 @@ class TestDesignOptimization:
             objective="nec",
             strategy="hard_bound",
             n_starts=16,
-            max_steps=0,  # reproduction path (matches fixture gen)
+            max_steps=0,
             key=jax.random.PRNGKey(42),
         )
         golden = jnp.asarray(np.load(FIXTURE_PATH))
@@ -300,13 +286,12 @@ class TestDesignOptimization:
         )
 
     def test_construction_under_jit_tracing_does_not_raise(self):
-        """Regression (design/optimizer BFGS silent no-op): constructing a
-        ShapeFunctionMetric under JAX tracing must not raise.
+        """Constructing a ShapeFunctionMetric under JAX tracing must not raise.
 
-        ``__check_init__ -> verify_physical`` used ``bool(jnp.all(...))``,
-        raising ``TracerBoolConversionError`` inside ``optx.minimise``'s
-        traced loss; the optimizer's try/except swallowed it and BFGS
-        silently became a no-op.
+        ``__check_init__ -> verify_physical`` skips its host-side check on
+        tracers; a ``bool(jnp.all(...))`` there would raise
+        ``TracerBoolConversionError`` inside the traced loss of
+        ``optx.minimise``.
         """
         from warpax.design import ShapeFunctionMetric
 
@@ -319,16 +304,14 @@ class TestDesignOptimization:
             sfm = ShapeFunctionMetric(sf, v_s=jnp.asarray(0.5), strict=True)
             return sfm.shift(jnp.array([0.0, 1.0, 0.0, 0.0]))
 
-        out = build_and_eval(values)  # must not raise under tracing
+        out = build_and_eval(values)
         assert out.shape == (3,)
         assert bool(jnp.all(jnp.isfinite(out)))
 
     def test_bfgs_strictly_reduces_loss_tiny_problem(self):
-        """Regression (design/optimizer BFGS silent no-op): on a tiny
-        spline problem, BFGS must strictly reduce the loss vs the seed.
-
-        Pre-fix, every ``optx.minimise`` call raised at trace time and the
-        returned loss exactly equaled the seed loss (no-op).
+        """On a tiny spline problem BFGS strictly raises the margin above the
+        seed; a margin exactly equal to the seed's would mean the optimizer
+        took no step.
         """
         knots = jnp.linspace(0.0, 3.0, 8)
         values = 0.8 * (1.0 - jnp.tanh((knots - 1.0) / 0.3) ** 2)
@@ -350,11 +333,43 @@ class TestDesignOptimization:
             key=key,
         )
         assert report.n_steps > 0
-        assert float(report.final_margin) < float(report_seed.final_margin), (
-            "BFGS made no progress: loss "
+        assert float(report.final_margin) > float(report_seed.final_margin), (
+            "BFGS made no progress: margin "
             f"{float(report.final_margin)} vs seed "
-            f"{float(report_seed.final_margin)} (silent no-op regression)"
+            f"{float(report_seed.final_margin)}"
         )
+
+    def test_bfgs_progresses_with_velocity_constraint(self):
+        """Constraint penalties inside the traced loss must not call ``bool()``
+        on a tracer, and the constrained search must still raise the margin.
+
+        Knots span past ``max_radius=10`` so the bubble-size probe lies
+        inside the spline support (outside it the spline is NaN).
+        """
+        knots = jnp.linspace(0.0, 12.0, 8)
+        values = 0.8 * (1.0 - jnp.tanh((knots - 1.0) / 0.3) ** 2)
+        shape = ShapeFunction.spline(knots, values)
+        key = jax.random.PRNGKey(7)
+        constraints = ["velocity", "bubble_size"]
+
+        _, report_seed = design_metric(
+            shape,
+            objective="nec",
+            constraints=constraints,
+            n_starts=1,
+            max_steps=0,
+            key=key,
+        )
+        _, report = design_metric(
+            shape,
+            objective="nec",
+            constraints=constraints,
+            n_starts=1,
+            max_steps=20,
+            key=key,
+        )
+        assert report.n_steps > 0
+        assert float(report.final_margin) > float(report_seed.final_margin)
 
     def test_convergence_report_fields(self, alcubierre_knots_values):
         """OptimizationReport exposes convergence fields and physicality verdict."""
@@ -378,8 +393,6 @@ class TestDesignOptimization:
         assert report.n_starts == 2
 
 
-# Shared test coordinates
-
 ORIGIN = jnp.array([0.0, 0.0, 0.0, 0.0])
 FAR_FIELD = jnp.array([0.0, 100.0, 0.0, 0.0])
 
@@ -398,9 +411,6 @@ WARP_METRIC_IDS = [m.name() for m in WARP_METRICS]
 ALL_METRIC_IDS = [m.name() for m in ALL_METRICS]
 
 
-# Origin value tests
-
-
 class TestShapeFunctionOrigin:
     """Warp metrics should return ~1.0 at the bubble center."""
 
@@ -410,21 +420,14 @@ class TestShapeFunctionOrigin:
         npt.assert_allclose(float(f), 1.0, atol=1e-6)
 
 
-# Far-field value tests
-
-
 class TestShapeFunctionFarField:
     """Warp metrics should return ~0.0 far from the bubble."""
 
     @pytest.mark.parametrize("metric", WARP_METRICS, ids=WARP_METRIC_IDS)
     def test_far_field_value(self, metric):
-        # Use a coordinate well outside any bubble radius
         far = jnp.array([0.0, 1000.0, 0.0, 0.0])
         f = metric.shape_function_value(far)
         npt.assert_allclose(float(f), 0.0, atol=1e-6)
-
-
-# Benchmark zero tests
 
 
 class TestBenchmarkZero:
@@ -455,14 +458,8 @@ class TestBenchmarkZero:
         assert float(f) == 0.0
 
 
-# Dtype tests
-
-
 class TestShapeFunctionDtype:
     """All shape functions must return float64."""
-
-
-# Scalar shape tests
 
 
 class TestShapeFunctionShape:
@@ -472,9 +469,6 @@ class TestShapeFunctionShape:
     def test_scalar_shape(self, metric):
         f = metric.shape_function_value(ORIGIN)
         assert f.shape == (), f"{metric.name()} shape: {f.shape}"
-
-
-# JIT compatibility tests
 
 
 class TestShapeFunctionJIT:
@@ -488,22 +482,15 @@ class TestShapeFunctionJIT:
         npt.assert_allclose(float(f_jit), float(f_eager), atol=1e-15)
 
 
-# Wall region tests
-
-
 class TestShapeFunctionWallRegion:
     """Shape function in the wall transition region produces intermediate values."""
 
     def test_rodal_wall_region(self):
-        """Rodal at r ~ R should give 0.1 < f < 0.9."""
-        m = RodalMetric()  # R=100.0, sigma=0.03
-        # Place point at approximately r = R = 100
+        """Rodal at r ~ R = 100 (default R=100.0, sigma=0.03) should give 0.1 < f < 0.9."""
+        m = RodalMetric()
         coords = jnp.array([0.0, 100.0, 0.0, 0.0])
         f = float(m.shape_function_value(coords))
         assert 0.1 < f < 0.9, f"Expected wall region value, got {f}"
-
-
-# Natario convention correctness
 
 
 class TestNatarioConvention:
@@ -519,9 +506,6 @@ class TestNatarioConvention:
         )
 
 
-# Lentz L1 geometry tests
-
-
 class TestLentzL1Geometry:
     """Lentz shape function uses L1 (Manhattan) distance, not Euclidean."""
 
@@ -532,7 +516,7 @@ class TestLentzL1Geometry:
         same L1 distance d = R/2. They should produce identical shape
         function values.
         """
-        m = LentzMetric()  # R=100.0
+        m = LentzMetric()
         half_R = m.R / 2.0
         coords_x = jnp.array([0.0, half_R, 0.0, 0.0])
         coords_y = jnp.array([0.0, 0.0, half_R, 0.0])
@@ -547,7 +531,7 @@ class TestLentzL1Geometry:
         L1 distance R/2. The diagonal point should have a smaller shape
         function value (closer to exterior).
         """
-        m = LentzMetric()  # R=100.0
+        m = LentzMetric()
         half_R = m.R / 2.0
         coords_axis = jnp.array([0.0, half_R, 0.0, 0.0])
         coords_diag = jnp.array([0.0, half_R, half_R, 0.0])
@@ -556,3 +540,11 @@ class TestLentzL1Geometry:
         assert f_axis > f_diag, (
             f"L1 geometry violated: axis f={f_axis} should be > diagonal f={f_diag}"
         )
+
+
+def test_design_objectives_share_the_ec_optimizer_table():
+    from warpax.design import objectives
+    from warpax.optimization import ec_constraints
+
+    assert objectives.EC_OPTIMIZERS is ec_constraints.EC_OPTIMIZERS
+    assert tuple(objectives.EC_OPTIMIZERS) == ("nec", "wec", "sec", "dec")

@@ -17,8 +17,6 @@ Three density families:
 All families use isotropic pressure (p_t = p_r) from TOV integration.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -71,8 +69,8 @@ def _integrate_tov_pressure(
 
     dp_r/dr = -(rho + p_r)(m + 4pi r^3 p_r) / (r(r - 2m))
 
-    Boundary condition: p_r(R_2) = 0. Uses forward Euler via jax.lax.scan
-    on a fine inward grid; sufficient for the smooth profiles here.
+    Boundary condition: p_r(R_2) = 0. Fourth-order RK4 via jax.lax.scan on a
+    fine inward grid, with rho and m evaluated exactly at the stage midpoints.
 
     Parameters
     ----------
@@ -86,24 +84,30 @@ def _integrate_tov_pressure(
     -------
     callable r -> p_r(r)
     """
-    import interpax
-
-    from ..numerics import assert_uniform_grid
+    from ..numerics import assert_uniform_grid, cubic_interp, local_cubic_slopes
 
     r_grid = jnp.linspace(R_2, R_1, n_grid)
     assert_uniform_grid(r_grid, name="_integrate_tov_pressure.r_grid")
 
+    r_mid = 0.5 * (r_grid[:-1] + r_grid[1:])
     rho_vals = jax.vmap(rho_fn)(r_grid)
     m_vals = jax.vmap(m_fn)(r_grid)
-    p_all = integrate_tov_inward(r_grid, rho_vals, m_vals)
+    p_all = integrate_tov_inward(
+        r_grid,
+        rho_vals,
+        m_vals,
+        rho_mid=jax.vmap(rho_fn)(r_mid),
+        m_mid=jax.vmap(m_fn)(r_mid),
+    )
 
     r_ascending = jnp.flip(r_grid)
     p_ascending = jnp.flip(p_all)
+    p_slopes = local_cubic_slopes(r_ascending, p_ascending)
 
     def p_r_fn(r: Float[Array, ""]) -> Float[Array, ""]:
         in_shell = (r >= R_1) & (r <= R_2)
         r_clamped = jnp.clip(r, R_1, R_2)
-        p_val = interpax.interp1d(r_clamped, r_ascending, p_ascending, method="cubic")
+        p_val = cubic_interp(r_clamped, r_ascending, p_ascending, p_slopes)
         return jnp.where(in_shell, jnp.maximum(p_val, 0.0), 0.0)
 
     return p_r_fn
@@ -118,9 +122,7 @@ def _compute_cumulative_mass(
 
     Returns an interpolated callable and the total mass M.
     """
-    import interpax
-
-    from ..numerics import assert_uniform_grid
+    from ..numerics import assert_uniform_grid, cubic_interp, local_cubic_slopes
 
     r_max = R_2 * 1.1
     r_grid = jnp.linspace(0.0, r_max, n_grid)
@@ -138,14 +140,10 @@ def _compute_cumulative_mass(
     )
 
     total_mass = float(m_vals[-1])
+    m_slopes = local_cubic_slopes(r_grid, m_vals)
 
     def m_fn(r: Float[Array, ""]) -> Float[Array, ""]:
-        return interpax.interp1d(
-            jnp.clip(r, 0.0, r_max),
-            r_grid,
-            m_vals,
-            method="cubic",
-        )
+        return cubic_interp(jnp.clip(r, 0.0, r_max), r_grid, m_vals, m_slopes)
 
     return m_fn, total_mass
 
@@ -253,7 +251,7 @@ def bernstein_density_profiles(
     -------
     SShellSourceProfiles
     """
-    from jax.scipy.special import gammaln
+    from ..optimization.basis import bernstein_basis
 
     if coeffs is None:
         coeffs = jnp.array([0.0, 0.5e-4, 1.0e-4, 1.0e-4, 0.5e-4, 0.0])
@@ -263,16 +261,11 @@ def bernstein_density_profiles(
         coeffs = coeffs.at[-1].set(0.0)
 
     n = coeffs.shape[0] - 1
-    k_idx = jnp.arange(n + 1, dtype=jnp.float64)
 
     def density(r: Float[Array, ""]) -> Float[Array, ""]:
         t = jnp.clip((r - R_1) / (R_2 - R_1), 0.0, 1.0)
         in_shell = (r >= R_1) & (r <= R_2)
-
-        log_binom = gammaln(n + 1.0) - gammaln(k_idx + 1.0) - gammaln(n - k_idx + 1.0)
-        binom = jnp.exp(log_binom)
-        basis_vals = binom * (t**k_idx) * ((1.0 - t) ** (n - k_idx))
-        rho = jnp.sum(coeffs * basis_vals)
+        rho = jnp.sum(coeffs * bernstein_basis(n, t))
         return jnp.where(in_shell, jnp.maximum(rho, 0.0), 0.0)
 
     m_fn, total_mass = _compute_cumulative_mass(density, R_2)

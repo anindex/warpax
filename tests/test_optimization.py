@@ -10,6 +10,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from warpax.geometry.metric import MetricSpecification
+
 
 class TestBernsteinBasis:
     """Bernstein basis mathematical properties."""
@@ -32,7 +34,9 @@ class TestBernsteinBasis:
             assert abs(float(bernstein_basis(n, jnp.asarray(1.0))[-1]) - 1.0) < 1e-12
 
     def test_eval_consistency(self):
-        """bernstein_eval matches manual basis * coeffs sum and a hand value."""
+        """bernstein_eval matches manual basis * coeffs sum and a hand value:
+        0.5*4t(1-t)^3 + 6t^2(1-t)^2 + 0.5*4t^3(1-t) at t=0.3 is exactly
+        2541/5000 = 0.5082."""
         from warpax.optimization import bernstein_basis, bernstein_eval
 
         coeffs = jnp.array([0.0, 0.5, 1.0, 0.5, 0.0])
@@ -40,8 +44,6 @@ class TestBernsteinBasis:
         assert (
             abs(float(jnp.sum(coeffs * bernstein_basis(4, t)) - bernstein_eval(coeffs, t))) < 1e-14
         )
-        # Independent pin: 0.5*4t(1-t)^3 + 6t^2(1-t)^2 + 0.5*4t^3(1-t) at t=0.3
-        # is exactly 2541/5000 = 0.5082.
         assert abs(float(bernstein_eval(coeffs, t)) - 0.5082) < 1e-14
 
     def test_jax_differentiable(self):
@@ -51,6 +53,20 @@ class TestBernsteinBasis:
         coeffs = jnp.array([0.0, 0.5, 1.0, 0.5, 0.0])
         grad = jax.grad(lambda c: bernstein_eval(c, jnp.asarray(0.5)))(coeffs)
         assert jnp.all(jnp.isfinite(grad))
+
+    def test_bernstein_derivative_finite_at_endpoints(self):
+        """coeffs [0,1,1,0] is 3t(1-t): f'(0)=3, f'(1)=-3, f''=-6 everywhere.
+
+        Float exponents ``t**k`` gave NaN first and second derivatives at the
+        endpoints; static integer powers make them exact.
+        """
+        from warpax.optimization import bernstein_eval
+
+        f = lambda t: bernstein_eval(jnp.array([0.0, 1.0, 1.0, 0.0]), t)
+        assert abs(float(jax.grad(f)(jnp.asarray(0.0))) - 3.0) < 1e-12
+        assert abs(float(jax.grad(f)(jnp.asarray(1.0))) + 3.0) < 1e-12
+        assert abs(float(jax.hessian(f)(jnp.asarray(0.0))) + 6.0) < 1e-12
+        assert abs(float(jax.hessian(f)(jnp.asarray(1.0))) + 6.0) < 1e-12
 
 
 class TestEndpointClamping:
@@ -107,14 +123,11 @@ class TestPackUnpack:
         assert float(coeffs.velocity_coeffs[0]) == 0.0
         assert float(coeffs.velocity_coeffs[-1]) == 0.0
 
-        # Value round-trips: velocity interior passes through untransformed,
-        # v_0 is read back verbatim.
         np.testing.assert_array_equal(
             np.asarray(coeffs.velocity_coeffs[1:-1]),
             np.array([0.2, 0.8, 0.5, 0.1]),
         )
         assert coeffs.v_0 == pytest.approx(0.1)
-        # rho(r) = softplus(rho_scale_raw) * softplus(theta) reparameterization.
         assert float(coeffs.density_coeffs[1]) == pytest.approx(
             float(jax.nn.softplus(1e-4) * jax.nn.softplus(0.1)),
             rel=1e-12,
@@ -197,6 +210,45 @@ class TestLoss:
         if c1.ec_penalty > 1e-10:
             assert float(l2) > float(l1)
 
+    def test_loss_ec_penalty_matches_probe_loop(self):
+        """Vectorized EC penalty equals the per-probe Python loop it replaced."""
+        from warpax.metrics.sshell import sshell_from_profiles
+        from warpax.optimization import (
+            coeffs_to_profiles_sshell,
+            default_theta,
+            evaluate_loss,
+            unpack_theta,
+        )
+        from warpax.optimization.ec_constraints import _ec_margins_at_point, _probe_T_g
+
+        theta = default_theta()
+        n_probes, n_grid, n_ec_starts = 3, 256, 2
+        _, components = evaluate_loss(
+            theta, ansatz="sshell", n_probes=n_probes, n_grid=n_grid, n_ec_starts=n_ec_starts
+        )
+
+        coeffs = unpack_theta(theta, 4, 4)
+        metric = sshell_from_profiles(coeffs_to_profiles_sshell(coeffs, 10.0, 20.0), n_grid=n_grid)
+        r_probes = jnp.linspace(10.0, 20.0, n_probes)
+        key = jax.random.PRNGKey(42)
+        T_batch, g_batch = _probe_T_g(metric, r_probes)
+        penalties = []
+        for i in range(n_probes):
+            margins = _ec_margins_at_point(
+                T_batch[i],
+                g_batch[i],
+                ("nec", "wec", "dec"),
+                n_ec_starts,
+                jax.random.fold_in(key, i),
+            )
+            penalties.append(
+                jax.nn.softplus(-margins["nec"]) ** 2
+                + jax.nn.softplus(-margins["wec"]) ** 2
+                + jax.nn.softplus(-margins["dec"]) ** 2
+            )
+        reference = float(jnp.mean(jnp.stack(penalties)))
+        assert abs(components.ec_penalty - reference) <= 1e-12 * max(abs(reference), 1e-300)
+
 
 class TestECConstraints:
     """EC soft penalty and hard feasibility."""
@@ -272,3 +324,46 @@ class TestOptimizerIntegration:
         )
         assert result.theta_opt is not None
         assert jnp.isfinite(result.loss_final)
+
+
+class _NaNAboveHalf(MetricSpecification):
+    """Minkowski for x <= 0.5, NaN beyond: an invalid probe region."""
+
+    def __call__(self, coords):
+        eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+        return eta * jnp.where(coords[1] > 0.5, jnp.nan, 1.0)
+
+    def symbolic(self):
+        raise NotImplementedError
+
+    def name(self):
+        return "nan-above-half"
+
+    def shape_function_value(self, coords):
+        return jnp.asarray(0.0)
+
+
+class TestInvalidProbes:
+    """A NaN stress-energy at a probe must not be reported as feasible."""
+
+    def test_capped_check_reports_nan_margin(self):
+        from warpax.optimization.ec_constraints import ec_feasibility_check
+
+        res = ec_feasibility_check(_NaNAboveHalf(), jnp.array([0.0, 1.0]), n_starts=2)
+        assert res.feasible is False
+        assert np.isnan(res.worst_margin)
+        assert res.worst_point_idx == 1
+
+    def test_frame_free_check_reports_nan_margin(self):
+        from warpax.optimization.ec_constraints import ec_feasibility_frame_free
+
+        res = ec_feasibility_frame_free(_NaNAboveHalf(), jnp.array([0.0, 1.0]))
+        assert res.feasible is False
+        assert np.isnan(res.worst_margin)
+
+    def test_valid_probes_stay_feasible(self):
+        from warpax.optimization.ec_constraints import ec_feasibility_check
+
+        res = ec_feasibility_check(_NaNAboveHalf(), jnp.array([0.0, 0.25]), n_starts=2)
+        assert res.feasible is True
+        assert np.isfinite(res.worst_margin)

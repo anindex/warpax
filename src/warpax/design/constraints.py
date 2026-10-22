@@ -5,14 +5,12 @@ signed ``margin`` (positive ``=>`` satisfied). The optimizer composes
 these via string-dispatch through :data:`CONSTRAINT_REGISTRY`.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float
+from jaxtyping import Array, Bool, Float
 
 from .shape_functions import ShapeFunction
 
@@ -23,7 +21,7 @@ class ConstraintResult(NamedTuple):
     Attributes
     ----------
     satisfied
-        True iff ``margin >= 0``.
+        0-D bool array, ``margin >= 0``; stays traceable under ``jax.jit``.
     margin
         Signed scalar margin (positive = satisfied). Flows through
         ``jax.grad`` for use as a differentiable penalty term in
@@ -33,7 +31,7 @@ class ConstraintResult(NamedTuple):
         ``'boundedness'``).
     """
 
-    satisfied: bool
+    satisfied: Bool[Array, ""]
     margin: Float[Array, ""]
     name: str
 
@@ -61,7 +59,7 @@ def bubble_size_constraint(sf: ShapeFunction, max_radius: float = 10.0) -> Const
     amp_far = jnp.abs(sf(r_far))
     margin = jnp.asarray(0.01) - amp_far
     return ConstraintResult(
-        satisfied=bool(margin >= 0.0),
+        satisfied=margin >= 0.0,
         margin=margin,
         name="bubble_size",
     )
@@ -88,7 +86,7 @@ def velocity_constraint(v_s, max_v: float = 10.0) -> ConstraintResult:
     v_s_arr = jnp.asarray(v_s)
     margin = jnp.asarray(max_v) - jnp.abs(v_s_arr)
     return ConstraintResult(
-        satisfied=bool(margin >= 0.0),
+        satisfied=margin >= 0.0,
         margin=margin,
         name="velocity",
     )
@@ -123,7 +121,7 @@ def boundedness_constraint(
     max_amp = jnp.max(jnp.abs(amps))
     margin = jnp.asarray(amp_max) - max_amp
     return ConstraintResult(
-        satisfied=bool(margin >= 0.0),
+        satisfied=margin >= 0.0,
         margin=margin,
         name="boundedness",
     )
@@ -138,4 +136,4 @@ CONSTRAINT_REGISTRY: dict[str, Callable] = {
 
 def all_constraints_satisfied(results: list[ConstraintResult]) -> bool:
     """Composable helper: True iff every :class:`ConstraintResult` is satisfied."""
-    return all(r.satisfied for r in results)
+    return all(bool(r.satisfied) for r in results)

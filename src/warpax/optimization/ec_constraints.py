@@ -7,17 +7,21 @@ The per-probe BFGS multistart is wrapped in :func:`equinox.filter_jit`
 so the inner trace is compiled once and reused across probes.
 """
 
-from __future__ import annotations
-
 from functools import partial
 from typing import NamedTuple
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jaxtyping import Array, Float
 
-from ..energy_conditions.optimization import optimize_dec, optimize_nec, optimize_wec
+from ..energy_conditions.optimization import (
+    optimize_dec,
+    optimize_nec,
+    optimize_sec,
+    optimize_wec,
+)
 from ..geometry.geometry import compute_curvature_chain
 from ..geometry.metric import MetricSpecification
 
@@ -39,7 +43,12 @@ class ECFeasibilityResult(NamedTuple):
     worst_margin: float
 
 
-_OPTIMIZER_MAP = {"nec": optimize_nec, "wec": optimize_wec, "dec": optimize_dec}
+EC_OPTIMIZERS = {
+    "nec": optimize_nec,
+    "wec": optimize_wec,
+    "sec": optimize_sec,
+    "dec": optimize_dec,
+}
 
 
 def _probe_coords(r_probes: Float[Array, "N"]) -> Float[Array, "N 4"]:
@@ -54,11 +63,16 @@ def _probe_T_g(
     metric: MetricSpecification,
     r_probes: Float[Array, "N"],
 ) -> tuple[Float[Array, "N 4 4"], Float[Array, "N 4 4"]]:
-    """Vmap the curvature chain across radial probes; NaN-clean T."""
+    """Vmap the curvature chain across radial probes."""
     coords_batch = _probe_coords(r_probes)
     cc_batch = jax.vmap(lambda c: compute_curvature_chain(metric, c))(coords_batch)
-    T = jnp.where(jnp.isnan(cc_batch.stress_energy), 0.0, cc_batch.stress_energy)
-    return T, cc_batch.metric
+    return cc_batch.stress_energy, cc_batch.metric
+
+
+def _first_nonfinite_probe(T_batch: Float[Array, "N 4 4"]) -> int | None:
+    """Index of the first probe with a non-finite stress-energy, else ``None``."""
+    bad = np.flatnonzero(~np.all(np.isfinite(np.asarray(T_batch)), axis=(-1, -2)))
+    return int(bad[0]) if bad.size else None
 
 
 @partial(jax.jit, static_argnames=("conditions", "n_starts"))
@@ -80,7 +94,7 @@ def _ec_margins_at_point(
     out = {}
     for idx, cond in enumerate(conditions):
         cond_key = jax.random.fold_in(key, idx)
-        out[cond] = _OPTIMIZER_MAP[cond](T, g, n_starts=n_starts, key=cond_key).margin
+        out[cond] = EC_OPTIMIZERS[cond](T, g, n_starts=n_starts, key=cond_key).margin
     return out
 
 
@@ -132,7 +146,9 @@ def ec_feasibility_check(
 ) -> ECFeasibilityResult:
     """Hard EC check with per-point, per-condition margins.
 
-    Uses n_starts=16 by default for certification quality.
+    Uses n_starts=16 by default for certification quality. A probe with a
+    non-finite stress-energy or margin is infeasible: ``worst_margin`` is NaN
+    and ``worst_point_idx`` names that probe.
 
     ``key`` seeds the per-point multistart randomness; ``None`` keeps
     the deterministic default ``PRNGKey(42)``. Each probe point gets a
@@ -145,16 +161,25 @@ def ec_feasibility_check(
 
     worst_condition = conditions[0]
     worst_margin = float("inf")
-    worst_idx = 0
+    worst_idx = _first_nonfinite_probe(T_batch)
+    if worst_idx is not None:
+        worst_margin = float("nan")
+    else:
+        worst_idx = 0
+        for cond in conditions:
+            m = np.asarray(margins[cond])
+            if not np.all(np.isfinite(m)):
+                worst_idx = int(np.flatnonzero(~np.isfinite(m))[0])
+                worst_condition = cond
+                worst_margin = float("nan")
+                break
+            min_val = float(np.min(m))
+            if min_val < worst_margin:
+                worst_margin = min_val
+                worst_condition = cond
+                worst_idx = int(np.argmin(m))
 
-    for cond in conditions:
-        min_val = float(jnp.min(margins[cond]))
-        if min_val < worst_margin:
-            worst_margin = min_val
-            worst_condition = cond
-            worst_idx = int(jnp.argmin(margins[cond]))
-
-    feasible = all(float(jnp.min(margins[c])) >= 0.0 for c in conditions)
+    feasible = bool(worst_margin >= 0.0)
 
     return ECFeasibilityResult(
         feasible=feasible,
@@ -197,7 +222,10 @@ def ec_feasibility_frame_free(
     Unlike :func:`ec_feasibility_check` (rapidity-capped BFGS optimizer), the
     verdict here is observer-independent: the algebraic Type of ``T^a_b`` plus
     the cap-free Type-I eigenvalue slacks (Hawking & Ellis 1973). No Eulerian
-    normal, no timelike tetrad, valid at all warp speeds.
+    normal, no timelike tetrad, valid at all warp speeds. A probe with a
+    non-finite stress-energy is infeasible with ``worst_margin`` NaN.
+    ``worst_margin`` is the worst Type-I slack when every probe is Type I,
+    else the negative imaginary-eigenvalue scale.
     """
     from ..energy_conditions.frame_free import certify_grid_frame_free
 
@@ -210,19 +238,17 @@ def ec_feasibility_frame_free(
     n_type_iv = n_total - n_type_i
 
     margin_cols = {"nec": res.nec_margins, "wec": res.wec_margins, "dec": res.dec_margins}
-    # Worst cap-free Type-I slack over the requested conditions (NaN at non-Type-I).
-    stacked = jnp.stack([margin_cols[c] for c in conditions])  # (C, N)
+    stacked = jnp.stack([margin_cols[c] for c in conditions])
     typeI_worst = float(jnp.nanmin(jnp.where(is_type_i[None, :], stacked, jnp.nan)))
     if not jnp.isfinite(typeI_worst):
         typeI_worst = float("nan")
     max_imag = float(jnp.nanmax(jnp.abs(jnp.asarray(res.eigenvalues_imag))))
 
     feasible = bool(n_type_iv == 0 and jnp.isfinite(typeI_worst) and typeI_worst >= 0.0)
-    # Heatmap severity: Type-I slack if all Type-I, else negative imaginary scale.
-    if n_type_iv > 0:
-        worst_margin = -abs(max_imag)
-    else:
-        worst_margin = typeI_worst
+    worst_margin = -abs(max_imag) if n_type_iv > 0 else typeI_worst
+    if _first_nonfinite_probe(T_batch) is not None:
+        feasible = False
+        worst_margin = float("nan")
 
     return FrameFreeFeasibility(
         feasible=feasible,

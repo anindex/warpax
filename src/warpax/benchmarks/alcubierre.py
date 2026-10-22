@@ -26,15 +26,13 @@ from __future__ import annotations
 
 import equinox as eqx
 import jax.numpy as jnp
+import numpy as np
 import sympy as sp
 from beartype import beartype
 from jaxtyping import Array, Float, jaxtyped
 
-from ..geometry.metric import ADMMetric, SymbolicMetric
+from ..geometry.metric import ADMMetric, SymbolicMetric, flat_x_shift_symbolic
 from ..metrics._common import alcubierre_shape
-
-# Backward-compatible alias for external consumers
-_shape_function = alcubierre_shape
 
 
 def _shape_function_derivative(
@@ -49,7 +47,11 @@ def _shape_function_derivative(
 class AlcubierreMetric(ADMMetric):
     """Alcubierre warp drive metric via ADM 3+1 decomposition.
 
-    All parameters are dynamic fields (no recompilation on change).
+    All parameters are dynamic fields (no recompilation on change). They are
+    stored as array leaves, not Python floats: ``eqx.filter_jit`` partitions on
+    the value, so a float field would be static and every distinct ``v_s``
+    would retrace the whole curvature chain (measured 1.07 s per value against
+    0.002 s).
 
     Parameters
     ----------
@@ -63,9 +65,6 @@ class AlcubierreMetric(ADMMetric):
         Bubble center x-coordinate at t=0 (added to v_s * t for co-moving motion).
     """
 
-    # Array leaves, not Python floats: eqx.filter_jit partitions on the VALUE,
-    # so a float field is static and every distinct v_s retraced the whole
-    # curvature chain (measured 1.07 s per value against 0.002 s).
     v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=0.5)
     R: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=1.0)
     sigma: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=8.0)
@@ -88,7 +87,7 @@ class AlcubierreMetric(ADMMetric):
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         r_s = self._radial_distance(coords)
-        f = _shape_function(r_s, self.R, self.sigma)
+        f = alcubierre_shape(r_s, self.R, self.sigma)
         return jnp.array([-self.v_s * f, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)
@@ -99,35 +98,11 @@ class AlcubierreMetric(ADMMetric):
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Shape function f(r_s) for the Alcubierre metric."""
         r_s = self._radial_distance(coords)
-        return _shape_function(r_s, self.R, self.sigma)
-
-    # __call__ is inherited from ADMMetric (uses adm_to_full_metric)
+        return alcubierre_shape(r_s, self.R, self.sigma)
 
     def symbolic(self) -> SymbolicMetric:
         """Return SymPy symbolic form for inspection and cross-validation."""
-        t, x, y, z = sp.symbols("t x y z")
-        v_s = sp.Symbol("v_s", positive=True)
-        R_val = sp.Symbol("R", positive=True)
-        sigma_val = sp.Symbol("sigma", positive=True)
-
-        x_s_val = sp.Symbol("x_s", real=True)
-        dx = x - x_s_val - v_s * t
-        r_s = sp.sqrt(dx**2 + y**2 + z**2)
-        f = (sp.tanh(sigma_val * (r_s + R_val)) - sp.tanh(sigma_val * (r_s - R_val))) / (
-            2 * sp.tanh(sigma_val * R_val)
-        )
-
-        # Full metric: ds^2 = -(1 - v_s^2 f^2) dt^2 - 2 v_s f dx dt
-        # + dx^2 + dy^2 + dz^2
-        g = sp.Matrix(
-            [
-                [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
-                [-v_s * f, 1, 0, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1],
-            ]
-        )
-        return SymbolicMetric([t, x, y, z], g)
+        return alcubierre_symbolic()
 
     def name(self) -> str:
         return "Alcubierre"
@@ -160,21 +135,13 @@ def alcubierre_symbolic(
         2 * sp.tanh(sigma_val * R_val)
     )
 
-    g = sp.Matrix(
-        [
-            [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
-            [-v_s * f, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ]
-    )
-    return SymbolicMetric([t, x, y, z], g)
+    return flat_x_shift_symbolic([t, x, y, z], v_s, f)
 
 
 def eulerian_energy_density(
-    x: Float[Array, "..."],
-    y: Float[Array, "..."],
-    z: Float[Array, "..."],
+    x: Float[Array | np.ndarray, "..."],
+    y: Float[Array | np.ndarray, "..."],
+    z: Float[Array | np.ndarray, "..."],
     v_s: float = 0.5,
     R: float = 1.0,
     sigma: float = 8.0,
@@ -197,7 +164,6 @@ def eulerian_energy_density(
     return -(v_s**2 / (32 * jnp.pi)) * df**2 * rho_perp_sq
 
 
-# Ground truth for validation
 GROUND_TRUTH = {
     "stress_energy_zero": False,
     "energy_conditions": {"WEC": False, "NEC": False, "DEC": False, "SEC": False},

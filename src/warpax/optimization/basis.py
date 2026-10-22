@@ -5,8 +5,6 @@ endpoint clamping (c_0 = c_n = 0) for compact support. Density coefficients
 use softplus reparameterization for positivity; velocity is unconstrained.
 """
 
-from __future__ import annotations
-
 from typing import NamedTuple
 
 import jax
@@ -31,11 +29,17 @@ class ShellCoeffs(NamedTuple):
 
 
 def bernstein_basis(n: int, t: Float[Array, ""]) -> Float[Array, "n1"]:
-    """Evaluate all n+1 Bernstein basis functions B_{n,k}(t) at t."""
+    """Evaluate all n+1 Bernstein basis functions B_{n,k}(t) at t.
+
+    Powers use static integer exponents so the derivative is finite at
+    t = 0 and t = 1 (a float exponent gives 0 * log(0) = NaN there).
+    """
     k_idx = jnp.arange(n + 1, dtype=jnp.float64)
     log_binom = gammaln(n + 1.0) - gammaln(k_idx + 1.0) - gammaln(n - k_idx + 1.0)
     binom = jnp.exp(log_binom)
-    return binom * (t**k_idx) * ((1.0 - t) ** (n - k_idx))
+    t_pow = jnp.stack([t**k for k in range(n + 1)])
+    u_pow = jnp.stack([(1.0 - t) ** (n - k) for k in range(n + 1)])
+    return binom * t_pow * u_pow
 
 
 def bernstein_eval(coeffs: Float[Array, "N"], t: Float[Array, ""]) -> Float[Array, ""]:
@@ -91,7 +95,6 @@ def unpack_theta(
     density_coeffs = clamp_endpoints(density_theta, positive=positive_density)
     velocity_coeffs = clamp_endpoints(velocity_theta, positive=False)
 
-    # rho(r) = softplus(rho_scale_raw) * sum c_k B(t)
     density_coeffs = jax.nn.softplus(rho_scale) * density_coeffs
 
     return ShellCoeffs(
@@ -140,13 +143,15 @@ def default_theta(
     v_0: float = 0.1,
     rho_scale: float = 1e-4,
 ) -> Float[Array, "D"]:
-    """Construct a default initial parameter vector with uniform interior coefficients."""
+    """Construct a default initial parameter vector with uniform interior coefficients.
+
+    ``rho_scale_raw`` is the inverse softplus ``log(expm1(rho_scale))``:
+    ``expm1`` avoids catastrophic cancellation at small ``rho_scale`` and the
+    clip to ``[1e-300, 700]`` guards the overflow tail.
+    """
     density_theta = jnp.ones(n_density) * 0.5
     velocity_theta = jnp.ones(n_velocity) * 0.5
 
-    # Stable inverse softplus: log(expm1(x)) for any positive x; ``expm1``
-    # avoids catastrophic cancellation when ``rho_scale`` is small and
-    # clipping guards the overflow tail at large arguments.
     rho_scale_raw = jnp.log(jnp.expm1(jnp.clip(rho_scale, 1e-300, 700.0)))
 
     return pack_theta(density_theta, velocity_theta, v_0, float(rho_scale_raw))

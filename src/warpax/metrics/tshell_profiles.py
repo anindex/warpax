@@ -15,8 +15,6 @@ Three velocity profile families:
 3. Bernstein-polynomial velocity with fixed endpoint coefficients
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -225,7 +223,7 @@ def bernstein_velocity_profiles(
     velocity_coeffs : Bernstein velocity coefficients (default: 6-point parabolic).
     v_0 : peak velocity scale factor.
     """
-    from jax.scipy.special import gammaln
+    from ..optimization.basis import bernstein_basis
 
     if abs(v_0) >= 1.0:
         raise ValueError(f"Velocity v_0={v_0} is superluminal. Must satisfy |v_0| < 1.")
@@ -240,15 +238,11 @@ def bernstein_velocity_profiles(
         velocity_coeffs = velocity_coeffs.at[-1].set(0.0)
 
     m = velocity_coeffs.shape[0] - 1
-    k_idx = jnp.arange(m + 1, dtype=jnp.float64)
 
     def velocity_x(r: Float[Array, ""]) -> Float[Array, ""]:
         t = jnp.clip((r - R_1) / (R_2 - R_1), 0.0, 1.0)
         in_shell = (r >= R_1) & (r <= R_2)
-        log_binom = gammaln(m + 1.0) - gammaln(k_idx + 1.0) - gammaln(m - k_idx + 1.0)
-        binom = jnp.exp(log_binom)
-        basis_vals = binom * (t**k_idx) * ((1.0 - t) ** (m - k_idx))
-        v = v_0 * jnp.sum(velocity_coeffs * basis_vals)
+        v = v_0 * jnp.sum(velocity_coeffs * bernstein_basis(m, t))
         return jnp.where(in_shell, v, 0.0)
 
     return _tshell_from_sshell(sshell, velocity_x)

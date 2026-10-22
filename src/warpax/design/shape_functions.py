@@ -5,7 +5,7 @@ profile that modulates the warp-bubble metric. Three JAX-traceable
 basis families are exposed as ``ShapeFunction`` classmethods:
 
 - :meth:`ShapeFunction.spline`, cubic B-spline via
-  ``interpax.interp1d``; requires the ``[design]`` extra.
+  ``warpax.numerics.cubic_interp``.
 - :meth:`ShapeFunction.bernstein`, Bernstein polynomial basis on
   ``r / r_max``; pure JAX.
 - :meth:`ShapeFunction.gmm`, Gaussian mixture
@@ -36,7 +36,7 @@ class ShapeFunction(eqx.Module):
     retrace penalty per basis family).
 
     All three basis families are ``jax.grad``-compatible. Arithmetic
-    flows through standard JAX primitives (interpax for spline,
+    flows through standard JAX primitives (Hermite spline,
     polynomial sums for Bernstein, sums of Gaussians for GMM).
 
     Examples
@@ -62,7 +62,7 @@ class ShapeFunction(eqx.Module):
         values: Float[Array, "K"],
         order: int = 3,
     ) -> "ShapeFunction":
-        """Cubic B-spline via ``interpax.interp1d``.
+        """Local cubic Hermite spline through ``(knots, values)``.
 
         Parameters
         ----------
@@ -74,9 +74,7 @@ class ShapeFunction(eqx.Module):
             Shape-function amplitudes at ``knots``. Same length as
             ``knots``.
         order
-            Spline polynomial order. ``3`` = cubic (the only value
-            currently supported by the underlying ``interpax.interp1d``
-            method name ``'cubic'``).
+            Spline polynomial order; only ``3`` (cubic) is implemented.
 
         Returns
         -------
@@ -86,10 +84,8 @@ class ShapeFunction(eqx.Module):
 
         Notes
         -----
-        Differentiability: ``interpax.interp1d`` is a pure-JAX routine
-        that computes spline coefficients on the fly, so ``jax.grad`` /
-        ``jax.jacfwd`` flow through both ``r`` and ``values`` (the
-        knot locations are static).
+        ``jax.grad`` and ``jax.jacfwd`` flow through both ``r`` and
+        ``values``.
         """
         knots = jnp.asarray(knots)
         values = jnp.asarray(values)
@@ -133,7 +129,7 @@ class ShapeFunction(eqx.Module):
         -----
         Differentiability: Bernstein evaluation is pure polynomial
         arithmetic, so ``jax.grad`` flows through both ``r`` and
-        ``coeffs``. No dependency on ``interpax`` - the Bernstein
+        ``coeffs``. The Bernstein
         basis is the stdlib-only fallback when the ``[design]`` extra
         is not installed.
         """
@@ -225,20 +221,10 @@ class ShapeFunction(eqx.Module):
 
 
 def _eval_spline(r, params):
-    """Cubic B-spline evaluation via ``interpax.interp1d``.
+    """Local C1 cubic Hermite through the knots; NaN outside the knot span."""
+    from ..numerics import cubic_interp
 
-    Lazily imports interpax so the ``[design]`` extra is optional for
-    users of Bernstein / GMM bases.
-    """
-    try:
-        import interpax
-    except ImportError as exc:  # pragma: no cover
-        raise ImportError(
-            "ShapeFunction.spline requires the '[design]' extra: `pip install \"warpax[design]\"`."
-        ) from exc
-    knots = params["knots"]
-    values = params["values"]
-    return interpax.interp1d(r, knots, values, method="cubic")
+    return cubic_interp(r, params["knots"], params["values"])
 
 
 def _eval_bernstein(r, params):
@@ -247,23 +233,13 @@ def _eval_bernstein(r, params):
     ``f(t) = sum_k c_k * B_{n,k}(t)`` with ``t = r / r_max`` clipped
     to ``[0, 1]``.
     """
+    from ..optimization.basis import bernstein_basis
+
     coeffs = params["coeffs"]
     r_max = params["r_max"]
     n = coeffs.shape[0] - 1
     t = jnp.clip(r / r_max, 0.0, 1.0)
-
-    # Binomial coefficients C(n, k) for k = 0 .. n
-    k_idx = jnp.arange(n + 1)
-    # Use log-gamma to avoid overflow for high-degree polynomials;
-    # then exponentiate. jax.scipy.special.gammaln is JIT-safe.
-    from jax.scipy.special import gammaln
-
-    log_binom = gammaln(n + 1.0) - gammaln(k_idx + 1.0) - gammaln(n - k_idx + 1.0)
-    binom = jnp.exp(log_binom)
-    # Safe zero-handling: 0^0 = 1; t^k * (1-t)^(n-k) vanishes at endpoints
-    # except for the edge basis functions. jnp.power handles 0**0 as 1.
-    basis_vals = binom * (t**k_idx) * ((1.0 - t) ** (n - k_idx))
-    return jnp.sum(coeffs * basis_vals)
+    return jnp.sum(coeffs * bernstein_basis(n, t))
 
 
 def _eval_gmm(r, params):

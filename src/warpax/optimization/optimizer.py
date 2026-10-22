@@ -1,15 +1,14 @@
 """Derivative-free optimizer for source-first shell optimization.
 
 Uses scipy.optimize.minimize (Nelder-Mead/Powell) on the multi-objective
-loss. The forward pass includes interpax interpolation construction which
+loss. The forward pass includes cubic spline construction which
 is not JIT-compilable, so derivative-free methods are used.
 """
-
-from __future__ import annotations
 
 from typing import NamedTuple
 
 import jax.numpy as jnp
+import numpy as np
 from jaxtyping import Array, Float
 from scipy.optimize import minimize as scipy_minimize
 
@@ -28,10 +27,6 @@ class ShellOptimizationResult(NamedTuple):
     ec_feasibility: ECFeasibilityResult | None
     n_evals: int
     converged: bool
-
-
-# Backward-compatible alias (distinct from energy_conditions.OptimizationResult).
-OptimizationResult = ShellOptimizationResult
 
 
 def optimize_shell(
@@ -98,11 +93,10 @@ def optimize_shell(
                 skip_ec=skip_ec_in_loop,
                 fast=fast,
             )
-            return float(loss_val)
-        except Exception:
+        except (FloatingPointError, ValueError, RuntimeError):
             return 1e10
-
-    import numpy as np
+        loss = float(loss_val)
+        return loss if np.isfinite(loss) else 1e10
 
     x0 = np.asarray(theta_init)
 

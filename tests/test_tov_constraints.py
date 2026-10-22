@@ -21,8 +21,7 @@ def test_tov_residual_anisotropic():
     r = jnp.array(2.0)
     rho = lambda rr: jnp.array(1.0)
     p_r = lambda rr: jnp.array(0.5)
-    p_t = lambda rr: jnp.array(0.5 + 0.1)  # p_t > p_r
-    # Choose Phi_prime to balance: Phi' = 2(p_t - p_r) / (r * (rho + p_r))
+    p_t = lambda rr: jnp.array(0.5 + 0.1)
     Phi_prime = jnp.array(2.0 * 0.1 / (2.0 * (1.0 + 0.5)))
     result = tov_residual(r, rho, p_r, p_t, Phi_prime)
     assert jnp.isclose(result, 0.0, atol=1e-6)
@@ -36,7 +35,6 @@ def test_tov_residual_with_gravity():
     p_t = lambda rr: jnp.array(0.5)
     Phi_prime = jnp.array(1.0)
     result = tov_residual(r, rho, p_r, p_t, Phi_prime)
-    # For isotropic fluid with constant p_r, dp_r/dr = 0, so residual = (rho + p_r) * Phi'
     expected = (1.0 + 0.5) * 1.0
     assert jnp.isclose(result, expected, atol=1e-6)
 
@@ -51,7 +49,7 @@ def test_tov_residual_pressure_gradient_equilibrium():
     r = jnp.array(2.0)
     rho = lambda rr: jnp.array(1.0)
     p_r = lambda rr: 0.5 - 0.1 * rr
-    p_t = lambda rr: 0.5 - 0.1 * rr  # isotropic, anisotropy term drops
+    p_t = lambda rr: 0.5 - 0.1 * rr
     Phi_prime = jnp.array(0.1 / (1.0 + 0.3))
     result = tov_residual(r, rho, p_r, p_t, Phi_prime)
     assert jnp.isclose(result, 0.0, atol=1e-14)
@@ -94,7 +92,7 @@ def test_hamiltonian_constraint_minkowski():
 def test_hamiltonian_constraint_pure_trace_k():
     """Flat metric with K = lambda I gives H = 6*lambda^2."""
     gamma = jnp.eye(3, dtype=jnp.float64)
-    K = jnp.eye(3, dtype=jnp.float64)  # lambda = 1
+    K = jnp.eye(3, dtype=jnp.float64)
     result = hamiltonian_constraint(gamma, K, jnp.array(0.0, dtype=jnp.float64), R=jnp.array(0.0))
     assert jnp.isclose(result, 6.0, atol=1e-14)
 

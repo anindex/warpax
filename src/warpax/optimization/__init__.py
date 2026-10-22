@@ -30,7 +30,6 @@ from .loss import (
     evaluate_loss,
 )
 from .optimizer import (
-    OptimizationResult,
     ShellOptimizationResult,
     optimize_shell,
 )
@@ -44,7 +43,6 @@ __all__ = [
     "ECFeasibilityResult",
     "LossComponents",
     "LossWeights",
-    "OptimizationResult",
     "ShellCoeffs",
     "ShellOptimizationResult",
     "SweepPoint",

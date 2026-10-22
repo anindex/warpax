@@ -11,8 +11,6 @@ where A = 2/r + 2 Phi' - 2 Lambda', B = -2/r^2. The momentum constraint
 is solved as a tridiagonal BVP with BCs: beta'(0)=0, beta(r_max)=0.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -20,6 +18,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
+from ..numerics import cubic_interp, local_cubic_slopes
 from ._radial_solve import hamiltonian_and_lapse
 
 
@@ -36,8 +35,8 @@ class TShellPotentials(NamedTuple):
         Cumulative mass function (Eulerian).
     beta_x_fn : callable r -> beta^x(r)
         Shift x-component from momentum constraint.
-    total_mass : float
-        Total shell mass M = m(R_2).
+    total_mass : Float[Array, ""]
+        Total shell mass M = m(R_2), as a jnp scalar.
     r_grid : Float[Array, "N"]
         Radial grid.
     Phi_grid : Float[Array, "N"]
@@ -48,18 +47,24 @@ class TShellPotentials(NamedTuple):
         Cumulative mass on the grid.
     beta_x_grid : Float[Array, "N"]
         Shift beta^x on the grid.
+    E_grid : Float[Array, "N"]
+        Eulerian energy density Gamma^2 (rho + p v^2) on the grid.
+    S_x_grid : Float[Array, "N"]
+        Momentum density Gamma^2 (rho + p) v_x on the grid, the BVP source.
     """
 
     Phi_fn: Callable[[Float[Array, ""]], Float[Array, ""]]
     Lambda_fn: Callable[[Float[Array, ""]], Float[Array, ""]]
     m_fn: Callable[[Float[Array, ""]], Float[Array, ""]]
     beta_x_fn: Callable[[Float[Array, ""]], Float[Array, ""]]
-    total_mass: float
+    total_mass: Float[Array, ""]
     r_grid: Float[Array, "N"]
     Phi_grid: Float[Array, "N"]
     Lambda_grid: Float[Array, "N"]
     m_grid: Float[Array, "N"]
     beta_x_grid: Float[Array, "N"]
+    E_grid: Float[Array, "N"]
+    S_x_grid: Float[Array, "N"]
 
 
 def solve_tshell_potentials(
@@ -82,6 +87,14 @@ def solve_tshell_potentials(
     R_2 : outer shell radius.
     n_grid : radial grid points.
     r_pad_factor : extend grid to r_pad_factor * R_2.
+
+    Notes
+    -----
+    Known defect: the shift ODE ``beta'' + A beta' + B beta = 8 pi alpha S_x``
+    with ``A = 2/r + 2 Phi' - 2 Lambda'`` and ``B = -2/r^2`` is not the
+    momentum constraint for the Cartesian ansatz ``beta^i = b(r) delta^i_x``
+    that ``TShellMetric`` uses, so ``beta_x_grid`` is not a source-consistent
+    solution until the constraint is rederived for that ansatz.
     """
     r_max = r_pad_factor * R_2
     r_min = 1e-6
@@ -98,20 +111,17 @@ def solve_tshell_potentials(
             f"Velocity |v^x| reaches {v_max:.4f} >= 1. Reduce v_0 to maintain subluminal flow."
         )
 
-    # Eulerian projections
     v_sq_grid = v_x_grid**2
     Gamma_sq_grid = 1.0 / jnp.maximum(1.0 - v_sq_grid, 1e-30)
     E_grid = Gamma_sq_grid * (rho_grid + p_r_grid * v_sq_grid)
     S_x_grid = Gamma_sq_grid * (rho_grid + p_r_grid) * v_x_grid
 
-    # Tilted-flow effective pressure p_eff = Gamma^2 (rho + p) v^2 + p.
     p_eff_grid = Gamma_sq_grid * (rho_grid + p_r_grid) * v_sq_grid + p_r_grid
     m_grid, Lambda_grid, Phi_grid, dPhi_dr, compactness_safe = hamiltonian_and_lapse(
         E_grid, p_eff_grid, r_grid, dr, R_1, r_max
     )
-    total_mass = float(m_grid[-1])
+    total_mass = jnp.asarray(m_grid[-1])
 
-    # Momentum constraint BVP for beta^x(r)
     alpha_grid = jnp.exp(Phi_grid)
     r_safe = jnp.maximum(r_grid, 1e-30)
     factor_1m2mr = jnp.maximum(1.0 - compactness_safe, 1e-30)
@@ -120,55 +130,31 @@ def solve_tshell_potentials(
     dLambda_dr = (dm_dr_grid * r_safe - m_grid) / (r_safe**2 * factor_1m2mr)
     dLambda_dr = jnp.where(r_grid < 1e-6, 0.0, dLambda_dr)
 
-    # Source: 8pi alpha S_x (the e^{2Lambda} factors cancel in index raising)
     source_beta = 8.0 * jnp.pi * alpha_grid * S_x_grid
 
-    # KNOWN DEFECT: this ODE is not the momentum constraint for the Cartesian ansatz
-    # beta^i = b(r) delta^i_x that TShellMetric uses, so its output is not a
-    # source-consistent solution until the constraint is rederived for that ansatz.
-    # ODE coefficients: A(r) = 2/r + 2 Phi' - 2 Lambda',  B(r) = -2/r^2
     A_coeff = 2.0 / r_safe + 2.0 * dPhi_dr - 2.0 * dLambda_dr
     A_coeff = jnp.where(r_grid < 1e-6, 0.0, A_coeff)
     B_coeff = -2.0 / r_safe**2
     B_coeff = jnp.where(r_grid < 1e-6, 0.0, B_coeff)
 
-    # Tridiagonal finite-difference BVP solve
-    beta_x_grid = _solve_shift_bvp(A_coeff, B_coeff, source_beta, dr, n_grid)
+    beta_x_grid = _solve_shift_bvp(A_coeff, B_coeff, source_beta, dr)
 
-    # Interpolated callables
-    import interpax
+    Phi_slopes = local_cubic_slopes(r_grid, Phi_grid)
+    Lambda_slopes = local_cubic_slopes(r_grid, Lambda_grid)
+    m_slopes = local_cubic_slopes(r_grid, m_grid)
+    beta_slopes = local_cubic_slopes(r_grid, beta_x_grid)
 
     def Phi_fn(r: Float[Array, ""]) -> Float[Array, ""]:
-        return interpax.interp1d(
-            jnp.clip(r, r_min, r_max),
-            r_grid,
-            Phi_grid,
-            method="cubic",
-        )
+        return cubic_interp(jnp.clip(r, r_min, r_max), r_grid, Phi_grid, Phi_slopes)
 
     def Lambda_fn(r: Float[Array, ""]) -> Float[Array, ""]:
-        return interpax.interp1d(
-            jnp.clip(r, r_min, r_max),
-            r_grid,
-            Lambda_grid,
-            method="cubic",
-        )
+        return cubic_interp(jnp.clip(r, r_min, r_max), r_grid, Lambda_grid, Lambda_slopes)
 
     def m_fn(r: Float[Array, ""]) -> Float[Array, ""]:
-        return interpax.interp1d(
-            jnp.clip(r, r_min, r_max),
-            r_grid,
-            m_grid,
-            method="cubic",
-        )
+        return cubic_interp(jnp.clip(r, r_min, r_max), r_grid, m_grid, m_slopes)
 
     def beta_x_fn(r: Float[Array, ""]) -> Float[Array, ""]:
-        return interpax.interp1d(
-            jnp.clip(r, r_min, r_max),
-            r_grid,
-            beta_x_grid,
-            method="cubic",
-        )
+        return cubic_interp(jnp.clip(r, r_min, r_max), r_grid, beta_x_grid, beta_slopes)
 
     return TShellPotentials(
         Phi_fn=Phi_fn,
@@ -181,6 +167,8 @@ def solve_tshell_potentials(
         Lambda_grid=Lambda_grid,
         m_grid=m_grid,
         beta_x_grid=beta_x_grid,
+        E_grid=E_grid,
+        S_x_grid=S_x_grid,
     )
 
 
@@ -189,7 +177,6 @@ def _solve_shift_bvp(
     B: Float[Array, "N"],
     source: Float[Array, "N"],
     dr: float | Float[Array, ""],
-    n_pts: int,
 ) -> Float[Array, "N"]:
     """Solve beta'' + A beta' + B beta = source via tridiagonal FD.
 
@@ -203,14 +190,11 @@ def _solve_shift_bvp(
     main_interior = -2.0 * inv_dr2 + B[1:-1]
     upper_interior = inv_dr2 + A[1:-1] * inv_2dr
 
-    # BC: beta'(0) = 0 (regularity)
     main_0 = -2.0 * inv_dr2 + B[0]
     upper_0 = 2.0 * inv_dr2
 
-    # BC: beta(r_max) = 0
     main_last = 1.0
 
-    # Assemble tridiagonal system
     dl = jnp.concatenate([jnp.array([0.0]), lower_interior, jnp.array([0.0])])
     d = jnp.concatenate([jnp.array([main_0]), main_interior, jnp.array([main_last])])
     du = jnp.concatenate([jnp.array([upper_0]), upper_interior, jnp.array([0.0])])

@@ -15,8 +15,6 @@ probe grid: lapse floor (``alpha >= lapse_floor``), CTC-free
 ``UnphysicalMetricWarning``.
 """
 
-from __future__ import annotations
-
 import warnings
 from typing import NamedTuple
 
@@ -26,7 +24,7 @@ import jax.numpy as jnp
 import sympy as sp
 from jaxtyping import Array, Float
 
-from ..geometry.metric import ADMMetric, SymbolicMetric
+from ..geometry.metric import ADMMetric, SymbolicMetric, flat_x_shift_symbolic
 from .shape_functions import ShapeFunction
 
 
@@ -162,15 +160,7 @@ class ShapeFunctionMetric(ADMMetric):
         v_s = sp.Symbol("v_s", real=True)
         r_s = sp.sqrt(x**2 + y**2 + z**2)
         f = f_sym(r_s)
-        g = sp.Matrix(
-            [
-                [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
-                [-v_s * f, 1, 0, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1],
-            ]
-        )
-        return SymbolicMetric([t, x, y, z], g)
+        return flat_x_shift_symbolic([t, x, y, z], v_s, f)
 
     def verify_physical(self, probe_grid: Float[Array, "N 4"] | None = None) -> PhysicalityVerdict:
         """Evaluate three physicality checks on a probe grid.
@@ -186,6 +176,10 @@ class ShapeFunctionMetric(ADMMetric):
         -------
         PhysicalityVerdict
             NamedTuple with the three per-check booleans + overall AND.
+
+        The bubble-finite check probes the shape function at ``10 R``, where
+        spline bases may extrapolate to NaN, and also requires the sampled
+        in-grid ``|f(r)|`` to be finite and below ``1e3``.
         """
         if probe_grid is None:
             grid_1d = jnp.linspace(-2.0 * self.R, 2.0 * self.R, 16)
@@ -195,24 +189,17 @@ class ShapeFunctionMetric(ADMMetric):
         else:
             coords_stack = probe_grid
 
-        # Lapse floor
         alpha_vals = jax.vmap(self.lapse)(coords_stack)
         lapse_ok = bool(jnp.all(alpha_vals >= self.lapse_floor))
 
-        # CTC-free: g_tt < 0 everywhere
         def _g_tt(c):
             return self(c)[0, 0]
 
         g_tt_vals = jax.vmap(_g_tt)(coords_stack)
         ctc_free = bool(jnp.all(g_tt_vals < 0))
 
-        # Bubble-finite: shape function bounded far from wall
-        # For spline bases, evaluation outside the knot range may return NaN
-        # via interpax extrapolation. We probe at ``10 * R`` but also check
-        # the sampled probe-grid maximum |f(r)| stays finite and bounded.
         r_far = jnp.asarray(10.0 * self.R)
         shape_far = self.shape_fn(r_far)
-        # Also check max absolute amplitude on the in-grid probe radii.
         r_probes = jnp.linalg.norm(coords_stack[:, 1:], axis=-1)
         shape_probe = jax.vmap(self.shape_fn)(r_probes)
         bubble_finite = bool(

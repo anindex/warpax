@@ -19,6 +19,8 @@ Regions:
 
 from __future__ import annotations
 
+import equinox as eqx
+import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
@@ -31,8 +33,8 @@ from .sshell_profiles import SShellSourceProfiles, constant_density_profiles
 
 def _warp_transition_c2(
     r: Float[Array, "..."],
-    R_inner: float,
-    R_outer: float,
+    R_inner: float | Float[Array, ""],
+    R_outer: float | Float[Array, ""],
 ) -> Float[Array, "..."]:
     """C2-smooth transition: 1 for r <= R_inner, 0 for r >= R_outer."""
     t = jnp.clip((r - R_inner) / (R_outer - R_inner), 0.0, 1.0)
@@ -48,30 +50,35 @@ class SShellMetric(ADMMetric):
 
     Parameters
     ----------
-    _r_grid, _Phi_grid, _Lambda_grid, _m_grid : array
-        Pre-solved potential grids from ``solve_sshell_potentials``.
-    v_s : float
+    _r_grid, _Phi_grid, _Lambda_grid, _m_grid, _rho_grid : array
+        Pre-solved potential grids from ``solve_sshell_potentials`` and the
+        prescribed energy density on the same grid.
+    v_s : Float[Array, ""]
         Shift magnitude (default: 0.0).
-    R_1, R_2 : float
+    R_1, R_2 : Float[Array, ""]
         Inner/outer shell radii.
-    smooth_width : float
+    smooth_width : Float[Array, ""]
         Transition width for the shift profile.
     total_mass : Float[Array, ""]
-        Total shell mass M = m(R_2), stored as a jnp scalar array leaf
-        (a Python float here would be partitioned as static by
-        ``eqx.filter_jit`` and force a retrace per mass value).
+        Total shell mass M = m(R_2).
+
+    Notes
+    -----
+    Every scalar is stored as a jnp array leaf: a Python float would be
+    partitioned as static by ``eqx.filter_jit`` and force a retrace per value.
     """
 
     _r_grid: Float[Array, "N"]
     _Phi_grid: Float[Array, "N"]
     _Lambda_grid: Float[Array, "N"]
     _m_grid: Float[Array, "N"]
+    _rho_grid: Float[Array, "N"]
 
-    v_s: float
-    R_1: float
-    R_2: float
-    smooth_width: float
-    total_mass: Float[Array, ""]
+    v_s: Float[Array, ""] = eqx.field(converter=jnp.asarray)
+    R_1: Float[Array, ""] = eqx.field(converter=jnp.asarray)
+    R_2: Float[Array, ""] = eqx.field(converter=jnp.asarray)
+    smooth_width: Float[Array, ""] = eqx.field(converter=jnp.asarray)
+    total_mass: Float[Array, ""] = eqx.field(converter=jnp.asarray)
 
     def _interp(self, r: Float[Array, ""], grid_vals: Float[Array, "N"]) -> Float[Array, ""]:
         return cubic_on_grid(r, self._r_grid, grid_vals)
@@ -81,6 +88,14 @@ class SShellMetric(ADMMetric):
 
     def _Lambda(self, r: Float[Array, ""]) -> Float[Array, ""]:
         return self._interp(r, self._Lambda_grid)
+
+    def sources(self, r: Float[Array, ""]) -> tuple[Float[Array, ""], Float[Array, "3"]]:
+        """Prescribed ADM sources ``(E, S_i)`` at radius ``r`` on the x-axis.
+
+        The flow is orthogonal to the slice, so ``E = rho(r)`` from the
+        density profile the constraints were solved from and ``S_i = 0``.
+        """
+        return self._interp(r, self._rho_grid), jnp.zeros(3)
 
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         """Lapse alpha = e^{Phi(r)} from constraint solver."""
@@ -147,6 +162,7 @@ def sshell_from_potentials(
     R_2: float,
     v_s: float = 0.0,
     smooth_width: float | None = None,
+    rho_grid: Float[Array, "N"] | None = None,
 ) -> SShellMetric:
     """Construct an SShellMetric from pre-solved potentials.
 
@@ -157,19 +173,24 @@ def sshell_from_potentials(
     R_2 : outer shell radius.
     v_s : shift magnitude (default: 0.0).
     smooth_width : transition width (default: 0.05 * (R_2 - R_1)).
+    rho_grid : prescribed energy density on ``potentials.r_grid`` (used by
+        ``sources``); default recovers it from ``m'(r) / (4 pi r^2)``.
     """
     sw = smooth_width if smooth_width is not None else 0.05 * (R_2 - R_1)
+    if rho_grid is None:
+        r = potentials.r_grid
+        rho_grid = jnp.gradient(potentials.m_grid, r) / (4.0 * jnp.pi * r**2)
     return SShellMetric(
         _r_grid=potentials.r_grid,
         _Phi_grid=potentials.Phi_grid,
         _Lambda_grid=potentials.Lambda_grid,
         _m_grid=potentials.m_grid,
+        _rho_grid=rho_grid,
         v_s=v_s,
         R_1=R_1,
         R_2=R_2,
         smooth_width=sw,
-        # jnp.asarray: keep total_mass an array pytree leaf (retrace fix).
-        total_mass=jnp.asarray(potentials.total_mass),
+        total_mass=potentials.total_mass,
     )
 
 
@@ -203,6 +224,7 @@ def sshell_from_profiles(
         R_2=profiles.R_2,
         v_s=v_s,
         smooth_width=smooth_width,
+        rho_grid=jax.vmap(profiles.density)(potentials.r_grid),
     )
 
 

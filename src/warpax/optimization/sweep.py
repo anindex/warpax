@@ -9,8 +9,6 @@ Transport is characterized by two observables:
   - delta_tau: null round-trip asymmetry (gauge-invariant)
 """
 
-from __future__ import annotations
-
 import json
 import os
 import warnings
@@ -21,7 +19,7 @@ import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array, Float
 
-from ..transport.diagnostics import null_round_trip_asymmetry
+from ..transport.diagnostics import null_coord_time_asymmetry
 from .basis import coeffs_to_profiles_sshell, coeffs_to_profiles_tshell, default_theta, unpack_theta
 from .ec_constraints import ec_feasibility_frame_free
 
@@ -111,27 +109,33 @@ class SweepResult(NamedTuple):
         return grids
 
     def save(self, path: str) -> None:
-        """Save to .npz + .json sidecar.
+        """Save to .npz + .json sidecar, each written to a temporary name and renamed atomically.
 
         Format: the JSON sidecar is a full-length list with one record
         per grid cell in row-major order; not-yet-evaluated cells are
         serialized as explicit ``null`` so list position always maps to
         grid cell ``(k // Nt, k % Nt)``.
         """
-        grids = self.to_grids()
+        path = str(path)
+        if not path.endswith(".npz"):
+            path += ".npz"
+        json_path = path[: -len(".npz")] + ".json"
+        tmp_npz = path + ".tmp.npz"
+        tmp_json = json_path + ".tmp"
         np.savez(
-            path,
+            tmp_npz,
             compactness_values=np.asarray(self.compactness_values),
             thickness_values=np.asarray(self.thickness_values),
-            **grids,
+            **self.to_grids(),
         )
-        json_path = str(path).replace(".npz", ".json")
-        records = [None if pt is None else pt._asdict() for pt in self.points]
-        for r in records:
-            if r is not None:
-                r["ec_feasible"] = bool(r["ec_feasible"])
-        with open(json_path, "w") as f:
+        records = [
+            None if pt is None else {**pt._asdict(), "ec_feasible": bool(pt.ec_feasible)}
+            for pt in self.points
+        ]
+        with open(tmp_json, "w") as f:
             json.dump(records, f, indent=2)
+        os.replace(tmp_npz, path)
+        os.replace(tmp_json, json_path)
 
     @staticmethod
     def load(path: str) -> SweepResult:
@@ -148,6 +152,9 @@ class SweepResult(NamedTuple):
         with open(json_path) as f:
             records = json.load(f)
 
+        expected = compactness_values.shape[0] * thickness_values.shape[0]
+        if len(records) != expected:
+            raise ValueError(f"{json_path}: {len(records)} records, expected {expected} (Nc*Nt)")
         points = [None if r is None else SweepPoint(**r) for r in records]
         return SweepResult(
             points=points,
@@ -182,10 +189,14 @@ def _evaluate_point(
     n_velocity: int,
     n_grid: int,
     n_probes: int,
-    n_ec_starts: int,
 ) -> dict:
-    """Build metric at a single design point and evaluate all diagnostics."""
-    import jax
+    """Build metric at a single design point and evaluate all diagnostics.
+
+    The null round-trip asymmetry is skipped for S-shell points (zero
+    shift) and T-shell points with negligible shift. EC certification is
+    the frame-free Hawking-Ellis verdict probed over the full matter
+    support, including the smoothstep tails beyond R_2.
+    """
 
     theta = default_theta(n_density, n_velocity, v_0=0.1, rho_scale=rho_0)
     coeffs = unpack_theta(theta, n_density, n_velocity)
@@ -203,16 +214,13 @@ def _evaluate_point(
         metric = sshell_from_profiles(profiles, v_s=0.0, n_grid=n_grid)
         transport = 0.0
 
-    # Null round-trip asymmetry (gauge-invariant transport observable).
-    # Skipped for S-shell (zero shift) and tshell points with negligible
-    # shift, to avoid the per-point cost of two null-geodesic integrations.
     transport_invariant = 0.0
     if ansatz == "tshell" and transport > 1e-6:
         emitter = jnp.array([0.0, R_1 * 0.5, 0.0, 0.0], dtype=jnp.float64)
         receiver = jnp.array([0.0, R_2 * 1.5, 0.0, 0.0], dtype=jnp.float64)
         try:
             transport_invariant = float(
-                null_round_trip_asymmetry(
+                null_coord_time_asymmetry(
                     metric,
                     emitter,
                     receiver,
@@ -222,7 +230,7 @@ def _evaluate_point(
             )
         except (ValueError, RuntimeError, FloatingPointError) as exc:
             warnings.warn(
-                f"null_round_trip_asymmetry failed at (R_1={R_1:.2f}, R_2={R_2:.2f}): {exc}",
+                f"null_coord_time_asymmetry failed at (R_1={R_1:.2f}, R_2={R_2:.2f}): {exc}",
                 RuntimeWarning,
                 stacklevel=2,
             )
@@ -230,16 +238,12 @@ def _evaluate_point(
 
     mass = float(metric.total_mass)
 
-    # Constraint residuals
-    from ..constraints.residuals import squared_constraint_residual
+    from ..constraints.residuals import mean_squared_constraint_residual
 
     margin = 0.02 * (R_2 - R_1)
     r_probes = jnp.linspace(R_1 + margin, R_2 - margin, max(n_probes, 3))
+    constraint_residual = float(mean_squared_constraint_residual(metric, r_probes))
 
-    constraint_vals = jax.vmap(lambda r: squared_constraint_residual(metric, r))(r_probes)
-    constraint_residual = float(jnp.mean(constraint_vals))
-
-    # Tidal force at passenger cabin
     from ..transport.diagnostics import geodesic_deviation_diagnostic
 
     tidal = float(
@@ -249,10 +253,6 @@ def _evaluate_point(
         )
     )
 
-    # EC certification: frame-free Hawking-Ellis verdict (cap-free Type-I
-    # slacks + Type-IV detection), no observer search. Probes span the full
-    # matter support including the smoothstep tails outside [R_1, R_2] where
-    # the tilted shift drives the low-density edge Type-IV (criterion D).
     w = 0.05 * (R_2 - R_1)
     r_cert = jnp.linspace(R_1, R_2 + 3.0 * w, n_probes)
     ec_feas = ec_feasibility_frame_free(metric, r_cert)
@@ -281,7 +281,6 @@ def sweep_transport(
     n_velocity: int = 4,
     n_grid: int = 512,
     n_probes: int = 15,
-    n_ec_starts: int = 4,
     progress: bool = True,
     save_path: str | None = None,
     parallel: int | None = None,
@@ -304,7 +303,6 @@ def sweep_transport(
     n_density, n_velocity : Bernstein coefficient counts.
     n_grid : constraint solver resolution.
     n_probes : probe count for EC certification + constraint evaluation.
-    n_ec_starts : Retained for backward compatibility; unused by the frame-free Hawking-Ellis certifier.
     progress : show tqdm progress bar.
     save_path : save intermediate results to this path.
     parallel : optional thread-pool worker count for grid-point evaluation.
@@ -350,14 +348,13 @@ def sweep_transport(
                 n_velocity=n_velocity,
                 n_grid=n_grid,
                 n_probes=n_probes,
-                n_ec_starts=n_ec_starts,
             )
             return SweepPoint(
                 compactness=compactness,
                 thickness_ratio=thickness_ratio,
                 **result,
             )
-        except Exception as exc:
+        except (ValueError, RuntimeError, FloatingPointError) as exc:
             warnings.warn(
                 f"Grid point ({compactness:.4f}, {thickness_ratio:.3f}) failed: {exc!r}",
                 stacklevel=1,
@@ -366,10 +363,10 @@ def sweep_transport(
                 compactness=compactness,
                 thickness_ratio=thickness_ratio,
                 rho_max=rho_0,
-                transport=0.0,
-                transport_invariant=0.0,
+                transport=float("nan"),
+                transport_invariant=float("nan"),
                 ec_feasible=False,
-                worst_ec_margin=-1.0,
+                worst_ec_margin=float("nan"),
                 constraint_residual=float("nan"),
                 mass=float("nan"),
                 tidal=float("nan"),
@@ -392,9 +389,6 @@ def sweep_transport(
         if pbar is not None:
             pbar.update(1)
         if save_path is not None and (idx + 1) % max(1, total // 10) == 0:
-            # Checkpoint the FULL-length list (None holes included);
-            # compacting it scrambles grid-cell placement under parallel
-            # completion order.
             partial = SweepResult(
                 points=list(points),
                 compactness_values=c_vals,
@@ -416,8 +410,6 @@ def sweep_transport(
         if pbar is not None:
             pbar.close()
 
-    # All cells are filled at this point (failures yield sentinel points);
-    # keep the full-length positional list for index -> cell placement.
     result = SweepResult(
         points=list(points),
         compactness_values=c_vals,

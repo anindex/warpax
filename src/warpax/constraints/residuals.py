@@ -21,11 +21,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 from ..geometry.adm_split import adm_split
+from ..geometry.geometry import christoffel_from_jacobian, riemann_from_christoffel_fn
 
 
 def _spatial_metric_of(metric_fn, t, dtype):
@@ -37,10 +39,29 @@ def _spatial_metric_of(metric_fn, t, dtype):
     return spatial_metric_fn
 
 
+def _spatial_christoffel(spatial_metric_fn, x: Float[Array, "3"]) -> Float[Array, "3 3 3"]:
+    """``Gamma^l_{ij}`` of ``gamma_ij`` at ``x`` via ``jacfwd``."""
+    g_inv = jnp.linalg.inv(spatial_metric_fn(x))
+    return christoffel_from_jacobian(g_inv, jax.jacfwd(spatial_metric_fn)(x))
+
+
 def squared_constraint_residual(metric, r: Float[Array, ""]) -> Float[Array, ""]:
-    """``epsilon_H^2 + epsilon_M^2`` on the x-axis at radius ``r``."""
-    res = normalized_residuals(metric, jnp.array([0.0, r, 0.0, 0.0]))
+    """``epsilon_H^2 + epsilon_M^2`` on the x-axis at radius ``r``.
+
+    Metrics exposing ``sources(r) -> (E, S_i)`` (the source-first shells) are
+    checked against their prescribed matter; others against vacuum.
+    """
+    E, S_i = metric.sources(r) if hasattr(metric, "sources") else (None, None)
+    res = normalized_residuals(
+        metric, jnp.array([0.0, r, 0.0, 0.0]), energy_density=E, momentum_density=S_i
+    )
     return res["epsilon_H"] ** 2 + res["epsilon_M"] ** 2
+
+
+@eqx.filter_jit
+def mean_squared_constraint_residual(metric, r_probes: Float[Array, "N"]) -> Float[Array, ""]:
+    """Mean of ``squared_constraint_residual`` over ``r_probes``, compiled once per metric type."""
+    return jnp.mean(jax.vmap(lambda r: squared_constraint_residual(metric, r))(r_probes))
 
 
 def _spatial_ricci_scalar(
@@ -57,36 +78,13 @@ def _spatial_ricci_scalar(
     spatial_coords = coords[1:]
 
     spatial_metric_fn = _spatial_metric_of(metric_fn, t, coords.dtype)
-    gamma = spatial_metric_fn(spatial_coords)
-    gamma_inv = jnp.linalg.inv(gamma)
+    gamma_inv = jnp.linalg.inv(spatial_metric_fn(spatial_coords))
 
-    # Spatial Christoffel symbols via autodiff
     def christoffel_fn(x: Float[Array, "3"]) -> Float[Array, "3 3 3"]:
-        g_at = spatial_metric_fn(x)
-        g_inv_at = jnp.linalg.inv(g_at)
-        # dg[a, b, c] = d_ gamma_{ab} / d_ x^c
-        dg = jax.jacfwd(spatial_metric_fn)(x)
-        # Gamma^l_{ij} = 0.5 gamma^{lk} (d__i gamma_{jk} + d__j gamma_{ik} - d__k gamma_{ij})
-        t1 = jnp.einsum("lk,jki->lij", g_inv_at, dg)
-        t2 = jnp.einsum("lk,ikj->lij", g_inv_at, dg)
-        t3 = jnp.einsum("lk,ijk->lij", g_inv_at, dg)
-        return 0.5 * (t1 + t2 - t3)
+        return _spatial_christoffel(spatial_metric_fn, x)
 
-    christoffel = christoffel_fn(spatial_coords)
-    dchristoffel = jax.jacfwd(christoffel_fn)(spatial_coords)
-
-    # Riemann tensor R^l_{ijk} from Christoffel derivatives + quadratic terms
-    deriv_term = jnp.swapaxes(dchristoffel, 2, 3) - dchristoffel
-    quad_pos = jnp.einsum("lsn,smr->lmnr", christoffel, christoffel)
-    quad_neg = jnp.einsum("lsr,smn->lmnr", christoffel, christoffel)
-    riemann = deriv_term + quad_pos - quad_neg
-
-    # Ricci tensor: R_{ij} = R^k_{ikj}
-    ricci = jnp.einsum("kikj->ij", riemann)
-
-    # Ricci scalar: R = gamma^{ij} R_{ij}
-    R = jnp.einsum("ij,ij->", gamma_inv, ricci)
-    return R
+    riemann = riemann_from_christoffel_fn(christoffel_fn, spatial_coords)
+    return jnp.einsum("ij,ij->", gamma_inv, jnp.einsum("kikj->ij", riemann))
 
 
 def hamiltonian_constraint(
@@ -150,13 +148,7 @@ def _spatial_div_A(
     spatial_coords = coords[1:]
 
     spatial_metric_fn = _spatial_metric_of(metric_fn, t, coords.dtype)
-    gamma_val = spatial_metric_fn(spatial_coords)
-    gamma_inv_val = jnp.linalg.inv(gamma_val)
-    dg = jax.jacfwd(spatial_metric_fn)(spatial_coords)
-    t1 = jnp.einsum("lk,jki->lij", gamma_inv_val, dg)
-    t2 = jnp.einsum("lk,ikj->lij", gamma_inv_val, dg)
-    t3 = jnp.einsum("lk,ijk->lij", gamma_inv_val, dg)
-    christoffel = 0.5 * (t1 + t2 - t3)
+    christoffel = _spatial_christoffel(spatial_metric_fn, spatial_coords)
 
     def A_at(xyz: Float[Array, "3"]) -> Float[Array, "3 3"]:
         full_coords = jnp.concatenate([jnp.array([t], dtype=coords.dtype), xyz])
@@ -251,6 +243,10 @@ def normalized_residuals(
     eps_H = |H| / (|R| + |K^2| + |K_{ij}K^{ij}| + |16piE| + eps)
     eps_M = |M| / (|div_A| + |8piS| + eps)
 
+    Both denominators are floored at 1.0 so that near-vacuum points, where
+    every constraint term is close to zero, do not report spuriously large
+    residuals from floating-point noise.
+
     Parameters
     ----------
     metric_fn : callable mapping (4,) -> (4,4)
@@ -262,7 +258,6 @@ def normalized_residuals(
     -------
     dict with keys 'epsilon_H', 'epsilon_M', plus raw diagnostics
     """
-    # Full 3+1 decomposition
     adm = adm_split(metric_fn, coords)
     gamma = adm.spatial_metric
     gamma_inv = adm.spatial_metric_inv
@@ -271,27 +266,18 @@ def normalized_residuals(
     E = jnp.array(0.0, dtype=gamma.dtype) if energy_density is None else energy_density
     S_i = jnp.zeros(3, dtype=gamma.dtype) if momentum_density is None else momentum_density
 
-    # Compute spatial Ricci scalar
     R = _spatial_ricci_scalar(metric_fn, coords)
 
-    # Hamiltonian constraint
     K_trace = jnp.einsum("ij,ij->", gamma_inv, K)
     K_sq = jnp.einsum("ij,kl,ik,jl", gamma_inv, gamma_inv, K, K)
     H = R + K_trace**2 - K_sq - 16.0 * jnp.pi * E
 
-    # Momentum constraint
     M_i = momentum_constraint(gamma, K, S_i, metric_fn=metric_fn, coords=coords)
 
-    # Scale-invariant normalization:
-    # eps_H = |H| / (|R| + |K^2| + |K_{ij}K^{ij}| + |16piE| + floor)
-    # The floor of 1.0 prevents spurious large eps when all constraint terms
-    # are near zero (vacuum), where floating-point noise would otherwise
-    # dominate the ratio.
     component_scale = jnp.abs(R) + jnp.abs(K_trace**2) + jnp.abs(K_sq) + jnp.abs(16.0 * jnp.pi * E)
     norm_H = jnp.maximum(component_scale, 1.0)
     epsilon_H = jnp.abs(H) / norm_H
 
-    # eps_M = |M| / max(|component scales|, 1.0)
     M_scale = jnp.linalg.norm(M_i + 8.0 * jnp.pi * S_i) + jnp.linalg.norm(8.0 * jnp.pi * S_i)
     norm_M = jnp.maximum(M_scale, 1.0)
     epsilon_M = jnp.linalg.norm(M_i) / norm_M

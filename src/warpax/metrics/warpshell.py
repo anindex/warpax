@@ -13,6 +13,12 @@ to Cartesians as ``gamma_ij = delta_ij + (gamma_rr - 1) x_i x_j / r^2``;
 the shift is ``beta^x = -S_warp(r) v_s``. Transitions use Hermite
 ``smoothstep`` (``transition_order=1`` C1 cubic, ``=2`` C2 quintic;
 default keeps the Riemann tensor continuous).
+
+The exterior is exactly flat while the shell carries the areal mass
+``r_s_param / 2``, so the outer blend must shed that mass again: there
+``m'(r) = 4 pi r^2 rho < 0``, the energy conditions fail and the ADM mass is
+zero. This toy is not the Fuchs et al. construction, which keeps a
+Schwarzschild exterior.
 """
 
 from __future__ import annotations
@@ -147,7 +153,7 @@ class WarpShellMetric(ADMMetric):
         0.12 * (R_2 - R_1). This parameter enables sensitivity
         ablation studies.
     transition_order : int
-        Smoothstep continuity order: 1 for C1 cubic (legacy),
+        Smoothstep continuity order: 1 for C1 cubic,
         2 for C2 quintic (default). C2 guarantees continuous Riemann
         tensor at shell boundaries.
     """
@@ -162,11 +168,15 @@ class WarpShellMetric(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def lapse(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
+        """Lapse blended from 1 to ``sqrt(1 - r_s/r)`` across the shell.
+
+        The ratio ``r_s/r`` is clamped below ``1 - 1e-12`` so ``1 - r_s/r > 0``
+        under stress-test ``r_s_param >= R_1``.
+        """
         t, x, y, z = coords
         x_rel = x - self.v_s * t
         r = _safe_radial_norm(x_rel, y, z)
 
-        # Clamp ratio so 1 - r_s/r > 0 under stress-test r_s_param >= R_1.
         ratio = self.r_s_param / r
         ratio_safe = jnp.minimum(ratio, 1.0 - 1e-12)
         alpha_shell = jnp.sqrt(1.0 - ratio_safe)
@@ -184,6 +194,11 @@ class WarpShellMetric(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
+        """Spatial metric ``delta_ij + (gamma_rr - 1) n_i n_j``.
+
+        The radial projector is singular at r = 0, so the metric is forced flat
+        where ``r^2 < 1e-20``.
+        """
         t, x, y, z = coords
         x_rel = x - self.v_s * t
         r_sq = x_rel**2 + y**2 + z**2
@@ -201,7 +216,6 @@ class WarpShellMetric(ADMMetric):
         n_hat = x_vec / r
         radial_proj = jnp.outer(n_hat, n_hat)
         gamma = jnp.eye(3) + (gamma_rr_eff - 1.0) * radial_proj
-        # Radial projector is singular at r=0; force flat metric there.
         gamma = jnp.where(r_sq < 1e-20, jnp.eye(3), gamma)
         return gamma
 
@@ -215,7 +229,11 @@ class WarpShellMetric(ADMMetric):
 
         Due to the piecewise transition functions, this provides a
         simplified symbolic form showing the shell-region metric
-        structure.
+        structure. ``beta_x`` is the contravariant ``beta^x``, so
+        ``g_{0x} = gamma_xx beta^x`` and
+        ``g_{00} = -(alpha^2 - gamma_xx (beta^x)^2)``; without the
+        ``gamma_xx`` factor this is a different spacetime from the numeric
+        ``__call__`` wherever ``gamma_rr != 1``.
         """
         t, x, y, z = sp.symbols("t x y z")
         v_s = sp.Symbol("v_s", positive=True)
@@ -233,9 +251,6 @@ class WarpShellMetric(ADMMetric):
         beta_x = -S_warp * v_s
         gamma_rr = 1 + S * (1 / (1 - r_s / r) - 1)
 
-        # beta_x above is the CONTRAVARIANT beta^x; g_{0x} = gamma_xx beta^x and
-        # g_{00} = -(alpha^2 - gamma_xx (beta^x)^2). Dropping gamma_xx made this
-        # a different spacetime from the numeric __call__ wherever gamma_rr != 1.
         beta_x_low = gamma_rr * beta_x
         g = sp.Matrix(
             [
@@ -251,27 +266,15 @@ class WarpShellMetric(ADMMetric):
         return "WarpShell"
 
 
-# Alias: WarpShellStressTest carries clamps for r_s_param >= R_1 sweeps;
-# WarpShellMetric is kept for backward compatibility.
-WarpShellStressTest = WarpShellMetric
-
-
 class WarpShellPhysical(ADMMetric):
-    """Physical-regime WarpShell where the Schwarzschild radius is buried
-    inside the flat interior (``r_s_param < R_1``).
+    """WarpShell with the Schwarzschild radius buried inside the flat interior.
 
-    In this regime the shell coordinate ``r`` is always larger than
-    ``r_s_param``, so the Schwarzschild factor ``1 - r_s / r`` is bounded
-    away from zero and the lapse is a clean ``sqrt(1 - r_s / r)`` without
-    needing the ``minimum(ratio, 1.0 - 1e-12)`` clamp or the
-    ``maximum(alpha, 1e-12)`` lapse floor that :class:`WarpShellMetric`
-    carries. Use this class when modeling a physical thin-shell
-    configuration; use :class:`WarpShellStressTest` when you want the
-    clamps for robustness under unphysical parameter sweeps.
-
-    Construction validates ``r_s_param < R_1`` and raises ``ValueError``
-    otherwise so sensitivity studies can't accidentally silently switch
-    back to the clamped behavior.
+    Requires ``r_s_param < R_1 - smooth_width`` so ``1 - r_s_param / r`` stays
+    positive wherever the shell indicator is nonzero. The Schwarzschild factors
+    are evaluated at ``max(r, R_1 - smooth_width)``; the indicator and its first
+    two derivatives vanish there, so the lapse and spatial metric are C2 across
+    the inner blend and no lapse floor or ratio clamp is needed. Use
+    :class:`WarpShellMetric` for stress sweeps with ``r_s_param >= R_1``.
 
     Parameters are the same as :class:`WarpShellMetric`.
     """
@@ -284,14 +287,18 @@ class WarpShellPhysical(ADMMetric):
     smooth_width: float | None = None
     transition_order: int = 2
 
+    def _blend_width(self) -> float:
+        return self.smooth_width if self.smooth_width is not None else 0.12 * (self.R_2 - self.R_1)
+
     def __check_init__(self) -> None:
-        if not (self.r_s_param < self.R_1):
+        r_in = self.R_1 - self._blend_width()
+        if not (self.r_s_param < r_in):
             raise ValueError(
-                "WarpShellPhysical requires r_s_param < R_1 (physical regime: "
-                "the Schwarzschild radius must sit strictly inside the flat "
-                f"interior).  Got r_s_param={self.r_s_param}, R_1={self.R_1}. "
-                "Use WarpShellStressTest if you want the clamped stress-test "
-                "variant."
+                "WarpShellPhysical requires r_s_param < R_1 - smooth_width so the "
+                "Schwarzschild factor 1 - r_s_param / r stays positive on the whole "
+                f"inner blend. Got r_s_param={self.r_s_param}, R_1={self.R_1}, "
+                f"smooth_width={self._blend_width()}. Use WarpShellMetric for the "
+                "clamped stress-test variant."
             )
 
     @jaxtyped(typechecker=beartype)
@@ -300,12 +307,9 @@ class WarpShellPhysical(ADMMetric):
         x_rel = x - self.v_s * t
         r = _safe_radial_norm(x_rel, y, z)
 
-        # Floor r -> R_1 inside the Schwarzschild factor: prevents 0*inf NaN
-        # at interior points; no-op in the shell since r >= R_1 > r_s_param.
-        r_shell = jnp.maximum(r, self.R_1)
+        sw = self._blend_width()
+        r_shell = jnp.maximum(r, self.R_1 - sw)
         alpha_shell = jnp.sqrt(1.0 - self.r_s_param / r_shell)
-
-        sw = self.smooth_width if self.smooth_width is not None else 0.12 * (self.R_2 - self.R_1)
         S_shell = _shell_indicator(r, self.R_1, self.R_2, sw, order=self.transition_order)
 
         alpha = 1.0 - S_shell * (1.0 - alpha_shell)
@@ -317,16 +321,19 @@ class WarpShellPhysical(ADMMetric):
 
     @jaxtyped(typechecker=beartype)
     def spatial_metric(self, coords: Float[Array, "4"]) -> Float[Array, "3 3"]:
+        """Spatial metric ``delta_ij + (gamma_rr - 1) n_i n_j``.
+
+        The radial projector is singular at r = 0, so the metric is forced flat
+        where ``r^2 < 1e-20``.
+        """
         t, x, y, z = coords
         x_rel = x - self.v_s * t
         r_sq = x_rel**2 + y**2 + z**2
         r = jnp.sqrt(r_sq + 1e-60)
 
-        # Same r -> R_1 floor as the lapse: no-op in the shell.
-        r_shell = jnp.maximum(r, self.R_1)
+        sw = self._blend_width()
+        r_shell = jnp.maximum(r, self.R_1 - sw)
         gamma_rr_sph = 1.0 / (1.0 - self.r_s_param / r_shell)
-
-        sw = self.smooth_width if self.smooth_width is not None else 0.12 * (self.R_2 - self.R_1)
         S_shell = _shell_indicator(r, self.R_1, self.R_2, sw, order=self.transition_order)
 
         gamma_rr_eff = 1.0 + S_shell * (gamma_rr_sph - 1.0)
@@ -336,7 +343,6 @@ class WarpShellPhysical(ADMMetric):
         radial_proj = jnp.outer(n_hat, n_hat)
         gamma = jnp.eye(3) + (gamma_rr_eff - 1.0) * radial_proj
 
-        # Origin flat patch: radial projector is singular at r=0.
         gamma = jnp.where(r_sq < 1e-20, jnp.eye(3), gamma)
         return gamma
 
@@ -365,13 +371,16 @@ class WarpShellPhysical(ADMMetric):
 GROUND_TRUTH = {
     "stress_energy_zero": False,
     "energy_conditions": {
-        "WEC": True,
-        "NEC": True,
+        "WEC": False,
+        "NEC": False,
         "DEC": False,
-        "SEC": True,
+        "SEC": False,
     },
     "note": (
-        "Interior satisfies WEC/NEC/SEC for subluminal v_s; boundary DEC "
-        "violation at the shell transition (margin ~1e-3 to 1e-4)"
+        "The flat exterior forces the shell mass r_s_param / 2 to vanish across the "
+        "outer blend, so rho < 0 there (rho(20.6) = -7.2e-4 and min(rho + p_i)(20.9) "
+        "= -1.94e-2 at the defaults) and every pointwise condition fails; the ADM "
+        "mass is zero. The interior and the shell proper satisfy WEC/NEC/SEC for "
+        "subluminal v_s, with the DEC failing at both transitions."
     ),
 }

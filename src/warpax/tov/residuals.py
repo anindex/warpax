@@ -108,13 +108,16 @@ def tov_residual_from_metric(
     Returns
     -------
     TOV residual
+
+    Notes
+    -----
+    ``g_tt`` is probed at ``r`` first and must be negative: the (-+++)
+    convention requires ``g_tt < 0`` outside the horizon, and a (+---)
+    metric or a CTC region would otherwise make the residual identity
+    silently wrong.
     """
     r_arr = jnp.asarray(r, dtype=jnp.float64)
 
-    # Probe ``g_tt`` at the requested radius to fail loud on signature
-    # flips: the (-+++) convention requires ``g_tt < 0`` everywhere
-    # outside the horizon; if a caller passes a metric in (+---) or a
-    # CTC region the residual identity below silently produces garbage.
     probe = metric_fn(jnp.array([0.0, r_arr, 0.0, 0.0], dtype=jnp.float64))
     if not bool(probe[0, 0] < 0.0):
         raise ValueError(

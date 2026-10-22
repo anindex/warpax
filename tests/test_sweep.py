@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import jax.numpy as jnp
 import numpy as np
-
-# Data structure tests -----------------------------------------------------
+import pytest
 
 
 class TestSweepPoint:
@@ -76,24 +75,24 @@ class TestSweepResult:
         )
 
     def test_out_of_order_checkpoint_preserves_cell_placement(self, tmp_path):
-        """Regression (checkpoint corruption in parallel mode): checkpoints
-        previously serialized a None-compacted points list, so out-of-order
-        (parallel) completion scrambled to_grids() cell placement after a
-        save/load round trip. The list must stay full-length with explicit
+        """Regression (checkpoint corruption in parallel mode): a
+        None-compacted points list lets out-of-order (parallel) completion
+        scramble to_grids() cell placement after a save/load round trip.
+        The list must stay full-length with explicit
         nulls; list position k always maps to cell (k // Nt, k % Nt).
         """
         from warpax.optimization.sweep import SweepPoint, SweepResult
 
         nc, nt = 2, 3
         total = nc * nt
-        filled = (4, 1, 5, 0)  # parallel completion order with holes (2, 3)
+        filled = (4, 1, 5, 0)
 
         def _mk(k):
             return SweepPoint(
                 compactness=0.05 * (k // nt + 1),
                 thickness_ratio=0.3 + 0.1 * (k % nt),
                 rho_max=1e-4,
-                transport=float(k + 1),  # unique marker per grid cell
+                transport=float(k + 1),
                 transport_invariant=0.0,
                 ec_feasible=True,
                 worst_ec_margin=0.01,
@@ -135,9 +134,6 @@ class TestSweepResult:
                 assert np.isnan(grids["transport"][i, j])
 
 
-# Density scaling ----------------------------------------------------------
-
-
 class TestDensityScaling:
     def test_positive_density(self):
         from warpax.optimization.sweep import _rho_from_compactness
@@ -161,9 +157,6 @@ class TestDensityScaling:
         assert rho_thin > rho_thick
 
 
-# Single-point evaluation --------------------------------------------------
-
-
 class TestEvaluatePoint:
     def test_higher_density_higher_transport(self):
         """Transport increases with density, and a single evaluation returns
@@ -179,9 +172,7 @@ class TestEvaluatePoint:
             n_velocity=3,
             n_grid=256,
             n_probes=3,
-            n_ec_starts=2,
         )
-        # Sanity of a single point (folded from test_returns_nonzero_transport)
         assert r_low["transport"] > 0
         assert r_low["mass"] > 0
         assert np.isfinite(r_low["constraint_residual"])
@@ -197,12 +188,8 @@ class TestEvaluatePoint:
             n_velocity=3,
             n_grid=256,
             n_probes=3,
-            n_ec_starts=2,
         )
         assert r_high["transport"] > r_low["transport"]
-
-
-# Sweep driver -------------------------------------------------------------
 
 
 class TestSweepDriver:
@@ -220,7 +207,6 @@ class TestSweepDriver:
             n_velocity=3,
             n_grid=256,
             n_probes=3,
-            n_ec_starts=2,
             progress=False,
         )
 
@@ -233,9 +219,6 @@ class TestSweepDriver:
             assert np.isfinite(pt.compactness)
             assert np.isfinite(pt.thickness_ratio)
             assert pt.transport > 0
-
-
-# Visualization ------------------------------------------------------------
 
 
 class TestPhaseDiagramPlot:
@@ -279,8 +262,9 @@ class TestPhaseDiagramPlot:
         sweep = self._make_sweep()
         pdf_path = str(tmp_path / "diag.pdf")
         result = plot_phase_diagram(sweep, save_path=pdf_path)
-        # When save_path is given, figure is saved and closed; returns None.
-        assert result is None
+        import matplotlib.pyplot as plt
+
+        assert not plt.fignum_exists(result.number)
 
         from pathlib import Path
 
@@ -310,8 +294,89 @@ class TestPhaseDiagramPlot:
         sweep = self._make_sweep()
         pdf_path = str(tmp_path / "summary.pdf")
         result = plot_phase_summary(sweep, save_path=pdf_path)
-        assert result is None
+        import matplotlib.pyplot as plt
+
+        assert not plt.fignum_exists(result.number)
 
         from pathlib import Path
 
         assert Path(pdf_path).exists()
+
+
+class TestSweepRobustness:
+    def _fake_result(self):
+        return {
+            "rho_max": 1e-4,
+            "transport": 0.01,
+            "transport_invariant": 0.001,
+            "ec_feasible": True,
+            "worst_ec_margin": 0.02,
+            "constraint_residual": 1e-6,
+            "mass": 1.0,
+            "tidal": 1e-7,
+        }
+
+    def _sweep(self, monkeypatch, tmp_path=None, fail_on=None):
+        import warpax.optimization.sweep as sweep_mod
+
+        monkeypatch.delenv("WARPAX_SWEEP_PARALLEL", raising=False)
+        calls = []
+
+        def fake_evaluate_point(**kwargs):
+            calls.append(kwargs)
+            if fail_on is not None and len(calls) == fail_on:
+                raise ValueError("boom")
+            return self._fake_result()
+
+        monkeypatch.setattr(sweep_mod, "_evaluate_point", fake_evaluate_point)
+        return sweep_mod.sweep_transport(
+            n_compactness=2,
+            n_thickness=3,
+            progress=False,
+            save_path=None if tmp_path is None else str(tmp_path / "sweep.npz"),
+        )
+
+    def test_failed_point_records_nan_not_sentinels(self, monkeypatch):
+        with pytest.warns(UserWarning, match="failed"):
+            result = self._sweep(monkeypatch, fail_on=2)
+        bad = result.points[1]
+        assert np.isnan(bad.transport)
+        assert np.isnan(bad.transport_invariant)
+        assert np.isnan(bad.worst_ec_margin)
+        assert bad.ec_feasible is False
+        for k, pt in enumerate(result.points):
+            if k == 1:
+                continue
+            assert np.isfinite(pt.transport) and np.isfinite(pt.worst_ec_margin)
+            assert pt.ec_feasible is True
+
+    def test_unexpected_exception_propagates(self, monkeypatch):
+        import warpax.optimization.sweep as sweep_mod
+
+        def fake_evaluate_point(**kwargs):
+            raise TypeError("not a numerical failure")
+
+        monkeypatch.setattr(sweep_mod, "_evaluate_point", fake_evaluate_point)
+        with pytest.raises(TypeError):
+            sweep_mod.sweep_transport(n_compactness=1, n_thickness=1, progress=False)
+
+    def test_save_is_atomic_and_load_round_trips(self, monkeypatch, tmp_path):
+        from warpax.optimization.sweep import SweepResult
+
+        result = self._sweep(monkeypatch, tmp_path=tmp_path)
+        names = sorted(p.name for p in tmp_path.iterdir())
+        assert names == ["sweep.json", "sweep.npz"]
+        loaded = SweepResult.load(str(tmp_path / "sweep.npz"))
+        assert loaded.points == result.points
+
+    def test_load_rejects_truncated_json(self, monkeypatch, tmp_path):
+        import json
+
+        from warpax.optimization.sweep import SweepResult
+
+        self._sweep(monkeypatch, tmp_path=tmp_path)
+        json_path = tmp_path / "sweep.json"
+        records = json.loads(json_path.read_text())
+        json_path.write_text(json.dumps(records[:-1]))
+        with pytest.raises(ValueError, match="expected 6"):
+            SweepResult.load(str(tmp_path / "sweep.npz"))

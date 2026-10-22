@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import jax.numpy as jnp
-from jaxtyping import Array, Float
+from jaxtyping import Array, Float, Real
 
 
 def alcubierre_shape(
-    r: Float[Array, "..."], R: float | Float[Array, ""], sigma: float | Float[Array, ""]
+    r: float | Float[Array, "..."], R: float | Real[Array, ""], sigma: float | Real[Array, ""]
 ) -> Float[Array, "..."]:
     """Standard Alcubierre top-hat shape function.
 
@@ -29,10 +29,14 @@ def alcubierre_shape(
     -------
     Float[Array, "..."]
         Shape function value in [0, 1].
+
+    Notes
+    -----
+    For ``|sigma r| < 0.5`` an algebraically identical even form replaces the
+    tanh difference, which loses f'(r) to cancellation near r = 0. The even
+    form retains ``f''(0) = -2 sigma^2 sech(sigma R)^2``, including when r is
+    the regularized Cartesian radius used by the metrics.
     """
-    # Near r=0, differentiating the tanh difference loses f'(r) to cancellation.
-    # The identical even form retains f''(0)=-2*sigma**2*sech(sigma*R)**2,
-    # including when r is the regularized Cartesian radius used by the metrics.
     x = sigma * r
     exp_a = jnp.exp(-jnp.abs(sigma * R))
     sech_a = 2 * exp_a / (1 + exp_a**2)
