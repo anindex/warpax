@@ -12,11 +12,10 @@ their jaxtyping shapes, such as `Float[Array, "4 4"]`.
 
 ## warpax.metrics
 
-The S-/T-shell docstrings retain historical labels such as "source-first" and
-"constraint-derived". Their implemented prescriptions have boundary-matching
+`SShellMetric` and `TShellMetric` implement prescriptions with boundary-matching
 and momentum-equation defects, described in the
-[shell guide](../how-to/reproduce_warpshell_paper.md). These constructors do not
-implement the separate Einstein–elastic revision.
+[shell guide](../how-to/reproduce_warpshell_paper.md). They do not implement the
+Einstein–elastic model of example 11.
 
 ::: warpax.metrics
     options:
@@ -121,5 +120,59 @@ implement the separate Einstein–elastic revision.
 ## warpax.design
 
 ::: warpax.design
+    options:
+      show_root_heading: false
+
+## warpax.visualization
+
+The matplotlib plot functions live in the submodules below and are re-exported
+lazily from `warpax.visualization`, so importing the package does not import
+matplotlib.
+
+### warpax.visualization.comparison_plots
+
+::: warpax.visualization.comparison_plots
+    options:
+      show_root_heading: false
+      members: [plot_comparison_panel, plot_comparison_table, plot_velocity_sweep]
+
+### warpax.visualization.convergence_plots
+
+::: warpax.visualization.convergence_plots
+    options:
+      show_root_heading: false
+      members: [plot_convergence, plot_convergence_table]
+
+### warpax.visualization.kinematic_plots
+
+::: warpax.visualization.kinematic_plots
+    options:
+      show_root_heading: false
+      members: [plot_kinematic_scalars]
+
+### warpax.visualization.geodesic_plots
+
+::: warpax.visualization.geodesic_plots
+    options:
+      show_root_heading: false
+      members: [plot_blueshift_profile, plot_tidal_evolution]
+
+### warpax.visualization.phase_diagram
+
+::: warpax.visualization.phase_diagram
+    options:
+      show_root_heading: false
+      members: [plot_phase_diagram, plot_phase_summary]
+
+### warpax.visualization.shift_vorticity_plots
+
+::: warpax.visualization.shift_vorticity_plots
+    options:
+      show_root_heading: false
+      members: [plot_shift_vorticity]
+
+## warpax.numerics
+
+::: warpax.numerics
     options:
       show_root_heading: false

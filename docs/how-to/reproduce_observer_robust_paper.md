@@ -16,7 +16,7 @@ precision of the manuscript version being cited.
 From the repository root, install the numerical extras and select the interpreter:
 
 ```bash
-uv sync --locked --extra dev --extra viz --extra design --extra solver
+uv sync --locked --extra dev --extra viz --extra solver
 export PYTHON="$PWD/.venv/bin/python"
 uv run python -m pytest
 ```

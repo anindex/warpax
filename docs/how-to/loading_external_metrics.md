@@ -28,9 +28,10 @@ from warpax.io import load_warpfactory
 
 metric = load_warpfactory("path/to/alcubierre.mat")
 import jax.numpy as jnp
+
 coords = jnp.array([0.0, 0.0, 0.0, 0.0])
-g = metric(coords) # 4x4 covariant metric
-alpha = metric.lapse(coords) # scalar lapse
+g = metric(coords)  # 4x4 covariant metric
+alpha = metric.lapse(coords)  # scalar lapse
 ```
 
 Expected schema (after `metricGet_Alcubierre` + `save('...', '-v7.3')` in MATLAB):
@@ -105,11 +106,15 @@ The returned object supplies `lapse`, `shift`, `spatial_metric`, and
 `__call__(coords)`. Its `symbolic` and `shape_function_value` methods raise
 `NotImplementedError`, so provide an explicit wall mask for sampled data.
 
-The current interpolator is multilinear. `interp_method="cubic"` warns and
-falls back to linear, and out-of-domain values clamp to the nearest boundary.
-Piecewise multilinear fields are generally not $C^2$ across cell boundaries;
-AD curvature of that interpolant is not automatically a converged curvature
-estimate for the underlying simulation. Check resolution and derivative
+`interp_method="linear"` is multilinear: it is only $C^0$ across cell faces and
+its second derivatives vanish inside every cell, so autodiff curvature of a
+linear reconstruction is meaningless. `interp_method="cubic"` is a $C^2$
+tensor-product B-spline (prefiltered at load time so the samples are
+reproduced exactly); its curvature is reliable away from the outer two cells
+of the grid, where the mirror end conditions distort the second derivative.
+Out-of-domain values clamp to the nearest boundary. Even a $C^2$ interpolant
+is not automatically a converged curvature estimate for the underlying
+simulation. Check resolution and derivative
 regularity before interpreting energy-condition results.
 
 See the [API reference](../reference/index.md) for loader options.

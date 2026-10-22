@@ -17,7 +17,7 @@ directory. It reads `centrifugal_response.json`, whose exact coefficients
 solve the six free-traction equations in the article, and compares them
 with independent numerical boundary-value solutions. The example runs
 without a manuscript checkout. The [shell reproduction guide](../../docs/how-to/reproduce_warpshell_paper.md)
-describes the current calculation and its relation to earlier shell models.
+describes the calculation and the limits of the S-/T-shell prescriptions.
 
 The files contain numerical equilibrium and frame-dragging profiles,
 exact centrifugal-response coefficients, and numerical comparisons.
@@ -58,7 +58,7 @@ relative to time normalized at infinity.
 Normalize the last column before calculating clock rates:
 
 ```python
-Phi = Phi_unnormalized - Phi_unnormalized[-1] + 0.5*log(1 - 2*M/b)
+Phi = Phi_unnormalized - Phi_unnormalized[-1] + 0.5 * log(1 - 2 * M / b)
 alpha = exp(Phi)
 ```
 

@@ -63,8 +63,8 @@ the datasets here. The independent exact calculation also regenerates
 `centrifugal_response.json` from the traction equations.
 
 The package's `SShellMetric` and `TShellMetric` constructors implement the
-earlier prescriptions below. They do not implement the elastic action or
-its rigidly rotating branch. Example 11 solves the revised spherical
+prescriptions below. They do not implement the elastic action or
+its rigidly rotating branch. Example 11 solves the spherical
 Einstein–elastic boundary-value problem and the stated perturbative
 responses directly.
 
@@ -91,13 +91,13 @@ constitutive stress. A true perfect fluid has a timelike eigenvector under
 every subluminal tilt. Type IV in the reconstructed stress therefore cannot
 also describe the prescribed perfect fluid.
 
-The old boundary deficits and parameter surveys establish no universal
+Boundary deficits and parameter surveys of these prescriptions establish no universal
 source–vacuum energy-condition cost. Open-path coordinate-time asymmetries are
 not invariant transport observables, and positive finite null integrals do not
 establish complete-geodesic ANEC.
 
-The S-/T-shell calculations belong to the earlier
-[boundary-cost preprint](https://arxiv.org/abs/2605.25417v2).
+The S-/T-shell calculations belong to
+[version 2 of the preprint](https://arxiv.org/abs/2605.25417v2).
 The [v1.1.1 software](https://github.com/anindex/warpax/tree/v1.1.1) retains
 those experiment scripts. For current results, use example 11 and identify
 the metric, material model and approximation order when comparing outputs.

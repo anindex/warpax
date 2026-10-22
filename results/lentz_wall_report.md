@@ -1,6 +1,6 @@
 # Lentz wall resolution
 
-Date: 2026-09-12T09:36:23Z. Source: `lentz_wall_assessment.json`.
+Date: 2026-10-21T17:15:38Z. Source: `lentz_wall_assessment.json`.
 
 The tested 50^3 grid on [-300, 300]^3 fails the chosen 4-cell wall-resolution criterion at sigma=8.0. The conclusion applies to this grid and domain.
 

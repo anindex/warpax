@@ -7,14 +7,13 @@ Runnable examples for curvature, energy conditions, geodesics, and shell design.
 From the repository root:
 
 ```bash
-pip install -e ".[dev,viz,design,solver]"
+pip install -e ".[dev,viz,solver]"
 ```
 
 | Extra | Needed for |
 |-------|------------|
 | `dev` | Test tools; runtime dependencies are installed by the base package |
 | `viz` | Additional figure helpers; Matplotlib is a base dependency |
-| `design` | Example 08 (interpax B-splines) |
 | `solver` | Example 11's SciPy boundary-value solvers and ill-conditioned metric diagnostics |
 
 CPU is sufficient. Set `JAX_PLATFORMS=cpu` to select the reference backend.
@@ -35,7 +34,7 @@ are approximate and include environment-dependent JAX compilation.
 | 07 | `07_custom_warp_metric.py` | 40 s | Subclass `ADMMetric`; wall-restricted diagnostics |
 | 08 | `08_metric_design.py` | 7 s | Shape-function design via `design_metric` (B-spline reproduction) |
 | 09 | `09_admissibility_diagnostics.py` | 30 s | Fuchs shell: constraints, ADM mass, junction, transport |
-| 10 | `10_phase_diagram.py` | 2 min demo | Legacy T-shell diagnostic sweep (`--full` enlarges the sampled grid) |
+| 10 | `10_phase_diagram.py` | 2 min demo | T-shell diagnostic sweep (`--full` enlarges the sampled grid) |
 | 11 | `11_elastic_shell.py` | Under 1 min | Einstein–elastic equilibrium, redshift, dragging, centrifugal tides and clock shifts |
 
 Example 10 explores a prescription with unresolved source closure; enlarging
@@ -51,7 +50,7 @@ python examples/07_custom_warp_metric.py
 python examples/08_metric_design.py
 python examples/10_phase_diagram.py         # 8x6 grid
 python examples/10_phase_diagram.py --full  # 20x15 grid
-python examples/11_elastic_shell.py        # Revised elastic-shell paper
+python examples/11_elastic_shell.py        # Elastic-shell paper
 ```
 
 ## Outputs

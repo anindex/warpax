@@ -56,17 +56,18 @@ For development and the examples:
 ```bash
 git clone https://github.com/anindex/warpax.git
 cd warpax
-uv sync --locked --extra dev --extra viz --extra design --extra solver
+uv sync --locked --extra dev --extra viz --extra solver
 uv run python examples/01_minkowski_sanity.py
 ```
 
 | Extra | Use |
 |---|---|
 | `dev` | Tests and Ruff |
-| `design`, `solver` | Interpolated metrics, shape design, and SciPy solvers |
+| `solver` | SciPy generalized eigensolver |
 | `viz`, `manim` | Plotting helpers and animations |
 | `interop`, `einfields` | External metric files and model checkpoints |
 | `docs`, `bench` | Documentation and performance benchmarks |
+| `design` | Empty; the spline shape-function basis ships with the core package |
 
 ## What it computes
 
@@ -78,7 +79,7 @@ uv run python examples/01_minkowski_sanity.py
 - Timelike and null geodesics, finite-segment energy integrals, tidal effects,
   and quantum-inequality reference diagnostics.
 - Constraint residuals, TOV equilibrium, ADM mass, junction conditions,
-  legacy prescribed-source shell diagnostics, and metric optimization.
+  prescribed-source shell diagnostics, and metric optimization.
 - WarpFactory, EinFields, and Cactus imports; Matplotlib and Manim visualization;
   Bondi flux and Newman–Penrose diagnostics.
 
@@ -112,7 +113,7 @@ Start with the [quickstart](docs/tutorials/quickstart.md) or
 
 [Example 07](examples/07_custom_warp_metric.py) implements a Gaussian warp metric.
 [Examples 08–10](docs/tutorials/examples_tour.md#numbered-examples) cover shape design and shell diagnostics.
-[Example 11](examples/11_elastic_shell.py) reproduces the revised elastic-shell
+[Example 11](examples/11_elastic_shell.py) reproduces the elastic-shell
 equilibrium, frame dragging, cavity tides and central clock shifts. Its
 [datasets and definitions](results/elastic_shell/README.md) live in this
 repository; see the [shell guide](docs/how-to/reproduce_warpshell_paper.md)
@@ -127,7 +128,7 @@ Animation commands and system dependencies are in the
 uv run python -m pytest
 uv run ruff check src/ tests/ scripts/ benchmarks/ examples/
 uv run ruff format --check src/ tests/ scripts/ benchmarks/ examples/
-uv sync --locked --extra docs --extra design
+uv sync --locked --extra docs
 uv run mkdocs build --strict
 ```
 
@@ -151,9 +152,13 @@ Use [CITATION.cff](CITATION.cff) for software metadata and cite the relevant pap
 
 The observer-robust paper received provisional acceptance by *Classical and
 Quantum Gravity* on September 21, 2026, pending the publisher's final checks.
-Example 11 supplies the elastic-shell numerical calculations. The legacy
-S-/T-shell constructors implement separate prescribed metrics; see the
+Example 11 supplies the elastic-shell numerical calculations. `SShellMetric`
+and `TShellMetric` implement separate prescribed metrics; see the
 [shell guide](docs/how-to/reproduce_warpshell_paper.md) for their limitations.
+
+## License
+
+MIT; see [LICENSE](LICENSE).
 
 ## Questions and contributions
 

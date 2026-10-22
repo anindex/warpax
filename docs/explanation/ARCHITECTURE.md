@@ -47,9 +47,9 @@ Metrics are Equinox modules, so JIT and `vmap` can act on their parameters.
 | `energy_conditions` | Algebraic tests, classification, observer searches, exact certificates, interval bounds |
 | `geodesics` | Diffrax geodesics, Jacobi deviation, symplectic null integration |
 | `averaged`, `quantum` | Finite null-energy integrals and flat-space quantum-inequality diagnostics |
-| `grids`, `numerics` | Wall-clustered grids, resolution checks, proper-volume weights, numerical helpers |
+| `grids`, `numerics` | Wall-clustered grids, resolution checks, proper-volume weights, cubic Hermite interpolation |
 | `analysis`, `classify` | Comparisons, convergence, extrema, shift kinematics, construction adapters |
-| `constraints`, `tov` | Einstein constraints, source residuals, legacy shell prescriptions, anisotropic TOV equations |
+| `constraints`, `tov` | Einstein constraints, source residuals, S-/T-shell prescriptions, anisotropic TOV equations |
 | `adm`, `junction`, `bondi` | Asymptotic mass, surface stresses, asymptotic diagnostics |
 | `transport` | Geodesic deviation, observer-dependent blueshift, coordinate-time asymmetry |
 | `optimization`, `design` | Shell parameter sweeps and metric-profile optimization |
@@ -68,7 +68,7 @@ not universal laws.
 - JAX runs in float64. CPU is the reference backend for recorded numerical data.
 - `WARPAX_JIT_CACHE=1` enables JAX's persistent compilation cache; tune it with
   `JAX_PERSISTENT_CACHE_*` settings.
-- Optimistix BFGS receives tolerances through its solver constructor.
+- Optimiztix BFGS receives tolerances through its solver constructor.
 - Diffrax uses `Tsit5`, `PIDController`, and `throw=False`; callers must inspect
   the returned integration status. The default adjoint is
   `RecursiveCheckpointAdjoint`.

@@ -12,7 +12,7 @@ finite search does not establish satisfaction for every observer.
 | `warpax.certify`, `frame_free` | Cap-free classification/eigenvalue route with LMI tests at non-Type-I or ill-conditioned points |
 | Type-I eigenvalue slack | Rest-frame inequality such as `min_i(rho + p_i)` |
 | `verify_point`, `verify_grid` | Type-I slacks plus bounded-rapidity optimizer diagnostics; non-Type-I values come from the search |
-| Eulerian contraction | A diagnostic relative to the unit slice normal |
+| Eulerian contraction | Energy density seen by the unit slice normal `n`; the Eulerian NEC value is the exact minimum of `T(k,k)` over null `k` with `-g(k,n) = 1` |
 | Rational certificate | Exact sufficient evidence for the supplied tensor entries, when construction succeeds |
 | Interval enclosure | Bound including the uncertainty covered by the specified interval calculation |
 
@@ -77,10 +77,11 @@ Continue with the arrays from the [custom metric tutorial](custom_metric_tutoria
 ```python
 from warpax.energy_conditions import shape_function_mask, compute_wall_restricted_stats
 
-wall_mask = shape_function_mask(metric, coords_batch, grid.shape,
-                                f_low=0.1, f_high=0.9)
+wall_mask = shape_function_mask(metric, coords_batch, grid.shape, f_low=0.1, f_high=0.9)
 stats = compute_wall_restricted_stats(
-    ec_grid, wall_mask, eulerian_margins=comparison.eulerian_margins,
+    ec_grid,
+    wall_mask,
+    eulerian_margins=comparison.eulerian_margins,
 )
 ```
 

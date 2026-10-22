@@ -40,7 +40,6 @@ class GaussianWarpMetric(ADMMetric):
     @jaxtyped(typechecker=beartype)
     def shift(self, coords: Float[Array, "4"]) -> Float[Array, "3"]:
         f = self.shape_function_value(coords)
-        # Shift acts only along x (warp propagation axis), like Alcubierre.
         return jnp.array([-self.v_s * f, 0.0, 0.0])
 
     @jaxtyped(typechecker=beartype)
@@ -48,9 +47,7 @@ class GaussianWarpMetric(ADMMetric):
         return jnp.eye(3)
 
     @jaxtyped(typechecker=beartype)
-    def shape_function_value(
-        self, coords: Float[Array, "4"]
-    ) -> Float[Array, ""]:
+    def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
         t, x, y, z = coords
         dx = x - self.v_s * t
         r_squared = dx * dx + y * y + z * z

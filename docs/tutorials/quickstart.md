@@ -5,13 +5,13 @@ Use Python 3.12 or later. From a repository checkout:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e ".[dev,viz,design,solver]"
+python -m pip install -e ".[dev,viz,solver]"
 python examples/03_alcubierre_analysis.py
 ```
 
-CPU is sufficient. `warpax` enables float64 at import. The `design` extra adds
-spline tools, `solver` adds the generalized eigensolver, and `viz` adds figure
-helpers; the separate `manim` extra requires system rendering dependencies.
+CPU is sufficient. `warpax` enables float64 at import. `solver` adds the
+generalized eigensolver and `viz` adds figure helpers. The separate `manim`
+extra requires system rendering dependencies.
 
 The example evaluates the Alcubierre metric at `v_s=0.5, R=1, sigma=8` and
 `(t,x,y,z)=(0,1,0.5,0)`. Representative values are:

@@ -40,7 +40,7 @@
           ]
         ]
       },
-      "Natário": {
+      "Nat\u00e1rio": {
         "params": {
           "v_s": 0.5,
           "R": 1.0,
@@ -112,7 +112,7 @@
   },
   "order": [
     "Alcubierre",
-    "Natário",
+    "Nat\u00e1rio",
     "Van den Broeck",
     "Rodal"
   ],
@@ -127,7 +127,7 @@
         "agreement_rate_active": 0.985665362035225,
         "eig_iv_delta_nonneg": 1736,
         "delta_only": 608,
-        "exc_median_abs_imag": 4.5678433184802913e-10
+        "exc_median_abs_imag": 4.5678431737900653e-10
       },
       "wall": {
         "n_points": 3160,
@@ -138,10 +138,10 @@
         "agreement_rate_active": 0.9743589743589743,
         "eig_iv_delta_nonneg": 80,
         "delta_only": 0,
-        "exc_median_abs_imag": 0.01896153132795777
+        "exc_median_abs_imag": 0.018961531327957762
       }
     },
-    "Natário": {
+    "Nat\u00e1rio": {
       "full_grid": {
         "n_points": 216000,
         "n_eig_typeIV": 212312,
@@ -151,7 +151,7 @@
         "agreement_rate_active": 0.9969519078798826,
         "eig_iv_delta_nonneg": 368,
         "delta_only": 280,
-        "exc_median_abs_imag": 0.07870187160199656
+        "exc_median_abs_imag": 0.07870187160199665
       },
       "wall": {
         "n_points": 3160,
@@ -162,7 +162,7 @@
         "agreement_rate_active": 0.863905325443787,
         "eig_iv_delta_nonneg": 368,
         "delta_only": 0,
-        "exc_median_abs_imag": 0.07870187160199656
+        "exc_median_abs_imag": 0.07870187160199665
       }
     },
     "Van den Broeck": {
@@ -175,7 +175,7 @@
         "agreement_rate_active": 0.19693548387096774,
         "eig_iv_delta_nonneg": 39832,
         "delta_only": 0,
-        "exc_median_abs_imag": 1.4654096347994536e-11
+        "exc_median_abs_imag": 1.4654096347994885e-11
       },
       "wall": {
         "n_points": 3160,
@@ -186,7 +186,7 @@
         "agreement_rate_active": 0.7298850574712644,
         "eig_iv_delta_nonneg": 752,
         "delta_only": 0,
-        "exc_median_abs_imag": 0.05868661251033747
+        "exc_median_abs_imag": 0.05868661251033781
       }
     },
     "Rodal": {

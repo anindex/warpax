@@ -1,6 +1,6 @@
 # Metric catalog
 
-warpax provides ten warp/shell metrics, plus Minkowski and Schwarzschild
+warpax provides eleven warp/shell metrics, plus Minkowski and Schwarzschild
 references. Alcubierre is in `warpax.benchmarks`; the other warp metrics are in
 `warpax.metrics`. Parameters and signatures appear below each description.
 
@@ -25,6 +25,14 @@ Spherical shell with $C^1$ or $C^2$ transitions. Large curvature near the shell
 boundary makes it a numerical stress test; results depend on the regularization.
 
 ::: warpax.metrics.WarpShellMetric
+
+## `WarpShellPhysical`
+
+Schwarzschild-matched shell with $C^2$ blends on both edges, valid only for
+`r_s_param < R_1 - smooth_width` so the Schwarzschild factor stays positive on
+the inner blend. The flat exterior forces negative energy in the outer blend.
+
+::: warpax.metrics.WarpShellPhysical
 
 ## `LentzMetric`
 
@@ -58,14 +66,13 @@ $v_s=0.02$, and Schwarzschild-radius parameter `r_s_param=6.668692`.
 
 Motion modifies covariant $g_{01}=g_{10}$ only; lapse and contravariant shift
 are recovered from the full metric. The natural-endpoint sigmoid, cubic radial
-spline, and $C^2$ joins are the implementation's regularization. The private
-`_fuchs_legacy._FuchsAnalytical` retains the unsmoothed intermediate for comparison.
+spline, and $C^2$ joins are the implementation's regularization.
 
 ::: warpax.metrics.FuchsMetric
 
 ## `SShellMetric`
 
-Legacy shift-free shell generated from a prescribed density and an inward TOV
+Shift-free shell generated from a prescribed density and an inward TOV
 integration. Its nonnegative isotropic pressure cannot match a regular empty
 inner cavity without surface stress. It is a metric diagnostic, not the
 Einstein–elastic equilibrium of the elastic-shell paper. See the
@@ -75,7 +82,7 @@ Einstein–elastic equilibrium of the elastic-shell paper. See the
 
 ## `TShellMetric`
 
-Legacy tilted-source prescription. Its scalar radial shift reduction does not
+Tilted-source prescription. Its scalar radial shift reduction does not
 solve the full Cartesian-vector momentum constraint; the spatial Einstein
 equations and constitutive stress also require separate agreement. A Type-IV
 metric-derived stress cannot represent its prescribed perfect fluid. See the
