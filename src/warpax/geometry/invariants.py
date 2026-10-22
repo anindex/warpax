@@ -4,10 +4,18 @@ Scalars computed at a single point:
 
 - Kretschmann scalar ``K = R_{abcd} R^{abcd}`` (Kretschmann 1915).
 - Ricci-squared ``R_{ab} R^{ab}``.
-- Weyl-squared via the 4-D Gauss-Bonnet identity:
-  ``C^2 = K - 2 R_{ab} R^{ab} + (1/3) R^2``.
+- Weyl tensor ``C_{abcd}`` (trace-free part of Riemann) and Weyl-squared
+  ``C_{abcd} C^{abcd}`` contracted directly from it, which avoids the
+  catastrophic cancellation of ``K - 2 R_{ab} R^{ab} + R^2/3`` when the
+  Ricci part dominates.
 - Chern-Pontryagin ``*R_{abcd} R^{abcd}`` (Hodge-dual contraction);
   vanishes identically for conformally flat spacetimes.
+
+``_EVEN_PERMS`` and ``_ODD_PERMS`` list the 24 permutations of (0,1,2,3) by
+sign; ``_EVEN_IDX`` and ``_ODD_IDX`` are their transposed index tuples (4 tuples
+of 12 ints) so the Levi-Civita symbol is built by a static scatter under JIT.
+``_DET_RTOL`` is the degeneracy floor on the determinant of the
+scale-normalized metric, so it is dimensionless.
 
 Index conventions match ``geometry.py``: Riemann ``R^a_{bcd}``, Ricci
 ``R_{ab}``, metric ``g_{ab}``, inverse metric ``g^{ab}``. These functions
@@ -21,8 +29,6 @@ from jaxtyping import Array, Float
 
 from .geometry import CurvatureResult
 
-# All 24 permutations of (0,1,2,3) with their signs.
-# Even permutations (+1):
 _EVEN_PERMS = (
     (0, 1, 2, 3),
     (0, 2, 3, 1),
@@ -37,7 +43,6 @@ _EVEN_PERMS = (
     (3, 1, 0, 2),
     (3, 2, 1, 0),
 )
-# Odd permutations (-1):
 _ODD_PERMS = (
     (0, 1, 3, 2),
     (0, 2, 1, 3),
@@ -53,11 +58,9 @@ _ODD_PERMS = (
     (3, 2, 0, 1),
 )
 
-# Pre-build index arrays for JIT-compatible construction
-_EVEN_IDX = tuple(zip(*_EVEN_PERMS, strict=True))  # 4 tuples of 12 ints each
+_EVEN_IDX = tuple(zip(*_EVEN_PERMS, strict=True))
 _ODD_IDX = tuple(zip(*_ODD_PERMS, strict=True))
 
-# Degeneracy floor on det of the scale-normalised metric, so it is dimensionless.
 _DET_RTOL = 1e-30
 
 
@@ -103,16 +106,51 @@ def ricci_squared(
     return jnp.einsum("ab,ab->", ricci, R_up)
 
 
-def weyl_squared(
-    kretschmann: Float[Array, ""],
-    ricci_sq: Float[Array, ""],
+def weyl_tensor(
+    riemann: Float[Array, "4 4 4 4"],
+    ricci: Float[Array, "4 4"],
     ricci_scalar: Float[Array, ""],
-) -> Float[Array, ""]:
-    """Weyl-squared ``C_{abcd} C^{abcd}`` via the 4-D Gauss-Bonnet identity.
+    metric: Float[Array, "4 4"],
+) -> Float[Array, "4 4 4 4"]:
+    """Weyl tensor ``C_{abcd}`` (all indices down) at a single point.
 
-    ``C^2 = K - 2 R_{ab} R^{ab} + (1/3) R^2`` in four dimensions.
+    ``C_abcd = R_abcd - 1/2 (g_ac R_bd - g_ad R_bc - g_bc R_ad + g_bd R_ac)
+    + R/6 (g_ac g_bd - g_ad g_bc)`` with ``R_abcd = g_ae R^e_bcd``.
     """
-    return kretschmann - 2.0 * ricci_sq + (1.0 / 3.0) * ricci_scalar**2
+    R_down = jnp.einsum("ae,ebcd->abcd", metric, riemann)
+    ricci_part = 0.5 * (
+        jnp.einsum("ac,bd->abcd", metric, ricci)
+        - jnp.einsum("ad,bc->abcd", metric, ricci)
+        - jnp.einsum("bc,ad->abcd", metric, ricci)
+        + jnp.einsum("bd,ac->abcd", metric, ricci)
+    )
+    scalar_part = (ricci_scalar / 6.0) * (
+        jnp.einsum("ac,bd->abcd", metric, metric) - jnp.einsum("ad,bc->abcd", metric, metric)
+    )
+    return R_down - ricci_part + scalar_part
+
+
+def weyl_squared(
+    riemann: Float[Array, "4 4 4 4"],
+    ricci: Float[Array, "4 4"],
+    ricci_scalar: Float[Array, ""],
+    metric: Float[Array, "4 4"],
+    metric_inv: Float[Array, "4 4"],
+) -> Float[Array, ""]:
+    """Weyl-squared ``C_{abcd} C^{abcd}`` contracted from ``weyl_tensor``.
+
+    Not clamped: the Lorentzian contraction can be negative.
+    """
+    C_down = weyl_tensor(riemann, ricci, ricci_scalar, metric)
+    C_up = jnp.einsum(
+        "ae,bf,cg,dh,efgh->abcd",
+        metric_inv,
+        metric_inv,
+        metric_inv,
+        metric_inv,
+        C_down,
+    )
+    return jnp.einsum("abcd,abcd->", C_down, C_up)
 
 
 def _levi_civita_4d(
@@ -121,12 +159,13 @@ def _levi_civita_4d(
     """Lorentzian Levi-Civita tensor ``epsilon_{abcd} = sqrt(-det g) [abcd]``.
 
     The permutation symbol is built once via static index tuples so the
-    function stays trace-friendly.
+    function stays trace-friendly. The metric is divided by its largest
+    entry before the determinant, because ``scale**4`` underflows below
+    ``|g| ~ 1e-77``; ``_DET_RTOL`` then floors the normalized determinant.
     """
     eps = jnp.zeros((4, 4, 4, 4))
     eps = eps.at[_EVEN_IDX].set(1.0)
     eps = eps.at[_ODD_IDX].set(-1.0)
-    # Normalise before the determinant: scale**4 underflows below |g| ~ 1e-77.
     tiny = jnp.finfo(metric.dtype).tiny
     scale = jnp.maximum(jnp.max(jnp.abs(metric)), tiny)
     neg_det_hat = -jnp.linalg.det(metric / scale)
@@ -170,6 +209,8 @@ def compute_invariants(
     """
     K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
     R2 = ricci_squared(result.ricci, result.metric_inv)
-    W2 = weyl_squared(K, R2, result.ricci_scalar)
+    W2 = weyl_squared(
+        result.riemann, result.ricci, result.ricci_scalar, result.metric, result.metric_inv
+    )
     CP = chern_pontryagin(result.riemann, result.metric, result.metric_inv)
     return (K, R2, W2, CP)

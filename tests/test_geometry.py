@@ -1,5 +1,6 @@
 """Geometry: curvature chain, ADM/metric specs, transitions, type contracts."""
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -9,7 +10,7 @@ import sympy as sp
 
 from warpax.benchmarks.alcubierre import (
     AlcubierreMetric,
-    _shape_function,
+    alcubierre_symbolic,
     eulerian_energy_density,
 )
 from warpax.benchmarks.minkowski import MinkowskiMetric
@@ -23,8 +24,7 @@ from warpax.geometry.geometry import (
 from warpax.geometry.metric import SymbolicMetric, adm_to_full_metric
 from warpax.geometry.transitions import smoothstep, smoothstep_c1, smoothstep_c2
 from warpax.geometry.types import GridSpec, TensorField
-
-# Inline SymPy symbolic geometry (replaces legacy imports)
+from warpax.metrics._common import alcubierre_shape
 
 
 def _christoffel_symbolic(sm: SymbolicMetric) -> sp.Array:
@@ -74,9 +74,6 @@ def _riemann_symbolic(sm: SymbolicMetric) -> sp.Array:
     return sp.Array(result)
 
 
-# Helper: evaluate a SymPy tensor at a specific coordinate point
-
-
 def _eval_sympy_at_point(sympy_array, symbolic_metric, param_subs, coord_vals):
     """Evaluate a SymPy tensor array at a specific coordinate point.
 
@@ -104,9 +101,6 @@ def _eval_sympy_at_point(sympy_array, symbolic_metric, param_subs, coord_vals):
     return np.array(expr.tolist(), dtype=np.float64)
 
 
-# 1. Minkowski (flat) all curvature quantities must be exactly zero
-
-
 class TestMinkowski:
     """Flat Minkowski spacetime: every curvature tensor is identically zero."""
 
@@ -114,7 +108,7 @@ class TestMinkowski:
     coords = jnp.array([0.0, 1.0, 2.0, 3.0])
 
     def test_full_chain_zero(self):
-        # single flatness sentinel: every tensor in the chain must vanish
+        """Single flatness sentinel: every tensor in the chain must vanish."""
         result = compute_curvature_chain(self.metric, self.coords)
         npt.assert_allclose(result.christoffel, 0.0, atol=1e-15)
         npt.assert_allclose(result.riemann, 0.0, atol=1e-15)
@@ -124,13 +118,13 @@ class TestMinkowski:
         npt.assert_allclose(result.stress_energy, 0.0, atol=1e-15)
 
 
-# 2. Schwarzschild Christoffel symbols vs SymPy ground truth
-
-
 class TestSchwarzschildChristoffel:
-    """Compare autodiff Christoffel symbols against SymPy at a specific point."""
+    """Compare autodiff Christoffel symbols against SymPy at a specific point.
 
-    # Evaluation point: r_iso = sqrt(3^2 + 4^2 + 0^2) = 5.0 (well outside horizon)
+    The evaluation point has r_iso = sqrt(3^2 + 4^2 + 0^2) = 5.0, well
+    outside the horizon.
+    """
+
     jax_coords = jnp.array([0.0, 3.0, 4.0, 0.0])
     coord_vals = (0.0, 3.0, 4.0, 0.0)
 
@@ -165,16 +159,12 @@ class TestSchwarzschildChristoffel:
         """Gamma^l_{mn} == Gamma^l_{nm} (symmetry in lower indices)."""
         metric = SchwarzschildMetric(M=1.0)
         gamma = christoffel_symbols(metric, self.jax_coords)
-        # Swap lower indices (axes 1 and 2)
         npt.assert_allclose(
             np.array(gamma),
             np.array(jnp.swapaxes(gamma, 1, 2)),
             atol=1e-15,
             err_msg="Christoffel symbols not symmetric in lower indices",
         )
-
-
-# 3. Schwarzschild Riemann tensor vs SymPy ground truth
 
 
 class TestSchwarzschildRiemann:
@@ -201,7 +191,6 @@ class TestSchwarzschildRiemann:
 
     def test_riemann_sympy_match(self):
         """All 256 Riemann components match SymPy ground truth."""
-        # antisymmetry at this point lives in test_curvature_identities.py
         metric = SchwarzschildMetric(M=1.0)
         R_ad = riemann_tensor(metric, self.jax_coords)
         npt.assert_allclose(
@@ -210,9 +199,6 @@ class TestSchwarzschildRiemann:
             atol=1e-12,
             err_msg="Autodiff Riemann tensor does not match SymPy",
         )
-
-
-# 4. Schwarzschild full chain vacuum solution (Ricci-flat)
 
 
 class TestSchwarzschildFullChain:
@@ -239,11 +225,9 @@ class TestSchwarzschildFullChain:
         Ricci/Einstein/T all zero."""
         result = compute_curvature_chain(self.metric, self.jax_coords)
 
-        # Metric shape
         assert result.metric.shape == (4, 4)
         assert result.metric_inv.shape == (4, 4)
 
-        # Christoffel matches SymPy
         npt.assert_allclose(
             np.array(result.christoffel),
             self.gamma_sympy,
@@ -251,21 +235,19 @@ class TestSchwarzschildFullChain:
             err_msg="Full chain Christoffel mismatch with SymPy",
         )
 
-        # Vacuum: everything downstream is zero
         npt.assert_allclose(np.array(result.ricci), 0.0, atol=1e-10)
         npt.assert_allclose(float(result.ricci_scalar), 0.0, atol=1e-10)
         npt.assert_allclose(np.array(result.einstein), 0.0, atol=1e-10)
         npt.assert_allclose(np.array(result.stress_energy), 0.0, atol=1e-10)
 
 
-# 5. Alcubierre warp drive non-trivial stress-energy, WEC violation
-
-
 class TestAlcubierre:
-    """Alcubierre metric: non-flat with WEC-violating stress-energy."""
+    """Alcubierre metric: non-flat with WEC-violating stress-energy.
 
-    # Near bubble wall: r_s = sqrt(0.8^2 + 0.5^2 + 0^2) ~ 0.94
-    # With R=1.0, sigma=8.0 this is close to the bubble wall where df/dr_s is large
+    The evaluation point sits near the bubble wall, r_s = sqrt(0.8^2 + 0.5^2)
+    ~ 0.94 with R=1.0 and sigma=8.0, where df/dr_s is large.
+    """
+
     metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0, x_s=0.0)
     jax_coords = jnp.array([0.0, 0.8, 0.5, 0.0])
 
@@ -294,28 +276,21 @@ class TestAlcubierre:
         """
         result = compute_curvature_chain(self.metric, self.jax_coords)
 
-        # T must be non-zero
         T_max = float(jnp.max(jnp.abs(result.stress_energy)))
         assert T_max > 1e-6, f"Alcubierre T_{'{mn}'} max = {T_max}, expected non-zero"
 
-        # Compute analytical Eulerian energy density at the same spatial point
         _, x_val, y_val, z_val = self.jax_coords
         rho_analytical = eulerian_energy_density(
             x_val, y_val, z_val, v_s=0.5, R=1.0, sigma=8.0, x_s=0.0
         )
 
-        # Construct Eulerian normal vector n^a = (1/alpha, -beta^i/alpha)
-        # For Alcubierre: alpha=1, shift = (-v_s*f, 0, 0)
-        # So n^a = (1, v_s*f, 0, 0)
         r_s = jnp.sqrt(x_val**2 + y_val**2 + z_val**2)
-        f = _shape_function(r_s, 1.0, 8.0)
+        f = alcubierre_shape(r_s, 1.0, 8.0)
         n_up = jnp.array([1.0, 0.5 * f, 0.0, 0.0])
 
-        # Eulerian energy density: rho = T_{ab} n^a n^b
         T = result.stress_energy
         rho_autodiff = jnp.einsum("ab,a,b->", T, n_up, n_up)
 
-        # Both should be negative (WEC violation)
         assert float(rho_analytical) < 0, (
             f"Analytical energy density should be negative, got {float(rho_analytical)}"
         )
@@ -323,7 +298,6 @@ class TestAlcubierre:
             f"Autodiff energy density should be negative, got {float(rho_autodiff)}"
         )
 
-        # Both should agree on sign and magnitude
         assert np.sign(float(rho_analytical)) == np.sign(float(rho_autodiff)), (
             "Analytical and autodiff energy densities disagree on sign"
         )
@@ -333,9 +307,6 @@ class TestAlcubierre:
             rtol=1e-6,
             err_msg="Autodiff and analytical energy densities disagree",
         )
-
-
-# 6. JIT compilability
 
 
 class TestJITCompilability:
@@ -380,9 +351,6 @@ class TestJITCompilability:
             )
 
 
-# 7. CurvatureResult NamedTuple structure
-
-
 class TestCurvatureResult:
     """Verify CurvatureResult structure and JAX pytree compatibility."""
 
@@ -393,12 +361,8 @@ class TestCurvatureResult:
         result = compute_curvature_chain(metric, coords)
         leaves = jax.tree.leaves(result)
         assert len(leaves) == 8, f"Expected 8 pytree leaves, got {len(leaves)}"
-        # All leaves should be JAX arrays
         for leaf in leaves:
             assert hasattr(leaf, "shape"), f"Leaf {type(leaf)} is not an array"
-
-
-# adm_to_full_metric tests
 
 
 class TestADMToFullMetric:
@@ -415,22 +379,22 @@ class TestADMToFullMetric:
         assert jnp.allclose(g, expected, atol=1e-15)
 
     def test_adm_to_full_metric_shift(self):
-        """adm_to_full_metric with nonzero shift, verify g_0i = beta_down_i."""
+        """adm_to_full_metric with nonzero shift, verify g_0i = beta_down_i.
+
+        With alpha=1, beta^i = (0.5, 0, 0), gamma = I: beta_i = (0.5, 0, 0),
+        g_00 = -(alpha^2 - beta_i beta^i) = -0.75, g_01 = 0.5, g_02 = g_03 = 0,
+        and the spatial block equals gamma.
+        """
         alpha = jnp.array(1.0)
         beta_up = jnp.array([0.5, 0.0, 0.0])
         gamma = jnp.eye(3)
 
         g = adm_to_full_metric(alpha, beta_up, gamma)
-        # beta_down = gamma @ beta_up = [0.5, 0, 0]
-        # g_00 = -(alpha^2 - beta_down . beta_up) = -(1 - 0.25) = -0.75
         assert jnp.isclose(g[0, 0], -0.75, atol=1e-15)
-        # g_01 = beta_down_x = 0.5
         assert jnp.isclose(g[0, 1], 0.5, atol=1e-15)
         assert jnp.isclose(g[1, 0], 0.5, atol=1e-15)
-        # g_02, g_03 = 0
         assert jnp.isclose(g[0, 2], 0.0, atol=1e-15)
         assert jnp.isclose(g[0, 3], 0.0, atol=1e-15)
-        # spatial block = gamma
         assert jnp.allclose(g[1:, 1:], gamma, atol=1e-15)
 
     def test_adm_to_full_metric_jit(self):
@@ -442,9 +406,6 @@ class TestADMToFullMetric:
         g_eager = adm_to_full_metric(alpha, beta_up, gamma)
         g_jit = jax.jit(adm_to_full_metric)(alpha, beta_up, gamma)
         assert jnp.allclose(g_eager, g_jit, atol=1e-15)
-
-
-# SymbolicMetric tests
 
 
 class TestSymbolicMetric:
@@ -470,7 +431,7 @@ class TestSymbolicMetric:
     def test_symbolic_metric_invalid_shape(self):
         """Verify ValueError for wrong matrix shape."""
         t, x, y, z = sp.symbols("t x y z")
-        g = sp.diag(-1, 1, 1)  # 3x3 instead of 4x4
+        g = sp.diag(-1, 1, 1)
         import pytest
 
         with pytest.raises(ValueError, match="\\(4, 4\\)"):
@@ -479,10 +440,6 @@ class TestSymbolicMetric:
 
 class TestSmoothstepTransitions:
     """Tests for C1/C2 smoothstep functions."""
-
-    # ------------------------------------------------------------------
-    # Boundary values
-    # ------------------------------------------------------------------
 
     def test_smoothstep_c1_boundary_values(self):
         """C1 cubic: f(0)=0, f(1)=1, f(0.5)=0.5."""
@@ -496,15 +453,9 @@ class TestSmoothstepTransitions:
         assert jnp.isclose(smoothstep_c2(jnp.array(1.0)), 1.0, atol=1e-15)
         assert jnp.isclose(smoothstep_c2(jnp.array(0.5)), 0.5, atol=1e-15)
 
-    # ------------------------------------------------------------------
-    # First derivative at endpoints
-    # ------------------------------------------------------------------
-
     def test_smoothstep_c1_first_derivative_zero(self):
-        """C1 cubic: f'(0)=0, f'(1)=0."""
+        """C1 cubic: f'(0)=0, f'(1)=0; the derivative of 3t^2 - 2t^3 is 6t - 6t^2."""
         grad_fn = jax.grad(lambda t: smoothstep_c1(t))
-        # Evaluate at points just inside [0, 1] to avoid clipping boundary
-        # effects. The analytical derivative of 3t^2 - 2t^3 is 6t - 6t^2.
         assert jnp.isclose(grad_fn(jnp.array(0.0)), 0.0, atol=1e-10)
         assert jnp.isclose(grad_fn(jnp.array(1.0)), 0.0, atol=1e-10)
 
@@ -513,10 +464,6 @@ class TestSmoothstepTransitions:
         grad_fn = jax.grad(lambda t: smoothstep_c2(t))
         assert jnp.isclose(grad_fn(jnp.array(0.0)), 0.0, atol=1e-10)
         assert jnp.isclose(grad_fn(jnp.array(1.0)), 0.0, atol=1e-10)
-
-    # ------------------------------------------------------------------
-    # Second derivative at endpoints (THE key C2 property)
-    # ------------------------------------------------------------------
 
     def test_smoothstep_c2_second_derivative_zero(self):
         """C2 quintic: f''(0)=0, f''(1)=0.
@@ -538,20 +485,14 @@ class TestSmoothstepTransitions:
         The second derivative of 3t^2 - 2t^3 is 6 - 12t, which gives
         f''(0)=6 analytically. At the exact clip boundary, JAX autodiff
         returns a modified value due to the clip gradient convention, so
-        we evaluate at a point just inside [0, 1].
+        we evaluate at a point just inside [0, 1]: f''(0.01) = 6 - 12*0.01 = 5.88.
         """
         grad2_fn = jax.grad(jax.grad(lambda t: smoothstep_c1(t)))
-        # Use a point just inside the domain to avoid clip boundary effects
         f2_near_0 = grad2_fn(jnp.array(0.01))
-        # f''(0.01) = 6 - 12*0.01 = 5.88
         assert jnp.isclose(f2_near_0, 5.88, atol=0.01), (
             f"C1 f''(0.01) = {f2_near_0}, expected ~5.88"
         )
         assert not jnp.isclose(f2_near_0, 0.0, atol=1.0), "C1 f''(0.01) should NOT be near zero"
-
-    # ------------------------------------------------------------------
-    # Dispatch
-    # ------------------------------------------------------------------
 
     def test_smoothstep_dispatch(self):
         """smoothstep(t, order=N) matches the corresponding function."""
@@ -563,10 +504,6 @@ class TestSmoothstepTransitions:
         """smoothstep(t, order=3) raises ValueError."""
         with pytest.raises(ValueError, match="Unsupported smoothstep order"):
             smoothstep(jnp.array(0.5), order=3)
-
-    # ------------------------------------------------------------------
-    # Clipping and monotonicity
-    # ------------------------------------------------------------------
 
     def test_smoothstep_clipping(self):
         """Values outside [0,1] are clipped: f(-0.5)=0, f(1.5)=1."""
@@ -587,9 +524,6 @@ class TestSmoothstepTransitions:
             assert jnp.all(diffs >= -1e-15), (
                 f"{fn.__name__} is not monotonic: min diff = {jnp.min(diffs)}"
             )
-
-
-# TensorField tests
 
 
 class TestTensorField:
@@ -621,7 +555,7 @@ class TestTensorField:
             TensorField(
                 components=jnp.zeros((4, 4)),
                 rank=2,
-                index_positions="ddd",  # 3 chars for rank-2
+                index_positions="ddd",
             )
 
     def test_tensorfield_grid_shape(self):
@@ -630,9 +564,6 @@ class TestTensorField:
         tf = TensorField(components=components, rank=2)
         assert tf.grid_shape == (10, 10)
         assert tf.tensor_shape == (4, 4)
-
-
-# GridSpec tests
 
 
 class TestGridSpec:
@@ -645,9 +576,9 @@ class TestGridSpec:
             shape=(11, 5, 7),
         )
         spacing = grid.spacing
-        assert abs(spacing[0] - 0.2) < 1e-14  # 2.0 / 10
-        assert abs(spacing[1] - 1.0) < 1e-14  # 4.0 / 4
-        assert abs(spacing[2] - 1.0) < 1e-14  # 6.0 / 6
+        assert abs(spacing[0] - 0.2) < 1e-14
+        assert abs(spacing[1] - 1.0) < 1e-14
+        assert abs(spacing[2] - 1.0) < 1e-14
 
     def test_gridspec_axes(self):
         """Verify axes are jnp arrays with correct dtype (float64) and length."""
@@ -682,13 +613,202 @@ class TestGridSpec:
             shape=(5, 10, 15),
         )
         fields = grid.coordinate_fields
-        assert len(fields) == 4  # t, x, y, z
-        # t should be all zeros
+        assert len(fields) == 4
         assert jnp.allclose(fields[0], 0.0)
-        # x, y, z should match meshgrid
         mg = grid.meshgrid
         for f, m in zip(fields[1:], mg, strict=True):
             assert jnp.allclose(f, m)
-        # dtype check
         for f in fields:
             assert f.dtype == jnp.float64
+
+
+class TestGridEvaluation:
+    """Grid curvature is a reshape of the point chain; t and bounds are data."""
+
+    @pytest.mark.parametrize("t", [0.0, 0.3])
+    @pytest.mark.parametrize("batch_size", [None, 50])
+    def test_grid_eval_matches_point_eval(self, t, batch_size):
+        from jax import lax
+
+        from warpax.geometry.grid import _make_point_fn, evaluate_curvature_grid
+
+        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+        grid = GridSpec(bounds=[(-2.0, 2.0)] * 3, shape=(6, 6, 6))
+        got = evaluate_curvature_grid(metric, grid, t=t, batch_size=batch_size)
+
+        @eqx.filter_jit
+        def old_fused_path(metric_fn, grid_spec, t):
+            X, Y, Z = grid_spec.meshgrid
+            coords = jnp.stack([jnp.full_like(X, t), X, Y, Z], axis=-1).reshape(-1, 4)
+            point_fn = _make_point_fn(metric_fn, True)
+            if batch_size is not None:
+                return lax.map(point_fn, coords, batch_size=batch_size)
+            return jax.vmap(point_fn)(coords)
+
+        ref = old_fused_path(metric, grid, t)
+        for name in ref._fields:
+            r = getattr(ref, name)
+            npt.assert_allclose(
+                getattr(got, name), r.reshape(6, 6, 6, *r.shape[1:]), rtol=1e-12, atol=0.0
+            )
+
+    def test_time_and_bounds_do_not_retrace(self, monkeypatch):
+        from warpax.geometry import grid as grid_mod
+
+        inner = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+        traces = []
+        make_point_fn = grid_mod._make_point_fn
+
+        def counting_make_point_fn(*args, **kwargs):
+            traces.append(1)
+            return make_point_fn(*args, **kwargs)
+
+        monkeypatch.setattr(grid_mod, "_make_point_fn", counting_make_point_fn)
+
+        def metric_fn(c):
+            return inner(c)
+
+        for t in (0.0, 0.1, 0.2):
+            grid_mod.evaluate_curvature_grid(
+                metric_fn, GridSpec(bounds=[(-2.0, 2.0)] * 3, shape=(4, 4, 4)), t=t
+            )
+        for hi in (1.0, 1.5, 2.5):
+            grid_mod.evaluate_curvature_grid(
+                metric_fn, GridSpec(bounds=[(-hi, hi)] * 3, shape=(4, 4, 4))
+            )
+        assert len(traces) == 1, f"point function traced {len(traces)} times"
+
+    def test_bounds_are_immutable_tuples(self):
+        grid = GridSpec(bounds=[[-1, 1], (0.0, 4.0), np.array([-3.0, 3.0])], shape=(3, 3, 3))
+        assert grid.bounds == ((-1.0, 1.0), (0.0, 4.0), (-3.0, 3.0))
+        assert isinstance(grid.bounds, tuple)
+        assert all(isinstance(b, tuple) for b in grid.bounds)
+        assert all(type(v) is float for b in grid.bounds for v in b)
+        with pytest.raises(TypeError):
+            grid.bounds[0][0] = 5.0
+        assert not hasattr(grid, "volume_weights")
+
+    def test_stress_energy_kernel_matches_full_chain(self):
+        """The three-field kernel equals the full-chain grid path certify used before."""
+        from warpax.geometry.grid import (
+            _stress_energy_points,
+            build_coord_batch,
+            evaluate_curvature_grid,
+        )
+        from warpax.grids import wall_clustered
+
+        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+        grid = wall_clustered(metric, [(-3.0, 3.0)] * 3, (8, 8, 8), wall_radius=1.0)
+        coords = build_coord_batch(grid, t=0.0)
+        T, g, gi = _stress_energy_points(metric, coords, batch_size=100)
+        ref = evaluate_curvature_grid(metric, grid, batch_size=100)
+        npt.assert_allclose(T.reshape(8, 8, 8, 4, 4), ref.stress_energy, rtol=1e-12, atol=0.0)
+        npt.assert_allclose(g.reshape(8, 8, 8, 4, 4), ref.metric, rtol=1e-12, atol=0.0)
+        npt.assert_allclose(gi.reshape(8, 8, 8, 4, 4), ref.metric_inv, rtol=1e-12, atol=0.0)
+
+    def test_time_does_not_recompile_coordinate_builder(self, caplog):
+        """Three time slices compile the coordinate builder once and the curvature kernel once.
+
+        ``t`` enters the compiled builder as a float64 array, so its cache is
+        keyed on the grid spec alone; expected compile counts are 1 and 1.
+        """
+        from warpax.geometry.grid import evaluate_curvature_grid
+
+        inner = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+
+        def metric_fn(c):
+            return inner(c)
+
+        grid = GridSpec(bounds=[(-2.0, 2.0)] * 3, shape=(4, 4, 4))
+        jax.clear_caches()
+        jax.config.update("jax_log_compiles", True)
+        try:
+            with caplog.at_level("INFO", logger="jax"):
+                for t in (0.0, 0.1, 0.2):
+                    evaluate_curvature_grid(metric_fn, grid, t=t)
+        finally:
+            jax.config.update("jax_log_compiles", False)
+        messages = [
+            r.getMessage() for r in caplog.records if r.getMessage().startswith("Compiling")
+        ]
+        assert sum("_build_coord_batch" in m for m in messages) == 1, messages
+        assert sum("evaluate_curvature_points" in m for m in messages) == 1, messages
+
+    def test_grid_eval_at_nonzero_time_matches_points(self):
+        """Grid results at t=0.3 equal the point-wise chain on the same coordinates (rtol 1e-12)."""
+        from warpax.geometry.grid import build_coord_batch, evaluate_curvature_grid
+
+        metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
+        grid = GridSpec(bounds=[(-2.0, 2.0)] * 3, shape=(5, 5, 5))
+        coords = build_coord_batch(grid, t=0.3)
+        npt.assert_array_equal(coords[:, 0], 0.3)
+        got = evaluate_curvature_grid(metric, grid, t=0.3)
+        ref = jax.vmap(lambda c: compute_curvature_chain(metric, c))(coords)
+        for name in ref._fields:
+            r = getattr(ref, name)
+            npt.assert_allclose(
+                getattr(got, name), r.reshape(5, 5, 5, *r.shape[1:]), rtol=1e-12, atol=0.0
+            )
+
+
+def test_shared_christoffel_matches_spatial_einsum():
+    """One Christoffel helper serves the 4D chain and every 3D spatial-metric site."""
+    from warpax.geometry.geometry import christoffel_from_jacobian
+
+    metric = SchwarzschildMetric(M=1.0)
+    coords = jnp.array([0.0, 3.0, 0.7, -0.4])
+
+    def gamma_fn(xyz):
+        return metric(jnp.concatenate([coords[:1], xyz]))[1:, 1:]
+
+    g_inv = jnp.linalg.inv(gamma_fn(coords[1:]))
+    dg = jax.jacfwd(gamma_fn)(coords[1:])
+    inline = 0.5 * (
+        jnp.einsum("lk,jki->lij", g_inv, dg)
+        + jnp.einsum("lk,ikj->lij", g_inv, dg)
+        - jnp.einsum("lk,ijk->lij", g_inv, dg)
+    )
+    npt.assert_allclose(christoffel_from_jacobian(g_inv, dg), inline, rtol=1e-12, atol=0)
+
+    g4 = metric(coords)
+    npt.assert_allclose(
+        christoffel_from_jacobian(jnp.linalg.inv(g4), jax.jacfwd(metric)(coords)),
+        christoffel_symbols(metric, coords),
+        rtol=1e-12,
+        atol=0,
+    )
+
+
+def test_spatial_ricci_scalar_matches_inline_riemann_assembly():
+    """The ADM Hamiltonian residual reuses the geometry Riemann assembly."""
+    from warpax.constraints.residuals import _spatial_ricci_scalar
+    from warpax.geometry.geometry import christoffel_from_jacobian
+
+    coords = jnp.array([0.0, 0.3, 0.7, -0.4])
+
+    def metric(c):
+        psi = 1.0 + c[1] ** 2 + 0.5 * c[2] * c[3]
+        return jnp.diag(jnp.array([-1.0, psi**4, psi**4, psi**4]))
+
+    def gamma_fn(xyz):
+        return metric(jnp.concatenate([coords[:1], xyz]))[1:, 1:]
+
+    def christoffel_fn(xyz):
+        return christoffel_from_jacobian(jnp.linalg.inv(gamma_fn(xyz)), jax.jacfwd(gamma_fn)(xyz))
+
+    xyz = coords[1:]
+    gamma = christoffel_fn(xyz)
+    dgamma = jax.jacfwd(christoffel_fn)(xyz)
+    riemann = (
+        jnp.swapaxes(dgamma, 2, 3)
+        - dgamma
+        + jnp.einsum("lsn,smr->lmnr", gamma, gamma)
+        - jnp.einsum("lsr,smn->lmnr", gamma, gamma)
+    )
+    inline = jnp.einsum("ij,ij->", jnp.linalg.inv(gamma_fn(xyz)), jnp.einsum("kikj->ij", riemann))
+    assert float(jnp.abs(inline)) > 1e-6
+    npt.assert_allclose(_spatial_ricci_scalar(metric, coords), inline, rtol=1e-12, atol=0)
+
+
+def test_alcubierre_symbolic_shared_by_class_and_module():
+    assert AlcubierreMetric().symbolic().g == alcubierre_symbolic().g

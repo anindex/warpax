@@ -5,7 +5,8 @@ from __future__ import annotations
 import jax.numpy as jnp
 import pytest
 
-from warpax.adm import adm_mass, falloff_check
+from warpax.adm import adm_mass, adm_mass_richardson, asymptotic_flatness_report, falloff_check
+from warpax.geometry.metric import MetricSpecification
 
 
 def test_adm_mass_schwarzschild():
@@ -44,9 +45,6 @@ def test_falloff_check_schwarzschild():
     result = falloff_check(metric, r_test=200.0, expected_order=1)
     assert result["g_tt"] is True
     assert result["g_xx"] is True
-
-
-# 3+1 ADM decomposition
 
 
 class TestADMSplit:
@@ -114,9 +112,6 @@ class TestADMSplit:
         assert K_max < 100, f"K should be finite, got max|K|={K_max}"
 
 
-# Constraint residuals
-
-
 class TestConstraints:
     """Verify Hamiltonian and momentum constraint evaluations."""
 
@@ -178,6 +173,46 @@ class TestConstraints:
         )
         assert jnp.allclose(M_i, 0.0, atol=1e-14)
 
+    def test_sshell_hamiltonian_residual_vanishes_with_sources(self):
+        """H = R + K^2 - K_ij K^ij - 16 pi E with the prescribed E = rho(r).
+
+        Inside the shell the vacuum-source residual equals 16 pi rho_0 ~ 5e-3;
+        with ``metric.sources`` it drops to the solver's discretization error.
+        """
+        from warpax.constraints import normalized_residuals
+        from warpax.metrics import sshell_default
+
+        metric = sshell_default()
+        for r in (11.0, 15.0, 19.0):
+            coords = jnp.array([0.0, r, 0.0, 0.0])
+            E, S_i = metric.sources(jnp.asarray(r))
+            vacuum = float(jnp.abs(normalized_residuals(metric, coords)["H_raw"]))
+            sourced = float(
+                jnp.abs(
+                    normalized_residuals(metric, coords, energy_density=E, momentum_density=S_i)[
+                        "H_raw"
+                    ]
+                )
+            )
+            assert sourced < 1e-5, f"r={r}: |H|={sourced}"
+            assert sourced * 10.0 < vacuum, f"r={r}: sourced {sourced} vs vacuum {vacuum}"
+
+    def test_residual_helper_matches_eager(self):
+        """Jitted ``mean_squared_constraint_residual`` equals the eager vmap mean."""
+        import jax
+
+        from warpax.constraints.residuals import (
+            mean_squared_constraint_residual,
+            squared_constraint_residual,
+        )
+        from warpax.metrics import sshell_default
+
+        metric = sshell_default()
+        r_probes = jnp.linspace(10.0, 20.0, 5)
+        eager = jnp.mean(jax.vmap(lambda r: squared_constraint_residual(metric, r))(r_probes))
+        jitted = mean_squared_constraint_residual(metric, r_probes)
+        assert float(jnp.abs(jitted - eager)) <= 1e-12 * float(jnp.abs(eager))
+
 
 from warpax.benchmarks import AlcubierreMetric
 from warpax.metrics import LentzMetric, NatarioMetric, RodalMetric, VanDenBroeckMetric
@@ -192,16 +227,13 @@ WARP_METRICS_UNIT_LAPSE = [
 
 
 def _eval_at(metric, v_s, x):
-    """Evaluate the 4x4 metric at (t=0, x, 0.01, 0)."""
-    # Set v_s by rebuilding the metric (all warp metrics expose v_s)
-    # We use eqx.tree_at-style replacement by direct attribute override
-    # since these are dataclass-style Equinox modules.
+    """Evaluate the 4x4 metric at (t=0, x, 0.01, 0), rebuilding the metric with
+    the given v_s (dataclasses.replace or eqx.tree_at)."""
     import dataclasses
 
     if dataclasses.is_dataclass(metric):
         metric = dataclasses.replace(metric, v_s=v_s)
     else:
-        # Equinox modules: use eqx.tree_at
         import equinox as eqx
 
         metric = eqx.tree_at(lambda m: m.v_s, metric, replace=v_s)
@@ -223,7 +255,6 @@ def test_det_g_stays_negative_at_all_v_s(name, metric, v_s):
     spatial metric in the lab frame; VdB has a conformal factor) so we
     test that det(g) stays strictly negative rather than exactly -1.
     """
-    # Sample on the wall radius and a couple of nearby points
     x_samples = (
         [0.5, 1.0, 1.5] if name in ("alcubierre", "natario", "vdb") else [50.0, 100.0, 150.0]
     )
@@ -261,10 +292,8 @@ def test_alcubierre_spatial_metric_is_positive_definite(v_s):
     for x in [0.0, 1.0, 5.0]:
         g = _eval_at(metric, v_s, x)
         gamma = g[1:, 1:]
-        # Cholesky succeeds iff gamma is positive definite
         try:
             L = jnp.linalg.cholesky(gamma)
-            # Verify L L^T = gamma
             assert jnp.allclose(L @ L.T, gamma, atol=1e-12), (
                 f"Cholesky reconstruction failed at v_s={v_s}, x={x}"
             )
@@ -280,28 +309,25 @@ def test_alcubierre_g00_can_be_non_negative_at_superluminal(v_s):
     this is the ergoregion-like coordinate feature.
 
     This test documents the actual behavior so any future change that
-    silently restricts v_s would fail this assertion.
+    silently restricts v_s would fail this assertion. At the center
+    f ~ 1, so g_00 ~ -1 + v_s^2: positive for v_s > 1, ~ v_s^2 - 1 for
+    v_s < 1 (the eval point sits at y=0.01 so f is slightly below 1, ~1e-8
+    slack), and zero at v_s = 1. Either way det(g) must stay at -1.
     """
     metric = AlcubierreMetric(R=1.0, sigma=8.0, v_s=v_s)
-    # f(r_s ~ 0) ~ 1, so g_00 ~ -1 + v_s^2
     g_center = _eval_at(metric, v_s, 0.0)
     g00 = float(g_center[0, 0])
     if v_s > 1.0:
-        # g_00 = -1 + v_s^2 * f(0)^2 ~ -1 + v_s^2 > 0
         assert g00 > 0.0, (
             f"At v_s={v_s} we expect g_00 > 0 in the bubble interior (f ~ 1); got g_00={g00}."
         )
     elif v_s < 1.0:
-        # subluminal: g_00 stays negative, ~ v_s^2 - 1 at the center
-        # (eval point sits at y=0.01 so f is slightly below 1; ~1e-8 slack)
         assert g00 < 0.0, f"At v_s={v_s} < 1 we expect g_00 < 0 at the center; got {g00}."
         assert abs(g00 - (v_s**2 - 1.0)) < 1e-6, (
             f"At v_s={v_s}, g_00={g00} should be ~ v_s^2 - 1 = {v_s**2 - 1.0}."
         )
     else:
-        # luminal: g_00 crosses zero exactly at v_s = 1
         assert abs(g00) < 1e-6, f"At v_s=1 we expect g_00 ~ 0 at the center; got {g00}."
-    # Either way, det(g) must stay at -1
     det_g = float(jnp.linalg.det(g_center))
     assert abs(det_g + 1.0) < 1e-10, (
         f"At v_s={v_s}, det(g)={det_g}, not -1 (signature is preserved)."
@@ -314,10 +340,151 @@ def test_alcubierre_no_nan_in_curvature_chain_at_superluminal():
     from warpax.geometry import compute_curvature_chain
 
     metric = AlcubierreMetric(R=100.0, sigma=8.0, v_s=1.5)
-    # Sample at a point near the wall where g_00 changes sign
     coords = jnp.array([0.0, 100.0, 0.01, 0.0])
     curv = compute_curvature_chain(metric, coords)
     assert not jnp.any(jnp.isnan(curv.stress_energy)), (
         "Stress-energy is NaN at v_s=1.5; the autodiff chain has a bug."
     )
     assert not jnp.any(jnp.isnan(curv.metric)), "Metric is NaN at v_s=1.5."
+
+
+class _RadialPerturbation(MetricSpecification):
+    """gamma_ij = delta_ij + (B - 1) n_i n_j with B = 1 + 2/r + 2/r^2, lapse 1, no shift."""
+
+    def __call__(self, coords):
+        x = coords[1:]
+        r = jnp.sqrt(jnp.sum(x**2))
+        n = x / r
+        B = 1.0 + 2.0 / r + 2.0 / r**2
+        gamma = jnp.eye(3) + (B - 1.0) * jnp.outer(n, n)
+        g = jnp.zeros((4, 4)).at[0, 0].set(-1.0)
+        return g.at[1:, 1:].set(gamma)
+
+    def shape_function_value(self, coords):
+        return jnp.array(0.0)
+
+    def symbolic(self):
+        raise NotImplementedError
+
+    def name(self):
+        return "RadialPerturbation"
+
+
+class _LogDivergent(MetricSpecification):
+    """gamma_ij = f delta_ij with f = 1 + 1e-14 log r; the surface mass is M(r) = -5e-15 r."""
+
+    def __call__(self, coords):
+        r = jnp.sqrt(jnp.sum(coords[1:] ** 2))
+        f = 1.0 + 1e-14 * jnp.log(r)
+        return jnp.diag(jnp.array([-1.0, f, f, f]))
+
+    def shape_function_value(self, coords):
+        return jnp.array(0.0)
+
+    def symbolic(self):
+        raise NotImplementedError
+
+    def name(self):
+        return "LogDivergent"
+
+
+class _AnisotropicYY(MetricSpecification):
+    """Minkowski except gamma_yy = 1 + y^2 / (1 + r^2), which tends to 2 along +-y."""
+
+    def __call__(self, coords):
+        x = coords[1:]
+        r2 = jnp.sum(x**2)
+        g = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
+        return g.at[2, 2].set(1.0 + x[1] ** 2 / (1.0 + r2))
+
+    def shape_function_value(self, coords):
+        return jnp.array(0.0)
+
+    def symbolic(self):
+        raise NotImplementedError
+
+    def name(self):
+        return "AnisotropicYY"
+
+
+def test_adm_richardson_non_geometric_radii():
+    """For gamma_ij = delta_ij + h n_i n_j the ADM integrand is 2h/r, so M(r) = r h / 2 = 1 + 1/r
+    exactly (quadrature is exact for a constant integrand). Radii (10, 20, 50) give
+    (1.1, 1.05, 1.02); the order equation is solved by p = 1 and the extrapolated mass is
+    (1.02*50 - 1.05*20)/30 = 1."""
+    result = adm_mass_richardson(_RadialPerturbation(), radii=[10.0, 20.0, 50.0])
+    assert jnp.allclose(jnp.array(result["M_values"]), jnp.array([1.1, 1.05, 1.02]), atol=1e-10)
+    assert abs(result["convergence_order"] - 1.0) < 1e-6
+    assert abs(result["M_extrapolated"] - 1.0) < 1e-6
+    assert result["valid"] is True
+
+
+def test_adm_richardson_two_radii_and_converged():
+    """Two radii keep the linear extrapolation with order NaN; a flat metric has
+    |M1 - M2| <= 1e-12 so the order is reported inf and valid is True."""
+    from warpax.benchmarks.minkowski import MinkowskiMetric
+
+    two = adm_mass_richardson(_RadialPerturbation(), radii=[10.0, 20.0])
+    assert two["convergence_order"] != two["convergence_order"]
+    assert abs(two["M_extrapolated"] - 1.0) < 1e-6
+    assert two["valid"] is True
+
+    flat = adm_mass_richardson(MinkowskiMetric(), radii=[10.0, 20.0, 50.0], n_theta=8, n_phi=16)
+    assert flat["convergence_order"] == float("inf")
+    assert flat["valid"] is True
+    assert abs(flat["M_extrapolated"]) < 1e-10
+
+
+def test_adm_richardson_divergent_small_mass():
+    """For gamma_ij = f delta_ij the ADM integrand is -2 f'(r) r / r = -2e-14 / r, so
+    M(r) = -5e-15 r: (-2.5e-13, -5e-13, -1e-12) at radii (50, 100, 200). The pair gaps
+    grow (2.5e-13 then 5e-13) and no p in [0.1, 8] solves the order equation, so the
+    result is not valid and the extrapolation is NaN."""
+    result = adm_mass_richardson(_LogDivergent(), radii=[50.0, 100.0, 200.0], n_theta=4, n_phi=8)
+    assert jnp.allclose(
+        jnp.array(result["M_values"]), jnp.array([-2.5e-13, -5e-13, -1e-12]), rtol=1e-6
+    )
+    assert result["valid"] is False
+    assert result["M_extrapolated"] != result["M_extrapolated"]
+
+
+def test_falloff_check_multi_direction():
+    """gamma_yy = 1 + y^2/(1 + r^2) is exactly flat along +-x and +-z but tends to 2 along +-y
+    (deviation 0.996 at r=50 vs 0.999 at r=100, measured order ~0), so g_yy must be False
+    while the other nine components stay True."""
+    result = falloff_check(_AnisotropicYY(), r_test=100.0, expected_order=1)
+    assert result["g_yy"] is False
+    assert all(v is True for k, v in result.items() if k != "g_yy")
+    assert len(result) == 10
+
+
+def test_asymptotic_flatness_report_multi_direction():
+    """The same metric is reported not asymptotically flat, with g_yy failing and its
+    worst-direction measured order near 0; Schwarzschild passes every component."""
+    from warpax.benchmarks.schwarzschild import SchwarzschildMetric
+
+    report = asymptotic_flatness_report(_AnisotropicYY(), radii=[50.0, 100.0, 200.0])
+    assert report["is_asymptotically_flat"] is False
+    assert report["components"]["g_yy"]["passed"] is False
+    assert abs(report["components"]["g_yy"]["measured_order"]) < 0.05
+    assert report["components"]["g_xx"]["passed"] is True
+
+    schw = asymptotic_flatness_report(SchwarzschildMetric(), radii=[50.0, 100.0, 200.0])
+    assert schw["is_asymptotically_flat"] is True
+    assert len(schw["components"]) == 10
+
+
+def test_asymptotic_flatness_report_diagonal_and_shift_views():
+    """'diagonal' holds the g_tt, g_xx, g_yy, g_zz entries of 'components' and 'shift' the
+    g_tx, g_ty, g_tz entries, for Minkowski (every order inf) and Schwarzschild (order 1)."""
+    from warpax.benchmarks.minkowski import MinkowskiMetric
+    from warpax.benchmarks.schwarzschild import SchwarzschildMetric
+
+    for metric in (MinkowskiMetric(), SchwarzschildMetric()):
+        report = asymptotic_flatness_report(metric, radii=[50.0, 100.0, 200.0])
+        assert list(report["diagonal"]) == ["g_tt", "g_xx", "g_yy", "g_zz"]
+        assert list(report["shift"]) == ["g_tx", "g_ty", "g_tz"]
+        for name in [*report["diagonal"], *report["shift"]]:
+            view = report["diagonal"].get(name) or report["shift"][name]
+            assert view == report["components"][name]
+            assert view["passed"] is True

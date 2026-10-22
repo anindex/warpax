@@ -9,19 +9,17 @@ used.
 Three things it deliberately does not do, each of which inflates the number:
 
 - it does not divide by the *smallest* node spacing in the band (that is the
-  best case, at the one crossing the grid happens to favour);
+  best case, at the one crossing the grid happens to favor);
 - it does not sum the ``+x`` and ``-x`` crossings into a single count (that
   doubles the figure for a bubble);
 - it does not use the asymptotic ``2 atanh(0.8)/sigma`` width, which is not
   valid at ``sigma*R ~ 1``, the band edges are located by interpolation on the
   actual shape function.
 
-It also does not renormalise the shape function by its peak-to-peak range: that
+It also does not renormalize the shape function by its peak-to-peak range: that
 is meaningless for a shell profile, whose scalar is non-monotone and whose
-disconnected transitions the normalisation would merge.
+disconnected transitions the normalization would merge.
 """
-
-from __future__ import annotations
 
 from typing import NamedTuple
 
@@ -43,7 +41,7 @@ class WallResolution(NamedTuple):
     spacing : the node spacing that produced ``cells`` (the worst one).
     width : the 10-90% width of the crossing that produced ``cells``.
     n_crossings : how many wall crossings the axis makes.
-    per_crossing : ``(centre, width, spacing, cells)`` for every crossing.
+    per_crossing : ``(center, width, spacing, cells)`` for every crossing.
     """
 
     cells: float
@@ -62,7 +60,10 @@ def _shape_along_axis(metric, xs: np.ndarray, t: float = 0.0) -> np.ndarray:
 
 
 def _segments(x: np.ndarray, f: np.ndarray, lo: float, hi: float):
-    """Contiguous ``lo <= f <= hi`` runs on a dense sampling, with exact edges."""
+    """Contiguous ``lo <= f <= hi`` runs on a dense sampling, with exact edges.
+
+    Each run's ends are refined by linear interpolation onto the crossed level.
+    """
     inside = (f >= lo) & (f <= hi)
     if not inside.any():
         return []
@@ -78,21 +79,20 @@ def _segments(x: np.ndarray, f: np.ndarray, lo: float, hi: float):
         runs.append((i, j))
         i = j + 1
 
+    def _edge(k: int, step: int) -> float:
+        m = k + step
+        if m < 0 or m >= n:
+            return float(x[k])
+        level = hi if abs(f[k] - hi) < abs(f[k] - lo) else lo
+        df = f[m] - f[k]
+        if df == 0.0:
+            return float(x[k])
+        s = (level - f[k]) / df
+        s = min(max(s, 0.0), 1.0)
+        return float(x[k] + s * (x[m] - x[k]))
+
     out = []
     for i, j in runs:
-        # Refine each end by linear interpolation onto the crossed level.
-        def _edge(k: int, step: int) -> float:
-            m = k + step
-            if m < 0 or m >= n:
-                return float(x[k])
-            level = hi if abs(f[k] - hi) < abs(f[k] - lo) else lo
-            df = f[m] - f[k]
-            if df == 0.0:
-                return float(x[k])
-            s = (level - f[k]) / df
-            s = min(max(s, 0.0), 1.0)
-            return float(x[k] + s * (x[m] - x[k]))
-
         a, b = _edge(i, -1), _edge(j, +1)
         if b < a:
             a, b = b, a
@@ -105,6 +105,11 @@ def wall_cells_on_axis(
     metric, xs, *, f_low: float = 0.1, f_high: float = 0.9, t: float = 0.0
 ) -> WallResolution:
     """Worst-case cells across the 10-90% wall on the axis sampled by ``xs``.
+
+    The spacing reported per crossing is the worst node spacing over exactly the
+    intervals that overlap the band. Selecting by overlap (rather than by
+    searchsorted offsets) keeps the witness mirror-symmetric, so the two crossings
+    of a sphere report the same number when the grid is in fact symmetric.
 
     Parameters
     ----------
@@ -120,10 +125,6 @@ def wall_cells_on_axis(
     per = []
     for a, b in _segments(dense, f_dense, f_low, f_high):
         width = b - a
-        # Worst node spacing over exactly the intervals that overlap the band.
-        # Selecting by overlap (rather than by searchsorted offsets) keeps the
-        # witness mirror-symmetric, so the two crossings of a sphere report the
-        # same number when the grid is in fact symmetric.
         overlaps = (xs[:-1] < b) & (xs[1:] > a)
         if not overlaps.any():
             continue

@@ -17,14 +17,14 @@ For a static slice (d__t gamma_{ij} = 0):
 where D_i is the spatial covariant derivative compatible with gamma_{ij}.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float
+
+from .geometry import christoffel_from_jacobian
 
 
 class ADMSplit(NamedTuple):
@@ -61,8 +61,10 @@ def adm_split(
     """Perform 3+1 ADM decomposition of a spacetime metric at a point.
 
     Extracts lapse, shift, spatial metric, and extrinsic curvature from
-    a full 4D metric function. Extrinsic curvature is computed via the
-    ADM formula using JAX autodiff for all derivatives.
+    a full 4D metric function: gamma_{ij} = g_{ij}, beta_i = g_{0i},
+    beta^i = gamma^{ij} beta_j and alpha^2 = beta_i beta^i - g_{00}.
+    Extrinsic curvature is computed via the ADM formula using JAX
+    autodiff for all derivatives.
 
     Parameters
     ----------
@@ -78,25 +80,17 @@ def adm_split(
     """
     g = metric_fn(coords)
 
-    # Extract spatial metric and shift
-    gamma = g[1:, 1:]  # gamma_{ij} = g_{ij}
-    beta_lower = g[0, 1:]  # beta_i = g_{0i}
+    gamma = g[1:, 1:]
+    beta_lower = g[0, 1:]
 
-    # Inverse spatial metric
     gamma_inv = jnp.linalg.inv(gamma)
 
-    # Contravariant shift beta^i = gamma^{ij} beta_j
     beta_upper = gamma_inv @ beta_lower
 
-    # Lapse: alpha^2 = beta_i beta^i - g_{00}
     beta_sq = jnp.dot(beta_lower, beta_upper)
     alpha_sq = beta_sq - g[0, 0]
-    # Relative floor: an absolute one rescales the lapse, and K_ij with it.
-    alpha = jnp.sqrt(jnp.maximum(alpha_sq, 1e-30 * jnp.max(jnp.abs(g))))
+    alpha = jnp.sqrt(jnp.where(alpha_sq > 0.0, alpha_sq, jnp.nan))
 
-    # Extrinsic curvature via K_{ij} = -(1/2alpha)(d__t gamma_{ij} - D_i beta_j - D_j beta_i)
-    # We need d__t gamma_{ij} and the spatial covariant derivative of beta.
-    # Use JAX autodiff to compute both.
     K = _extrinsic_curvature(metric_fn, coords, alpha, beta_upper, gamma, gamma_inv)
 
     return ADMSplit(
@@ -121,63 +115,50 @@ def _extrinsic_curvature(
 
     K_{ij} = -(1/2alpha)(d__t gamma_{ij} - D_i beta_j - D_j beta_i)
 
-    where D_i beta_j = d__i beta_j - Gamma^k_{ij} beta_k  (spatial covariant derivative).
+    where D_i beta_j = d__i beta_j - Gamma^k_{ij} beta_k  (spatial covariant derivative)
+    and Gamma^l_{ij} = 0.5 gamma^{lk} (d__i gamma_{jk} + d__j gamma_{ik} - d__k gamma_{ij}).
 
-    All derivatives are computed via JAX autodiff.
+    All derivatives are computed via JAX autodiff, whose jacfwd puts the
+    derivative index last: dgamma[a, b, c] = d_ gamma_{ab} / d_ x^c, so
+    d__i gamma_{jk} = dgamma[j, k, i], and d_beta[j, i] = d__i beta_j, so the
+    Jacobian of beta_j is transposed to (i, j) order before subtracting the
+    Christoffel term.
     """
     t = coords[0]
     spatial_coords = coords[1:]
 
-    # d__t gamma_{ij}
-    # Compute the time derivative of the spatial metric
     def gamma_at_t(t_val: Float[Array, ""]) -> Float[Array, "3 3"]:
         full_coords = jnp.concatenate([jnp.array([t_val]), spatial_coords])
         g_at = metric_fn(full_coords)
         return g_at[1:, 1:]
 
-    dt_gamma = jax.jacfwd(gamma_at_t)(t)  # shape (3, 3)
+    dt_gamma = jax.jacfwd(gamma_at_t)(t)
 
-    # Spatial Christoffel symbols Gamma^k_{ij}
     def spatial_metric_at(xyz: Float[Array, "3"]) -> Float[Array, "3 3"]:
         full_coords = jnp.concatenate([jnp.array([t], dtype=coords.dtype), xyz])
         g_at = metric_fn(full_coords)
         return g_at[1:, 1:]
 
-    # dgamma[i, j, k] = d_ gamma_{ij} / d_ x^k (derivative index last per JAX)
-    dgamma = jax.jacfwd(spatial_metric_at)(spatial_coords)
+    christoffel_3d = christoffel_from_jacobian(
+        gamma_inv, jax.jacfwd(spatial_metric_at)(spatial_coords)
+    )
 
-    # Gamma^l_{ij} = 0.5 gamma^{lk} (d__i gamma_{jk} + d__j gamma_{ik} - d__k gamma_{ij})
-    # dgamma indexing: dgamma[a, b, c] = d_ gamma_{ab} / d_ x^c
-    # So d__i gamma_{jk} = dgamma[j, k, i]
-    term1 = jnp.einsum("lk,jki->lij", gamma_inv, dgamma)  # gamma^{lk} d__i gamma_{jk}
-    term2 = jnp.einsum("lk,ikj->lij", gamma_inv, dgamma)  # gamma^{lk} d__j gamma_{ik}
-    term3 = jnp.einsum("lk,ijk->lij", gamma_inv, dgamma)  # gamma^{lk} d__k gamma_{ij}
-    christoffel_3d = 0.5 * (term1 + term2 - term3)  # Gamma^l_{ij}
-
-    # Spatial covariant derivative of beta
-    # beta_j = gamma_{jk} beta^k (lower the shift index)
     beta_lower_local = gamma @ beta_upper
 
-    # d__i beta_j: derivative of beta_j w.r.t. spatial coords
     def beta_lower_at(xyz: Float[Array, "3"]) -> Float[Array, "3"]:
         full_coords = jnp.concatenate([jnp.array([t], dtype=coords.dtype), xyz])
         g_at = metric_fn(full_coords)
         return g_at[0, 1:]
 
-    # d_beta[j, i] = d_ beta_j / d_ x^i (index i is the derivative direction)
-    d_beta = jax.jacfwd(beta_lower_at)(spatial_coords)  # (3, 3)
+    d_beta = jax.jacfwd(beta_lower_at)(spatial_coords)
 
-    # D_i beta_j = d__i beta_j - Gamma^k_{ij} beta_k
-    # d_beta[j, i] = d__i beta_j  ->  transpose to get (i, j) indexing
-    partial_i_beta_j = d_beta.T  # (i, j)
+    partial_i_beta_j = d_beta.T
     christoffel_term = jnp.einsum("kij,k->ij", christoffel_3d, beta_lower_local)
 
-    D_beta = partial_i_beta_j - christoffel_term  # D_i beta_j with shape (i, j)
+    D_beta = partial_i_beta_j - christoffel_term
 
-    # Symmetrize: D_i beta_j + D_j beta_i
     D_beta_sym = D_beta + D_beta.T
 
-    # K_{ij} = -(1/2alpha)(d__t gamma_{ij} - D_i beta_j - D_j beta_i)
     K = -(1.0 / (2.0 * alpha)) * (dt_gamma - D_beta_sym)
 
     return K

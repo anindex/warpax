@@ -12,7 +12,8 @@ from warpax.metrics.rodal import RodalMetric
 
 
 def test_shared_shape_cartesian_center_and_join():
-    """The even profile has an isotropic Hessian and no artificial central source."""
+    """The even profile has an isotropic Hessian and no artificial central
+    source; both exact forms must agree in value and derivatives at their join."""
     from warpax.benchmarks import AlcubierreMetric
     from warpax.geometry import compute_curvature_chain
     from warpax.metrics._common import alcubierre_shape
@@ -23,7 +24,6 @@ def test_shared_shape_cartesian_center_and_join():
         np.testing.assert_allclose(
             jax.hessian(profile)(jnp.zeros(3)), expected * np.eye(3), rtol=1e-12, atol=1e-15
         )
-        # Both exact forms must agree in value and derivatives at their join.
         outer = lambda r: (
             (jnp.tanh(sigma * (r + 1)) - jnp.tanh(sigma * (r - 1))) / (2 * jnp.tanh(sigma))
         )
@@ -74,6 +74,7 @@ def test_rodal_origin_derivatives_and_irrotationality():
 
 
 def test_rodal_full_symbolic_and_rest_lab_tensor_agreement():
+    """The shift matches the source Eq. (42), with its half-angle denominator."""
     metric = RodalMetric(v_s=0.6, R=2.0, sigma=1.5)
     symbolic = metric.symbolic()
     parameters = {
@@ -91,7 +92,6 @@ def test_rodal_full_symbolic_and_rest_lab_tensor_agreement():
         r = np.linalg.norm(displacement)
         n = displacement / r
         f = 1 - (np.tanh(sigma * (r + R)) - np.tanh(sigma * (r - R))) / (2 * np.tanh(sigma * R))
-        # Source Eq. (42), with its half-angle denominator.
         g = (
             2 * r * sigma * np.sinh(R * sigma)
             + np.cosh(R * sigma) * np.log(np.cosh(sigma * (r - R)) / np.cosh(sigma * (r + R)))
@@ -117,13 +117,12 @@ def test_natario_rest_lab_tensor_and_symbolic_agreement():
     }
     evaluate = sp.lambdify(symbolic.coords, symbolic.g.subs(parameters), "numpy")
     jacobian = np.eye(4)
-    jacobian[1, 0] = -float(metric.v_s)  # d xi = d x - v_s d t
+    jacobian[1, 0] = -float(metric.v_s)
     for point in ([0.0, 0.62, 0.81, 0.2], [1.3, 1.1, -0.4, 0.7]):
         t, x, y, z = point
         dx = x - float(metric.v_s) * t
         r = jnp.sqrt(dx**2 + y**2 + z**2)
         n, dn = _natario_n(r, metric.R, metric.sigma), _natario_dn_dr(r, metric.R, metric.sigma)
-        # Natario's published X in rest coordinates; beta_rest=-X.
         X = metric.v_s * jnp.array(
             [-(2 * n + dn * (y * y + z * z) / r), dn * dx * y / r, dn * dx * z / r]
         )
@@ -156,7 +155,6 @@ def test_fuchs_covariant_adm_symbolic_and_stationary_agreement():
         coords = jnp.array(point)
         g = np.asarray(metric(coords))
         a, _ = metric._potentials(jnp.linalg.norm(coords[1:]))
-        # NumPy and XLA exp can differ by a few float64 ulps across platforms.
         np.testing.assert_allclose(g[0, 0], -np.exp(2 * float(a)), rtol=1e-14, atol=0)
         assert g[0, 2] == g[0, 3] == 0.0
         assert g[0, 1] == -metric.v_s * metric.shape_function_value(coords)
@@ -171,14 +169,14 @@ def test_fuchs_covariant_adm_symbolic_and_stationary_agreement():
 
 
 def test_fuchs_c2_joins_and_origin_curvature():
+    """Checks every interior spline knot and every fixed blend endpoint, so
+    C1-only interpolation is detected."""
     from warpax.geometry.geometry import compute_curvature_chain
     from warpax.metrics import fuchs_default
     from warpax.metrics.fuchs_construction import _fuchs_shift_transition
 
     metric = fuchs_default(n_grid=128)
     potentials = lambda r: jnp.stack(metric._potentials(r))
-    # Include every interior spline knot, every fixed blend endpoint and the
-    # former buffered clamps, so the check detects C1-only interpolation.
     knots = jnp.concatenate(
         (metric._r_grid[1:-1], jnp.array([2.5, 5.0, 10.0, 11.0, 19.0, 20.0, 25.0, 30.0]))
     )

@@ -9,8 +9,6 @@ compatible with ``jax.jit``, ``jax.vmap``, and other JAX transformations.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 import equinox as eqx
 import jax.numpy as jnp
 from jaxtyping import Array, Float
@@ -37,9 +35,11 @@ class TensorField(eqx.Module):
     index_positions: str = eqx.field(static=True, default="")
 
     def __check_init__(self) -> None:
-        """Validate and default *index_positions* after frozen init."""
+        """Validate and default *index_positions* after frozen init.
+
+        The module is frozen, so the default is set with ``object.__setattr__``.
+        """
         if not self.index_positions:
-            # Module is frozen; use object.__setattr__ for the default.
             object.__setattr__(self, "index_positions", "d" * self.rank)
         if len(self.index_positions) != self.rank:
             raise ValueError(
@@ -57,16 +57,22 @@ class TensorField(eqx.Module):
         return self.components.shape[-self.rank :] if self.rank > 0 else ()
 
 
+def _as_bounds(bounds) -> tuple[tuple[float, float], ...]:
+    """Freeze ``bounds`` into a tuple of ``(min, max)`` float pairs."""
+    return tuple((float(lo), float(hi)) for lo, hi in bounds)
+
+
 class GridSpec(eqx.Module):
     """Specification for a computational grid in 3D spatial coordinates.
 
     All fields are static (pure metadata, no dynamic JAX arrays), so a
     ``GridSpec`` can be used freely as a closed-over constant inside
-    ``jax.jit``-compiled functions.
+    ``jax.jit``-compiled functions. ``bounds`` is frozen into a tuple of
+    float pairs at construction; build a new spec to change it.
 
     Parameters
     ----------
-    bounds : list of (float, float)
+    bounds : sequence of (float, float)
         ``(min, max)`` for each spatial dimension ``[x, y, z]``.
     shape : tuple of int
         Number of grid points in each dimension ``(Nx, Ny, Nz)``.
@@ -75,19 +81,11 @@ class GridSpec(eqx.Module):
         tuples so the field stays hashable / static. Only set by
         non-uniform generators (:func:`warpax.grids.wall_clustered`);
         default is ``None`` for uniform linspace grids.
-    volume_weights : tuple, optional
-        Flattened per-cell 3D volume weights packed as a tuple so the
-        field stays hashable / static. Only set by non-uniform
-        generators; default is ``None``. Reshape to ``shape`` at use
-        site via :attr:`volume_weights_array`.
     """
 
-    bounds: Sequence = eqx.field(static=True)
+    bounds: tuple[tuple[float, float], ...] = eqx.field(static=True, converter=_as_bounds)
     shape: tuple = eqx.field(static=True)
-    # Optional non-uniform-grid fields; both default to None so uniform-grid
-    # callers are unaffected.
     coord_arrays: tuple | None = eqx.field(static=True, default=None)
-    volume_weights: tuple | None = eqx.field(static=True, default=None)
 
     @property
     def ndim(self) -> int:
@@ -115,10 +113,12 @@ class GridSpec(eqx.Module):
 
     @property
     def volume_weights_array(self) -> jnp.ndarray | None:
-        """Per-cell 3D volume weights reshaped to ``shape``, or ``None``."""
-        if self.volume_weights is None:
+        """Coordinate cell volumes of a non-uniform 3-D grid, shape ``shape``; ``None`` if uniform."""
+        if self.coord_arrays is None or self.ndim != 3:
             return None
-        return jnp.asarray(self.volume_weights).reshape(self.shape)
+        from warpax.grids._volume_weights import compute_volume_weights
+
+        return compute_volume_weights(*self.axes)
 
     @property
     def meshgrid(self) -> list[jnp.ndarray]:

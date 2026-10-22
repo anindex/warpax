@@ -4,6 +4,9 @@ Provides the abstract ``MetricSpecification`` (Equinox module / JAX pytree),
 the ``ADMMetric`` 3+1 decomposition subclass, the ``SymbolicMetric`` class
 for SymPy-based symbolic inspection, and utility functions for converting
 between representations.
+
+SymPy is imported only under ``TYPE_CHECKING``: it costs 0.55 s to import and
+only the symbolic bridge in this module needs it.
 """
 
 from __future__ import annotations
@@ -17,9 +20,8 @@ import equinox as eqx
 import jax.numpy as jnp
 from jaxtyping import Array, Float
 
-# sympy costs 0.55 s and only the symbolic bridge below needs it.
 if TYPE_CHECKING:
-    import sympy as sp
+    import sympy
 
 
 class SymbolicMetric:
@@ -41,7 +43,7 @@ class SymbolicMetric:
         If *coords* does not have length 4 or *g_matrix* is not (4, 4).
     """
 
-    def __init__(self, coords: list[sp.Symbol], g_matrix: sp.Matrix) -> None:
+    def __init__(self, coords: list[sympy.Symbol], g_matrix: sympy.Matrix) -> None:
         if len(coords) != 4:
             raise ValueError(f"Expected 4 coordinate symbols, got {len(coords)}")
         if g_matrix.shape != (4, 4):
@@ -50,7 +52,7 @@ class SymbolicMetric:
         self.g = g_matrix
 
     @cached_property
-    def g_inv(self) -> sp.Matrix:
+    def g_inv(self) -> sympy.Matrix:
         """Inverse metric tensor *g^{ab}* (computed once, then cached)."""
         return self.g.inv()
 
@@ -93,6 +95,14 @@ class MetricSpecification(eqx.Module):
     def name(self) -> str:
         """Human-readable metric name."""
         ...
+
+    def killing_vector(self) -> Float[Array, "4"]:
+        """Killing vector ``d/dt + v_s d/dx`` of metrics depending on ``x - v_s t``.
+
+        Stationary constructions (which depend on ``x`` itself) override this
+        to return ``d/dt``. Metrics without ``v_s`` return ``d/dt``.
+        """
+        return jnp.array([1.0, getattr(self, "v_s", 0.0), 0.0, 0.0])
 
     @abstractmethod
     def shape_function_value(self, coords: Float[Array, "4"]) -> Float[Array, ""]:
@@ -166,6 +176,21 @@ class ADMMetric(MetricSpecification):
             self.shift(coords),
             self.spatial_metric(coords),
         )
+
+
+def flat_x_shift_symbolic(coords: list[sympy.Symbol], v_s, f) -> SymbolicMetric:
+    """``ds^2 = -dt^2 + (dx + v_s f dt)^2 + dy^2 + dz^2``: flat slices, shift ``-v_s f`` along x."""
+    import sympy as sp
+
+    g = sp.Matrix(
+        [
+            [-(1 - v_s**2 * f**2), -v_s * f, 0, 0],
+            [-v_s * f, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ]
+    )
+    return SymbolicMetric(coords, g)
 
 
 def adm_to_full_metric(

@@ -22,8 +22,6 @@ of the k-th derivative) is bounded. Large jumps indicate a seam where the
 k-th derivative is discontinuous.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -124,15 +122,12 @@ def metric_c2_diagnostic(
 
     dr = r_values[1] - r_values[0]
 
-    # C0: jumps in the function itself
     diffs_0 = jnp.diff(values)
     c0_max_jump = float(jnp.max(jnp.abs(diffs_0)) / dr)
 
-    # C1: jumps in first derivative (second differences of values)
     diffs_1 = jnp.diff(first_deriv)
     c1_max_jump = float(jnp.max(jnp.abs(diffs_1)) / dr)
 
-    # C2: jumps in second derivative (third differences of values)
     diffs_2 = jnp.diff(second_deriv)
     c2_max_jump = float(jnp.max(jnp.abs(diffs_2)) / dr)
 
@@ -185,7 +180,6 @@ def regularity_report(
     """
     r_values = jnp.linspace(r_min, r_max, n_points)
 
-    # Key metric components to check
     component_specs = {
         "g_tt": (0, 0),
         "g_tx": (0, 1),

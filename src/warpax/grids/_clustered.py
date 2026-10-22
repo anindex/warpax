@@ -7,8 +7,9 @@ smallest *at the wall* and grows symmetrically toward both tails. ``a``
 controls clustering strength (larger = tighter); ``u_wall \\in [0, 1]`` is the
 uniform-parameter location of the wall radius along that axis.
 
-The returned :class:`GridSpec` carries ``coord_arrays`` + ``volume_weights``
-as hashable tuples (static eqx fields), so JIT cache keys stay stable.
+The returned :class:`GridSpec` carries ``coord_arrays`` as a hashable tuple of
+tuples (static eqx field), so JIT cache keys stay stable; cell volumes come from
+:attr:`GridSpec.volume_weights_array` on demand.
 
 Scope. The map is applied to each Cartesian axis independently, so it refines
 the three coordinate *slabs* ``|x| \\approx R``, ``|y| \\approx R``,
@@ -23,12 +24,11 @@ from collections.abc import Sequence
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jaxtyping import Array, Float
 
 from warpax.geometry import GridSpec
 from warpax.geometry.metric import MetricSpecification
-
-from ._volume_weights import compute_volume_weights
 
 __all__ = ["wall_clustered"]
 
@@ -69,7 +69,7 @@ def _infer_wall_radius(metric: MetricSpecification, bounds: Sequence[tuple[float
     shape function (e.g., :class:`warpax.io.InterpolatedADMMetric` raises
     :class:`NotImplementedError`).
 
-    This scan starts at the coordinate ORIGIN, so it assumes the bubble is centred
+    This scan starts at the coordinate ORIGIN, so it assumes the bubble is centered
     there. Every construction that reaches this function is, Alcubierre, Natario,
     Van den Broeck, Rodal and the shells all sit at the origin at ``t = 0``, and the
     one that does not, Garattini-Zatrimaylov at ``r_0 = v_s / H``, is certified on the
@@ -77,7 +77,11 @@ def _infer_wall_radius(metric: MetricSpecification, bounds: Sequence[tuple[float
     off-origin bubble the scan finds only the outer crossing, and anchoring the
     clustering there puts the COARSEST spacing on the inner one, so the refinement
     makes the resolution worse rather than better. Rather than leave that silent, the
-    scan now refuses to guess when it cannot see a wall at all.
+    scan refuses to guess when it cannot see a wall at all: if the sampled shape
+    function spans less than 0.1 on the scanned axis the argmax of its differences
+    is the argmax of rounding noise, so a ``ValueError`` is raised instead.
+    ``GarattiniMetric(v_s=0.5, H=0.1)`` on bounds (-3, 3) has its walls at x = 4 and
+    x = 6, outside the window entirely.
     """
     r_lo = max(0.01, 0.01 * bounds[0][1])
     r_hi = 0.95 * bounds[0][1]
@@ -92,10 +96,6 @@ def _infer_wall_radius(metric: MetricSpecification, bounds: Sequence[tuple[float
     except NotImplementedError:
         return 0.5 * (bounds[0][0] + bounds[0][1]) + 1.0
 
-    # If the shape function never crosses the transition band on the scanned axis,
-    # the argmax below is the argmax of rounding noise. GarattiniMetric(v_s=0.5,
-    # H=0.1) on bounds (-3, 3) has its walls at x = 4 and x = 6, outside the
-    # window entirely.
     f_lo, f_hi = float(jnp.min(f_values)), float(jnp.max(f_values))
     if f_hi - f_lo < 0.1:
         raise ValueError(
@@ -103,7 +103,7 @@ def _infer_wall_radius(metric: MetricSpecification, bounds: Sequence[tuple[float
             f"[{f_lo:.3g}, {f_hi:.3g}] on the scanned axis x in "
             f"[{r_lo:.3g}, {r_hi:.3g}], so no transition is visible there. Pass "
             f"wall_radius= explicitly, or widen the bounds. A bubble that is not "
-            f"centred on the coordinate origin needs the axisymmetric grid with an "
+            f"centered on the coordinate origin needs the axisymmetric grid with an "
             f"explicit center= instead."
         )
 
@@ -142,15 +142,21 @@ def wall_clustered(
     -------
     GridSpec
         Static :class:`GridSpec` carrying ``coord_arrays`` (non-uniform 1D
-        coords per axis, as a tuple of tuples) and ``volume_weights``
-        (flattened per-cell weights; reshape via
-        :attr:`GridSpec.volume_weights_array`).
+        coords per axis, as a tuple of tuples); per-cell weights come from
+        :attr:`GridSpec.volume_weights_array`.
 
     Raises
     ------
     ValueError
         If ``clustering`` is not ``"cosh"`` or if ``bounds`` and ``shape``
         have different lengths.
+
+    Notes
+    -----
+    An axis straddling the center crosses the spherical wall twice, at ``+-R``,
+    so it is folded about the center and anchored on ``|x| = R``; a one-sided
+    anchor left the ``-x`` crossing at 3.27 cells against 4.45 at N=80, below
+    the four-cell criterion.
     """
     if clustering != "cosh":
         raise ValueError(f"Only clustering='cosh' is supported; got {clustering!r}")
@@ -166,40 +172,16 @@ def wall_clustered(
     for axis_bounds, n in zip(bounds, shape, strict=True):
         lo, hi = axis_bounds
         u = jnp.linspace(0.0, 1.0, n)
-        centre = 0.5 * (lo + hi)
+        center = 0.5 * (lo + hi)
         half = 0.5 * (hi - lo)
         if lo < 0.0 < hi and 0.0 < wall_radius < half:
-            # The wall is a sphere, so an axis crosses it twice, at +-R.
-            # Fold about the centre and anchor on |x| = R so BOTH crossings are
-            # refined identically; a one-sided anchor leaves the -x crossing
-            # coarse (it gave 3.27 cells against 4.45 at N=80, below the
-            # four-cell criterion the paper enforces).
             signed = 2.0 * u - 1.0
             v = jnp.abs(signed)
             q = float(jnp.clip(wall_radius / half, 0.05, 0.95))
-            coords_jnp = centre + jnp.sign(signed) * half * _cosh_stretch(v, q, a)
+            coords_jnp = center + jnp.sign(signed) * half * _cosh_stretch(v, q, a)
         else:
-            # Axis does not straddle the centre (or the wall is outside it):
-            # single-sided anchored map.
             q = float(jnp.clip((wall_radius - lo) / (hi - lo), 0.05, 0.95))
             coords_jnp = lo + (hi - lo) * _cosh_stretch(u, q, a)
-        coord_arrays.append(tuple(float(x) for x in coords_jnp))
-    coord_arrays_tuple = tuple(coord_arrays)
+        coord_arrays.append(tuple(np.asarray(coords_jnp).tolist()))
 
-    volume_weights_tuple: tuple | None
-    if len(bounds) == 3:
-        vw_array = compute_volume_weights(
-            jnp.asarray(coord_arrays[0]),
-            jnp.asarray(coord_arrays[1]),
-            jnp.asarray(coord_arrays[2]),
-        )
-        volume_weights_tuple = tuple(float(x) for x in vw_array.flatten())
-    else:
-        volume_weights_tuple = None
-
-    return GridSpec(
-        bounds=list(bounds),
-        shape=shape,
-        coord_arrays=coord_arrays_tuple,
-        volume_weights=volume_weights_tuple,
-    )
+    return GridSpec(bounds=bounds, shape=shape, coord_arrays=tuple(coord_arrays))

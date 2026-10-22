@@ -12,8 +12,6 @@ tensor at each point does not need to persist across the batch, only the
 resulting scalars survive into the output.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -49,11 +47,24 @@ class GridCurvatureResult(NamedTuple):
     weyl_squared: Float[Array, "..."]
 
 
+@eqx.filter_jit
+def _build_coord_batch(grid_spec: GridSpec, t: Float[Array, ""]) -> Float[Array, "N 4"]:
+    """Compiled coordinate builder; ``t`` is a traced scalar, the grid is static."""
+    X, Y, Z = grid_spec.meshgrid
+    T = jnp.full_like(X, t)
+    return jnp.stack([T, X, Y, Z], axis=-1).reshape(-1, 4)
+
+
 def build_coord_batch(
     grid_spec: GridSpec,
-    t: float = 0.0,
+    t: float | Float[Array, ""] = 0.0,
 ) -> Float[Array, "N 4"]:
     """Build a flat batch of spacetime 4-vectors from a GridSpec.
+
+    Compiled so uniform-grid coordinates are constant-folded by XLA exactly as
+    they were when the whole grid evaluation was one jitted function. ``t``
+    is passed as a float64 array so the compiled builder is cached per grid
+    spec, not per time value.
 
     Parameters
     ----------
@@ -68,10 +79,7 @@ def build_coord_batch(
         Flattened coordinate array of shape ``(N, 4)`` where
         ``N = Nx * Ny * Nz``. Each row is ``(t, x, y, z)``.
     """
-    X, Y, Z = grid_spec.meshgrid  # each (Nx, Ny, Nz)
-    T = jnp.full_like(X, t)
-    coords_4d = jnp.stack([T, X, Y, Z], axis=-1)  # (Nx, Ny, Nz, 4)
-    return coords_4d.reshape(-1, 4)  # (N, 4)
+    return _build_coord_batch(grid_spec, jnp.asarray(t, dtype=jnp.float64))
 
 
 def _make_point_fn(metric_fn, compute_invariants: bool) -> Callable:
@@ -82,7 +90,9 @@ def _make_point_fn(metric_fn, compute_invariants: bool) -> Callable:
             result = compute_curvature_chain(metric_fn, c)
             K = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
             R2 = ricci_squared(result.ricci, result.metric_inv)
-            W2 = weyl_squared(K, R2, result.ricci_scalar)
+            W2 = weyl_squared(
+                result.riemann, result.ricci, result.ricci_scalar, result.metric, result.metric_inv
+            )
             return GridCurvatureResult(
                 metric=result.metric,
                 metric_inv=result.metric_inv,
@@ -135,6 +145,27 @@ def evaluate_curvature_points(
 
 
 @eqx.filter_jit
+def _stress_energy_points(
+    metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
+    coords: Float[Array, "N 4"],
+    *,
+    batch_size: int | None = None,
+) -> tuple[Float[Array, "N 4 4"], Float[Array, "N 4 4"], Float[Array, "N 4 4"]]:
+    """``(stress_energy, metric, metric_inv)`` on a coordinate batch.
+
+    The selection happens inside the compiled function, so the Riemann and
+    Christoffel fields never leave the trace (21 GiB at 192^3).
+    """
+
+    def point_fn(c):
+        r = compute_curvature_chain(metric_fn, c)
+        return r.stress_energy, r.metric, r.metric_inv
+
+    if batch_size is not None:
+        return lax.map(point_fn, coords, batch_size=batch_size)
+    return jax.vmap(point_fn)(coords)
+
+
 def evaluate_curvature_grid(
     metric_fn: Callable[[Float[Array, "4"]], Float[Array, "4 4"]],
     grid_spec: GridSpec,
@@ -146,9 +177,11 @@ def evaluate_curvature_grid(
 ) -> GridCurvatureResult | CurvatureResult:
     """Evaluate the curvature chain (and optionally invariants) over a 3D grid.
 
-    Flattens the 3D grid of spacetime coordinates into a 1D batch of shape
-    ``(N, 4)``, applies the pointwise function via ``jax.vmap`` (or chunked
-    ``jax.lax.map``), then reshapes results back to ``(*grid_shape, ...)``.
+    Builds the ``(N, 4)`` coordinate batch and hands it to the compiled
+    :func:`evaluate_curvature_points`, so ``t`` and the grid bounds are data
+    to the curvature kernel: its compiled cache is keyed only on the metric
+    statics, ``N``, ``batch_size`` and ``compute_invariants``. Results are reshaped back to
+    ``(*grid_shape, ...)``.
 
     Parameters
     ----------
@@ -184,19 +217,16 @@ def evaluate_curvature_grid(
         )
 
     coords_flat = build_coord_batch(grid_spec, t=t)
-    grid_shape = grid_spec.shape
-
-    point_fn = _make_point_fn(metric_fn, compute_invariants)
-
-    n_points = int(coords_flat.shape[0])
-    if batch_size is not None:
-        results_flat = lax.map(point_fn, coords_flat, batch_size=batch_size)
-    elif auto_chunk_threshold is not None and n_points > auto_chunk_threshold:
-        results_flat = lax.map(point_fn, coords_flat, batch_size=auto_chunk_threshold)
-    else:
-        results_flat = jax.vmap(point_fn)(coords_flat)
-
+    if (
+        batch_size is None
+        and auto_chunk_threshold is not None
+        and coords_flat.shape[0] > auto_chunk_threshold
+    ):
+        batch_size = auto_chunk_threshold
+    results_flat = evaluate_curvature_points(
+        metric_fn, coords_flat, batch_size=batch_size, compute_invariants=compute_invariants
+    )
     return jax.tree.map(
-        lambda a: a.reshape(*grid_shape, *a.shape[1:]),
+        lambda a: a.reshape(*grid_spec.shape, *a.shape[1:]),
         results_flat,
     )

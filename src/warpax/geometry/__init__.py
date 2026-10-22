@@ -23,6 +23,7 @@ from .invariants import (
     kretschmann_scalar,
     ricci_squared,
     weyl_squared,
+    weyl_tensor,
 )
 from .metric import (
     ADMMetric,
@@ -76,4 +77,5 @@ __all__ = [
     "sympy_metric_inverse_to_jax",
     "sympy_metric_to_jax",
     "weyl_squared",
+    "weyl_tensor",
 ]

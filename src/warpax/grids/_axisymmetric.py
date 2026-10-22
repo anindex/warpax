@@ -2,7 +2,7 @@
 
 Every drive in this family is invariant under rotations about the propagation
 axis, so a scalar built covariantly from the metric depends only on the distance
-``r`` from the bubble centre and on ``mu = cos theta``, the cosine of the angle
+``r`` from the bubble center and on ``mu = cos theta``, the cosine of the angle
 to that axis. Sampling the half-plane ``phi = 0`` therefore sweeps the whole
 orbit space: this is an *exact reduction*, not a slice through a 3-D problem.
 The same argument already licenses the interval branch-and-bound in
@@ -26,14 +26,13 @@ so the weights are ``w_ij = 2 pi r_i^2 w^r_i w^mu_j``. The ``2 pi`` cancels in
 any volume *fraction* but is kept so that integrated quantities are absolute.
 """
 
-from __future__ import annotations
-
 from typing import NamedTuple
 
 import jax.numpy as jnp
 import numpy as np
 
 from ._clustered import _cosh_stretch
+from ._volume_weights import cell_widths
 
 __all__ = ["AxisymmetricGrid", "axisymmetric_grid"]
 
@@ -71,15 +70,6 @@ def _radial_nodes(r_max: float, n_r: int, wall_radius: float, a: float) -> np.nd
     return np.asarray(r_max * _cosh_stretch(u, q, a), dtype=float)
 
 
-def _trapezoid_weights(x: np.ndarray) -> np.ndarray:
-    """Trapezoidal cell widths for arbitrary (non-uniform) 1-D nodes."""
-    w = np.zeros_like(x)
-    w[1:-1] = 0.5 * (x[2:] - x[:-2])
-    w[0] = 0.5 * (x[1] - x[0])
-    w[-1] = 0.5 * (x[-1] - x[-2])
-    return w
-
-
 def axisymmetric_grid(
     r_max: float,
     n_r: int,
@@ -105,13 +95,13 @@ def axisymmetric_grid(
         reduction stays *exact* under this shift as long as the configuration is
         axisymmetric about the same axis, which is what matters for a construction
         whose bubble does not sit at the origin: the Garattini-Zatrimaylov drive
-        places its bubble at ``r_0 = v_s / H``, so an origin-centred radial grid
+        places its bubble at ``r_0 = v_s / H``, so an origin-centered radial grid
         clusters its nodes on a sphere the wall merely crosses, and the wall spans
-        1.5 cells at ``n_r = 32`` where a bubble-centred grid spans 4.5.
+        1.5 cells at ``n_r = 32`` where a bubble-centered grid spans 4.5.
     """
     r = _radial_nodes(r_max, n_r, wall_radius or -1.0, a)
     mu, w_mu = np.polynomial.legendre.leggauss(n_mu)
-    w_r = _trapezoid_weights(r)
+    w_r = np.asarray(cell_widths(jnp.asarray(r)))
 
     R, MU = np.meshgrid(r, mu, indexing="ij")
     WR, WMU = np.meshgrid(w_r, w_mu, indexing="ij")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from warpax.analysis.extrema import refine_extremum
 from warpax.benchmarks import AlcubierreMetric
@@ -40,3 +41,19 @@ def test_polished_imaginary_peak_beats_the_grid_and_sits_on_the_wall():
     assert shape is not None and 0.02 < shape < 0.995, (
         "Type-IV imaginary-eigenvalue peak must sit on the wall"
     )
+
+
+def test_metric_failure_inside_refinement_propagates():
+    """Only NotImplementedError (no shape function) is tolerated at the final
+    host-side shape evaluation; any other failure must surface."""
+    import jax
+
+    class BrokenMetric(AlcubierreMetric):
+        def shape_function_value(self, coords):
+            if isinstance(coords, jax.core.Tracer):
+                return super().shape_function_value(coords)
+            raise RuntimeError("shape failed")
+
+    metric = BrokenMetric(v_s=0.5, R=1.0, sigma=8.0)
+    with pytest.raises(RuntimeError, match="shape failed"):
+        refine_extremum(metric, [1.0, 0.0, 0.0], lambda c: np.zeros((3, 3, 3)), n=3, levels=1)

@@ -9,9 +9,7 @@ power-law extraction used to report the universal exponents.
 
 from __future__ import annotations
 
-import importlib.util
 import os
-import sys
 
 import jax.numpy as jnp
 import numpy as np
@@ -24,19 +22,8 @@ from warpax.geometry import (
     kretschmann_scalar,
 )
 
-_SCRIPTS = os.path.join(os.path.dirname(__file__), "..", "scripts")
-
-
-def _load_script(name):
-    # scripts import siblings (_json_io); keep this file standalone-runnable
-    if _SCRIPTS not in sys.path:
-        sys.path.insert(0, _SCRIPTS)
-    path = os.path.join(_SCRIPTS, name)
-    spec = importlib.util.spec_from_file_location(name[:-3], path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = mod
-    spec.loader.exec_module(mod)
-    return mod
+from ._helpers import SCRIPTS_DIR as _SCRIPTS
+from ._helpers import load_script as _load_script
 
 
 class TestSentinels:
@@ -50,7 +37,6 @@ class TestSentinels:
         M, r_iso = 1.0, 5.0
         res = compute_curvature_chain(SchwarzschildMetric(M=M), jnp.array([0.0, r_iso, 0.0, 0.0]))
         K = float(kretschmann_scalar(res.riemann, res.metric, res.metric_inv))
-        # Isotropic -> areal radius: r = r_iso (1 + M/2 r_iso)^2.
         r_areal = r_iso * (1.0 + M / (2.0 * r_iso)) ** 2
         K_exact = 48.0 * M**2 / r_areal**6
         assert abs(K - K_exact) / K_exact < 1e-6
@@ -60,8 +46,8 @@ class TestSentinels:
         Guards the sign of the Weyl term in the Gauss-Bonnet identity."""
         res = compute_curvature_chain(SchwarzschildMetric(M=1.0), jnp.array([0.0, 5.0, 0.0, 0.0]))
         K, R2, W2, _ = compute_invariants(res)
-        assert float(jnp.abs(R2)) < 1e-8  # Ricci-flat
-        assert abs(float(W2) - float(K)) / float(K) < 1e-6  # C^2 = K
+        assert float(jnp.abs(R2)) < 1e-8
+        assert abs(float(W2) - float(K)) / float(K) < 1e-6
 
     def test_schwarzschild_chern_pontryagin_zero(self):
         """A static, parity-even spacetime has vanishing Chern-Pontryagin.
@@ -85,9 +71,9 @@ class TestSentinels:
 
         res = compute_curvature_chain(conformal, jnp.array([0.0, 1.0, 0.0, 0.0]))
         K, R2, W2, _ = compute_invariants(res)
-        assert float(jnp.abs(W2)) < 1e-8  # conformally flat -> Weyl = 0
-        assert float(jnp.abs(K)) > 1e-4  # but K nonzero ...
-        assert float(jnp.abs(R2)) > 1e-4  # ... and Ricci^2 nonzero
+        assert float(jnp.abs(W2)) < 1e-8
+        assert float(jnp.abs(K)) > 1e-4
+        assert float(jnp.abs(R2)) > 1e-4
 
 
 class TestFit:

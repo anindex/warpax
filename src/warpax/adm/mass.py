@@ -68,6 +68,9 @@ def adm_mass(
     M_ADM = (1/16pi) oint_S (dj gamma_{ij} - di tr(gamma)) n^i dA
 
     Uses Gauss-Legendre quadrature in theta and uniform quadrature in phi.
+    Gauss-Legendre on ``u = cos(theta)`` absorbs the ``sin(theta)`` Jacobian
+    into the weights, so the surface integral is a plain weighted sum over
+    ``(theta, phi)``; the nodes are numpy compile-time constants.
 
     .. note::
 
@@ -96,16 +99,13 @@ def adm_mass(
     """
     r = jnp.float64(r_surface)
 
-    # Gauss-Legendre quadrature for theta (mapped to [0, pi])
-    # Use numpy for quadrature nodes (compile-time constant)
     import numpy as np
 
     cos_nodes, weights_theta = np.polynomial.legendre.leggauss(n_theta)
     cos_nodes = jnp.array(cos_nodes, dtype=jnp.float64)
     weights_theta = jnp.array(weights_theta, dtype=jnp.float64)
-    theta_nodes = jnp.arccos(cos_nodes)  # theta in [0, pi]
+    theta_nodes = jnp.arccos(cos_nodes)
 
-    # Uniform quadrature for phi
     phi_nodes = jnp.linspace(0, 2 * jnp.pi, n_phi, endpoint=False, dtype=jnp.float64)
     dphi = 2 * jnp.pi / n_phi
 
@@ -116,43 +116,52 @@ def adm_mass(
         sin_phi = jnp.sin(phi)
         cos_phi = jnp.cos(phi)
 
-        # Cartesian coords on sphere
         x = r * sin_theta * cos_phi
         y = r * sin_theta * sin_phi
         z = r * cos_theta
         coords = jnp.array([0.0, x, y, z], dtype=jnp.float64)
 
-        # Unit outward normal in Cartesian
         n_hat = jnp.array([sin_theta * cos_phi, sin_theta * sin_phi, cos_theta])
 
-        # Spatial metric derivatives
         dgamma = _spatial_metric_derivs(metric, coords)
 
-        # ADM integrand: (dj gamma_{ij} - di tr(gamma)) n^i
-        # dj gamma_{ij} = dgamma[i, j, j] summed over j
-        div_gamma = jnp.einsum("ijj->i", dgamma)  # dj gamma_{ij}
+        div_gamma = jnp.einsum("ijj->i", dgamma)
 
-        # di tr(gamma) = di gamma_{jj} = dgamma[j, j, i] summed over j
-        grad_trace = jnp.einsum("jji->i", dgamma)  # di gamma_{jj}
+        grad_trace = jnp.einsum("jji->i", dgamma)
 
-        # Contract with normal
         f = jnp.dot(div_gamma - grad_trace, n_hat)
 
-        # dA = r^2 sin(theta) (the sin(theta) is handled by the Legendre weight change of variable)
         return f * r**2
 
-    # Full 2D quadrature: vmap over (theta, phi).
-    # Gauss-Legendre on [-1,1] mapped to theta in [0, pi] via u = cos(theta)
-    # absorbs the sin(theta) Jacobian into the Legendre weight, so the outer
-    # reduction is just a weighted sum.
     integrand_grid = jax.vmap(
         lambda th: jax.vmap(lambda ph: integrand_at_angle(th, ph))(phi_nodes)
-    )(theta_nodes)  # (n_theta, n_phi)
+    )(theta_nodes)
     phi_sums = jnp.sum(integrand_grid, axis=1) * dphi
     total = jnp.dot(weights_theta, phi_sums)
 
     M_ADM = total / (16.0 * jnp.pi)
     return M_ADM
+
+
+def _richardson_order(radii: list[float], M_values: list[float], steps: int = 60) -> float:
+    """Solve (M0-M1)/(M1-M2) = (r0^-p - r1^-p)/(r1^-p - r2^-p) for p by bisection on [0.1, 8]."""
+    r0, r1, r2 = (float(r) for r in radii[-3:])
+    M0, M1, M2 = (float(M) for M in M_values[-3:])
+    target = (M0 - M1) / (M1 - M2)
+
+    def residual(p: float) -> float:
+        return (r0**-p - r1**-p) / (r1**-p - r2**-p) - target
+
+    lo, hi = 0.1, 8.0
+    f_lo = residual(lo)
+    for _ in range(steps):
+        mid = 0.5 * (lo + hi)
+        f_mid = residual(mid)
+        if f_mid * f_lo > 0:
+            lo, f_lo = mid, f_mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
 
 
 def adm_mass_richardson(
@@ -163,7 +172,14 @@ def adm_mass_richardson(
 ) -> dict[str, object]:
     """ADM mass with Richardson extrapolation for convergence verification.
 
-    Computes M_ADM at multiple radii and extrapolates to r -> inf.
+    Computes M_ADM at multiple radii and extrapolates to r -> inf assuming
+    M(r) = M_inf + C r^-p. With three or more radii p is solved from the
+    last three values (no geometric spacing assumed) and the extrapolation
+    uses that p; with exactly two radii p = 1 is assumed and reported as NaN.
+    The result is ``valid`` when the last two masses agree to 1e-12 relative
+    (p reported as inf; two exact zeros count as agreement), or when
+    |p - 1| < 0.25 and the last pair of masses is closer than the previous
+    pair.
 
     Parameters
     ----------
@@ -174,55 +190,41 @@ def adm_mass_richardson(
     Returns
     -------
     dict with 'M_values' (mass at each radius), 'radii', 'M_extrapolated',
-    'convergence_order'
+    'convergence_order', 'valid'
     """
     if radii is None:
         radii = [50.0, 100.0, 200.0, 400.0]
 
-    M_values = []
-    for r in radii:
-        M = adm_mass(metric, r_surface=r, n_theta=n_theta, n_phi=n_phi)
-        M_values.append(float(M))
+    M_values = [float(adm_mass(metric, r_surface=r, n_theta=n_theta, n_phi=n_phi)) for r in radii]
 
-    # Richardson extrapolation: M(r) ~ M_inf + C/r^n.
-    # Assumes leading-order O(1/r) falloff (n=1) for the linear
-    # extrapolation; the realized convergence order is reported back so
-    # callers can sanity-check the assumption.
-    expected_order = 1.0
-    valid: bool = False
-    if len(radii) >= 2:
-        r1, r2 = radii[-2], radii[-1]
-        M1, M2 = M_values[-2], M_values[-1]
-        M_extrap_linear = (M2 * r2 - M1 * r1) / (r2 - r1)
+    if len(radii) < 2:
+        return {
+            "M_values": M_values,
+            "radii": radii,
+            "M_extrapolated": M_values[-1],
+            "convergence_order": float("nan"),
+            "valid": False,
+        }
 
-        if len(radii) >= 3:
-            M0 = M_values[-3]
-            dM01 = abs(M0 - M1)
-            dM12 = abs(M1 - M2)
-            if dM12 > 1e-15 and dM01 > 1e-15:
-                conv_order = float(jnp.log(dM01 / dM12) / jnp.log(r2 / r1))
-            else:
-                conv_order = float("inf")
-        else:
-            conv_order = float("nan")
+    r1, r2 = float(radii[-2]), float(radii[-1])
+    M1, M2 = M_values[-2], M_values[-1]
+    converged = abs(M1 - M2) <= 1e-12 * max(abs(M1), abs(M2))
 
-        # Conservative extrapolation: only return a finite value when the
-        # observed convergence order matches the model assumption
-        # (within 0.25 of n=1) or ``inf`` (already converged).
-        if (
-            conv_order != conv_order
-            or conv_order == float("inf")
-            or abs(conv_order - expected_order) < 0.25
-        ):  # NaN: only two points, can't check
-            M_extrap = M_extrap_linear
-            valid = True
-        else:
-            M_extrap = float("nan")
-            valid = False
-    else:
-        M_extrap = M_values[-1]
+    if len(radii) < 3:
         conv_order = float("nan")
-        valid = False
+        p = 1.0
+        valid = True
+    elif converged:
+        conv_order = float("inf")
+        p = 1.0
+        valid = True
+    else:
+        conv_order = _richardson_order(radii, M_values)
+        p = conv_order
+        shrinking = abs(M1 - M2) < abs(M_values[-3] - M1)
+        valid = abs(conv_order - 1.0) < 0.25 and shrinking
+
+    M_extrap = (M2 * r2**p - M1 * r1**p) / (r2**p - r1**p) if valid else float("nan")
 
     return {
         "M_values": M_values,
@@ -231,6 +233,27 @@ def adm_mass_richardson(
         "convergence_order": conv_order,
         "valid": valid,
     }
+
+
+_COMPONENT_INDICES = [
+    (i, j, f"g_{a}{b}") for i, a in enumerate("txyz") for j, b in enumerate("txyz") if j >= i
+]
+_DIRECTIONS = [
+    jnp.array([0.0, 1.0, 0.0, 0.0]),
+    jnp.array([0.0, -1.0, 0.0, 0.0]),
+    jnp.array([0.0, 0.0, 1.0, 0.0]),
+    jnp.array([0.0, 0.0, -1.0, 0.0]),
+    jnp.array([0.0, 0.0, 0.0, 1.0]),
+    jnp.array([0.0, 0.0, 0.0, -1.0]),
+]
+_ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0], dtype=jnp.float64))
+
+
+def _deviations(metric: MetricSpecification, radii: list[float]) -> jnp.ndarray:
+    """|g - eta| sampled along +-x, +-y, +-z at each radius, shape (6, n_radii, 4, 4)."""
+    return jnp.stack(
+        [jnp.stack([jnp.abs(metric(float(r) * d) - _ETA) for r in radii]) for d in _DIRECTIONS]
+    )
 
 
 def falloff_check(
@@ -242,7 +265,8 @@ def falloff_check(
     """Check asymptotic falloff of metric components.
 
     For asymptotically flat metrics, g_{munu} - eta_{munu} ~ O(1/r^n).
-    Tests by comparing deviations at r and r/2.
+    Tests by comparing deviations at r and r/2 along +-x, +-y, +-z; a
+    component passes only if it passes in every direction.
 
     Parameters
     ----------
@@ -253,30 +277,14 @@ def falloff_check(
 
     Returns
     -------
-    dict mapping component names to bool (True if falloff is acceptable)
+    dict mapping the ten component names g_tt, g_tx, ..., g_zz to bool
     """
-    coords_far = jnp.array([0.0, r_test, 0.0, 0.0], dtype=jnp.float64)
-    coords_near = jnp.array([0.0, r_test / 2.0, 0.0, 0.0], dtype=jnp.float64)
-
-    g_far = metric(coords_far)
-    g_near = metric(coords_near)
-    eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0], dtype=jnp.float64))
-
-    deviation_far = jnp.abs(g_far - eta)
-    deviation_near = jnp.abs(g_near - eta)
-
+    dev = _deviations(metric, [r_test / 2.0, r_test])
+    dev_near, dev_far = dev[:, 0], dev[:, 1]
     eps = 1e-30
-    ratio = (deviation_far + eps) / (deviation_near + eps)
-    measured_order = -jnp.log(ratio) / jnp.log(2.0)
-
-    component_names = ["g_tt", "g_xx", "g_yy", "g_zz"]
-    results = {}
-    for i, name in enumerate(component_names):
-        dev = deviation_far[i, i]
-        is_flat = dev <= 1e-15
-        results[name] = bool(is_flat or (measured_order[i, i] >= expected_order - tol))
-
-    return results
+    measured_order = -jnp.log((dev_far + eps) / (dev_near + eps)) / jnp.log(2.0)
+    passed = (dev_far <= 1e-15) | (measured_order >= expected_order - tol)
+    return {name: bool(jnp.all(passed[:, i, j])) for i, j, name in _COMPONENT_INDICES}
 
 
 def asymptotic_flatness_report(
@@ -287,90 +295,60 @@ def asymptotic_flatness_report(
 ) -> dict[str, object]:
     """Full asymptotic flatness diagnostic.
 
-    Evaluates metric deviations from Minkowski at multiple radii,
-    fits power-law falloff exponents for each component (including
-    off-diagonal shift terms), and assesses overall asymptotic flatness.
-
-    For a Schwarzschild-like metric, diagonal deviations should fall off
-    as 1/r. For warp metrics with compact-support shift, g_{0i} should
-    fall to zero at finite radius (faster than any power law).
+    Evaluates |g - eta| at multiple radii along +-x, +-y, +-z, fits the
+    power-law falloff exponent of every component from the last two radii
+    in each direction, and passes a component only if it is exactly flat or
+    falls off at least as fast as ``expected_order`` in every direction.
 
     Parameters
     ----------
     metric : MetricSpecification
     radii : list of evaluation radii (default: [50, 100, 200, 400])
-    expected_order : expected diagonal falloff power (default: 1 for 1/r)
+    expected_order : expected falloff power (default: 1 for 1/r)
     tol : tolerance on measured exponent (default: 0.1)
 
     Returns
     -------
     dict with keys:
-        'diagonal' : dict per component with 'passed', 'measured_order',
-                      'deviations'
-        'shift' : dict per shift component with 'passed', 'deviations'
+        'components' : dict per component name with 'passed',
+                       'measured_order' (worst direction) and
+                       'deviations' (list over directions of lists over radii)
+        'diagonal', 'shift' : the g_tt, g_xx, g_yy, g_zz and g_tx, g_ty, g_tz
+                       entries of 'components'
+        'directions' : the six sampled unit directions
         'is_asymptotically_flat' : bool (all components pass)
         'radii' : list of radii used
     """
     if radii is None:
         radii = [50.0, 100.0, 200.0, 400.0]
 
-    eta = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0], dtype=jnp.float64))
-
-    # Evaluate metric at each radius along x-axis
-    g_at_r = []
-    for r in radii:
-        coords = jnp.array([0.0, r, 0.0, 0.0], dtype=jnp.float64)
-        g_at_r.append(metric(coords))
-
-    # Diagonal falloff analysis
-    diagonal_names = ["g_tt", "g_xx", "g_yy", "g_zz"]
-    diagonal_indices = [(0, 0), (1, 1), (2, 2), (3, 3)]
-    diagonal_results = {}
-
-    for name, (i, j) in zip(diagonal_names, diagonal_indices, strict=True):
-        deviations = [float(jnp.abs(g[i, j] - eta[i, j])) for g in g_at_r]
-
-        # Fit power-law: deviation ~ C / r^n
-        # Use last two points: n = log(dev1/dev2) / log(r2/r1)
-        if len(radii) >= 2 and deviations[-2] > 1e-15 and deviations[-1] > 1e-15:
-            measured = float(
-                jnp.log(deviations[-2] / deviations[-1]) / jnp.log(radii[-1] / radii[-2])
-            )
-        elif all(d < 1e-15 for d in deviations):
-            measured = float("inf")  # Exactly flat
-        else:
-            measured = 0.0
-
-        is_flat = all(d < 1e-12 for d in deviations)
-        passed = is_flat or (measured >= expected_order - tol)
-
-        diagonal_results[name] = {
+    dev = _deviations(metric, radii)
+    results = {}
+    for i, j, name in _COMPONENT_INDICES:
+        d = dev[:, :, i, j]
+        orders = []
+        passed = True
+        for k in range(len(_DIRECTIONS)):
+            dk = [float(v) for v in d[k]]
+            if all(v < 1e-12 for v in dk):
+                measured = float("inf")
+            elif len(radii) >= 2 and dk[-2] > 1e-15 and dk[-1] > 1e-15:
+                measured = float(jnp.log(dk[-2] / dk[-1]) / jnp.log(radii[-1] / radii[-2]))
+            else:
+                measured = 0.0
+            orders.append(measured)
+            passed = passed and measured >= expected_order - tol
+        results[name] = {
             "passed": bool(passed),
-            "measured_order": measured,
-            "deviations": deviations,
+            "measured_order": min(orders),
+            "deviations": [[float(v) for v in row] for row in d],
         }
-
-    # Off-diagonal shift falloff (g_{0i})
-    shift_names = ["g_tx", "g_ty", "g_tz"]
-    shift_indices = [(0, 1), (0, 2), (0, 3)]
-    shift_results = {}
-
-    for name, (i, j) in zip(shift_names, shift_indices, strict=True):
-        deviations = [float(jnp.abs(g[i, j])) for g in g_at_r]
-        # Shift should be zero (compact support) at all test radii
-        all_zero = all(d < 1e-10 for d in deviations)
-        shift_results[name] = {
-            "passed": bool(all_zero),
-            "deviations": deviations,
-        }
-
-    # Overall assessment
-    all_diag_pass = all(r["passed"] for r in diagonal_results.values())
-    all_shift_pass = all(r["passed"] for r in shift_results.values())
 
     return {
-        "diagonal": diagonal_results,
-        "shift": shift_results,
-        "is_asymptotically_flat": all_diag_pass and all_shift_pass,
+        "components": results,
+        "diagonal": {k: results[k] for k in ("g_tt", "g_xx", "g_yy", "g_zz")},
+        "shift": {k: results[k] for k in ("g_tx", "g_ty", "g_tz")},
+        "directions": ["+x", "-x", "+y", "-y", "+z", "-z"],
+        "is_asymptotically_flat": all(r["passed"] for r in results.values()),
         "radii": radii,
     }

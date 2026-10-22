@@ -18,8 +18,6 @@ Example
 >>> result = certify(RodalMetric(v_s=2.0, R=1.0, sigma=8.0))
 """
 
-from __future__ import annotations
-
 from typing import NamedTuple
 
 import equinox as eqx
@@ -34,21 +32,27 @@ from .energy_conditions.frame_free import (
     type_fractions,
     typeI_min_margins,
 )
-from .geometry import GridSpec, evaluate_curvature_grid
-from .geometry.grid import build_coord_batch
+from .geometry import GridSpec
+from .geometry.grid import _stress_energy_points, build_coord_batch
 from .grids import proper_volume_weights, wall_clustered
 
 
 class CertifyResult(NamedTuple):
-    """Grid energy-condition margins and wall-restricted summary for one metric."""
+    """Grid energy-condition margins and wall-restricted summary for one metric.
+
+    ``type_fractions`` are wall-restricted and proper-volume weighted;
+    ``invariant_nec_min`` / ``invariant_dec_min`` are ``min(rho+p_i)`` and
+    ``min(rho-|p_i|)`` over wall Type-I points; ``single_frame_miss`` holds the
+    per-condition Eulerian miss rates, or ``None`` unless ``v_s < 1``.
+    """
 
     v_s: float
     frame_free: FrameFreeGridResult
-    type_fractions: dict  # wall-restricted, volume-weighted
-    invariant_nec_min: float  # min(rho+p_i) over wall Type-I points
-    invariant_dec_min: float  # min(rho-|p_i|) over wall Type-I points
-    eulerian_available: bool  # v_s < 1 enables the API's single-frame comparison
-    single_frame_miss: dict | None  # per-condition Eulerian miss rates (or None)
+    type_fractions: dict
+    invariant_nec_min: float
+    invariant_dec_min: float
+    eulerian_available: bool
+    single_frame_miss: dict | None
 
 
 def certify(
@@ -91,7 +95,7 @@ def certify(
         computed only when ``v_s < 1`` under the API's comparison policy.
     """
     if v_s is not None:
-        metric = eqx.tree_at(lambda m: m.v_s, metric, v_s)
+        metric = eqx.tree_at(lambda m: m.v_s, metric, jnp.asarray(v_s, dtype=jnp.float64))
     v = float(metric.v_s)
     if bounds is None:
         bounds = [(-3, 3)] * 3
@@ -101,19 +105,17 @@ def certify(
         if clustered
         else GridSpec(bounds=bounds, shape=shape)
     )
-    curv = evaluate_curvature_grid(metric, grid, batch_size=batch_size)
-    T, g, gi = curv.stress_energy, curv.metric, curv.metric_inv
+    coords = build_coord_batch(grid, t=0.0)
+    T, g, gi = (
+        a.reshape(*shape, 4, 4)
+        for a in _stress_energy_points(metric, coords, batch_size=batch_size)
+    )
 
     ff = certify_grid_frame_free(T, g, gi, solver=solver)
 
-    coords = build_coord_batch(grid, t=0.0)
     mask = shape_function_mask(metric, coords, shape, f_low=wall_bounds[0], f_high=wall_bounds[1])
     mask_flat = np.asarray(jnp.reshape(mask, (-1,))).astype(bool)
-    vol_w = (
-        None
-        if grid.volume_weights_array is None
-        else proper_volume_weights(grid.volume_weights_array, g)
-    )
+    vol_w = proper_volume_weights(grid.volume_weights_array, g)
 
     fr = type_fractions(ff, mask=mask, volume_weights=vol_w)
     mm = typeI_min_margins(ff, mask=mask_flat)
@@ -121,8 +123,8 @@ def certify(
     eulerian_available = v < 1.0
     miss = None
     if eulerian_available:
-        vw_flat = None if vol_w is None else np.asarray(jnp.reshape(vol_w, (-1,)))
-        miss = single_frame_miss(T, g, gi, mask=mask_flat, volume_weights=vw_flat)
+        vw_flat = np.asarray(jnp.reshape(vol_w, (-1,)))
+        miss = single_frame_miss(T, g, gi, mask=mask_flat, volume_weights=vw_flat, frame_free=ff)
 
     return CertifyResult(
         v_s=v,

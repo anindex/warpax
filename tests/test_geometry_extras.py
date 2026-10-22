@@ -25,8 +25,6 @@ from warpax.geometry.invariants import (
 )
 from warpax.geometry.types import GridSpec
 
-# Minkowski: all invariants exactly zero
-
 
 class TestMinkowskiInvariants:
     """Minkowski (flat) spacetime: all curvature invariants are zero."""
@@ -49,13 +47,14 @@ class TestMinkowskiInvariants:
 
     def test_weyl_squared_minkowski_zero(self):
         """Minkowski: C_{abcd} C^{abcd} = 0 to machine precision."""
-        K = kretschmann_scalar(self.result.riemann, self.result.metric, self.result.metric_inv)
-        R2 = ricci_squared(self.result.ricci, self.result.metric_inv)
-        W2 = weyl_squared(K, R2, self.result.ricci_scalar)
+        W2 = weyl_squared(
+            self.result.riemann,
+            self.result.ricci,
+            self.result.ricci_scalar,
+            self.result.metric,
+            self.result.metric_inv,
+        )
         assert_allclose(float(W2), 0.0, atol=1e-14)
-
-
-# Schwarzschild: analytical ground truth
 
 
 class TestSchwarzschildInvariants:
@@ -63,14 +62,14 @@ class TestSchwarzschildInvariants:
 
     @pytest.fixture(autouse=True)
     def _setup(self):
+        """Evaluate at (t=0, x=0, y=5, z=0), far from the singularity, with the
+        analytical Kretschmann K = 48 M^2 / r_s^6 at Schwarzschild radius
+        r_s = r_iso (1 + M/(2 r_iso))^2 for r_iso = 5."""
         self.M = 1.0
         metric = SchwarzschildMetric(M=self.M)
-        # Test point far from singularity: (t=0, x=0, y=5, z=0)
         self.coords = jnp.array([0.0, 0.0, 5.0, 0.0])
         self.result = compute_curvature_chain(metric, self.coords)
 
-        # Analytical Kretschmann: K = 48 * M^2 / r_s^6
-        # isotropic r_iso = 5.0, Schwarzschild r_s = r_iso * (1 + M/(2*r_iso))^2
         r_iso = 5.0
         r_s = r_iso * (1.0 + self.M / (2.0 * r_iso)) ** 2
         self.expected_K = 48.0 * self.M**2 / r_s**6
@@ -84,14 +83,51 @@ class TestSchwarzschildInvariants:
         """Schwarzschild is vacuum: Ricci-flat => ricci_squared=0, weyl_squared=K."""
         K = kretschmann_scalar(self.result.riemann, self.result.metric, self.result.metric_inv)
         R2 = ricci_squared(self.result.ricci, self.result.metric_inv)
-        W2 = weyl_squared(K, R2, self.result.ricci_scalar)
+        W2 = weyl_squared(
+            self.result.riemann,
+            self.result.ricci,
+            self.result.ricci_scalar,
+            self.result.metric,
+            self.result.metric_inv,
+        )
 
         assert_allclose(float(R2), 0.0, atol=1e-10)
-        # For Ricci-flat spacetimes, Weyl-squared equals Kretschmann.
         assert_allclose(float(W2), float(K), atol=1e-10)
 
 
-# Convenience function and dtype tests
+def test_weyl_squared_no_cancellation():
+    """Weyl-squared must survive a Ricci part 1e12 times larger than the Weyl part.
+
+    On eta with R_abcd = 1e12 (g_ac g_bd - g_ad g_bc) + C(E), E = diag(-2, 1, 1)
+    purely electric, C_abcd C^abcd = 8 tr(E^2) = 48; the Gauss-Bonnet identity
+    K - 2 R_ab R^ab + R^2/3 returned -8589934592 after canceling terms of order 1e25.
+    """
+    eta = np.diag([-1.0, 1.0, 1.0, 1.0])
+    E = np.diag([-2.0, 1.0, 1.0])
+    d3 = np.eye(3)
+    C = np.zeros((4, 4, 4, 4))
+    C[0, 1:, 0, 1:] = E
+    C[1:, 0, 1:, 0] = E
+    C[0, 1:, 1:, 0] = -E
+    C[1:, 0, 0, 1:] = -E
+    C[1:, 1:, 1:, 1:] = (
+        np.einsum("ik,jl->ijkl", d3, E)
+        + np.einsum("jl,ik->ijkl", d3, E)
+        - np.einsum("il,jk->ijkl", d3, E)
+        - np.einsum("jk,il->ijkl", d3, E)
+    )
+    R_down = 1e12 * (np.einsum("ac,bd->abcd", eta, eta) - np.einsum("ad,bc->abcd", eta, eta)) + C
+    riemann = np.einsum("ae,ebcd->abcd", eta, R_down)
+    ricci = np.einsum("abad->bd", riemann)
+    ricci_scalar = np.einsum("ab,ab->", eta, ricci)
+    W2 = weyl_squared(
+        jnp.asarray(riemann),
+        jnp.asarray(ricci),
+        jnp.asarray(ricci_scalar),
+        jnp.asarray(eta),
+        jnp.asarray(eta),
+    )
+    assert_allclose(float(W2), 8.0 * np.trace(E @ E), atol=1e-3)
 
 
 class TestInvariantConvenience:
@@ -105,11 +141,12 @@ class TestInvariantConvenience:
 
         K_individual = kretschmann_scalar(result.riemann, result.metric, result.metric_inv)
         R2_individual = ricci_squared(result.ricci, result.metric_inv)
-        W2_individual = weyl_squared(K_individual, R2_individual, result.ricci_scalar)
+        W2_individual = weyl_squared(
+            result.riemann, result.ricci, result.ricci_scalar, result.metric, result.metric_inv
+        )
 
         CP_individual = chern_pontryagin(result.riemann, result.metric, result.metric_inv)
 
-        # Convenience function
         K_conv, R2_conv, W2_conv, CP_conv = compute_invariants(result)
 
         assert_allclose(float(K_conv), float(K_individual), atol=0.0)
@@ -180,9 +217,6 @@ class TestRegularityDiagnostics:
         )
 
 
-# Coordinate batch construction
-
-
 class TestBuildCoordBatch:
     """Tests for build_coord_batch helper."""
 
@@ -193,9 +227,6 @@ class TestBuildCoordBatch:
 
         coords_custom = build_coord_batch(default_grid, t=1.5)
         assert_allclose(np.array(coords_custom[:, 0]), 1.5, atol=0.0)
-
-
-# Grid curvature result shapes
 
 
 class TestGridCurvatureShapes:
@@ -217,9 +248,6 @@ class TestGridCurvatureShapes:
         assert not hasattr(result, "weyl_squared")
 
 
-# Batch size consistency
-
-
 class TestGridBatching:
     """Chunked batching via batch_size produces identical results to full vmap."""
 
@@ -234,7 +262,6 @@ class TestGridBatching:
         result_full = evaluate_curvature_grid(metric, grid, batch_size=None)
         result_chunked = evaluate_curvature_grid(metric, grid, batch_size=32)
 
-        # Compare all 11 fields
         for field_name in GridCurvatureResult._fields:
             full_val = np.array(getattr(result_full, field_name))
             chunked_val = np.array(getattr(result_chunked, field_name))
@@ -244,9 +271,6 @@ class TestGridBatching:
                 atol=1e-12,
                 err_msg=f"Mismatch in field {field_name}",
             )
-
-
-# Minkowski flatness on grid
 
 
 class TestGridMinkowskiFlat:
@@ -261,7 +285,6 @@ class TestGridMinkowskiFlat:
         )
         result = evaluate_curvature_grid(metric, grid)
 
-        # Curvature tensors must be zero
         assert_allclose(np.array(result.riemann), 0.0, atol=1e-12)
         assert_allclose(np.array(result.ricci), 0.0, atol=1e-12)
         assert_allclose(np.array(result.ricci_scalar), 0.0, atol=1e-12)
@@ -271,9 +294,6 @@ class TestGridMinkowskiFlat:
         assert_allclose(np.array(result.kretschmann), 0.0, atol=1e-12)
         assert_allclose(np.array(result.ricci_squared), 0.0, atol=1e-12)
         assert_allclose(np.array(result.weyl_squared), 0.0, atol=1e-12)
-
-
-# Float64 dtype enforcement
 
 
 class TestGridSchwarzschildKretschmann:
@@ -324,7 +344,7 @@ class TestAutoChunk:
         metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
         grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(20, 20, 20))
 
-        ref = evaluate_curvature_grid(metric, grid)  # full vmap
+        ref = evaluate_curvature_grid(metric, grid)
         chunked = evaluate_curvature_grid(metric, grid, auto_chunk_threshold=1000)
 
         for field in GridCurvatureResult._fields:
@@ -341,7 +361,7 @@ class TestAutoChunk:
     def test_threshold_larger_than_grid_is_noop(self):
         """auto_chunk_threshold > grid_size: no chunking, bit-exact to default."""
         metric = AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0)
-        grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(8, 8, 8))  # 512 points
+        grid = GridSpec(bounds=[(-3.0, 3.0)] * 3, shape=(8, 8, 8))
 
         ref = evaluate_curvature_grid(metric, grid)
         noop = evaluate_curvature_grid(metric, grid, auto_chunk_threshold=10_000)
@@ -368,11 +388,7 @@ from warpax.energy_conditions.filtering import determinant_guard_mask
 from warpax.energy_conditions.verifier import verify_point
 from warpax.metrics import RodalMetric
 
-# Minkowski metric (common to all tests)
 ETA = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
-
-
-# Category 1: Classifier near-degenerate inputs
 
 
 class TestClassifierNearDegenerateInputs:
@@ -443,9 +459,6 @@ class TestClassifierNearDegenerateInputs:
         assert int(classify_hawking_ellis(T / lam, ETA).he_type) == 4
 
 
-# Category 2: NaN propagation at sharp walls
-
-
 class TestNaNPropagationAtSharpWalls:
     """Autodiff chain at sharp-wall wall-center points must not produce NaN.
 
@@ -475,9 +488,10 @@ class TestNaNPropagationAtSharpWalls:
         """Rodal(sigma=0.3) at wall center must produce finite curvature.
 
         sigma=0.3 is the sharpest sigma value in the Rodal DEC ablation sweep.
+        The point is offset slightly from the wall center on axis to avoid
+        0/0 forms.
         """
         metric = RodalMetric(v_s=0.5, R=100.0, sigma=0.3)
-        # Offset slightly from wall center on axis to avoid 0/0 forms
         coords = jnp.array([0.0, 100.0, 0.01, 0.0])
         curv = compute_curvature_chain(metric, coords)
         assert jnp.all(jnp.isfinite(curv.stress_energy))
@@ -487,8 +501,8 @@ class TestNaNPropagationAtSharpWalls:
         """A NaN tensor must not come out as a confident Type-I vacuum.
 
         The NaN entries are still zeroed so cuSolver's geev survives, but the
-        verdict is NaN rather than he_type=1 with margins exactly 0.0, which is
-        what 179 of 125000 points on the WarpShell 50^3 grid used to report.
+        verdict is NaN rather than he_type=1 with margins exactly 0.0 (179 of
+        125000 points on the WarpShell 50^3 grid carry NaN input).
         Every consumer already treats a non-finite he_type as "no verdict".
         """
         T = jnp.array(
@@ -502,9 +516,6 @@ class TestNaNPropagationAtSharpWalls:
         result = classify_hawking_ellis(T, ETA)
         assert not jnp.isfinite(result.he_type)
         assert jnp.all(jnp.isfinite(result.eigenvalues))
-
-
-# Category 3: Optimizer convergence near walls
 
 
 class TestOptimizerConvergenceNearWalls:
@@ -562,9 +573,6 @@ class TestOptimizerConvergenceNearWalls:
         assert bool(jnp.isfinite(ec.dec_margin))
 
 
-# Category 4: Determinant guard boundary
-
-
 class TestDeterminantGuardBoundary:
     """determinant_guard_mask must correctly flag degenerate and superluminal metrics."""
 
@@ -573,7 +581,6 @@ class TestDeterminantGuardBoundary:
         grid_shape = (2, 2, 2)
         g_single = jnp.diag(jnp.array([-1.0, 1.0, 1.0, 1.0]))
         g_field = jnp.broadcast_to(g_single, (*grid_shape, 4, 4))
-        # No warning should be emitted for a healthy field
         mask = determinant_guard_mask(g_field, threshold=1e-10)
         assert mask.shape == grid_shape
         assert bool(jnp.all(mask))
@@ -581,7 +588,6 @@ class TestDeterminantGuardBoundary:
     def test_singular_metric_fails_guard(self):
         """A rank-deficient metric must fail the determinant guard."""
         grid_shape = (1, 1, 1)
-        # Pure-rank-1 metric: det = 0
         g_single = jnp.zeros((4, 4)).at[0, 0].set(1.0)
         g_field = g_single.reshape(1, 1, 1, 4, 4)
         with pytest.warns(UserWarning, match="grid points have"):
@@ -595,17 +601,13 @@ class TestDeterminantGuardBoundary:
         Below threshold (|det| = 1e-11 < 1e-10) -> guard False.
         Above threshold (|det| = 1e-9 > 1e-10) -> guard True.
         """
-        # Build a diagonal metric with arbitrary target determinant.
-        # det(diag(a, b, c, d)) = a*b*c*d. Use diag(-d0, 1, 1, 1) -> det = -d0.
 
-        # Below threshold
         g_low = jnp.diag(jnp.array([-1e-11, 1.0, 1.0, 1.0]))
         g_field_low = g_low.reshape(1, 1, 1, 4, 4)
         with pytest.warns(UserWarning, match="grid points have"):
             mask_low = determinant_guard_mask(g_field_low, threshold=1e-10)
         assert not bool(mask_low[0, 0, 0])
 
-        # Above threshold
         g_high = jnp.diag(jnp.array([-1e-9, 1.0, 1.0, 1.0]))
         g_field_high = g_high.reshape(1, 1, 1, 4, 4)
         mask_high = determinant_guard_mask(g_field_high, threshold=1e-10)
@@ -618,18 +620,17 @@ class TestDeterminantGuardBoundary:
         collapse. The determinant guard alone does NOT detect this, we
         construct a metric with g_00 > 0 manually and verify that the
         pipeline handles it without crashing and the classifier returns a
-        finite type.
+        finite type. The diagonal metric has g_00 = +0.5 and det(g) = 0.5, a
+        healthy magnitude, so the guard passes because it checks |det(g)|,
+        not the signature.
         """
-        # Build a diagonal metric with g_00 = +0.5 (sign-flipped) and |det(g)| = 0.5
         g_bad = jnp.diag(jnp.array([0.5, 1.0, 1.0, 1.0]))
         g_field = g_bad.reshape(1, 1, 1, 4, 4)
-        # det(g) = 0.5 (healthy magnitude), so guard should pass
         mask = determinant_guard_mask(g_field, threshold=1e-10)
         assert bool(mask[0, 0, 0]), (
             "Determinant guard does NOT detect g_00 sign flip (it checks |det(g)|, not signature)."
         )
 
-        # Classifier must not crash on such a tensor either
         T_mixed = jnp.diag(jnp.array([-1.0, 0.5, 0.5, 0.5]))
         result = classify_hawking_ellis(T_mixed, g_bad)
         assert int(result.he_type) in (1, 2, 3, 4)

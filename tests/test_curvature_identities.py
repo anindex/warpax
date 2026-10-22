@@ -32,15 +32,10 @@ from warpax.benchmarks.alcubierre import AlcubierreMetric
 from warpax.benchmarks.schwarzschild import SchwarzschildMetric
 from warpax.geometry import compute_curvature_chain
 
-# Helper: lower all Riemann indices
-
 
 def lower_riemann(riemann_uddd, g):
     """Lower the first index: R_{abcd} = g_{ae} R^e_{bcd}."""
     return jnp.einsum("ae,ebcd->abcd", g, riemann_uddd)
-
-
-# Helper: compute covariant divergence of Einstein tensor
 
 
 def einstein_divergence(metric_fn, coords):
@@ -48,7 +43,10 @@ def einstein_divergence(metric_fn, coords):
 
     Uses the identity nabla_a V^{ab} = partial_a V^{ab} + Gamma^a_{ac} V^{cb}
     + Gamma^b_{ac} V^{ac}. We compute G^{ab} = g^{ac} g^{bd} G_{cd} at
-    neighboring points and differentiate.
+    neighboring points and differentiate: jacfwd gives dG[b, c, a] = d_a G^{bc},
+    christoffel is Gamma^a_{bc} as [upper, lower, lower], and the three terms
+    are einsum("aba->b", dG), einsum("aac,cb->b", Gamma, G_up) and
+    einsum("bac,ac->b", Gamma, G_up).
     """
 
     def G_upper(x):
@@ -57,46 +55,36 @@ def einstein_divergence(metric_fn, coords):
         G_low = result.einstein
         return jnp.einsum("ac,bd,cd->ab", g_inv, g_inv, G_low)
 
-    # Partial derivative: d_a G^{bc}
-    dG = jax.jacfwd(G_upper)(coords)  # shape (4,4,4), dG[b,c,a] = d_a G^{bc}
+    dG = jax.jacfwd(G_upper)(coords)
 
     result = compute_curvature_chain(metric_fn, coords)
-    Gamma = result.christoffel  # Gamma^a_{bc} as [upper, lower, lower]
+    Gamma = result.christoffel
     G_up = jnp.einsum("ac,bd,cd->ab", result.metric_inv, result.metric_inv, result.einstein)
 
-    # nabla_a G^{ab} = d_a G^{ab} + Gamma^a_{ac} G^{cb} + Gamma^b_{ac} G^{ac}
     div = jnp.zeros(4)
-    # Term 1: d_a G^{ab} = dG[a, b, a] summed over a
     term1 = jnp.einsum("aba->b", dG)
-    # Term 2: Gamma^a_{ac} G^{cb}
     term2 = jnp.einsum("aac,cb->b", Gamma, G_up)
-    # Term 3: Gamma^b_{ac} G^{ac}
     term3 = jnp.einsum("bac,ac->b", Gamma, G_up)
 
     return term1 + term2 + term3
 
 
-# Test points
-
 SCHWARZSCHILD_POINTS = [
     jnp.array([0.0, 5.0, 0.0, 0.0]),
     jnp.array([0.0, 10.0, 0.0, 0.0]),
     jnp.array([0.0, 50.0, 0.0, 0.0]),
-    jnp.array([0.0, 3.0, 4.0, 0.0]),  # off-axis, same point as the SymPy tests
+    jnp.array([0.0, 3.0, 4.0, 0.0]),
 ]
 
 ALCUBIERRE_POINTS = [
-    jnp.array([0.0, 0.8, 0.5, 0.0]),  # bubble wall, off-axis
-    jnp.array([0.0, 1.0, 0.3, 0.3]),  # on wall
-    jnp.array([0.0, 0.5, 0.7, 0.0]),  # inner wall region
+    jnp.array([0.0, 0.8, 0.5, 0.0]),
+    jnp.array([0.0, 1.0, 0.3, 0.3]),
+    jnp.array([0.0, 0.5, 0.7, 0.0]),
 ]
 
 ALL_POINTS = [(SchwarzschildMetric(M=1.0), p, "schwarzschild") for p in SCHWARZSCHILD_POINTS] + [
     (AlcubierreMetric(v_s=0.5, R=1.0, sigma=8.0), p, "alcubierre") for p in ALCUBIERRE_POINTS
 ]
-
-
-# 1. Riemann antisymmetries
 
 
 class TestRiemannAntisymmetries:
@@ -142,9 +130,6 @@ class TestRiemannAntisymmetries:
         )
 
 
-# 2. First Bianchi identity
-
-
 class TestFirstBianchiIdentity:
     """R_{abcd} + R_{acdb} + R_{adbc} = 0."""
 
@@ -152,7 +137,6 @@ class TestFirstBianchiIdentity:
     def test_bianchi(self, metric, coords, label):
         result = compute_curvature_chain(metric, coords)
         R = lower_riemann(result.riemann, result.metric)
-        # R_{abcd} + R_{acdb} + R_{adbc}
         bianchi = R + jnp.transpose(R, (0, 2, 3, 1)) + jnp.transpose(R, (0, 3, 1, 2))
         npt.assert_allclose(
             np.array(bianchi),
@@ -160,9 +144,6 @@ class TestFirstBianchiIdentity:
             atol=1e-10,
             err_msg=f"First Bianchi identity violated for {label}",
         )
-
-
-# 3. Einstein tensor divergence (contracted Bianchi)
 
 
 class TestEinsteinDivergence:
@@ -190,9 +171,6 @@ class TestEinsteinDivergence:
         )
 
 
-# Summary: count all identity checks
-
-
 class TestIdentitySummary:
     """Aggregate identity residuals for reporting in paper."""
 
@@ -207,19 +185,15 @@ class TestIdentitySummary:
             result = compute_curvature_chain(metric, coords)
             R = lower_riemann(result.riemann, result.metric)
 
-            # Antisymmetry first pair
             res1 = float(jnp.max(jnp.abs(R + jnp.transpose(R, (1, 0, 2, 3)))))
             max_antisym_1 = max(max_antisym_1, res1)
 
-            # Antisymmetry second pair
             res2 = float(jnp.max(jnp.abs(R + jnp.transpose(R, (0, 1, 3, 2)))))
             max_antisym_2 = max(max_antisym_2, res2)
 
-            # Pair symmetry
             res3 = float(jnp.max(jnp.abs(R - jnp.transpose(R, (2, 3, 0, 1)))))
             max_pair_sym = max(max_pair_sym, res3)
 
-            # First Bianchi
             bianchi = R + jnp.transpose(R, (0, 2, 3, 1)) + jnp.transpose(R, (0, 3, 1, 2))
             res4 = float(jnp.max(jnp.abs(bianchi)))
             max_bianchi = max(max_bianchi, res4)

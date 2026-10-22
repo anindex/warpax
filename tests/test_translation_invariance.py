@@ -14,7 +14,7 @@ from warpax.geometry import evaluate_curvature_grid
 from warpax.geometry.grid import build_coord_batch
 from warpax.grids import GridSpec
 
-HALF = 2.5  # window half-width, in units of R_b
+HALF = 2.5
 N = 41
 
 
@@ -31,7 +31,7 @@ def _violation_centroid(x_s: float) -> tuple[int, int, float, float]:
     nec = np.asarray(ec.nec_margins).reshape(-1)
     coords = np.asarray(build_coord_batch(spec, t=0.0)).reshape(-1, 4)
     violating = nec < 0
-    weight = -nec[violating]  # weight by the deficit, not by the count
+    weight = -nec[violating]
     return (
         int(nec.size),
         int(violating.sum()),
@@ -41,13 +41,13 @@ def _violation_centroid(x_s: float) -> tuple[int, int, float, float]:
 
 
 def test_violation_centroid_translates_with_the_bubble():
+    """The window is the same size and finds the same violating set on both
+    sides; the centroid moves by the displacement, and by nothing else."""
     sampled_0, viol_0, cx_0, cy_0 = _violation_centroid(0.0)
     sampled_1, viol_1, cx_1, cy_1 = _violation_centroid(1.0)
 
-    # The window is the same size and finds the same violating set on both sides.
     assert sampled_0 == sampled_1 == N * N == 1681
     assert viol_0 == viol_1 == 1677
 
-    # The centroid moves by the displacement, and by nothing else.
     assert cx_1 - cx_0 == pytest.approx(1.0, abs=1e-8)
     assert cy_1 - cy_0 == pytest.approx(0.0, abs=1e-8)

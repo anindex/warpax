@@ -15,8 +15,6 @@ Index conventions:
 - Stress-energy ``T_{ab}``, shape ``(4, 4)``.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -47,7 +45,9 @@ def christoffel_symbols(
 
     Gamma^lam_{mu nu} = 1/2 g^{lam sigma} (d_mu g_{nu sigma} + d_nu g_{mu sigma} - d_sigma g_{mu nu})
 
-    Uses jax.jacfwd(metric_fn) for exact partial derivatives.
+    Uses jax.jacfwd(metric_fn) for exact partial derivatives. jacfwd puts
+    the derivative index last, dg[a, b, c] = d g_{ab} / d x^c, so
+    d_mu g_{nu sig} = dg[nu, sig, mu].
 
     Args:
         metric_fn: Callable mapping coords (4,) -> metric tensor (4,4).
@@ -58,17 +58,42 @@ def christoffel_symbols(
         [upper, lower, lower] = Gamma^lam_{mu nu}.
     """
     g = metric_fn(coords)
-    g_inv = jnp.linalg.inv(g)
-    # dg[a, b, c] = d g_{ab} / d x^c (derivative index is LAST per JAX jacfwd convention)
-    dg = jax.jacfwd(metric_fn)(coords)
+    return christoffel_from_jacobian(jnp.linalg.inv(g), jax.jacfwd(metric_fn)(coords))
 
-    # Gamma^lam_{mu nu} = 0.5 * g^{lam sig} * (d_mu g_{nu sig} + d_nu g_{mu sig} - d_sig g_{mu nu})
-    # In dg indexing: d_mu g_{nu sig} = dg[nu, sig, mu]
-    term1 = jnp.einsum("ls,nsm->lmn", g_inv, dg)  # g^{ls} d_m g_{ns}
-    term2 = jnp.einsum("ls,msn->lmn", g_inv, dg)  # g^{ls} d_n g_{ms}
-    term3 = jnp.einsum("ls,mns->lmn", g_inv, dg)  # g^{ls} d_s g_{mn}
 
+def christoffel_from_jacobian(
+    g_inv: Float[Array, "D D"],
+    dg: Float[Array, "D D D"],
+) -> Float[Array, "D D D"]:
+    """``Gamma^l_{mn} = 1/2 g^{ls} (d_m g_{ns} + d_n g_{ms} - d_s g_{mn})`` in any dimension.
+
+    ``dg[a, b, c] = d g_{ab} / d x^c`` is the ``jacfwd`` layout; the result is
+    ``[upper, lower, lower]``.
+    """
+    term1 = jnp.einsum("ls,nsm->lmn", g_inv, dg)
+    term2 = jnp.einsum("ls,msn->lmn", g_inv, dg)
+    term3 = jnp.einsum("ls,mns->lmn", g_inv, dg)
     return 0.5 * (term1 + term2 - term3)
+
+
+def riemann_from_christoffel_fn(
+    gamma_fn: Callable[[Float[Array, "D"]], Float[Array, "D D D"]],
+    coords: Float[Array, "D"],
+    gamma: Float[Array, "D D D"] | None = None,
+) -> Float[Array, "D D D D"]:
+    """``R^l_{mnr}`` from a Christoffel-symbol function, in any dimension.
+
+    ``dgamma[l, m, n, s] = d Gamma^l_{mn} / d x^s``, so the derivative term is
+    ``dgamma`` with axes 2 and 3 swapped minus ``dgamma``. ``gamma`` may be the
+    precomputed value at ``coords``; the derivative always differentiates
+    ``gamma_fn``, so the result is identical either way.
+    """
+    gamma = gamma_fn(coords) if gamma is None else gamma
+    dgamma = jax.jacfwd(gamma_fn)(coords)
+    deriv_term = jnp.swapaxes(dgamma, 2, 3) - dgamma
+    quad_pos = jnp.einsum("lsn,smr->lmnr", gamma, gamma)
+    quad_neg = jnp.einsum("lsr,smn->lmnr", gamma, gamma)
+    return deriv_term + quad_pos - quad_neg
 
 
 def riemann_tensor(
@@ -83,6 +108,9 @@ def riemann_tensor(
                         - Gamma^lam_{sig rho} Gamma^sig_{mu nu}
 
     Uses nested jax.jacfwd (forward-over-forward) for exact second derivatives.
+    dgamma[l, m, n, s] = d Gamma^l_{mn} / d x^s (derivative index last), so
+    d_nu Gamma^lam_{mu rho} is dgamma with axes 2 and 3 swapped and
+    d_rho Gamma^lam_{mu nu} is dgamma itself.
 
     Args:
         metric_fn: Callable mapping coords (4,) -> metric tensor (4,4).
@@ -103,19 +131,7 @@ def riemann_tensor(
     def gamma_at(x):
         return christoffel_symbols(metric_fn, x)
 
-    gamma = gamma_at(coords) if gamma is None else gamma
-    # dgamma[l, m, n, s] = d Gamma^l_{mn} / d x^s (derivative index LAST)
-    dgamma = jax.jacfwd(gamma_at)(coords)
-
-    # d_n Gamma^l_{mr} = dgamma[l, m, r, n] -> swap axes 2,3 of dgamma
-    # d_r Gamma^l_{mn} = dgamma[l, m, n, r] -> dgamma itself
-    deriv_term = jnp.swapaxes(dgamma, 2, 3) - dgamma
-
-    # Quadratic terms
-    quad_pos = jnp.einsum("lsn,smr->lmnr", gamma, gamma)  # Gamma^l_{sn} Gamma^s_{mr}
-    quad_neg = jnp.einsum("lsr,smn->lmnr", gamma, gamma)  # Gamma^l_{sr} Gamma^s_{mn}
-
-    return deriv_term + quad_pos - quad_neg
+    return riemann_from_christoffel_fn(gamma_at, coords, gamma)
 
 
 def ricci_tensor(riemann: Float[Array, "4 4 4 4"]) -> Float[Array, "4 4"]:

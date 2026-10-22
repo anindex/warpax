@@ -17,7 +17,7 @@ __all__ = ["compute_volume_weights", "proper_volume_weights"]
 
 
 def proper_volume_weights(
-    coord_weights: Float[Array, "..."],
+    coord_weights: Float[Array, "..."] | None,
     g_field: Float[Array, "... 4 4"],
 ) -> Float[Array, "..."]:
     """Attach the slice Jacobian: ``dV = sqrt(det gamma) d^3x``.
@@ -33,43 +33,42 @@ def proper_volume_weights(
 
     Parameters
     ----------
-    coord_weights : Float[Array, "..."]
-        Coordinate cell volumes, shape ``grid_shape`` (or flattened).
+    coord_weights : Float[Array, "..."] | None
+        Coordinate cell volumes, shape ``grid_shape`` (or flattened). ``None``
+        means a uniform grid: the constant coordinate cell volume cancels in a
+        fraction, but ``sqrt(det gamma)`` does not, so the Jacobian alone is
+        returned.
     g_field : Float[Array, "... 4 4"]
         Four-metric on the same points, shape ``(*coord_weights.shape, 4, 4)``.
 
     Returns
     -------
     Float[Array, "..."]
-        ``coord_weights * sqrt(|det gamma|)``, same shape as ``coord_weights``.
+        ``coord_weights * sqrt(det gamma)``, same shape as ``coord_weights``.
+        The determinant is clipped at zero, not taken in absolute value, so a
+        degenerate point gets zero weight rather than a plausible one.
     """
+    jac = jnp.sqrt(jnp.clip(jnp.linalg.det(g_field[..., 1:, 1:]), min=0.0))
     if coord_weights is None:
-        # Uniform grid: the constant coordinate cell volume cancels in a
-        # fraction, but sqrt(det gamma) does not. Returning None here left every
-        # uniform-grid Van den Broeck fraction unweighted while documented as
-        # proper volume.
-        gamma = g_field[..., 1:, 1:]
-        return jnp.sqrt(jnp.clip(jnp.linalg.det(gamma), min=0.0))
+        return jac
     if g_field.shape[:-2] != coord_weights.shape:
         raise ValueError(
             f"metric grid shape {g_field.shape[:-2]} != weight shape "
             f"{coord_weights.shape}; a broadcast here reweights the wrong points"
         )
-    gamma = g_field[..., 1:, 1:]
-    # Clip, not |det|: a degenerate point gets zero weight, not a plausible one.
-    return coord_weights * jnp.sqrt(jnp.clip(jnp.linalg.det(gamma), min=0.0))
+    return coord_weights * jac
 
 
-def _cell_widths(coords: Float[Array, "N"]) -> Float[Array, "N"]:
+def cell_widths(coords: Float[Array, "N"]) -> Float[Array, "N"]:
     """Central-difference cell widths with half-differences at endpoints."""
     n = coords.shape[0]
     if n == 1:
         return jnp.ones(1, dtype=coords.dtype)
     return jnp.concatenate(
         [
-            0.5 * (coords[1:2] - coords[0:1]),  # first endpoint
-            0.5 * (coords[2:] - coords[:-2]),  # interior
-            0.5 * (coords[n - 1 : n] - coords[n - 2 : n - 1]),  # last endpoint
+            0.5 * (coords[1:2] - coords[0:1]),
+            0.5 * (coords[2:] - coords[:-2]),
+            0.5 * (coords[n - 1 : n] - coords[n - 2 : n - 1]),
         ]
     )
 
@@ -95,7 +94,7 @@ def compute_volume_weights(
     Float[Array, "Nx Ny Nz"]
         Per-cell volume weight tensor.
     """
-    dx = _cell_widths(x_coords)  # (Nx,)
-    dy = _cell_widths(y_coords)  # (Ny,)
-    dz = _cell_widths(z_coords)  # (Nz,)
+    dx = cell_widths(x_coords)
+    dy = cell_widths(y_coords)
+    dz = cell_widths(z_coords)
     return dx[:, None, None] * dy[None, :, None] * dz[None, None, :]
