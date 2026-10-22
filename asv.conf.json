@@ -10,7 +10,7 @@
     "environment_type": "virtualenv",
     "matrix": {
         "req": {
-            "jax": ["0.10.1"]
+            "jax": ["0.12.0"]
         }
     },
     "pythons": ["3.12", "3.13", "3.14"],

@@ -26,6 +26,6 @@ numbers:
 bench:
 	asv run --quick --show-stderr
 
-# Report per-commit perf deltas (HEAD~1 vs HEAD).
+# Regression gate: rerun HEAD~1 and HEAD, fail on a >20% slowdown.
 bench-compare:
-	asv compare HEAD~1 HEAD || true
+	asv continuous --factor 1.2 --quick --split HEAD~1 HEAD

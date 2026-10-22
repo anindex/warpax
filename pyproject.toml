@@ -24,12 +24,12 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
-    "jax>=0.10.0,<0.11.0",
-    "equinox>=0.13.6,<0.14.0",
+    "jax>=0.12.0,<0.13",
+    "equinox>=0.13.8,<0.14",
     "optimistix>=0.1.0",
     "diffrax>=0.7.2",
-    "jaxtyping>=0.3.10",
-    "beartype>=0.22.9,<0.23.0",
+    "jaxtyping>=0.3.11",
+    "beartype>=0.23.1,<0.24",
     "sympy>=1.14",
     # mpmath drives the 50-digit Type-IV certification
     # (validate_superluminal_classification.py); pin it directly rather than
@@ -37,8 +37,8 @@ dependencies = [
     # sympy 1.14, which requires mpmath<1.4; lift both together when a sympy
     # release that supports mpmath 1.4.x lands.
     "mpmath>=1.3.0,<1.4",
-    "matplotlib>=3.10.9,<4.0.0",
-    "numpy>=2.2.0,<3.0.0",
+    "matplotlib>=3.11.2,<4",
+    "numpy>=2.2,<3",
     "tqdm>=4.0",
 ]
 
@@ -51,42 +51,43 @@ Author = "https://github.com/anindex"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.0.0,<10.0.0",
+    "pytest>=9.1.1,<10",
     "pytest-xdist>=3.6.0",
-    "ruff>=0.15.16,<1.0.0",
+    "ruff>=0.17.1,<1",
 ]
 viz = [
-    "scipy>=1.17.0",
+    "scipy>=1.18.1",
 ]
 solver = [
-    "scipy>=1.17.0",
+    "scipy>=1.18.1",
 ]
 manim = [
-    "manim>=0.20.1,<0.21.0",
+    "manim>=0.22,<0.23",
+    # Manim 0.22 builds ImageMobject frames with Image.fromarray(float, mode="RGBA"),
+    # which Pillow 13 rejects (fixed upstream in ManimCommunity/manim#5062); lift on the next Manim release.
+    "pillow>=12,<13",
     "imageio>=2.31",
     "imageio-ffmpeg>=0.4.9",
 ]
 docs = [
-    "mkdocs-material>=9.7.6,<10.0",
-    "mkdocstrings>=1.0.4,<2.0",
-    "mkdocstrings-python>=2.0.3,<3.0",
-    "griffe>=2.0.2,<3.0",
-    "pymdown-extensions>=10.0",
+    "mkdocs-material>=9.7.7,<10",
+    "mkdocstrings>=1.0.8,<2",
+    "mkdocstrings-python>=2.0.10,<3",
+    "griffe>=2.4,<3",
+    "pymdown-extensions>=12",
 ]
 bench = [
     "asv>=0.6.5,<1.0",
 ]
 interop = [
-    "h5py>=3.16.0,<4.0.0",
+    "h5py>=3.16,<4",
     "mat73>=0.65,<1.0",
 ]
 einfields = [
-    "orbax-checkpoint>=0.11.40,<0.13.0",
-    "flax>=0.12,<0.13",
+    "orbax-checkpoint>=0.12.8,<0.13",
+    "flax>=0.12.10,<0.13",
 ]
-design = [
-    "interpax>=0.3.14,<0.4.0",
-]
+design = []
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/warpax"]
@@ -117,9 +118,6 @@ testpaths = ["tests"]
 # One tier: every test is fast enough to always run. -n auto because the suite is
 # JAX-compile bound, and a serial run is roughly the sum of its compiles.
 addopts = "-q --tb=short -n auto --dist loadgroup"
-markers = [
-    "smoke: lightweight import/render smoke tests",
-]
 
 [tool.ruff]
 line-length = 100

@@ -17,7 +17,7 @@ concurrency:
 env:
   JAX_PLATFORMS: cpu
   WARPAX_JIT_CACHE: "1"
-  UV_VERSION: "0.10.9"
+  UV_VERSION: "0.13.4"
 
 jobs:
   # Full test suite on 3.13; core compatibility on 3.12 and 3.14 below.
@@ -26,12 +26,12 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -39,11 +39,14 @@ jobs:
           cache-suffix: ${{ github.job }}
           python-version: "3.13"
 
+      - name: Install system libraries for Manim and ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev libpango1.0-dev ffmpeg
+
       - name: Install development dependencies
-        run: uv sync --locked --extra dev --extra solver --extra design --extra einfields
+        run: uv sync --locked --extra dev --extra solver --extra design --extra einfields --extra viz --extra manim --extra interop
 
       - name: Restore JAX compile cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/warpax/jax
           key: jax-${{ runner.os }}-3.13-${{ hashFiles('uv.lock') }}-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'scripts/**/*.py') }}
@@ -57,7 +60,13 @@ jobs:
       - name: Beartype smoke (EC modules)
         env:
           WARPAX_BEARTYPE: "1"
-        run: uv run --no-sync pytest tests/test_classification.py tests/test_ec_verifier.py
+        run: >
+          uv run --no-sync pytest
+          tests/test_classification.py
+          tests/test_ec_verifier.py
+          tests/test_certify.py
+          tests/test_frame_free.py
+          tests/test_invariant_verification.py
 
   core-compat:
     runs-on: ubuntu-latest
@@ -68,12 +77,12 @@ jobs:
         python-version: ["3.12", "3.14"]
 
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -85,7 +94,7 @@ jobs:
         run: uv sync --locked --extra dev --extra solver --extra design
 
       - name: Restore JAX compile cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/warpax/jax
           key: jax-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('uv.lock') }}-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'scripts/**/*.py') }}
@@ -99,7 +108,7 @@ jobs:
           tests/test_frame_free.py
           tests/test_worst_observer_analytic.py
           tests/test_ec_verifier.py
-          tests/test_bug_hunt_regressions.py
+          tests/test_regressions.py
           tests/test_shift_kinematics.py
           tests/test_benchmarks/
 
@@ -107,12 +116,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -139,12 +148,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true

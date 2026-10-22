@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -35,3 +36,37 @@ def test_manuscript_gate_is_opt_in(tmp_path, args):
     assert ("check_paper_numbers.py" in log) == bool(args)
     assert ("run_velocity_sweep.py" in log) == (not args)
     assert coefficients.read_text() == '{"exact": "1/5"}\n'
+
+
+@pytest.mark.parametrize(
+    ("extra_env", "expected_secs"),
+    [({}, 0.05), ({"JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS": "0.5"}, 0.5)],
+)
+def test_jit_cache_lowers_persistent_cache_thresholds(tmp_path, extra_env, expected_secs):
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if not k.startswith("JAX_PERSISTENT_CACHE") and k != "JAX_COMPILATION_CACHE_DIR"
+    }
+    env.update(
+        {
+            "WARPAX_JIT_CACHE": "1",
+            "JAX_COMPILATION_CACHE_DIR": str(tmp_path),
+            "JAX_PLATFORMS": "cpu",
+            **extra_env,
+        }
+    )
+    out = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import warpax, jax; c = jax.config; "
+            "print(c.jax_compilation_cache_dir, c.jax_persistent_cache_min_compile_time_secs, "
+            "c.jax_persistent_cache_min_entry_size_bytes)",
+        ],
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    assert out == [str(tmp_path), str(expected_secs), "-1"]

@@ -1,7 +1,7 @@
 {
   "title": "WarpAX: Observer-robust energy condition verification for warp drive spacetimes",
   "description": "JAX tools for curvature, energy conditions, and geodesics in prescribed spacetimes. Includes numerical LMI tests, observer optimization, exact checks for supplied rational certificates, interval enclosures on supported domains, and source-consistency diagnostics. Finite-segment energy integrals and grid diagnostics carry explicit limits.",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "creators": [
     {
       "name": "Le, An T.",
