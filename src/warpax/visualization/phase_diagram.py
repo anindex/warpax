@@ -12,7 +12,7 @@ from matplotlib.colors import Normalize
 from matplotlib.patches import Patch
 from numpy.typing import NDArray
 
-from ._style import DOUBLE_COL, SINGLE_COL, apply_style
+from ._style import DOUBLE_COL, SINGLE_COL, apply_style, save_or_return
 
 apply_style()
 
@@ -20,15 +20,6 @@ _TRANSPORT_CMAP = "viridis"
 _MARGIN_CMAP = "RdBu"
 _CONSTRAINT_CMAP = "YlGnBu"
 _TIDAL_CMAP = "magma"
-
-
-def _save_or_return(fig: plt.Figure, save_path: str | None) -> plt.Figure | None:
-    """Save figure as PDF if save_path given, otherwise return."""
-    if save_path is not None:
-        fig.savefig(save_path)
-        plt.close(fig)
-        return None
-    return fig
 
 
 def _add_ec_boundary(
@@ -118,7 +109,7 @@ def plot_phase_diagram(
     n_contours: int = 8,
     title: str | None = None,
     save_path: str | None = None,
-) -> plt.Figure | None:
+) -> plt.Figure:
     r"""Sampled shift diagnostic vs shell design parameters.
 
     Parameters
@@ -131,7 +122,7 @@ def plot_phase_diagram(
     annotate_optimum : mark the maximum-transport admissible point.
     n_contours : number of contour levels.
     title : figure title (default: auto from metric name).
-    save_path : if provided, save as PDF.
+    save_path : if provided, save as PDF and close the figure.
     """
     grids = sweep_result.to_grids()
     x = np.asarray(sweep_result.compactness_values)
@@ -211,7 +202,7 @@ def plot_phase_diagram(
         handles=legend_handles, loc="upper left", fontsize=8, framealpha=0.9, edgecolor="gray"
     )
 
-    return _save_or_return(fig, save_path)
+    return save_or_return(fig, save_path)
 
 
 def plot_phase_summary(
@@ -219,14 +210,14 @@ def plot_phase_summary(
     *,
     figsize: tuple[float, float] | None = None,
     save_path: str | None = None,
-) -> plt.Figure | None:
+) -> plt.Figure:
     r"""Multi-panel summary (2x2): transport, EC margin, constraint, tidal.
 
     Parameters
     ----------
     sweep_result : SweepResult from optimization.sweep.
     figsize : figure size (default: double-column CQG).
-    save_path : if provided, save as PDF.
+    save_path : if provided, save as PDF and close the figure.
     """
     grids = sweep_result.to_grids()
     x = np.asarray(sweep_result.compactness_values)
@@ -246,7 +237,6 @@ def plot_phase_summary(
     )
     panel_labels = ["(a)", "(b)", "(c)", "(d)"]
 
-    # (a) Transport
     ax = axes[0, 0]
     t_data = np.ma.masked_invalid(grids["transport"])
     vmin_t = float(np.nanmin(t_data))
@@ -271,7 +261,6 @@ def plot_phase_summary(
     ax.set_title(r"Coordinate shift magnitude", fontsize=10)
     ax.minorticks_on()
 
-    # (b) Worst EC margin
     ax = axes[0, 1]
     m_data = np.ma.masked_invalid(grids["worst_ec_margin"])
     vabs = max(abs(float(np.nanmin(m_data))), abs(float(np.nanmax(m_data))), 1e-6)
@@ -291,7 +280,6 @@ def plot_phase_summary(
     ax.set_title(r"Observer-robust EC margin", fontsize=10)
     ax.minorticks_on()
 
-    # (c) Constraint residual
     ax = axes[1, 0]
     c_data = np.ma.masked_invalid(grids["constraint_residual"])
     c_data_log = np.ma.log10(np.ma.maximum(c_data, 1e-15))
@@ -317,7 +305,6 @@ def plot_phase_summary(
     ax.set_title(r"Constraint residual", fontsize=10)
     ax.minorticks_on()
 
-    # (d) Tidal force
     ax = axes[1, 1]
     tid_data = np.ma.masked_invalid(grids["tidal"])
     tid_log = np.ma.log10(np.ma.maximum(tid_data, 1e-15))
@@ -354,4 +341,4 @@ def plot_phase_summary(
             ha="left",
         )
 
-    return _save_or_return(fig, save_path)
+    return save_or_return(fig, save_path)

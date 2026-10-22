@@ -39,6 +39,7 @@ from warpax.visualization.manim._scene_utils import (
     compute_auto_exaggeration,
     compute_global_clim,
     format_metric_equation,
+    frame_getter,
     make_axes_for_frames,
 )
 from warpax.visualization.manim._surface import auto_linthresh, symlog_height
@@ -156,10 +157,11 @@ class WallAndVelocitySweep(ThreeDScene):
         counters = MathTex(r"\sigma=1.0\quad v_s=0.50", font_size=25, color="#FFDB70")
         self.add_fixed_in_frame_mobjects(counters)
         current_index = -1
+        at_frame = frame_getter(tracker, len(frames))
 
         def update_frame(_mob):
             nonlocal current_index
-            index = min(int(tracker.get_value()), len(frames) - 1)
+            index = at_frame()
             if index == current_index:
                 return
             current_index = index
@@ -233,6 +235,7 @@ class WallAndVelocitySweep(ThreeDScene):
                     v_s_values=[0.5],
                     batch_size=2048,
                     progress=False,
+                    compute_wec=False,
                 )
             )
         return frames
@@ -245,4 +248,5 @@ class WallAndVelocitySweep(ThreeDScene):
             v_s_values=make_velocity_sweep(0.5, 0.0, n_frames),
             batch_size=2048,
             progress=True,
+            compute_wec=False,
         )

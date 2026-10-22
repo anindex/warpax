@@ -2,7 +2,6 @@
 
 Produces figures showing:
 - Side-by-side Eulerian and robust margin heatmaps with missed-violation overlay
-- Multi-condition comparison grids (NEC/WEC/SEC/DEC)
 - Comparison summary tables
 - Velocity sweep line plots
 """
@@ -17,20 +16,19 @@ import numpy as np
 from matplotlib.colors import SymLogNorm, TwoSlopeNorm
 from numpy.typing import NDArray
 
-from ._style import COLORS, DOUBLE_COL, LINE_STYLES, SINGLE_COL, apply_style, extract_slice
+from ._style import (
+    COLORS,
+    DOUBLE_COL,
+    LINE_STYLES,
+    SINGLE_COL,
+    apply_style,
+    extract_slice,
+    save_or_return,
+    slice_axes,
+    style_table,
+)
 
 apply_style()
-
-
-def _save_or_return(fig: plt.Figure, save_path: str | None) -> plt.Figure:
-    """Save to *save_path* if given, otherwise return the figure for interactive use.
-
-    The format follows the path extension; PDF when it has none.
-    """
-    if save_path is not None:
-        fig.savefig(save_path)
-        plt.close(fig)
-    return fig
 
 
 def _diverging_norm(data: NDArray) -> TwoSlopeNorm | SymLogNorm:
@@ -49,7 +47,6 @@ def _diverging_norm(data: NDArray) -> TwoSlopeNorm | SymLogNorm:
     if vmax < 1e-30:
         vmax = vmax_full
 
-    # SymLogNorm fallback for dynamic range > 10^4 (e.g. WarpShell ~10^35).
     nonzero = absdata[absdata > 1e-30]
     if nonzero.size > 0:
         vmin_nz = float(np.nanpercentile(nonzero, 5))
@@ -101,7 +98,6 @@ def _feature_extent(
     if feat_area / (domain_w * domain_h) > 0.6:
         return None
 
-    # Bimodal features (large x-gap, e.g. Lentz dual walls): zoom one cluster.
     x_unique = np.sort(np.unique(x_feat))
     if len(x_unique) > 2:
         gaps = np.diff(x_unique)
@@ -149,6 +145,14 @@ def plot_comparison_panel(
 ) -> plt.Figure:
     """Create a 1x3 panel: Eulerian margin | Robust margin | Missed overlay.
 
+    The Eulerian and robust panels always use independent norms: the two fields
+    can differ by orders of magnitude (WEC/SEC, where the robust margin is far
+    more negative), so a shared colorbar would saturate one panel, and
+    independent norms keep every comparison panel on one layout. The 1x3 layout
+    with a colorbar per margin panel is identical for every comparison panel so
+    the figures share one aspect. NaN regions (the interior of warp shells) get a
+    light gray axes background so they do not read as errors.
+
     Parameters
     ----------
     eulerian_margin : NDArray
@@ -177,26 +181,15 @@ def plot_comparison_panel(
     if figsize is None:
         figsize = (DOUBLE_COL, DOUBLE_COL * 0.36)
 
-    remaining = [i for i in range(len(grid_shape)) if i != slice_axis]
-    axis_labels = ["x", "y", "z"]
+    x_ax, y_ax, (xlabel, ylabel) = slice_axes(grid_shape, grid_bounds, slice_axis)
 
-    # Build 1D coordinate axes for the remaining dimensions
-    extents = []
-    for dim in remaining:
-        lo, hi = grid_bounds[dim]
-        extents.append(np.linspace(lo, hi, grid_shape[dim]))
-    x_ax, y_ax = extents
-
-    # Extract 2D slices
     eul_2d = extract_slice(eulerian_margin, slice_axis)
     rob_2d = extract_slice(robust_margin, slice_axis)
     miss_2d = extract_slice(missed.astype(float), slice_axis)
 
-    # Compute auto-zoom extent from the union of both margin fields
     union_2d = np.maximum(np.abs(eul_2d), np.abs(rob_2d))
     zoom = _feature_extent(union_2d, x_ax, y_ax)
 
-    # Per-panel normalization - decide whether to share colorbar
     if zoom is not None:
         xlim, ylim = zoom
         xi = (x_ax >= xlim[0]) & (x_ax <= xlim[1])
@@ -207,15 +200,9 @@ def plot_comparison_panel(
         eul_vis = eul_2d
         rob_vis = rob_2d
 
-    # Always use independent Eulerian and Robust norms. The two fields can
-    # differ by orders of magnitude (e.g. WEC/SEC, where the robust margin is
-    # far more negative), so a shared colorbar would saturate one panel; using
-    # independent norms also keeps every comparison panel on the same layout.
     eul_norm = _diverging_norm(eul_vis)
     rob_norm = _diverging_norm(rob_vis)
 
-    # --- Layout: 3 panels, each margin panel with its own colorbar. Identical
-    # for every comparison panel so the figures share a consistent aspect. ---
     from matplotlib.gridspec import GridSpec as GS
     from matplotlib.patches import Patch
 
@@ -239,12 +226,9 @@ def plot_comparison_panel(
 
     axes = [ax_eul, ax_rob, ax_miss]
 
-    # Axis tick label sizes
     for ax in axes:
         ax.tick_params(labelsize=7)
 
-    # Check for NaN regions (e.g. interior of warp shells) and paint
-    # them with a light gray background so they don't look like errors.
     has_nan = np.any(np.isnan(eul_2d)) or np.any(np.isnan(rob_2d))
     if has_nan:
         for ax in axes:
@@ -259,8 +243,8 @@ def plot_comparison_panel(
         shading="gouraud",
     )
     ax_eul.set_title("Eulerian", fontsize=10)
-    ax_eul.set_ylabel(axis_labels[remaining[1]], fontsize=9)
-    ax_eul.set_xlabel(axis_labels[remaining[0]], fontsize=9)
+    ax_eul.set_ylabel(ylabel, fontsize=9)
+    ax_eul.set_xlabel(xlabel, fontsize=9)
 
     im_rob = ax_rob.pcolormesh(
         x_ax,
@@ -271,7 +255,7 @@ def plot_comparison_panel(
         shading="gouraud",
     )
     ax_rob.set_title("Robust", fontsize=10)
-    ax_rob.set_xlabel(axis_labels[remaining[0]], fontsize=9)
+    ax_rob.set_xlabel(xlabel, fontsize=9)
     plt.setp(ax_rob.get_yticklabels(), visible=False)
 
     ax_miss.pcolormesh(
@@ -286,7 +270,7 @@ def plot_comparison_panel(
     miss_masked = np.ma.masked_where(miss_2d.T < 0.5, miss_2d.T)
     from matplotlib.colors import ListedColormap
 
-    _missed_cmap = ListedColormap(["#8B0000"])  # distinct dark red
+    _missed_cmap = ListedColormap(["#8B0000"])
     ax_miss.pcolormesh(
         x_ax,
         y_ax,
@@ -299,9 +283,8 @@ def plot_comparison_panel(
     )
     n_missed = int(np.sum(miss_2d > 0.5))
     ax_miss.set_title(f"Missed ({n_missed} pts)", fontsize=10)
-    ax_miss.set_xlabel(axis_labels[remaining[0]], fontsize=9)
+    ax_miss.set_xlabel(xlabel, fontsize=9)
     plt.setp(ax_miss.get_yticklabels(), visible=False)
-    # Legend patches
     _legend_handles = []
     _legend_handles.append(
         Patch(facecolor="#8B0000", edgecolor="black", linewidth=0.5, alpha=0.85, label="Missed")
@@ -319,27 +302,26 @@ def plot_comparison_panel(
         handlelength=1.0,
     )
 
-    # --- Colorbars ---
     def _fmt_cbar(cb, norm):
-        """Place ticks evenly in the colorbar's *visual* space."""
+        """Place ticks evenly in the colorbar's *visual* space.
+
+        Ticks are the norm inverted at uniform positions in [0, 1]; NaN or inf
+        from SymLogNorm edges are dropped.
+        """
         from matplotlib.ticker import FixedLocator, FuncFormatter
 
         cb.ax.tick_params(labelsize=6, pad=2)
 
-        # Compute tick positions that are visually evenly spaced by
-        # inverting the norm at uniform positions in [0, 1].
         n_ticks = 5
         visual_pos = np.linspace(0, 1, n_ticks)
         try:
             tick_vals = norm.inverse(visual_pos)
-            # Filter out NaN / inf that can arise from SymLogNorm edges
             tick_vals = tick_vals[np.isfinite(tick_vals)]
         except Exception:
             tick_vals = np.linspace(norm.vmin, norm.vmax, n_ticks)
         cb.locator = FixedLocator(tick_vals)
         cb.update_ticks()
 
-        # Compact number formatting
         def _compact_fmt(x, _pos):
             if x == 0:
                 return "0"
@@ -357,7 +339,6 @@ def plot_comparison_panel(
     cb_rob = fig.colorbar(im_rob, cax=cax_rob)
     _fmt_cbar(cb_rob, rob_norm)
 
-    # Apply zoom limits to all panels
     if zoom is not None:
         for ax in axes:
             ax.set_xlim(xlim)
@@ -366,132 +347,7 @@ def plot_comparison_panel(
     if title:
         fig.suptitle(title, fontsize=9)
 
-    return _save_or_return(fig, save_path)
-
-
-def plot_comparison_grid(
-    npz_path: str,
-    grid_bounds: list[tuple[float, float]],
-    grid_shape: tuple[int, ...],
-    conditions: tuple[str, ...] = ("nec", "wec", "sec", "dec"),
-    slice_axis: int = 2,
-    save_path: str | None = None,
-) -> plt.Figure:
-    """Create a 4x3 grid figure (4 conditions x 3 panels) from cached .npz.
-
-    Parameters
-    ----------
-    npz_path : str
-        Path to cached .npz file with per-condition margin data.
-    grid_bounds : list of (float, float)
-        Spatial bounds for each dimension.
-    grid_shape : tuple of int
-        Grid shape.
-    conditions : tuple of str
-        EC condition names.
-    slice_axis : int
-        Axis to slice.
-    save_path : str or None
-        If provided, save as PDF.
-
-    Returns
-    -------
-    plt.Figure
-    """
-    data = np.load(npz_path)
-
-    n_conds = len(conditions)
-
-    remaining = [i for i in range(len(grid_shape)) if i != slice_axis]
-    axis_labels = ["x", "y", "z"]
-    extents = []
-    for dim in remaining:
-        lo, hi = grid_bounds[dim]
-        extents.append(np.linspace(lo, hi, grid_shape[dim]))
-    x_ax, y_ax = extents
-
-    # GridSpec: 3 panels with per-panel colorbars per row
-    fig = plt.figure(figsize=(DOUBLE_COL, DOUBLE_COL * 0.25 * n_conds))
-    gs = fig.add_gridspec(
-        n_conds,
-        7,
-        width_ratios=[1, 0.03, 0.06, 1, 0.03, 0.06, 1],
-        wspace=0.05,
-        hspace=0.25,
-        top=0.93,
-        bottom=0.08,
-    )
-
-    for row, cond in enumerate(conditions):
-        eul = data[f"{cond}_eulerian"]
-        rob = data[f"{cond}_robust"]
-        missed = data[f"{cond}_missed"]
-
-        eul_2d = extract_slice(eul, slice_axis)
-        rob_2d = extract_slice(rob, slice_axis)
-        miss_2d = extract_slice(missed.astype(float), slice_axis)
-
-        eul_norm = _diverging_norm(eul_2d)
-        rob_norm = _diverging_norm(rob_2d)
-
-        ax0 = fig.add_subplot(gs[row, 0])
-        cax0 = fig.add_subplot(gs[row, 1])
-        ax1 = fig.add_subplot(gs[row, 3])
-        cax1 = fig.add_subplot(gs[row, 4])
-        ax2 = fig.add_subplot(gs[row, 6])
-
-        # Eulerian (own norm)
-        im_eul = ax0.pcolormesh(x_ax, y_ax, eul_2d.T, cmap="RdBu", norm=eul_norm, shading="gouraud")
-        ax0.set_ylabel(f"{cond.upper()}\n{axis_labels[remaining[1]]}")
-        if row == 0:
-            ax0.set_title("Eulerian", fontsize=9)
-        cb_eul = fig.colorbar(im_eul, cax=cax0)
-        cb_eul.ax.tick_params(labelsize=6)
-
-        # Robust (own norm)
-        im_rob = ax1.pcolormesh(x_ax, y_ax, rob_2d.T, cmap="RdBu", norm=rob_norm, shading="gouraud")
-        ax1.tick_params(labelleft=False)
-        if row == 0:
-            ax1.set_title("Robust", fontsize=9)
-        cb_rob = fig.colorbar(im_rob, cax=cax1)
-        cb_rob.ax.tick_params(labelsize=6)
-
-        # Missed (uses Eulerian norm)
-        ax2.pcolormesh(
-            x_ax,
-            y_ax,
-            eul_2d.T,
-            cmap="RdBu",
-            norm=eul_norm,
-            shading="gouraud",
-            alpha=0.5,
-        )
-        miss_masked = np.ma.masked_where(miss_2d.T < 0.5, miss_2d.T)
-        from matplotlib.colors import ListedColormap as _LCM
-
-        ax2.pcolormesh(
-            x_ax,
-            y_ax,
-            miss_masked,
-            cmap=_LCM(["#8B0000"]),
-            vmin=0,
-            vmax=1,
-            shading="gouraud",
-            alpha=0.85,
-        )
-        ax2.tick_params(labelleft=False)
-        if row == 0:
-            ax2.set_title("Missed", fontsize=9)
-
-        # x-labels only on bottom row
-        if row == n_conds - 1:
-            ax1.set_xlabel(axis_labels[remaining[0]])
-        else:
-            ax0.tick_params(labelbottom=False)
-            ax1.tick_params(labelbottom=False)
-            ax2.tick_params(labelbottom=False)
-
-    return _save_or_return(fig, save_path)
+    return save_or_return(fig, save_path)
 
 
 def plot_comparison_table(
@@ -521,9 +377,8 @@ def plot_comparison_table(
         fig, ax = plt.subplots(figsize=(DOUBLE_COL, 1))
         ax.text(0.5, 0.5, "No data", ha="center", va="center")
         ax.axis("off")
-        return _save_or_return(fig, save_path)
+        return save_or_return(fig, save_path)
 
-    # NEC, WEC, DEC
     conditions = ("nec", "wec", "dec")
     col_labels = ["Metric", r"$v_s$"]
     for cond in conditions:
@@ -545,15 +400,14 @@ def plot_comparison_table(
             rob_min = row.get(f"{cond}_robust_min", float("nan"))
             pct = row.get(f"{cond}_pct_missed", 0.0)
             cells.extend([f"{eul_min:.1e}", f"{rob_min:.1e}", f"{pct:.1f}"])
-            # Color-code missed column (colorblind-friendly: blue-orange scheme)
             if pct > 10:
-                row_colors.extend(["white", "white", "#FDAE61"])  # strong orange
+                row_colors.extend(["white", "white", "#FDAE61"])
             elif pct > 0.1:
-                row_colors.extend(["white", "white", "#FEE08B"])  # light yellow-orange
+                row_colors.extend(["white", "white", "#FEE08B"])
             elif pct > 0:
-                row_colors.extend(["white", "white", "#E6F5D0"])  # light green-yellow
+                row_colors.extend(["white", "white", "#E6F5D0"])
             else:
-                row_colors.extend(["white", "white", "#D9EAF7"])  # light blue
+                row_colors.extend(["white", "white", "#D9EAF7"])
         cell_data.append(cells)
         cell_colors.append(row_colors)
 
@@ -567,28 +421,7 @@ def plot_comparison_table(
         loc="center",
         cellLoc="center",
     )
-    table.auto_set_font_size(False)
-    table.set_fontsize(7.5)
-    table.auto_set_column_width(list(range(len(col_labels))))
-    table.scale(1, 1.4)
-
-    n_cols = len(col_labels)
-    # Header row: dark background, white bold text
-    for j in range(n_cols):
-        cell = table[0, j]
-        cell.set_facecolor("#4472C4")
-        cell.set_text_props(color="white", fontweight="bold", fontsize=7.5)
-        cell.set_edgecolor("white")
-        cell.set_linewidth(0.5)
-
-    # Data rows: alternating background + highlight colors
-    for i, row_colors in enumerate(cell_colors):
-        alt_bg = "#F5F5F5" if i % 2 == 0 else "white"
-        for j, color in enumerate(row_colors):
-            cell = table[i + 1, j]
-            cell.set_facecolor(color if color != "white" else alt_bg)
-            cell.set_edgecolor("#D0D0D0")
-            cell.set_linewidth(0.5)
+    style_table(table, len(col_labels), 7.5, cell_colors)
 
     ax.set_title(
         "Energy Condition Violations: Eulerian vs Robust Analysis",
@@ -597,7 +430,7 @@ def plot_comparison_table(
     )
 
     fig.tight_layout(pad=0.5)
-    return _save_or_return(fig, save_path)
+    return save_or_return(fig, save_path)
 
 
 def plot_velocity_sweep(
@@ -611,6 +444,9 @@ def plot_velocity_sweep(
 
     Shows how the gap between Eulerian and robust margins grows with
     warp velocity, visualizing the observer-dependence phenomenon.
+
+    Files are ``{metric_name}_vs{v_s}.npz``; v_s is parsed from the stem after
+    ``_vs``, and files without ``{condition}_eulerian``/``_robust`` keys are skipped.
 
     Parameters
     ----------
@@ -634,10 +470,8 @@ def plot_velocity_sweep(
     eul_mins = []
     rob_mins = []
 
-    # Scan for available files
     for npz_file in sorted(results_path.glob(f"{metric_name}_vs*.npz")):
         fname = npz_file.stem
-        # Extract v_s from filename: "metric_vs0.5" -> 0.5
         v_s_str = fname.split("_vs")[-1]
         try:
             v_s = float(v_s_str)
@@ -660,9 +494,8 @@ def plot_velocity_sweep(
         else:
             fig = ax.figure
         ax.text(0.5, 0.5, f"No data for {metric_name}", ha="center", va="center")
-        return _save_or_return(fig, save_path)
+        return save_or_return(fig, save_path)
 
-    # Sort by v_s
     order = np.argsort(v_s_values)
     v_s_arr = np.array(v_s_values)[order]
     eul_arr = np.array(eul_mins)[order]
@@ -698,4 +531,4 @@ def plot_velocity_sweep(
     ax.legend(fontsize=8)
     fig.tight_layout(pad=0.5)
 
-    return _save_or_return(fig, save_path)
+    return save_or_return(fig, save_path)

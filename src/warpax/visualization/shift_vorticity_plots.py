@@ -16,19 +16,19 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ._style import DOUBLE_COL, USE_TEX, apply_style, metric_color
+from ._style import DOUBLE_COL, USE_TEX, apply_style, metric_color, save_or_return
 
 apply_style()
 
-# "%" is a comment char under usetex but literal under mathtext; pick per backend.
 _PCT = r"\%" if USE_TEX else "%"
+"""Percent sign per backend: "%" starts a comment under usetex but is literal under mathtext."""
 
-# Fixed, distinct colors for the three shift-gradient components (not metrics).
 _COMPONENT_COLORS = {
     "expansion": "#BBBBBB",
     "shear": "#88CCEE",
     "vorticity": "#CC3311",
 }
+"""Fixed, distinct colors for the three shift-gradient components (not metric colors)."""
 
 
 def plot_shift_vorticity(
@@ -57,7 +57,6 @@ def plot_shift_vorticity(
     """
     fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(DOUBLE_COL, DOUBLE_COL * 0.42))
 
-    # Panel (a): stacked decomposition bars.
     comps = ["expansion", "shear", "vorticity"]
     xpos = np.arange(len(order))
     bottom = np.zeros(len(order))
@@ -81,7 +80,6 @@ def plot_shift_vorticity(
     ax_a.set_title("(a) shift-gradient decomposition")
     ax_a.legend(fontsize=8, frameon=False, loc="upper center", ncol=3, bbox_to_anchor=(0.5, -0.28))
 
-    # Panel (b): rotationality vs wall Type-IV fraction.
     x_max = 0.0
     for m in order:
         pts = sweep[m]
@@ -96,12 +94,7 @@ def plot_shift_vorticity(
     ax_b.set_xlim(-0.04, max(0.6, x_max * 1.1))
     ax_b.set_ylim(-5, 105)
     ax_b.set_title("(b) wall type vs shift vorticity")
-    # Data clusters sit at x >= 0.33 (plus Rodal at the origin); the
-    # center-left is empty, so the legend goes there.
     ax_b.legend(fontsize=8, frameon=False, loc="center left", bbox_to_anchor=(0.02, 0.55))
 
     fig.tight_layout()
-    if save_path is not None:
-        fig.savefig(save_path)
-        plt.close(fig)
-    return fig
+    return save_or_return(fig, save_path)

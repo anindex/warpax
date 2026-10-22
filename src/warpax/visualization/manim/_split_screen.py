@@ -6,6 +6,7 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
+import jax.numpy as jnp
 import matplotlib as _mpl
 import numpy as np
 from manim import (
@@ -29,43 +30,19 @@ from manim import (
     always_redraw,
     linear,
 )
-from matplotlib.colors import LinearSegmentedColormap
 
+from warpax.energy_conditions.observer import compute_orthonormal_tetrad
 from warpax.visualization.common._physics import make_velocity_sweep
 from warpax.visualization.manim._image_utils import (
     compute_symlog_clim,
 )
-from warpax.visualization.manim._scene_utils import COLORS_3B1B
-
-_DARK_DIVERGE_SS = LinearSegmentedColormap.from_list(
-    "dark_diverge_ss",
-    ["#3B4CC0", "#1A1A2E", "#B40426"],
-    N=256,
-)
-try:
-    _mpl.colormaps.register(_DARK_DIVERGE_SS, name="dark_diverge_ss")
-except ValueError:
-    pass  # already registered
+from warpax.visualization.manim._scene_utils import COLORS_3B1B, frame_getter
 
 
-def _contour_to_vmobject(
-    paths: list[np.ndarray],
-    color: str = WHITE,
-    stroke_width: float = 2.0,
-    dashed: bool = False,
-) -> VGroup:
-    """Convert contour paths to Manim VMobjects."""
-    group = VGroup()
-    for verts in paths:
-        if len(verts) < 2:
-            continue
-        vmob = VMobject(color=color, stroke_width=stroke_width)
-        points_3d = [np.array([v[0], v[1], 0.0]) for v in verts]
-        vmob.set_points_as_corners(points_3d)
-        if dashed:
-            vmob = DashedVMobject(vmob, num_dashes=30)
-        group.add(vmob)
-    return group
+def _six_direction_nec(T_ab, g_ab):
+    tetrad = compute_orthonormal_tetrad(g_ab)
+    k_all = jnp.concatenate([tetrad[0] + tetrad[1:], tetrad[0] - tetrad[1:]], axis=0)
+    return jnp.min(jnp.einsum("ia,ab,ib->i", k_all, T_ab, k_all))
 
 
 def _build_eulerian_frames(
@@ -74,12 +51,15 @@ def _build_eulerian_frames(
     grid_shape: tuple[int, int, int] = (31, 31, 31),
     bounds: list[tuple[float, float]] | None = None,
 ):
-    """Minimum over six axis-aligned null directions in the Eulerian tetrad."""
+    """Minimum over the six axis-aligned null directions n +- e_i of the Eulerian tetrad.
+
+    This sparse sample is the visual foil for the dense sweep; the exact Eulerian
+    null minimum lives in ``warpax.energy_conditions.compute_eulerian_ec``.
+    """
     import equinox as eqx
     import jax
 
     from warpax.benchmarks import AlcubierreMetric
-    from warpax.energy_conditions.verifier import compute_eulerian_ec
     from warpax.geometry import GridSpec
     from warpax.geometry.grid import evaluate_curvature_grid
     from warpax.visualization.common._conversion import (
@@ -111,9 +91,7 @@ def _build_eulerian_frames(
         )
         T_flat = curv.stress_energy.reshape(n_points, 4, 4)
         g_flat = curv.metric.reshape(n_points, 4, 4)
-        ginv_flat = curv.metric_inv.reshape(n_points, 4, 4)
-        ec = jax.vmap(compute_eulerian_ec)(T_flat, g_flat, ginv_flat)
-        nec_eul = np.asarray(ec["nec"]).reshape(grid_shape)
+        nec_eul = np.asarray(jax.vmap(_six_direction_nec)(T_flat, g_flat)).reshape(grid_shape)
         energy_density = eulerian_energy_density_grid(curv.stress_energy, curv.metric_inv)
 
         scalar_fields = {
@@ -182,7 +160,7 @@ def _build_robust_frames(
 class EulerianVsWorstCaseNEC(Scene):
     """Eulerian-frame vs sampled NEC margin split-screen comparison.
 
-    Left: NEC margin over the 6 axis-aligned Eulerian-frame nulls. Right:
+    Left: NEC margin sampled on the 6 axis-aligned Eulerian-frame nulls. Right:
     minimum over 312 sampled null directions (k·n_Eul = −1). One-sided depth colormap,
     shared color legend, contour annotations, clean parameter display.
     """
@@ -218,7 +196,6 @@ class EulerianVsWorstCaseNEC(Scene):
 
         n_total = min(len(eulerian_frames), len(robust_frames))
 
-        # Both panels are NEC margins (<= 0): one-sided shared scale.
         eul_clim = compute_symlog_clim(eulerian_frames, "nec_margin", one_sided=True)
         rob_clim = compute_symlog_clim(
             robust_frames,
@@ -243,8 +220,6 @@ class EulerianVsWorstCaseNEC(Scene):
 
             mid_z = frame.grid_shape[2] // 2
             data_2d = np.asarray(frame.scalar_fields[field_name][:, :, mid_z], dtype=float)
-            # Replace NaN *before* zoom - bicubic interpolation propagates
-            # even a single NaN to the entire upsampled array.
             data_2d = np.nan_to_num(data_2d, nan=0.0)
             vmin, vmax, lt = clim
 
@@ -252,9 +227,8 @@ class EulerianVsWorstCaseNEC(Scene):
             up = _ndzoom(data_2d.T, upscale, order=1)
             norm = mcolors.SymLogNorm(linthresh=lt, vmin=vmin, vmax=vmax)
             cmap = _mpl.colormaps[cmap_name]
-            rgba = cmap(norm(up))  # float [0,1]
+            rgba = cmap(norm(up))
 
-            # Render contours into the array using matplotlib figure
             x_1d = frame.x[:, 0, 0]
             y_1d = frame.y[0, :, 0]
             x_range = (float(x_1d[0]), float(x_1d[-1]))
@@ -274,8 +248,6 @@ class EulerianVsWorstCaseNEC(Scene):
                 aspect="auto",
             )
 
-            # Graded NEC depth contours (white dashed) at fixed global fractions
-            # of the shared deepest margin, so both panels share the same levels.
             x_c = np.linspace(x_range[0], x_range[1], up.shape[1])
             y_c = np.linspace(y_range[0], y_range[1], up.shape[0])
             nec_levels = sorted(vmin * fr for fr in (0.1, 0.3, 0.5, 0.7, 0.9))
@@ -292,8 +264,6 @@ class EulerianVsWorstCaseNEC(Scene):
                 alpha=0.85,
             )
 
-            # Bubble wall contour (cyan solid). Bilinear (order=1) + clip to
-            # [0, 1] keeps the f = 0.5 wall crisp and ring-free.
             if "shape_function" in frame.scalar_fields:
                 sf_2d = np.asarray(
                     frame.scalar_fields["shape_function"][:, :, mid_z],
@@ -311,7 +281,6 @@ class EulerianVsWorstCaseNEC(Scene):
                     linestyles="solid",
                 )
             else:
-                # Circular fallback
                 theta = np.linspace(0, 2 * np.pi, 128)
                 r = (x_range[1] - x_range[0]) / 4.0
                 ax.plot(
@@ -363,11 +332,10 @@ class EulerianVsWorstCaseNEC(Scene):
         self.add(header)
 
         gap = 0.3
-        panel_shift_down = DOWN * 0.35  # shift panels down to avoid header overlap
+        panel_shift_down = DOWN * 0.35
         left_center = LEFT * (self.panel_width / 2 + gap / 2) + panel_shift_down
         right_center = RIGHT * (self.panel_width / 2 + gap / 2) + panel_shift_down
 
-        # Panel labels
         left_label = Text(
             "6 axis directions",
             font_size=22,
@@ -386,7 +354,6 @@ class EulerianVsWorstCaseNEC(Scene):
 
         self.add(left_label, right_label)
 
-        # Sub-labels
         left_sub = MathTex(
             r"m_6 = \min_{\text{6 axis nulls}} T_{ab}k^a k^b",
             font_size=20,
@@ -403,7 +370,6 @@ class EulerianVsWorstCaseNEC(Scene):
 
         self.add(left_sub, right_sub)
 
-        # Vertical divider
         divider = Line(
             panel_shift_down + UP * (self.panel_height / 2),
             panel_shift_down + DOWN * (self.panel_height / 2),
@@ -413,6 +379,7 @@ class EulerianVsWorstCaseNEC(Scene):
         self.add(divider)
 
         frame_idx = ValueTracker(0)
+        at_frame = frame_getter(frame_idx, n_total)
         gap_labels = [
             MathTex(
                 rf"\max_{{\rm grid}}(m_6-m_{{312}}) = "
@@ -422,9 +389,7 @@ class EulerianVsWorstCaseNEC(Scene):
             ).move_to([0, 2.7, 0])
             for left, right in zip(eulerian_frames, robust_frames, strict=True)
         ]
-        gap_display = always_redraw(
-            lambda: gap_labels[max(0, min(int(frame_idx.get_value()), n_total - 1))].copy()
-        )
+        gap_display = always_redraw(lambda: gap_labels[at_frame()].copy())
         sampling_note = MathTex(
             r"k\cdot n_{\rm Eul}=-1\quad\text{in both panels; finite samples, not a certificate}",
             font_size=19,
@@ -432,16 +397,14 @@ class EulerianVsWorstCaseNEC(Scene):
         self.add(gap_display, sampling_note)
 
         def _make_left():
-            idx = max(0, min(int(frame_idx.get_value()), n_total - 1))
-            img = ImageMobject(eul_rgba_list[idx])
+            img = ImageMobject(eul_rgba_list[at_frame()])
             img.height = self.panel_height
             img.width = self.panel_width
             img.move_to(left_center)
             return img
 
         def _make_right():
-            idx = max(0, min(int(frame_idx.get_value()), n_total - 1))
-            img = ImageMobject(rob_rgba_list[idx])
+            img = ImageMobject(rob_rgba_list[at_frame()])
             img.height = self.panel_height
             img.width = self.panel_width
             img.move_to(right_center)
@@ -453,11 +416,10 @@ class EulerianVsWorstCaseNEC(Scene):
         vs_mathtex = [MathTex(f"{v:.2f}", font_size=28, color=YELLOW) for v in v_values[:n_total]]
 
         def _make_vs():
-            idx = max(0, min(int(frame_idx.get_value()), n_total - 1))
             row = VGroup(
                 MathTex(r"v_s", font_size=28, color=WHITE),
                 MathTex(r"=", font_size=28, color=WHITE),
-                vs_mathtex[idx].copy(),
+                vs_mathtex[at_frame()].copy(),
             ).arrange(RIGHT, buff=0.06)
             row.to_corner(DOWN + RIGHT, buff=0.15)
             return row

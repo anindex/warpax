@@ -26,8 +26,9 @@ def plot_worst_observer_field(
 ) -> plt.Axes:
     """Plot quiver field of worst-observer boost directions.
 
-    Arrows are normalized to unit length to show *direction* only.
-    Color encodes rapidity magnitude (sinh ζ). Points where the observer
+    Arrows are normalized to unit length to show *direction* only, then
+    floored at 20% of the max magnitude so small arrows stay visible.
+    Color encodes the true rapidity magnitude (sinh ζ). Points where the observer
     choice is physically irrelevant (flat spacetime) are suppressed via
     the significance_mask.
 
@@ -71,12 +72,10 @@ def plot_worst_observer_field(
     slc.append(slice(None))
     params_2d = worst_params[tuple(slc)]
 
-    # Extract rapidity, theta, phi
     zeta = params_2d[..., 0]
     theta = params_2d[..., 1]
     phi = params_2d[..., 2]
 
-    # Project boost direction to 2D
     remaining = [i for i in range(len(grid.shape)) if i != slice_axis]
     boost_mag = np.sinh(zeta)
     dx = boost_mag * np.sin(theta) * np.cos(phi)
@@ -87,10 +86,8 @@ def plot_worst_observer_field(
     u = components[remaining[0]]
     v = components[remaining[1]]
 
-    # Compute per-point 2D magnitude for normalization and coloring
     mag_2d = np.sqrt(u**2 + v**2)
 
-    # Apply significance mask: zero out arrows in physically trivial regions
     if significance_mask is not None:
         slc_mask = [slice(None)] * significance_mask.ndim
         slc_mask[slice_axis] = slice_index
@@ -100,11 +97,9 @@ def plot_worst_observer_field(
         mag_2d = np.where(mask_2d, mag_2d, 0.0)
         boost_mag = np.where(mask_2d, boost_mag, 0.0)
 
-    # Normalize arrows to unit length (direction only); color encodes magnitude
     norm_factor = np.where(mag_2d > 1e-30, mag_2d, 1.0)
     u_norm = u / norm_factor
     v_norm = v / norm_factor
-    # Zero out normalized arrows where magnitude was zero
     u_norm = np.where(mag_2d > 1e-30, u_norm, 0.0)
     v_norm = np.where(mag_2d > 1e-30, v_norm, 0.0)
 
@@ -112,12 +107,10 @@ def plot_worst_observer_field(
     y_axis = grid.axes[remaining[1]]
     X, Y = np.meshgrid(x_axis, y_axis, indexing="ij")
 
-    # Subsample
     s = subsample
     mag_sub = mag_2d[::s, ::s]
     max_mag = float(np.nanmax(mag_sub)) if mag_sub.size > 0 else 0.0
 
-    # If all arrows are zero (e.g., entire slice is masked), show empty field
     if max_mag < 1e-30:
         ax.text(
             0.5,
@@ -129,8 +122,6 @@ def plot_worst_observer_field(
             fontsize=9,
         )
     else:
-        # Ensure small arrows are visible by setting a minimum magnitude
-        # (at least 20% of max) while preserving direction
         min_vis = 0.2 * max_mag
         mag_display = np.where(mag_sub > 1e-30, np.maximum(mag_sub, min_vis), 0.0)
         scale_factor = mag_display / np.where(mag_sub > 1e-30, mag_sub, 1.0)
@@ -139,19 +130,18 @@ def plot_worst_observer_field(
             Y[::s, ::s],
             u_norm[::s, ::s] * scale_factor,
             v_norm[::s, ::s] * scale_factor,
-            mag_sub,  # color still reflects true magnitude
+            mag_sub,
             cmap="viridis",
             clim=(0, max_mag),
-            scale=25,  # lower scale -> bigger arrows overall
-            width=0.005,  # slightly thicker shaft
+            scale=25,
+            width=0.005,
             headwidth=3.0,
             headlength=3.5,
-            pivot="mid",  # center arrows on grid points
+            pivot="mid",
         )
         cb = plt.colorbar(q, ax=ax, shrink=0.8, pad=0.02)
         cb.set_label(r"Boost magnitude $|\sinh\zeta|$")
 
-    # Max rapidity annotation (only over significant region)
     if significance_mask is not None:
         slc_m2 = [slice(None)] * significance_mask.ndim
         slc_m2[slice_axis] = slice_index
@@ -175,7 +165,6 @@ def plot_worst_observer_field(
     ax.set_title(title)
     ax.set_aspect("equal")
 
-    # Auto-zoom to significant region if mask provided
     if significance_mask is not None:
         slc_m3 = [slice(None)] * significance_mask.ndim
         slc_m3[slice_axis] = slice_index

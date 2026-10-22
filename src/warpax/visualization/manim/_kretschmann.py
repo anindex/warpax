@@ -3,7 +3,7 @@
 The Kretschmann scalar ``K = R_{abcd} R^{abcd}`` is a coordinate- and
 observer-independent measure of spacetime curvature.
 For the Alcubierre bubble it is sign-indefinite (it dips strongly
-negative on the wall), so a diverging (SymLog) scale centred at 0 reads best.
+negative on the wall), so a diverging (SymLog) scale centered at 0 reads best.
 
 Usage: manim render -ql --format mp4 \\
     src/warpax/visualization/manim/_kretschmann.py KretschmannInvariant2D
@@ -11,7 +11,6 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
-import matplotlib as _mpl
 import numpy as np
 from manim import (
     DOWN,
@@ -33,8 +32,8 @@ from manim import (
     always_redraw,
     config,
     linear,
+    logger,
 )
-from matplotlib.colors import LinearSegmentedColormap
 
 from warpax.visualization.manim._image_utils import (
     compute_symlog_clim,
@@ -43,46 +42,21 @@ from warpax.visualization.manim._image_utils import (
 )
 from warpax.visualization.manim._scene_utils import (
     COLORS_3B1B,
+    _contour_to_vmobject,
+    frame_getter,
     make_frame_image,
     make_velocity_row,
 )
-
-# Dark-midpoint diverging colormap for the *signed* Kretschmann scalar (it is
-# sign-indefinite in Lorentzian signature): blue (negative) -> dark -> red.
-_DARK_DIVERGE_K = LinearSegmentedColormap.from_list(
-    "dark_diverge_k",
-    ["#3B4CC0", "#1A1A2E", "#B40426"],
-    N=256,
-)
-try:
-    _mpl.colormaps.register(_DARK_DIVERGE_K, name="dark_diverge_k")
-except ValueError:
-    pass  # already registered
-
-
-def _contour_to_vmobject(
-    paths: list[np.ndarray],
-    center: np.ndarray,
-    color: str = "#58C4DD",
-    stroke_width: float = 2.5,
-) -> VGroup:
-    """Convert contour path vertices to Manim VMobjects offset to *center*."""
-    group = VGroup()
-    for verts in paths:
-        if len(verts) < 2:
-            continue
-        vmob = VMobject(color=color, stroke_width=stroke_width)
-        points_3d = [np.array([v[0], v[1], 0.0]) + center for v in verts]
-        vmob.set_points_as_corners(points_3d)
-        group.add(vmob)
-    return group
 
 
 class KretschmannInvariant2D(Scene):
     """2D heatmap of the Kretschmann invariant K = R_abcd R^abcd (v_s sweep).
 
-    Observer-independent curvature, diverging dark-midpoint (SymLog) colormap, the f = 0.5 bubble
-    wall overlay, and a units annotation ([K] = 1/length^4).
+    Observer-independent curvature on the signed ``dark_diverge`` SymLog scale
+    centered at 0 (K is sign-indefinite and dips strongly negative on the wall),
+    the f = 0.5 bubble wall overlay, and a units annotation ([K] = 1/length^4).
+    The color limits are the 0.5/99.5 percentiles across the sweep so the wall
+    spike of either sign cannot hijack the scale.
     """
 
     def construct(self) -> None:
@@ -90,10 +64,7 @@ class KretschmannInvariant2D(Scene):
         v_start = 0.1
         v_end = 0.99
         field_name = "kretschmann"
-        # K = R_abcd R^abcd is sign-indefinite in Lorentzian signature (for the
-        # Alcubierre bubble it dips strongly negative on the wall), so use a
-        # diverging dark-midpoint scale centred at 0, not a one-sided ramp.
-        cmap_name = "dark_diverge_k"
+        cmap_name = "dark_diverge"
         animation_duration = 12.0
         hold_duration = 1.0
 
@@ -117,7 +88,7 @@ class KretschmannInvariant2D(Scene):
         metric = AlcubierreMetric(v_s=v_start)
         v_values = make_velocity_sweep(v_start, v_end, n_frames)
 
-        print("Precomputing curvature frames...")
+        logger.info("Precomputing curvature frames...")
         frames = build_frame_sequence(
             metric,
             grid_spec,
@@ -126,7 +97,6 @@ class KretschmannInvariant2D(Scene):
             batch_size=2048,
             progress=True,
         )
-        # Attach the real shape function so the f = 0.5 wall overlay is exact.
         for frame, v_s in zip(frames, v_values, strict=True):
             metric_v = AlcubierreMetric(v_s=float(v_s))
             f_grid = _shape_function_grid(metric_v, grid_spec, 0.0)
@@ -134,12 +104,9 @@ class KretschmannInvariant2D(Scene):
                 frame.scalar_fields["shape_function"] = f_grid
         n_frames = len(frames)
 
-        # Global color limits across the sweep: robust symmetric SymLog limits
-        # (0.5/99.5 percentiles) so the strong wall spike of either sign does not
-        # hijack the scale. K is signed, so the range is centred at 0.
         global_clim = compute_symlog_clim(frames, field_name)
 
-        print("Pre-rendering RGBA frames...")
+        logger.info("Pre-rendering RGBA frames...")
         rgba_frames = [
             frame_to_rgba(f, field_name, global_clim, cmap_name=cmap_name) for f in frames
         ]
@@ -174,10 +141,12 @@ class KretschmannInvariant2D(Scene):
             make_frame_image(rgba_frames, frame_idx, n_frames, img_height, heatmap_center)
         )
 
+        at_frame = frame_getter(frame_idx, n_frames)
+
         def _make_bubble_contour():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
-            return _contour_to_vmobject(bubble_contour_paths[idx], heatmap_center)
+            return _contour_to_vmobject(
+                bubble_contour_paths[at_frame()], heatmap_center, color="#58C4DD", stroke_width=2.5
+            )
 
         bubble_contour = always_redraw(_make_bubble_contour)
 

@@ -14,20 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
 
-from ._style import COLORS, DOUBLE_COL, LINE_STYLES, apply_style
+from ._style import COLORS, DOUBLE_COL, LINE_STYLES, apply_style, save_or_return
 
 apply_style()
-
-
-def _save_or_return(fig: plt.Figure, save_path: str | None) -> plt.Figure:
-    """Save to *save_path* if given, otherwise return the figure for interactive use.
-
-    The format follows the path extension; PDF when it has none.
-    """
-    if save_path is not None:
-        fig.savefig(save_path)
-        plt.close(fig)
-    return fig
 
 
 def plot_tidal_evolution(
@@ -42,14 +31,16 @@ def plot_tidal_evolution(
 
     Renders the 3 spatial tidal eigenvalues as a function of proper time (or
     coordinate time). A vertical dashed line marks the peak total tidal
-    magnitude; its location need not coincide with a bubble wall.
+    magnitude when it exceeds 1e-10; its location need not coincide with a
+    bubble wall.
 
     Parameters
     ----------
     tidal_eigenvalues : NDArray, shape (N, 3) or (N, 4)
         Tidal eigenvalues at each saved point along the geodesic. If 4
         columns are provided, the near-zero eigenvalue (associated with the
-        velocity direction) is dropped automatically.
+        velocity direction) is dropped automatically by keeping the three
+        largest in absolute value per row.
     proper_times : NDArray, shape (N,)
         Proper time (or coordinate time / affine parameter) at each point.
     title : str or None
@@ -66,12 +57,8 @@ def plot_tidal_evolution(
     eigs = np.asarray(tidal_eigenvalues)
     tau = np.asarray(proper_times)
 
-    # If 4 eigenvalues provided, keep only the 3 with largest absolute values
-    # (drop the near-zero one along the velocity direction)
     if eigs.ndim == 2 and eigs.shape[1] == 4:
-        # Sort each row by absolute value and keep the 3 largest
         sorted_idx = np.argsort(np.abs(eigs), axis=1)
-        # Drop the smallest absolute eigenvalue (first index after sorting)
         eigs = np.array([eigs[i, sorted_idx[i, 1:]] for i in range(len(eigs))])
 
     own_fig = ax is None
@@ -101,13 +88,12 @@ def plot_tidal_evolution(
                 linewidth=1.2,
             )
 
-    # Mark the peak of total tidal magnitude.
     if eigs.ndim == 2:
         total_tidal = np.sum(np.abs(eigs), axis=1)
     else:
         total_tidal = np.abs(eigs)
     peak_idx = np.argmax(total_tidal)
-    if total_tidal[peak_idx] > 1e-10:  # Only mark if there is a real signal
+    if total_tidal[peak_idx] > 1e-10:
         ax.axvline(
             tau[peak_idx], color="gray", linestyle="--", alpha=0.7, label="Peak tidal magnitude"
         )
@@ -122,7 +108,7 @@ def plot_tidal_evolution(
     if own_fig:
         fig.tight_layout(pad=0.5)
 
-    return _save_or_return(fig, save_path)
+    return save_or_return(fig, save_path)
 
 
 def plot_blueshift_profile(
@@ -140,7 +126,8 @@ def plot_blueshift_profile(
 
     Renders the frequency ratio nu_obs/nu_emit vs x-position, with log
     scale on the y-axis when the maximum ratio exceeds 10. The warp bubble
-    wall region is shown as a shaded band.
+    wall region is shown as a shaded band of half-width 2/sigma around
+    r = R on each side of the bubble center (a top-hat profile).
 
     Parameters
     ----------
@@ -176,13 +163,10 @@ def plot_blueshift_profile(
 
     ax.plot(x, bs, color=COLORS[0], linewidth=1.2, label=r"$\nu_{\rm obs}/\nu_{\rm emit}$")
 
-    # Log scale if range is large
     max_bs = np.nanmax(np.abs(bs))
     if max_bs > 10:
         ax.set_yscale("log")
 
-    # Shade the bubble wall region
-    # For a top-hat with width ~ 2/sigma around r=R:
     wall_half = 2.0 / bubble_sigma if bubble_sigma > 0 else 0.2
     wall_lo = bubble_center - bubble_radius - wall_half
     wall_hi = bubble_center - bubble_radius + wall_half
@@ -201,4 +185,4 @@ def plot_blueshift_profile(
     if own_fig:
         fig.tight_layout(pad=0.5)
 
-    return _save_or_return(fig, save_path)
+    return save_or_return(fig, save_path)

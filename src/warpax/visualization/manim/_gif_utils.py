@@ -49,7 +49,6 @@ def mp4_to_gif(
     else:
         output_path = Path(output_path)
 
-    # Check ffmpeg availability
     if shutil.which("ffmpeg") is None:
         raise RuntimeError(
             "FFmpeg not found on PATH. Install FFmpeg to use GIF conversion. "
@@ -60,10 +59,8 @@ def mp4_to_gif(
     palette_path = Path(tmpdir) / "palette.png"
 
     try:
-        # Filter chain shared between passes
         scale_filter = f"fps={fps},scale={width}:-1:flags=lanczos"
 
-        # Pass 1: Generate palette
         cmd_palette = [
             "ffmpeg",
             "-i",
@@ -87,7 +84,6 @@ def mp4_to_gif(
                 f"stderr: {result_palette.stderr[-500:]}"
             )
 
-        # Pass 2: Encode GIF using palette
         lavfi = f"{scale_filter}[x];[x][1:v]paletteuse=dither={dither}:bayer_scale={bayer_scale}"
         cmd_gif = [
             "ffmpeg",
@@ -119,13 +115,12 @@ def mp4_to_gif(
         return output_path
 
     finally:
-        # Clean up temporary palette file
         if palette_path.exists():
             palette_path.unlink()
         try:
             Path(tmpdir).rmdir()
         except OSError:
-            pass  # directory not empty or already removed
+            pass
 
 
 def _gifsicle_optimize(path: Path, *, colors: int, lossy: int | None) -> None:

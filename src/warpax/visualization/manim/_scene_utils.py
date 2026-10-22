@@ -14,22 +14,26 @@ from manim import (
     DL,
     DOWN,
     DR,
+    LEFT,
     RIGHT,
     UL,
     UP,
     UR,
     WHITE,
     YELLOW,
+    DashedVMobject,
     Dot,
     FadeOut,
     Group,
     ImageMobject,
     Line,
     MathTex,
+    Rectangle,
     Text,
     ThreeDAxes,
     Variable,
     VGroup,
+    VMobject,
     Write,
 )
 
@@ -173,7 +177,9 @@ def compute_global_clim(
         percentiles of the **actual data** across all frames instead
         of raw min/max from pre-stored clim. Useful for fields with
         extreme outliers (e.g. WEC margin at high rapidity). Typical
-        value: 2.0 (clips the most extreme 2 % on each tail).
+        value: 2.0 (clips the most extreme 2 % on each tail). The
+        percentile limits are symmetrized around zero for diverging
+        colormaps.
 
     Returns
     -------
@@ -194,7 +200,6 @@ def compute_global_clim(
         combined = _np.concatenate(all_vals)
         vmin = float(_np.percentile(combined, percentile))
         vmax = float(_np.percentile(combined, 100.0 - percentile))
-        # Ensure symmetric around zero for diverging colormaps
         abs_max = max(abs(vmin), abs(vmax))
         vmin, vmax = -abs_max, abs_max
         if abs(vmax - vmin) < 1e-15:
@@ -270,6 +275,10 @@ def compute_auto_exaggeration(
 
     Uses ``0.3 * extent / max_warp`` where ``max_warp`` is the global
     maximum absolute value of the equatorial slice across all frames.
+    ``extent`` defaults to 6.0 (the (-3, 3) range) and is taken from the
+    frame coordinates when present. A near-flat field
+    (``max_warp <= 1e-9 * extent``) returns 1.0, since the naive ratio would
+    explode the surface off-axis.
 
     Parameters
     ----------
@@ -284,7 +293,7 @@ def compute_auto_exaggeration(
         Exaggeration factor.
     """
     max_warp = 0.0
-    extent = 6.0  # default (-3, 3) range
+    extent = 6.0
     for f in frames:
         if field_name not in f.scalar_fields:
             continue
@@ -295,11 +304,8 @@ def compute_auto_exaggeration(
         frame_max = float(np.max(np.abs(eq_slice)))
         if frame_max > max_warp:
             max_warp = frame_max
-        # Update extent from coordinates
         x_1d = f.x[:, 0, 0]
         extent = float(x_1d[-1] - x_1d[0])
-    # Guard near-flat fields: the naive 0.3*extent/eps would explode the
-    # surface off-axis. A flat field gets a neutral factor instead.
     if max_warp <= 1e-9 * max(extent, 1.0):
         return 1.0
     return 0.3 * extent / max_warp
@@ -343,7 +349,7 @@ def make_colorbar_legend(
 
     Replaces the hand-typed 5-swatch "-"/"+" strips. The bar IS
     the colormap (sampled uniformly in norm space) and the tick labels state the
-    actual value->colour mapping at non-overlapping SymLog-significant points
+    actual value->color mapping at non-overlapping SymLog-significant points
     (endpoints and zero take priority), so a reader can recover magnitudes despite the
     symmetric-log compression. Returns a ``Group`` (mixes an ImageMobject bar
     with VMobject ticks); position it with ``.to_corner(...)``.
@@ -392,6 +398,37 @@ def make_colorbar_legend(
     title_mob.next_to(bar, UP, buff=0.06)
 
     return Group(title_mob, bar, marks)
+
+
+def make_strip_legend(
+    colors: list[str],
+    title: str,
+    lo: tuple[str, str],
+    hi: tuple[str, str],
+    field: VMobject,
+    *,
+    field_buff: float,
+) -> VGroup:
+    """Five-swatch strip with ``lo``/``hi`` TeX end labels under a ``field`` + ``title`` row."""
+    strips = VGroup(
+        *[
+            Rectangle(
+                width=0.28,
+                height=0.10,
+                fill_color=c,
+                fill_opacity=0.95,
+                stroke_width=0.3,
+                stroke_color=WHITE,
+            )
+            for c in colors
+        ]
+    ).arrange(RIGHT, buff=0)
+    title_mob = Text(title, font_size=16, color=WHITE, weight="LIGHT")
+    lo_mob = MathTex(lo[0], font_size=14, color=lo[1])
+    hi_mob = MathTex(hi[0], font_size=14, color=hi[1])
+    bar_row = VGroup(lo_mob, strips, hi_mob).arrange(RIGHT, buff=0.06)
+    top_row = VGroup(field, title_mob).arrange(RIGHT, buff=field_buff)
+    return VGroup(top_row, bar_row).arrange(DOWN, buff=0.08, aligned_edge=LEFT)
 
 
 def make_conventions_caption(extra: str = "") -> Text:
@@ -444,7 +481,6 @@ def make_violation_indicator(
     """
     dot = Dot(radius=0.12, color="#44FF44")
 
-    # Choose label based on field name
     if "nec" in field_name:
         label_tex = r"\text{NEC}"
     elif "wec" in field_name:
@@ -459,6 +495,27 @@ def make_violation_indicator(
     label = MathTex(label_tex, font_size=32, color=WHITE)
     group = VGroup(dot, label).arrange(RIGHT, buff=0.15)
 
+    return group
+
+
+def _contour_to_vmobject(
+    paths: list[np.ndarray],
+    center: np.ndarray | None = None,
+    color: str = WHITE,
+    stroke_width: float = 2.0,
+    dashed: bool = False,
+) -> VGroup:
+    """Convert contour path vertices to a VGroup of polylines offset to *center*."""
+    offset = np.zeros(3) if center is None else np.asarray(center, dtype=float)
+    group = VGroup()
+    for verts in paths:
+        if len(verts) < 2:
+            continue
+        vmob = VMobject(color=color, stroke_width=stroke_width)
+        vmob.set_points_as_corners([np.array([v[0], v[1], 0.0]) + offset for v in verts])
+        if dashed:
+            vmob = DashedVMobject(vmob, num_dashes=30)
+        group.add(vmob)
     return group
 
 

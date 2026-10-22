@@ -49,21 +49,17 @@ class FrameData(eqx.Module):
         Suggested isosurface threshold values per scalar field.
     """
 
-    # Spatial coordinates: three 3D arrays from GridSpec.meshgrid
     x: np.ndarray
     y: np.ndarray
     z: np.ndarray
 
-    # Scalar fields: name -> (Nx, Ny, Nz) NumPy array
     scalar_fields: dict[str, np.ndarray]
 
-    # Metric identity metadata (static)
     metric_name: str = eqx.field(static=True)
     v_s: float = eqx.field(static=True)
     grid_shape: tuple[int, ...] = eqx.field(static=True)
     t: float = eqx.field(static=True, default=0.0)
 
-    # Rendering hints (static)
     colormaps: dict[str, str] = eqx.field(static=True, default_factory=dict)
     clim: dict[str, tuple[float, float]] = eqx.field(static=True, default_factory=dict)
     isosurface_values: dict[str, list[float]] = eqx.field(static=True, default_factory=dict)
@@ -72,7 +68,6 @@ class FrameData(eqx.Module):
         """Validate arrays after frozen init."""
         import jax as _jax
 
-        # Validate coordinate shapes
         for name, arr in [("x", self.x), ("y", self.y), ("z", self.z)]:
             if arr.shape != self.grid_shape:
                 raise ValueError(
@@ -84,7 +79,6 @@ class FrameData(eqx.Module):
                     "Use np.asarray() to convert."
                 )
 
-        # Validate scalar fields
         for field_name, arr in self.scalar_fields.items():
             if arr.shape != self.grid_shape:
                 raise ValueError(

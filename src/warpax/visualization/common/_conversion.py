@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ._frame_data import FrameData
+from warpax.geometry.grid import GridCurvatureResult
+from warpax.geometry.types import GridSpec
 
-if TYPE_CHECKING:
-    from warpax.energy_conditions.types import ECGridResult
-    from warpax.geometry.grid import GridCurvatureResult
-    from warpax.geometry.types import GridSpec
+from ._frame_data import FrameData
 
 
 def eulerian_energy_density_grid(
@@ -29,17 +25,9 @@ def eulerian_energy_density_grid(
     (Alcubierre, Natario, ...) the proper density differs from the bare
     covariant component.
     """
-    g_inv_00 = metric_inv[..., 0, 0]
-    alpha = 1.0 / jnp.sqrt(jnp.where(g_inv_00 < 0, -g_inv_00, jnp.nan))
-    n_up = jnp.stack(
-        [
-            1.0 / alpha,
-            -metric_inv[..., 0, 1] * alpha,
-            -metric_inv[..., 0, 2] * alpha,
-            -metric_inv[..., 0, 3] * alpha,
-        ],
-        axis=-1,
-    )
+    from warpax.energy_conditions.observer import eulerian_normal
+
+    _, n_up = eulerian_normal(metric_inv)
     rho = jnp.einsum("...a,...ab,...b->...", n_up, stress_energy, n_up)
     return np.asarray(rho)
 
@@ -106,9 +94,9 @@ def _worst_boost_direction_grid(
     def _dir(T_mixed: jax.Array, g_ab: jax.Array) -> jax.Array:
         evals, evecs = jnp.linalg.eig(T_mixed)
         wo = worst_observer_typeI(evals.real, evecs.real, g_ab, condition="wec")
-        return wo["boost_direction"]  # (4,)
+        return wo["boost_direction"]
 
-    dirs = jax.vmap(_dir)(flat_Tmixed, flat_g)  # (N, 4)
+    dirs = jax.vmap(_dir)(flat_Tmixed, flat_g)
     return np.asarray(dirs)[:, 1:].reshape(*grid_shape, 3)
 
 
@@ -140,8 +128,8 @@ def eulerian_wec_fields(
 
     ff = certify_grid_frame_free(stress_energy, metric, metric_inv)
     rho = np.asarray(ff.rho)
-    rho_plus_p = np.asarray(ff.nec_margins)  # = rho + p_* (most-negative axis)
-    wec = np.asarray(ff.wec_margins)  # = min(rho, rho+p_i)
+    rho_plus_p = np.asarray(ff.nec_margins)
+    wec = np.asarray(ff.wec_margins)
     he = np.asarray(ff.he_types)
 
     violated = rho_plus_p < -atol
@@ -164,15 +152,12 @@ def eulerian_wec_fields(
     }
 
 
-def _extract_coordinates(grid_spec: "GridSpec") -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _extract_coordinates(grid_spec: GridSpec) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Extract spatial coordinates from GridSpec as NumPy arrays."""
-    X, Y, Z = grid_spec.meshgrid  # each (Nx, Ny, Nz), JAX arrays
+    X, Y, Z = grid_spec.meshgrid
     return np.asarray(X), np.asarray(Y), np.asarray(Z)
 
 
-# Colormaps: diverging for signed quantities, sequential for magnitudes.
-# ``energy_density`` is the proper Eulerian density T_{ab} n^a n^b;
-# ``T_00_covariant`` exposes the bare covariant component for advanced viewers.
 _CURVATURE_COLORMAPS: dict[str, str] = {
     "ricci_scalar": "RdBu_r",
     "kretschmann": "RdBu_r",
@@ -181,13 +166,23 @@ _CURVATURE_COLORMAPS: dict[str, str] = {
     "energy_density": "RdBu_r",
     "T_00_covariant": "RdBu_r",
 }
+"""Colormaps per curvature field: ``energy_density`` is the proper Eulerian density
+T_{ab} n^a n^b, ``T_00_covariant`` the bare covariant component."""
 
-_DIVERGING_CURVATURE_FIELDS = set(_CURVATURE_COLORMAPS)
+DIVERGING_FIELDS: frozenset[str] = frozenset(
+    {
+        *_CURVATURE_COLORMAPS,
+        "theta",
+        "wec_margin_sweep",
+        "nec_margin_sweep",
+    }
+)
+"""Signed fields that get symmetric, zero-centered color limits."""
 
 
 def freeze_curvature(
-    grid_result: "GridCurvatureResult",
-    grid_spec: "GridSpec",
+    grid_result: GridCurvatureResult,
+    grid_spec: GridSpec,
     *,
     metric_name: str,
     v_s: float,
@@ -227,115 +222,11 @@ def freeze_curvature(
         "T_00_covariant": np.asarray(grid_result.stress_energy[..., 0, 0]),
     }
 
-    # Compute rendering hints
     colormaps = dict(_CURVATURE_COLORMAPS)
-    clim: dict[str, tuple[float, float]] = {}
-    for name, arr in scalar_fields.items():
-        if name in _DIVERGING_CURVATURE_FIELDS:
-            clim[name] = _symmetric_clim(arr)
-        else:
-            clim[name] = _magnitude_clim(arr)
-
-    return FrameData(
-        x=x,
-        y=y,
-        z=z,
-        scalar_fields=scalar_fields,
-        metric_name=metric_name,
-        v_s=v_s,
-        grid_shape=grid_spec.shape,
-        t=t,
-        colormaps=colormaps,
-        clim=clim,
-    )
-
-
-_EC_COLORMAPS: dict[str, str] = {
-    "nec_margin": "RdBu_r",
-    "wec_margin": "RdBu_r",
-    "sec_margin": "RdBu_r",
-    "dec_margin": "RdBu_r",
-    "he_type": "tab10",
-    "rho": "RdBu_r",
-}
-
-
-def freeze_ec(
-    ec_result: "ECGridResult",
-    grid_spec: "GridSpec",
-    *,
-    metric_name: str,
-    v_s: float,
-    t: float = 0.0,
-    curvature_result: "GridCurvatureResult | None" = None,
-) -> FrameData:
-    """Freeze an ECGridResult into a FrameData snapshot.
-
-    Converts EC margins, classification, and optionally curvature invariants
-    to NumPy arrays with rendering hints.
-
-    Parameters
-    ----------
-    ec_result : ECGridResult
-        Output from ``verify_grid``.
-    grid_spec : GridSpec
-        Grid specification used for the computation.
-    metric_name : str
-        Warp metric identifier.
-    v_s : float
-        Warp bubble velocity parameter.
-    t : float, optional
-        Time coordinate (default 0.0).
-    curvature_result : GridCurvatureResult, optional
-        If provided, curvature invariants are also included in the snapshot.
-
-    Returns
-    -------
-    FrameData
-        Frozen snapshot with EC margins and classification as scalar fields.
-    """
-    x, y, z = _extract_coordinates(grid_spec)
-
-    # Core EC scalar fields
-    scalar_fields: dict[str, np.ndarray] = {
-        "nec_margin": np.asarray(ec_result.nec_margins),
-        "wec_margin": np.asarray(ec_result.wec_margins),
-        "sec_margin": np.asarray(ec_result.sec_margins),
-        "dec_margin": np.asarray(ec_result.dec_margins),
-        "he_type": np.asarray(ec_result.he_types),
-        "rho": np.asarray(ec_result.rho),
+    clim = {
+        name: _symmetric_clim(arr) if name in DIVERGING_FIELDS else _magnitude_clim(arr)
+        for name, arr in scalar_fields.items()
     }
-
-    if curvature_result is not None:
-        scalar_fields["ricci_scalar"] = np.asarray(curvature_result.ricci_scalar)
-        scalar_fields["kretschmann"] = np.asarray(curvature_result.kretschmann)
-        scalar_fields["ricci_squared"] = np.asarray(curvature_result.ricci_squared)
-        scalar_fields["weyl_squared"] = np.asarray(curvature_result.weyl_squared)
-        scalar_fields["energy_density"] = eulerian_energy_density_grid(
-            curvature_result.stress_energy, curvature_result.metric_inv
-        )
-        scalar_fields["T_00_covariant"] = np.asarray(curvature_result.stress_energy[..., 0, 0])
-
-    # Build colormaps dict
-    colormaps: dict[str, str] = {}
-    for name in scalar_fields:
-        if name in _EC_COLORMAPS:
-            colormaps[name] = _EC_COLORMAPS[name]
-        elif name in _CURVATURE_COLORMAPS:
-            colormaps[name] = _CURVATURE_COLORMAPS[name]
-        else:
-            colormaps[name] = "viridis"
-
-    # Build clim dict
-    _diverging_ec = {"nec_margin", "wec_margin", "sec_margin", "dec_margin", "rho"}
-    clim: dict[str, tuple[float, float]] = {}
-    for name, arr in scalar_fields.items():
-        if name == "he_type":
-            clim[name] = (1.0, 4.0)
-        elif name in _diverging_ec or name in _DIVERGING_CURVATURE_FIELDS:
-            clim[name] = _symmetric_clim(arr)
-        else:
-            clim[name] = _magnitude_clim(arr)
 
     return FrameData(
         x=x,

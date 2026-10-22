@@ -3,15 +3,17 @@
 Quasi-static sweep of the bubble velocity (v_s: 0.1 -> 0.99); each frame is a
 static metric snapshot, not a time evolution.
 
+Fork-safety: manim spawns ffmpeg while JAX's thread pool is live, which
+deadlocks on fork under Python 3.14, so as a render entrypoint this module sets
+the gRPC fork handlers and drops the CUDA probe before JAX is imported; this is
+skipped if JAX is already live.
+
 Usage: manim render -ql --format mp4 \\
     src/warpax/visualization/manim/_velocity_sweep.py VelocitySweep
 """
 
 from __future__ import annotations
 
-# Fork-safety: manim spawns ffmpeg while JAX's thread pool is live, which deadlocks
-# on fork under Python 3.14. As a render entrypoint, set the gRPC fork handlers and
-# drop the CUDA probe before the imports below pull JAX in; skipped if JAX is live.
 import os as _os
 import sys as _sys
 
@@ -41,7 +43,6 @@ from manim import (
     DecimalNumber,
     FadeOut,
     MathTex,
-    Rectangle,
     Text,
     ThreeDScene,
     ValueTracker,
@@ -58,6 +59,7 @@ from warpax.visualization.manim._scene_utils import (
     compute_global_clim,
     format_metric_equation,
     make_axes_for_frames,
+    make_strip_legend,
     make_violation_indicator,
 )
 from warpax.visualization.manim._surface import (
@@ -78,12 +80,21 @@ class VelocitySweep(ThreeDScene):
 
     Live v_s counter, defining equation overlay, violation status
     indicator, dual color legends.
+
+    ``cap_recursion_for_3d_render`` runs first: Python 3.14 with 3D Cairo
+    otherwise segfaults on the C stack. rho_Eul scales as v_s^2, so the sweep
+    spans about two decades; a linear embedding height would be set by the
+    fastest frame and leave the slow end flat, so the height is symlog. Color
+    limits are global across frames (no flicker); rho_Eul and the NEC margin
+    are both <= 0 for Alcubierre, so both use one-sided depth scales from the
+    1st percentile to 0, with larger values saturating. The slab sits at the
+    bottom of the z range, below the color-clipped tails of the surface, and
+    is added before the wireframe so it cannot cover it.
     """
 
     def construct(self) -> None:
-        cap_recursion_for_3d_render()  # py3.14 + 3D Cairo: avoid C-stack segfault
+        cap_recursion_for_3d_render()
 
-        # --- Dark background ---
         self.camera.background_color = COLORS_3B1B["background"]
 
         from warpax.geometry import GridSpec
@@ -107,20 +118,13 @@ class VelocitySweep(ThreeDScene):
             theta=-45 * DEGREES,
         )
 
-        # rho_Eul scales as v_s^2, so v_s: 0.1 -> 0.99 spans about two decades.
-        # A linear height would be set by the fastest frame and leave the slow
-        # end of the sweep flat, so the embedding height is symlog.
         ed_linthresh = auto_linthresh(
             max(abs(v) for v in compute_global_clim(all_frames, "energy_density"))
         )
 
-        # Build axes from energy_density range across all frames
         axes = make_axes_for_frames(all_frames, "energy_density", linthresh=ed_linthresh)
         axes.scale(0.85)
 
-        # Global color limits (prevents flickering). rho_Eul and the NEC margin
-        # are both <= 0 for Alcubierre -> one-sided depth scales (deepest -> 0).
-        # Percentile limits keep weak structure visible; larger values saturate.
         ed_clim = (compute_global_clim(all_frames, "energy_density", percentile=1.0)[0], 0.0)
         nec_clim = (
             compute_global_clim(all_frames, "nec_margin_sweep", percentile=1.0)[0],
@@ -129,7 +133,6 @@ class VelocitySweep(ThreeDScene):
 
         nec_linthresh = auto_linthresh(abs(nec_clim[0]))
 
-        # Auto-exaggeration for embedding
         exag = compute_auto_exaggeration(all_frames, "energy_density", linthresh=ed_linthresh)
 
         title_text = Text(
@@ -170,7 +173,7 @@ class VelocitySweep(ThreeDScene):
                 frame,
                 "nec_margin_sweep",
                 axes,
-                z_offset=axes.z_range[0],  # Below the full surface, including colour-clipped tails.
+                z_offset=axes.z_range[0],
                 resolution=(48, 48),
                 colormap="nec_depth",
                 linthresh=nec_linthresh,
@@ -190,7 +193,6 @@ class VelocitySweep(ThreeDScene):
         v_row = VGroup(v_label, v_eq, v_num).arrange(RIGHT, buff=0.1)
         v_row.to_corner(UL, buff=0.5)
 
-        # Register every leaf mobject individually
         self.add_fixed_in_frame_mobjects(v_label, v_eq, v_num)
 
         def _update_v(mob):
@@ -205,97 +207,29 @@ class VelocitySweep(ThreeDScene):
             )
             new_mob.move_to(mob)
             mob.become(new_mob)
-            # Re-register so new leaf glyphs stay fixed-in-frame
             self.add_fixed_in_frame_mobjects(mob)
 
         v_num.add_updater(_update_v)
 
-        # Eulerian energy density legend: one-sided (rho_Eul <= 0 everywhere).
-        ed_colors = ["#2166AC", "#67A9CF", "#A9C9E0", "#D1E5F0", "#F7F7F7"]
-        ed_strips = VGroup(
-            *[
-                Rectangle(
-                    width=0.28,
-                    height=0.10,
-                    fill_color=c,
-                    fill_opacity=0.95,
-                    stroke_width=0.3,
-                    stroke_color=WHITE,
-                )
-                for c in ed_colors
-            ]
-        ).arrange(RIGHT, buff=0)
-        ed_title = Text(
+        ed_legend = make_strip_legend(
+            ["#2166AC", "#67A9CF", "#A9C9E0", "#D1E5F0", "#F7F7F7"],
             "Eulerian energy density (wireframe; ≤ 0)",
-            font_size=16,
-            color=WHITE,
-            weight="LIGHT",
+            (r"\text{most }-", "#2166AC"),
+            (r"0", WHITE),
+            MathTex(r"\rho_{\rm Eul}", font_size=22, color=WHITE),
+            field_buff=0.12,
         )
-        ed_lo = MathTex(r"\text{most }-", font_size=14, color="#2166AC")
-        ed_hi = MathTex(r"0", font_size=14, color=WHITE)
-        ed_bar_row = VGroup(ed_lo, ed_strips, ed_hi).arrange(
-            RIGHT,
-            buff=0.06,
-        )
-        ed_field = MathTex(r"\rho_{\rm Eul}", font_size=22, color=WHITE)
-        ed_top_row = VGroup(ed_field, ed_title).arrange(
-            RIGHT,
-            buff=0.12,
-        )
-        ed_legend = VGroup(ed_top_row, ed_bar_row).arrange(
-            DOWN,
-            buff=0.08,
-            aligned_edge=LEFT,
-        )
-
-        # NEC margin legend: one-sided violation-depth ramp (matches the slab).
-        nec_colors = ["#CFE0FF", "#7FA0FF", "#3B4CC0", "#27306E", "#15151F"]
-        nec_strips = VGroup(
-            *[
-                Rectangle(
-                    width=0.28,
-                    height=0.10,
-                    fill_color=c,
-                    fill_opacity=0.95,
-                    stroke_width=0.3,
-                    stroke_color=WHITE,
-                )
-                for c in nec_colors
-            ]
-        ).arrange(RIGHT, buff=0)
-        nec_title = Text(
-            "NEC margin (≤ 0; negative = violation)",
-            font_size=16,
-            color=WHITE,
-            weight="LIGHT",
-        )
-        nec_lo = MathTex(
-            r"\text{deepest}",
-            font_size=14,
-            color="#7FA0FF",
-        )
-        nec_hi = MathTex(r"0", font_size=14, color=WHITE)
-        nec_bar_row = VGroup(nec_lo, nec_strips, nec_hi).arrange(
-            RIGHT,
-            buff=0.06,
-        )
-        # Violation dot integrated into NEC legend header
-        from manim import Dot
-
-        violation_ind = make_violation_indicator("nec_margin_sweep")
-        dot_mob: Dot = violation_ind[0]  # type: ignore[assignment]
+        dot_mob = make_violation_indicator("nec_margin_sweep")[0]
         dot_mob.scale(0.7)
-        nec_field = VGroup(dot_mob, nec_title).arrange(
-            RIGHT,
-            buff=0.1,
-        )
-        nec_legend = VGroup(nec_field, nec_bar_row).arrange(
-            DOWN,
-            buff=0.08,
-            aligned_edge=LEFT,
+        nec_legend = make_strip_legend(
+            ["#CFE0FF", "#7FA0FF", "#3B4CC0", "#27306E", "#15151F"],
+            "NEC margin (≤ 0; negative = violation)",
+            (r"\text{deepest}", "#7FA0FF"),
+            (r"0", WHITE),
+            dot_mob,
+            field_buff=0.1,
         )
 
-        # Stack both legends, right-aligned in UR corner
         legend_group = VGroup(ed_legend, nec_legend).arrange(
             DOWN,
             buff=0.25,
@@ -320,7 +254,6 @@ class VelocitySweep(ThreeDScene):
         dot_mob.add_updater(_update_violation)
         self.add_fixed_in_frame_mobjects(legend_group)
 
-        # GR-conventions footer (static metric per frame, units, signature).
         from warpax.visualization.manim._scene_utils import make_conventions_caption
 
         caption = make_conventions_caption()
@@ -329,7 +262,6 @@ class VelocitySweep(ThreeDScene):
         caption.to_edge(DOWN, buff=0.06)
         self.add_fixed_in_frame_mobjects(caption)
 
-        # Draw the lower slab first so it cannot cover the translucent wireframe.
         self.add(axes, heatmap, embedding)
         self.begin_ambient_camera_rotation(rate=0.015, about="theta")
         self.play(
@@ -339,6 +271,5 @@ class VelocitySweep(ThreeDScene):
         )
         self.stop_ambient_camera_rotation()
 
-        # Fade out header before outro
         self.play(FadeOut(header), run_time=0.5)
-        self.wait(2)  # Outro freeze frame
+        self.wait(2)

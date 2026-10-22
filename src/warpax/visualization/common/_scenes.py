@@ -1,184 +1,12 @@
-"""Scene builders and post-render overlay helpers.
+"""Scene builders producing lists of FrameData for the animations.
 
-Scene builders produce lists of FrameData for the three animations:
-- ``scene_velocity_rampdown``: Alcubierre v_s ramps down to near-flat spacetime.
 - ``scene_velocity_ramp``: EC violations intensify as v_s sweeps 0.1 to 0.99.
 - ``scene_observer_sweep``: Per-rapidity EC margins on fixed Alcubierre geometry.
-
-Overlay helpers burn text and watermarks onto RGBA screenshot arrays:
-- ``add_text_overlay``: Title + parameter value text at configurable position.
-- ``add_watermark``: Subtle semi-transparent branding in bottom-right corner.
 """
 
 from __future__ import annotations
 
 import numpy as np
-from PIL import Image, ImageDraw
-
-
-def add_text_overlay(
-    img: np.ndarray,
-    text: str,
-    position: str = "upper_left",
-    font_color: tuple[int, ...] = (255, 255, 255, 255),
-    font_size: int = 24,
-) -> np.ndarray:
-    """Burn text overlay onto an RGBA screenshot array.
-
-    Parameters
-    ----------
-    img : np.ndarray
-        RGBA image array of shape ``(H, W, 4)`` with dtype ``uint8``.
-    text : str
-        Text to overlay (supports multi-line via ``\\n``).
-    position : str
-        Anchor position: ``"upper_left"``, ``"upper_right"``, ``"lower_right"``.
-    font_color : tuple[int, ...]
-        RGBA color tuple (default white opaque).
-    font_size : int
-        Approximate font size in pixels (default 24). Uses PIL default font
-        scaled via ``font_size`` parameter where available.
-
-    Returns
-    -------
-    np.ndarray
-        New RGBA array with text burned in (input is not mutated).
-    """
-    result = img.copy()
-    pil_img = Image.fromarray(result, mode="RGBA")
-    draw = ImageDraw.Draw(pil_img)
-
-    # Use PIL default font always available, no external font files
-    try:
-        from PIL import ImageFont
-
-        font = ImageFont.load_default(size=font_size)
-    except TypeError:
-        # Older Pillow without size parameter
-        from PIL import ImageFont
-
-        font = ImageFont.load_default()
-
-    # Measure text bounding box
-    bbox = draw.textbbox((0, 0), text, font=font)
-    text_w = bbox[2] - bbox[0]
-    text_h = bbox[3] - bbox[1]
-
-    h, w = img.shape[:2]
-    margin = 20
-
-    if position == "upper_left":
-        xy = (margin, margin)
-    elif position == "upper_right":
-        xy = (w - text_w - margin, margin)
-    elif position == "lower_right":
-        xy = (w - text_w - margin, h - text_h - margin)
-    else:
-        raise ValueError(
-            f"Unknown position {position!r}. Use 'upper_left', 'upper_right', or 'lower_right'."
-        )
-
-    draw.text(xy, text, fill=font_color, font=font)
-    return np.array(pil_img)
-
-
-def add_watermark(
-    img: np.ndarray,
-    text: str = "WarpAx",
-    alpha: int = 100,
-) -> np.ndarray:
-    """Add a subtle semi-transparent watermark in the bottom-right corner.
-
-    Parameters
-    ----------
-    img : np.ndarray
-        RGBA image array of shape ``(H, W, 4)`` with dtype ``uint8``.
-    text : str
-        Watermark text (default ``"WarpAx"``).
-    alpha : int
-        Transparency level (0 = invisible, 255 = opaque, default 100).
-
-    Returns
-    -------
-    np.ndarray
-        New RGBA array with watermark composited (input is not mutated).
-    """
-    result = img.copy()
-    pil_img = Image.fromarray(result, mode="RGBA")
-
-    # Create transparent overlay for compositing
-    overlay = Image.new("RGBA", pil_img.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-
-    # Small font for subtle watermark
-    try:
-        from PIL import ImageFont
-
-        font = ImageFont.load_default(size=14)
-    except TypeError:
-        from PIL import ImageFont
-
-        font = ImageFont.load_default()
-
-    bbox = draw.textbbox((0, 0), text, font=font)
-    text_w = bbox[2] - bbox[0]
-    text_h = bbox[3] - bbox[1]
-
-    h, w = img.shape[:2]
-    offset = 10
-    xy = (w - text_w - offset, h - text_h - offset)
-
-    draw.text(xy, text, fill=(255, 255, 255, alpha), font=font)
-
-    # Alpha-composite overlay onto image
-    composited = Image.alpha_composite(pil_img, overlay)
-    return np.array(composited)
-
-
-def scene_velocity_rampdown(
-    grid_spec,
-    *,
-    n_frames: int = 90,
-    v_max: float = 0.5,
-    v_min: float = 0.01,
-) -> list:
-    """Build frame sequence for Alcubierre bubble velocity ramp-down.
-
-    The warp bubble velocity ramps down from *v_max* toward flat spacetime,
-    with curvature diminishing as v_s approaches zero.
-
-    Parameters
-    ----------
-    grid_spec : GridSpec
-        Spatial grid specification.
-    n_frames : int
-        Number of animation frames (default 90).
-    v_max : float
-        Starting velocity (default 0.5).
-    v_min : float
-        Minimum velocity floor to avoid degenerate zero curvature (default 0.01).
-
-    Returns
-    -------
-    list[FrameData]
-        Frame sequence with decreasing v_s.
-    """
-    from warpax.benchmarks import AlcubierreMetric
-
-    from ._physics import build_frame_sequence, rampdown_profile
-
-    metric = AlcubierreMetric(v_s=v_max)
-
-    t_values = list(np.linspace(0.0, 1.0, n_frames))
-    v_values = [max(rampdown_profile(t, v_max=v_max), v_min) for t in t_values]
-
-    return build_frame_sequence(
-        metric,
-        grid_spec,
-        v_s_values=v_values,
-        t_values=t_values,
-        progress=True,
-    )
 
 
 def scene_velocity_ramp(
@@ -238,7 +66,13 @@ def scene_observer_sweep(
     Unlike ``build_ec_frame_sequence`` which takes worst-case across ALL
     observers, this scene shows the WEC/NEC margin landscape for a SINGLE
     rapidity at each frame. The geometry is computed once and reused,
-    revealing how the violation landscape shifts with observer boost.
+    revealing how the violation landscape shifts with observer boost. The
+    NEC null contraction is rapidity-independent, so it is computed once
+    outside the per-frame loop. Each frame's ``FrameData.t`` carries the
+    rapidity for annotation. Only the Eulerian energy density is one-sided
+    here; the signed WEC and NEC margins get a symmetric clim, because a
+    one-sided ramp pinned at vmax = 0 would paint every satisfied point the
+    color of an exactly saturated one.
 
     Parameters
     ----------
@@ -274,7 +108,6 @@ def scene_observer_sweep(
 
     metric = AlcubierreMetric(v_s=v_s)
 
-    # Evaluate geometry ONCE
     result = evaluate_curvature_grid(
         metric,
         grid_spec,
@@ -287,46 +120,51 @@ def scene_observer_sweep(
     energy_density = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
     T_00_covariant = np.asarray(result.stress_energy[..., 0, 0])
 
-    # Extract grid coordinates as NumPy
     X, Y, Z = grid_spec.meshgrid
     x_np = np.asarray(X)
     y_np = np.asarray(Y)
     z_np = np.asarray(Z)
 
-    # Fixed boost directions: +x, +y, +z
     all_directions = [
-        (float(np.pi / 2), 0.0),  # +x
-        (float(np.pi / 2), float(np.pi / 2)),  # +y
-        (0.0, 0.0),  # +z
+        (float(np.pi / 2), 0.0),
+        (float(np.pi / 2), float(np.pi / 2)),
+        (0.0, 0.0),
     ]
     directions = all_directions[:n_directions]
 
+    nec_params = jnp.array(directions)
+    nec_margins = sweep_nec_margins(T_flat, g_flat, nec_params)
+    worst_nec = np.asarray(jnp.min(nec_margins, axis=-1).reshape(grid_spec.shape))
+
     rapidities = np.linspace(0.0, zeta_max, n_frames)
 
-    # Progress bar
-    iterator = enumerate(rapidities)
+    iterator = list(rapidities)
     try:
         from tqdm.auto import tqdm
 
-        iterator = tqdm(list(iterator), desc="Observer sweep", unit="frame")
+        iterator = tqdm(iterator, desc="Observer sweep", unit="frame")
     except ImportError:
-        iterator = list(iterator)
+        pass
+
+    colormaps = {
+        "energy_density": "nec_depth",
+        "T_00_covariant": "RdBu_r",
+        "wec_margin_sweep": "RdBu_r",
+        "nec_margin_sweep": "RdBu_r",
+    }
+    static_clim = {
+        "energy_density": _oneside_neg_clim(energy_density),
+        "T_00_covariant": _symmetric_clim(T_00_covariant),
+        "nec_margin_sweep": _symmetric_clim(worst_nec),
+    }
 
     frames = []
     metric_name = metric.name()
 
-    for i, zeta in iterator:
-        # Construct observer params for this single rapidity
+    for zeta in iterator:
         obs_params = jnp.array([[float(zeta), theta, phi] for theta, phi in directions])
-
-        # Compute margins for this rapidity
-        wec_margins = sweep_wec_margins(T_flat, g_flat, obs_params)  # (N, K)
-        nec_params = obs_params[:, 1:]  # (K, 2)
-        nec_margins = sweep_nec_margins(T_flat, g_flat, nec_params)  # (N, K)
-
-        # Worst-case across directions at this rapidity
+        wec_margins = sweep_wec_margins(T_flat, g_flat, obs_params)
         worst_wec = np.asarray(jnp.min(wec_margins, axis=-1).reshape(grid_spec.shape))
-        worst_nec = np.asarray(jnp.min(nec_margins, axis=-1).reshape(grid_spec.shape))
 
         scalar_fields = {
             "energy_density": energy_density,
@@ -334,25 +172,7 @@ def scene_observer_sweep(
             "wec_margin_sweep": worst_wec,
             "nec_margin_sweep": worst_nec,
         }
-
-        # Only the Eulerian energy density is non-positive here. The worst-case
-        # NEC and WEC margins are signed: over this sweep 26% and 21% of the
-        # samples are positive, reaching +0.15 and +804. A one-sided depth ramp
-        # pinned at vmax = 0 paints every satisfied point the same colour as an
-        # exactly saturated one, so those two get a diverging scale.
-        colormaps = {
-            "energy_density": "nec_depth",
-            "T_00_covariant": "RdBu_r",
-            "wec_margin_sweep": "RdBu_r",
-            "nec_margin_sweep": "RdBu_r",
-        }
-
-        clim = {
-            "energy_density": _oneside_neg_clim(energy_density),
-            "T_00_covariant": _symmetric_clim(T_00_covariant),
-            "wec_margin_sweep": _symmetric_clim(worst_wec),
-            "nec_margin_sweep": _symmetric_clim(worst_nec),
-        }
+        clim = {**static_clim, "wec_margin_sweep": _symmetric_clim(worst_wec)}
 
         frame = FrameData(
             x=x_np,
@@ -362,7 +182,7 @@ def scene_observer_sweep(
             metric_name=metric_name,
             v_s=v_s,
             grid_shape=grid_spec.shape,
-            t=float(zeta),  # Carry rapidity in t field for annotation
+            t=float(zeta),
             colormaps=colormaps,
             clim=clim,
         )

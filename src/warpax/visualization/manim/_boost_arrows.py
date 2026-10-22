@@ -47,7 +47,6 @@ from manim import (
     VGroup,
     VMobject,
 )
-from matplotlib.colors import LinearSegmentedColormap
 
 from warpax.visualization.manim._image_utils import (
     compute_symlog_clim,
@@ -57,44 +56,9 @@ from warpax.visualization.manim._image_utils import (
 )
 from warpax.visualization.manim._scene_utils import (
     COLORS_3B1B,
+    _contour_to_vmobject,
     format_metric_equation,
 )
-
-# Dark-midpoint diverging colormap: blue -> dark gray -> red.
-_DARK_DIVERGE = LinearSegmentedColormap.from_list(
-    "dark_diverge",
-    ["#3B4CC0", "#1A1A2E", "#B40426"],
-    N=256,
-)
-import matplotlib as _mpl
-
-try:
-    _mpl.colormaps.register(_DARK_DIVERGE, name="dark_diverge")
-except ValueError:
-    pass  # already registered
-
-
-def _contour_to_vmobject(
-    paths: list[np.ndarray],
-    color: str = WHITE,
-    stroke_width: float = 2.0,
-    dashed: bool = False,
-) -> VMobject | VGroup:
-    """Convert contour path vertices to Manim VMobjects."""
-    if not paths:
-        return VGroup()
-
-    group = VGroup()
-    for verts in paths:
-        if len(verts) < 2:
-            continue
-        path = VMobject(color=color, stroke_width=stroke_width)
-        points_3d = [np.array([v[0], v[1], 0.0]) for v in verts]
-        path.set_points_as_corners(points_3d)
-        if dashed:
-            path = DashedVMobject(path, num_dashes=30)
-        group.add(path)
-    return group
 
 
 def _worst_direction_field(
@@ -106,22 +70,22 @@ def _worst_direction_field(
     bounds: list[tuple[float, float]] | None = None,
     n_theta: int = 13,
     n_phi: int = 24,
-    n_rapidity: int = 16,
-    zeta_max: float = 5.0,
 ):
     """Worst-case direction + strength per grid point, for NEC or WEC.
+
+    Both margin fields are non-positive, so they get the one-sided depth scale.
 
     Parameters
     ----------
     quantity : {"nec", "wec"}
-        ``"nec"``: worst over the null sphere (theta, phi). The null
+        ``"nec"``: worst over the dense null sphere (theta, phi). The null
         contraction is rapidity-independent, so the encoded *strength* is the
         depth of the violation ``|min(0, T_{ab} k^a k^b)|``.
-        ``"wec"``: worst over timelike boosts (zeta, theta, phi). The encoded
-        *strength* is the WEC violation depth ``|min(0, T_{ab} u^a u^b)|`` at
-        the worst boost, and is zero where WEC is satisfied (so no arrow is
-        drawn there). The worst boost saturates at ``zeta_max``, so its
-        ``|sinh(zeta*)|`` carries no spatial information - hence depth is used.
+        ``"wec"``: the worst energy density over unbounded boosts is -inf
+        wherever the NEC fails and the Type-I rest-frame margin is undefined on
+        a Type-IV wall, so the field is the always-defined ``rho_Eul`` and the
+        arrow is the closed-form worst-boost direction, drawn only at Type-I
+        points where the Eulerian observer already sees a violation.
 
     Returns
     -------
@@ -156,36 +120,30 @@ def _worst_direction_field(
     n_points = int(np.prod(grid_shape))
     T_flat = result.stress_energy.reshape(n_points, 4, 4)
     g_flat = result.metric.reshape(n_points, 4, 4)
+    energy_density = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
 
-    # Dense angular set covering the (hemi)sphere of directions.
     angular = np.asarray(make_angular_observers(n_theta=n_theta, n_phi=n_phi))
     thetas, phis = angular[:, 1], angular[:, 2]
     idx = np.arange(n_points)
 
     extra_fields: dict[str, np.ndarray] = {}
     if quantity == "nec":
-        params = jnp.asarray(angular[:, 1:])  # (D, 2) null (theta, phi)
-        margins = np.asarray(sweep_nec_margins(T_flat, g_flat, params))  # (N, D)
+        params = jnp.asarray(angular[:, 1:])
+        margins = np.asarray(sweep_nec_margins(T_flat, g_flat, params))
         worst_k = np.argmin(margins, axis=-1)
         worst_margin = margins[idx, worst_k]
         wt, wp = thetas[worst_k], phis[worst_k]
         dir_x = np.sin(wt) * np.cos(wp)
         dir_y = np.sin(wt) * np.sin(wp)
-        strength = np.abs(np.minimum(worst_margin, 0.0))  # violation depth
+        strength = np.abs(np.minimum(worst_margin, 0.0))
         field_name = "nec_margin_sweep"
     elif quantity == "wec":
-        # The worst-case energy density over unbounded boosts is -inf wherever NEC fails,
-        # and the Type-I rest-frame margin is undefined on a Type-IV wall, so plot the
-        # always-defined rho_Eul and show the worst-boost direction only where Type I.
         from warpax.visualization.common._conversion import eulerian_wec_fields
 
         wf = eulerian_wec_fields(result.stress_energy, result.metric, result.metric_inv)
-        rho_eul = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
-        worst_margin = rho_eul.reshape(-1)
+        worst_margin = energy_density.reshape(-1)
         boost = wf["boost_dir"].reshape(-1, 3)
         dir_x, dir_y = boost[:, 0], boost[:, 1]
-        # Arrows only where matter is Type I (a well-defined rest frame exists)
-        # and the Eulerian observer already sees a violation.
         typeI = wf["he_type"].reshape(-1) == 1.0
         strength = np.where(typeI, np.abs(np.minimum(worst_margin, 0.0)), 0.0)
         field_name = "energy_density"
@@ -205,10 +163,7 @@ def _worst_direction_field(
     dir_eq = dir_grid[:, :, mid_z, :]
     strength_eq = strength_grid[:, :, mid_z]
 
-    energy_density = eulerian_energy_density_grid(result.stress_energy, result.metric_inv)
     X, Y, Z = grid_spec.meshgrid
-    # Both margin fields are <= 0 -> one-sided depth scale (no false
-    # "satisfied" half).
     scalar_fields = {
         field_name: worst_margin_grid,
         "energy_density": energy_density,
@@ -259,7 +214,9 @@ def _make_arrow_field(
     Arrow direction is the worst-case (null or boost) spatial direction and
     length scales with ``strength_2d / max(strength)``. A single accent color
     is used so the arrows never appear to contradict the heatmap colormap
-    (a separate diverging scale for the margin field).
+    (a separate diverging scale for the margin field). Positions use the
+    canonical orientation, x-index horizontal and y-index vertical up, matching
+    :func:`frame_to_rgba` and :func:`extract_zero_contour`.
     """
     Nx, Ny = direction_2d.shape[:2]
     max_s = float(np.max(strength_2d))
@@ -273,8 +230,6 @@ def _make_arrow_field(
             if s < min_frac:
                 continue
             dx, dy = direction_2d[i, j]
-            # Canonical orientation: x-index -> horizontal, y-index -> vertical
-            # up (matches frame_to_rgba / extract_zero_contour).
             sx = (i / (Nx - 1) - 0.5) * scene_width
             sy = (j / (Ny - 1) - 0.5) * scene_height
             length = min(
@@ -301,9 +256,20 @@ def _make_arrow_field(
 
 
 class _ArrowFieldScene(Scene):
-    """Shared construction for the NEC null-direction / WEC boost scenes."""
+    """Shared construction for the NEC null-direction / WEC boost scenes.
 
-    # Overridden by subclasses
+    Worst-case NEC/WEC margins are <= 0, so the heatmap uses the one-sided
+    ``nec_depth`` ramp. The dashed white contour is the margin = 0 boundary for
+    WEC; for NEC the worst-case margin is <= 0 everywhere, so it marks the
+    onset of significant violation at 1% of the slice minimum instead. The
+    solid cyan contour is the f = 0.5 bubble wall. Violation status is
+    evaluated on the rendered z = 0 slice. For WEC the worst boost is
+    unbounded (-inf, as for NEC) and the wall matter is overwhelmingly Type IV
+    with no rest frame, so the rest-frame WEC margin and zeta_th are undefined
+    there; the note reports the Type-IV fraction among matter (non-vacuum)
+    points only.
+    """
+
     quantity: str = "nec"
     title: str = "Worst-Case Direction"
     ec_label: str = r"\text{NEC}"
@@ -328,8 +294,6 @@ class _ArrowFieldScene(Scene):
             bounds=self.bounds,
         )
 
-        # NEC/WEC worst-case margins are <= 0; use the one-sided sequential
-        # ramp so the colour range encodes violation depth faithfully.
         clim = compute_symlog_clim([frame], field_name, one_sided=True)
         rgba = frame_to_rgba(frame, field_name, clim, cmap_name="nec_depth")
         heatmap_img = ImageMobject(rgba)
@@ -344,9 +308,6 @@ class _ArrowFieldScene(Scene):
         x_range = (float(x_1d[0]), float(x_1d[-1]))
         y_range = (float(y_1d[0]), float(y_1d[-1]))
 
-        # Margin = 0 boundary. For WEC this is a true violation boundary;
-        # for NEC the worst-case margin is <= 0 everywhere, so mark the onset
-        # of significant violation with a small negative threshold instead.
         margin_min = float(np.min(data_2d))
         if self.quantity == "nec":
             level = margin_min * 1e-2 if margin_min < 0 else -1e-6
@@ -371,7 +332,6 @@ class _ArrowFieldScene(Scene):
             )
         )
 
-        # Real f = 0.5 bubble wall (cyan solid).
         bubble_paths = extract_bubble_contour(
             frame,
             scene_width=self.image_width,
@@ -394,7 +354,6 @@ class _ArrowFieldScene(Scene):
             subsample=self.subsample,
         )
 
-        # Header
         title_text = Text(self.title, font_size=28, color=WHITE, weight="LIGHT")
         equation = format_metric_equation(self.metric_name)
         equation.scale(0.6)
@@ -402,7 +361,6 @@ class _ArrowFieldScene(Scene):
         header.to_edge(UP, buff=0.15)
         self.add(header)
 
-        # Parameter block
         v_row = VGroup(
             MathTex(r"v_s", font_size=30, color=WHITE),
             MathTex(r"=", font_size=30, color=WHITE),
@@ -427,7 +385,6 @@ class _ArrowFieldScene(Scene):
             )
         )
 
-        # Quantitative margin colorbar (one-sided ramp; negative = violation, 0 = marginal).
         from warpax.visualization.manim._scene_utils import make_colorbar_legend
 
         margin_title = (
@@ -465,7 +422,6 @@ class _ArrowFieldScene(Scene):
             )
         )
 
-        # Contour legend (lower-left)
         dash_sample = DashedVMobject(
             VMobject(color=WHITE, stroke_width=2.0).set_points_as_corners(
                 [np.array([-0.3, 0, 0]), np.array([0.3, 0, 0])]
@@ -500,7 +456,6 @@ class _ArrowFieldScene(Scene):
             )
         )
 
-        # Violation status, evaluated on the rendered z = 0 slice.
         margin_min = float(np.min(data_2d))
         violated = margin_min < 0
         dot_color = COLORS_3B1B["violation_red"] if violated else COLORS_3B1B["safe_green"]
@@ -517,10 +472,6 @@ class _ArrowFieldScene(Scene):
         status_row.next_to(param_block, DOWN, buff=0.2, aligned_edge=LEFT)
         self.add(status_row)
 
-        # The worst boost is unbounded (-> -inf, = NEC), and the
-        # wall matter is overwhelmingly Type IV (no rest frame), so the rest-frame
-        # WEC margin and threshold rapidity zeta_th are undefined there. Report the
-        # Type-IV fraction among the matter (non-vacuum) points only.
         if self.quantity == "wec" and "he_type" in frame.scalar_fields:
             _mz = frame.grid_shape[2] // 2
             he2d = frame.scalar_fields["he_type"][:, :, _mz]

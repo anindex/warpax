@@ -1,4 +1,8 @@
-"""Image utilities for Manim 2D scenes: FrameData slice -> RGBA + contour extraction."""
+"""Image utilities for Manim 2D scenes: FrameData slice -> RGBA + contour extraction.
+
+The matplotlib backend is forced to Agg at import: contour extraction is
+offscreen and must never pick an interactive backend.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib as _mpl
 
-_mpl.use("Agg")  # offscreen contour extraction only; never an interactive backend
+_mpl.use("Agg")
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,20 +20,29 @@ if TYPE_CHECKING:
     from warpax.visualization.common._frame_data import FrameData
 
 
-# Sequential "violation depth" colormap for one-sided (<= 0) fields such as the
-# NEC margin: dark (= marginal, 0) -> bright blue (= deepest violation). Using a
-# sequential ramp on a strictly-non-positive field avoids a diverging scale that
-# would imply (and waste colour range on) a never-reached "satisfied" half.
-_NEC_DEPTH = mcolors.LinearSegmentedColormap.from_list(
-    "nec_depth",
-    # cmap position 0 (= vmin, deepest) -> bright; position 1 (= 0) -> dark.
-    ["#CFE0FF", "#7FA0FF", "#3B4CC0", "#27306E", "#15151F"],
-    N=256,
-)
-try:
-    _mpl.colormaps.register(_NEC_DEPTH, name="nec_depth")
-except ValueError:
-    pass  # already registered
+NEC_DEPTH_COLORS = ("#CFE0FF", "#7FA0FF", "#3B4CC0", "#27306E", "#15151F")
+"""Sequential violation-depth ramp for non-positive fields: bright at vmin, dark at 0."""
+
+DARK_DIVERGE_COLORS = ("#3B4CC0", "#1A1A2E", "#B40426")
+"""Dark-midpoint diverging ramp for signed fields: blue, near-black, red."""
+
+for _name, _colors in (("nec_depth", NEC_DEPTH_COLORS), ("dark_diverge", DARK_DIVERGE_COLORS)):
+    try:
+        _mpl.colormaps.register(
+            mcolors.LinearSegmentedColormap.from_list(_name, list(_colors), N=256), name=_name
+        )
+    except ValueError:
+        pass
+
+
+def color_stops(colors, vmin: float, vmax: float) -> list[tuple[str, float]]:
+    """Five ``(color, value)`` stops for ``set_fill_by_value``, uniform on [vmin, vmax].
+
+    The positions are ``vmin + f (vmax - vmin)`` for ``f`` in 0, 0.25, 0.5, 0.75, 1,
+    so they stay monotone whatever the signs of *vmin* and *vmax*.
+    """
+    span = vmax - vmin
+    return [(c, vmin + f * span) for c, f in zip(colors, (0.0, 0.25, 0.5, 0.75, 1.0), strict=True)]
 
 
 def bilinear_sampler(x_1d, y_1d, values):
@@ -79,8 +92,8 @@ def bilinear_sampler(x_1d, y_1d, values):
 def colorbar_gradient(cmap_name: str, width_px: int = 256, height_px: int = 14) -> np.ndarray:
     """RGBA gradient strip sampled uniformly from a colormap (for a legend bar)."""
     cmap = _mpl.colormaps[cmap_name]
-    row = (cmap(np.linspace(0.0, 1.0, width_px)) * 255).astype(np.uint8)  # (W, 4)
-    return np.repeat(row[None, :, :], height_px, axis=0)  # (H, W, 4)
+    row = (cmap(np.linspace(0.0, 1.0, width_px)) * 255).astype(np.uint8)
+    return np.repeat(row[None, :, :], height_px, axis=0)
 
 
 def colorbar_tick_fractions(
@@ -88,7 +101,7 @@ def colorbar_tick_fractions(
     vmax: float,
     linthresh: float,
 ) -> list[tuple[float, float]]:
-    """(value, fraction-along-bar) ticks honouring the SymLogNorm mapping.
+    """(value, fraction-along-bar) ticks honoring the SymLogNorm mapping.
 
     The bar shows the colormap uniformly in norm space, so a data value sits at
     ``fraction = SymLogNorm(value)``. Ticks are placed at the physically
@@ -125,6 +138,14 @@ def compute_symlog_clim(
     ``(-max_abs, max_abs)`` where ``max_abs = max(|vmin|, |vmax|)``
     across every frame. This prevents per-frame flicker.
 
+    Limits are the pooled 0.5/99.5 percentiles across all frames, not field
+    extrema; values beyond them saturate the colormap. With ``one_sided`` and
+    data that is <= 0 everywhere (the NEC margin), the range is ``[vmin, 0]`` so
+    the full color resolution encodes violation depth instead of wasting half
+    a diverging scale on a never-reached positive half; data that is not
+    one-sided falls back to the symmetric range. With no finite data the
+    result is ``(-1, 1, linthresh)``.
+
     Parameters
     ----------
     frames : list[FrameData]
@@ -143,8 +164,6 @@ def compute_symlog_clim(
         ``(vmin, vmax, linthresh)`` symmetric color limits and the
         (possibly adjusted) linear threshold.
     """
-    # Use the same 0.5/99.5 percentile limits across all frames. Values beyond
-    # the limits saturate the colormap; these limits are not field extrema.
     pooled: list = []
     for frame in frames:
         if field_name not in frame.scalar_fields:
@@ -155,7 +174,6 @@ def compute_symlog_clim(
         if arr.size:
             pooled.append(arr)
 
-    # Fallback if no valid data found
     if not pooled:
         return (-1.0, 1.0, linthresh)
 
@@ -163,11 +181,6 @@ def compute_symlog_clim(
     global_min = float(np.percentile(combined, 0.5))
     global_max = float(np.percentile(combined, 99.5))
 
-    # One-sided fields (e.g. NEC margin, <= 0 everywhere): map the colormap
-    # onto the actual [vmin, 0] range so the full colour resolution encodes
-    # violation depth, instead of wasting half a diverging scale on a
-    # never-reached positive ("satisfied") half. Falls back to symmetric if
-    # the data is not actually one-sided.
     if one_sided and global_max <= 1e-12 and global_min < 0.0:
         eff_lt = min(linthresh, abs(global_min))
         eff_lt = max(eff_lt, 1e-15)
@@ -175,7 +188,6 @@ def compute_symlog_clim(
 
     max_abs = max(abs(global_min), abs(global_max))
 
-    # If all values are near zero, use a minimal linear range
     if max_abs < linthresh:
         effective_linthresh = max(max_abs, 1e-15)
         return (-effective_linthresh, effective_linthresh, effective_linthresh)
@@ -195,7 +207,13 @@ def frame_to_rgba(
     Extracts the z-midplane of the named scalar field, applies
     ``matplotlib.colors.SymLogNorm`` with the provided global color
     limits, maps through the specified colormap, and returns a
-    ``(Nx, Ny, 4)`` uint8 array suitable for ``ImageMobject``.
+    ``(Ny, Nx, 4)`` uint8 array suitable for ``ImageMobject``.
+
+    Canonical screen orientation: physical x is horizontal (right) and
+    physical y vertical (up). Slices are ``(Nx, Ny)`` with ij indexing and
+    ``ImageMobject`` renders rows top to bottom, so the slice is transposed
+    and its rows flipped. Uniform data (``vmax == vmin``) yields an opaque
+    mid-gray image.
 
     Parameters
     ----------
@@ -215,23 +233,18 @@ def frame_to_rgba(
     Returns
     -------
     np.ndarray
-        RGBA array with shape ``(Nx, Ny, 4)`` and dtype ``uint8``.
+        RGBA array with shape ``(Ny, Nx, 4)`` and dtype ``uint8``.
     """
     mid_z = frame.grid_shape[2] // 2
-    # Canonical screen orientation: physical x -> horizontal (right), physical
-    # y -> vertical (up). Slices are (Nx, Ny) with ij indexing (axis 0 = x);
-    # ImageMobject renders rows top->bottom and columns left->right, so
-    # transpose (rows<-y, cols<-x) then flip rows so +y points up.
     data_2d = np.asarray(frame.scalar_fields[field_name][:, :, mid_z]).T[::-1, :]
 
     vmin, vmax = global_clim[0], global_clim[1]
     if linthresh is None:
         linthresh = global_clim[2]
 
-    # Edge case: uniform data
     if abs(vmax - vmin) < 1e-15:
         gray = np.full((*data_2d.shape, 4), 128, dtype=np.uint8)
-        gray[:, :, 3] = 255  # fully opaque
+        gray[:, :, 3] = 255
         return gray
 
     norm = mcolors.SymLogNorm(
@@ -241,7 +254,7 @@ def frame_to_rgba(
     )
 
     cmap = _mpl.colormaps[cmap_name]
-    rgba_float = cmap(norm(data_2d))  # (Ny, Nx, 4) float in [0, 1]
+    rgba_float = cmap(norm(data_2d))
     return (rgba_float * 255).astype(np.uint8)
 
 
@@ -253,13 +266,17 @@ def _process_contour_segments(
     scene_width: float | None,
     scene_height: float | None,
 ) -> list[np.ndarray]:
-    """Filter degenerate segments and optionally rescale to scene coordinates."""
+    """Filter degenerate segments and optionally rescale to scene coordinates.
+
+    Segments with fewer than 3 vertices or an arc length under 2% of the data
+    diagonal (marching-squares speckle) are dropped. Height is rescaled
+    independently of width so ``w != h`` does not stretch the contour.
+    """
     paths: list[np.ndarray] = []
     for raw in segments:
         verts = np.asarray(raw, dtype=float)
         if len(verts) < 3:
             continue
-        # Drop too-short segments (marching-squares speckle).
         diffs = np.diff(verts, axis=0)
         arc_length = float(np.sum(np.sqrt(np.sum(diffs**2, axis=1))))
         if arc_length < data_diag * 0.02:
@@ -269,7 +286,6 @@ def _process_contour_segments(
             sh = scene_height if scene_height is not None else scene_width
             x_min, x_max = x_range
             verts[:, 0] = ((verts[:, 0] - x_min) / (x_max - x_min) - 0.5) * scene_width
-            # Independent height avoids stretch when w != h.
             y_min, y_max = y_range
             verts[:, 1] = ((verts[:, 1] - y_min) / (y_max - y_min) - 0.5) * sh
         paths.append(verts)
@@ -292,6 +308,13 @@ def extract_contours(
     resulting segments per requested level (via ``ContourSet.allsegs``). This
     lets a scene draw a graded family of contours (e.g. several NEC violation-
     depth lines) instead of a single boundary, for a clearer topographic read.
+
+    NaN is replaced by 0 before the 8x upsample, because interpolation
+    propagates a single NaN across the array. Slices are ``(Nx, Ny)``
+    ij-indexed while ``matplotlib.contour`` wants ``Z[row=y, col=x]``, so the
+    field is transposed before sampling, keeping contours aligned with
+    :func:`frame_to_rgba`. ``allsegs`` already separates distinct contours
+    per level, so no MOVETO bridge splitting is needed.
 
     Parameters
     ----------
@@ -317,26 +340,19 @@ def extract_contours(
         ``(level, paths)`` pairs, one per level actually traced (in ascending
         order). Each ``paths`` is a list of ``(N, 2)`` segment arrays.
     """
-    # Upsample for smooth marching-squares paths (30x30 -> 240x240). Replace
-    # NaN first - interpolation propagates even a single NaN across the array.
     upsample_factor = 8
     data_2d = np.nan_to_num(np.asarray(data_2d, dtype=float), nan=0.0)
-    # Canonical orientation: contour X = physical x, Y = physical y. Slices are
-    # (Nx, Ny) [ij indexing]; matplotlib.contour wants Z[row=y, col=x], so
-    # transpose before sampling (keeps contours aligned with frame_to_rgba).
     data_up = _ndimage_zoom(data_2d.T, upsample_factor, order=upsample_order)
 
     sorted_levels = sorted(float(lv) for lv in levels)
     fig, ax = plt.subplots()
-    x_coords = np.linspace(x_range[0], x_range[1], data_up.shape[1])  # len Nx*f
-    y_coords = np.linspace(y_range[0], y_range[1], data_up.shape[0])  # len Ny*f
+    x_coords = np.linspace(x_range[0], x_range[1], data_up.shape[1])
+    y_coords = np.linspace(y_range[0], y_range[1], data_up.shape[0])
     cs = ax.contour(x_coords, y_coords, data_up, levels=sorted_levels)
     plt.close(fig)
 
     data_diag = np.sqrt((x_range[1] - x_range[0]) ** 2 + (y_range[1] - y_range[0]) ** 2)
 
-    # ``allsegs`` groups segments per level (aligned with ``cs.levels``), so
-    # distinct contours are already separated - no MOVETO bridge splitting.
     out: list[tuple[float, list[np.ndarray]]] = []
     for lvl, segs in zip(np.asarray(cs.levels, dtype=float), cs.allsegs, strict=True):
         paths = _process_contour_segments(
@@ -362,8 +378,8 @@ def extract_zero_contour(
     """Single-level convenience wrapper around :func:`extract_contours`.
 
     Returns the list of ``(N, 2)`` segment arrays at *level* (empty if the
-    level is not crossed). Kept for backward compatibility; new callers that
-    want a graded family should use :func:`extract_contours` directly.
+    level is not crossed). Callers that want a graded family should use
+    :func:`extract_contours` directly.
     """
     results = extract_contours(
         data_2d,
@@ -390,6 +406,11 @@ def extract_bubble_contour(
     is not present, falls back to a circular approximation at the bubble
     radius inferred from the coordinate range.
 
+    ``f`` is clipped to [0, 1] before contouring: the analytic shape function
+    lives in [0, 1], and clipping prevents interpolation overshoot from
+    spawning a stray 0.5 crossing outside the wall. The circular fallback
+    has 128 vertices at a radius of one quarter of the x extent.
+
     Parameters
     ----------
     frame : FrameData
@@ -406,15 +427,12 @@ def extract_bubble_contour(
     -------
     list[np.ndarray]
         List of ``(N, 2)`` arrays defining the bubble wall contour.
-        If using circular fallback, returns a single contour with 64
+        If using circular fallback, returns a single contour with 128
         vertices.
     """
     mid_z = frame.grid_shape[2] // 2
 
     if shape_fn_field in frame.scalar_fields:
-        # Clip f to [0, 1] so the f = 0.5 wall is robust: the analytic shape
-        # function lives in [0, 1], and clipping prevents any interpolation
-        # overshoot from spawning a stray 0.5 crossing outside the wall.
         data_2d = np.clip(np.asarray(frame.scalar_fields[shape_fn_field][:, :, mid_z]), 0.0, 1.0)
         x_1d = frame.x[:, 0, 0]
         y_1d = frame.y[0, :, 0]
@@ -429,17 +447,14 @@ def extract_bubble_contour(
             scene_height=scene_height,
         )
 
-    # Fallback: smooth circular contour at R ~ half the coordinate range
-    # Use 128 points for a smoother circle
     x_1d = frame.x[:, 0, 0]
     x_extent = float(x_1d[-1] - x_1d[0])
-    radius = x_extent / 4.0  # heuristic: bubble at ~quarter extent
+    radius = x_extent / 4.0
 
     theta = np.linspace(0, 2 * np.pi, 128)
     circle = np.column_stack([radius * np.cos(theta), radius * np.sin(theta)])
 
     if scene_width is not None:
-        # Rescale from data coordinates to scene coordinates
         x_range_half = x_extent / 2.0
         circle = circle / x_range_half * (scene_width / 2.0)
 

@@ -10,7 +10,6 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
-import matplotlib as _mpl
 import numpy as np
 from manim import (
     DOWN,
@@ -33,8 +32,8 @@ from manim import (
     always_redraw,
     config,
     linear,
+    logger,
 )
-from matplotlib.colors import LinearSegmentedColormap
 
 from warpax.visualization.manim._image_utils import (
     extract_contours,
@@ -42,19 +41,11 @@ from warpax.visualization.manim._image_utils import (
 )
 from warpax.visualization.manim._scene_utils import (
     COLORS_3B1B,
+    _contour_to_vmobject,
+    frame_getter,
     make_frame_image,
     make_velocity_row,
 )
-
-_DARK_DIVERGE_THETA = LinearSegmentedColormap.from_list(
-    "dark_diverge_theta",
-    ["#3B4CC0", "#1A1A2E", "#B40426"],
-    N=256,
-)
-try:
-    _mpl.colormaps.register(_DARK_DIVERGE_THETA, name="dark_diverge_theta")
-except ValueError:
-    pass  # already registered
 
 
 class EulerianKinematics2D(Scene):
@@ -62,14 +53,17 @@ class EulerianKinematics2D(Scene):
 
     Kinematic scalars of the Eulerian congruence n^a. Dark-midpoint diverging
     colormap for the signed θ (expansion behind the ship, contraction in front),
-    inferno σ² iso-contours, the f = 0.5 bubble wall, and a ω² ≡ 0 note.
+    σ² iso-contours at fixed global fractions of the peak shear (stronger lines
+    thicker and brighter), the real f = 0.5 bubble wall, and a ω² note backed by
+    the stored field. The per-frame θ limit is the 99.5th percentile, not the
+    raw extremum, because the bubble center is a regularity floor.
     """
 
     def construct(self) -> None:
         n_frames = 20
         v_start = 0.1
         v_end = 0.99
-        cmap_name = "dark_diverge_theta"
+        cmap_name = "dark_diverge"
         animation_duration = 12.0
         hold_duration = 1.0
 
@@ -99,17 +93,17 @@ class EulerianKinematics2D(Scene):
         X, Y, Z = grid_spec.meshgrid
         x_np, y_np, z_np = np.asarray(X), np.asarray(Y), np.asarray(Z)
 
-        print("Computing kinematic scalars at each velocity...")
+        logger.info("Computing kinematic scalars at each velocity...")
         frames: list[FrameData] = []
 
         try:
             from tqdm.auto import tqdm
 
-            iterator = tqdm(list(enumerate(v_values)), desc="Kinematic sweep", unit="frame")
+            iterator = tqdm(list(v_values), desc="Kinematic sweep", unit="frame")
         except ImportError:
-            iterator = list(enumerate(v_values))
+            iterator = list(v_values)
 
-        for i, v_s in iterator:
+        for v_s in iterator:
             metric_v = eqx.tree_at(lambda m: m.v_s, metric, v_s)
             theta_grid, sigma_sq_grid, omega_sq_grid = compute_kinematic_scalars_grid(
                 metric_v,
@@ -120,17 +114,13 @@ class EulerianKinematics2D(Scene):
             theta_np = np.asarray(theta_grid)
             sigma_sq_np = np.asarray(sigma_sq_grid)
             omega_sq_np = np.asarray(omega_sq_grid)
-            max_abs = float(
-                np.nanpercentile(np.abs(theta_np), 99.5)
-            )  # not the raw extremum: the bubble centre is a regularity floor
+            max_abs = float(np.nanpercentile(np.abs(theta_np), 99.5))
             if not np.isfinite(max_abs) or max_abs < 1e-15:
                 max_abs = 1.0
             sigma_max = float(np.nanmax(sigma_sq_np))
             if not np.isfinite(sigma_max) or sigma_max <= 0.0:
                 sigma_max = 1.0
 
-            # Real analytic shape function f(r_s), so the f = 0.5 wall overlay
-            # is the true bubble wall rather than a heuristic circle.
             f_grid = _shape_function_grid(metric_v, grid_spec, 0.0)
 
             scalar_fields = {
@@ -179,15 +169,12 @@ class EulerianKinematics2D(Scene):
         linthresh = max(global_max_theta * 0.01, 1e-10)
         global_clim_theta = (-global_max_theta, global_max_theta, linthresh)
 
-        print("Pre-rendering RGBA frames...")
+        logger.info("Pre-rendering RGBA frames...")
         rgba_frames = [
             frame_to_rgba(f, "theta", global_clim_theta, cmap_name=cmap_name) for f in frames
         ]
 
-        print("Extracting contours...")
-        # Multi-level shear σ² iso-contours at fixed *global* fractions of the
-        # peak shear, so the family is stable across the velocity sweep and
-        # reads as nested shells. Stronger-shear lines are drawn thicker/brighter.
+        logger.info("Extracting contours...")
         global_max_sigma = 0.0
         for frame in frames:
             mid_z = frame.grid_shape[2] // 2
@@ -199,7 +186,6 @@ class EulerianKinematics2D(Scene):
         shear_fracs = [0.2, 0.4, 0.6, 0.8]
         shear_levels = sorted(global_max_sigma * fr for fr in shear_fracs)
         n_shear = len(shear_levels)
-        # ``shear_levels`` ascends (weakest first); style index 0 is the faintest.
         shear_styles = [
             {
                 "stroke_width": 1.0 + 1.0 * (i / max(n_shear - 1, 1)),
@@ -248,6 +234,7 @@ class EulerianKinematics2D(Scene):
         self.add(header)
 
         frame_idx = ValueTracker(0)
+        at_frame = frame_getter(frame_idx, n_frames)
         heatmap_center = DOWN * 0.3
 
         heatmap = always_redraw(
@@ -255,10 +242,10 @@ class EulerianKinematics2D(Scene):
         )
 
         def _make_shear_contour():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
             group = VGroup()
-            for (_lvl, paths), style in zip(shear_contour_sets[idx], shear_styles, strict=True):
+            for (_lvl, paths), style in zip(
+                shear_contour_sets[at_frame()], shear_styles, strict=True
+            ):
                 for verts in paths:
                     if len(verts) < 2:
                         continue
@@ -275,17 +262,9 @@ class EulerianKinematics2D(Scene):
         shear_contour = always_redraw(_make_shear_contour)
 
         def _make_bubble_contour():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
-            group = VGroup()
-            for verts in bubble_contour_paths[idx]:
-                if len(verts) < 2:
-                    continue
-                vmob = VMobject(stroke_color="#58C4DD", stroke_width=2.5)
-                points_3d = [np.array([v[0], v[1], 0.0]) + heatmap_center for v in verts]
-                vmob.set_points_as_corners(points_3d)
-                group.add(vmob)
-            return group
+            return _contour_to_vmobject(
+                bubble_contour_paths[at_frame()], heatmap_center, color="#58C4DD", stroke_width=2.5
+            )
 
         bubble_contour = always_redraw(_make_bubble_contour)
 
@@ -293,7 +272,6 @@ class EulerianKinematics2D(Scene):
 
         param_display = always_redraw(make_velocity_row(vs_mathtex, frame_idx, n_frames))
 
-        # θ heatmap legend (diverging; quantitative SymLog ticks),
         from warpax.visualization.manim._scene_utils import make_colorbar_legend
 
         theta_legend = make_colorbar_legend(
@@ -305,7 +283,6 @@ class EulerianKinematics2D(Scene):
             bar_width=2.8,
         )
 
-        # σ² contour legend,
         shear_sample = DashedVMobject(
             VMobject(color=YELLOW, stroke_width=2.0).set_points_as_corners(
                 [np.array([-0.3, 0, 0]), np.array([0.3, 0, 0])]
@@ -352,7 +329,6 @@ class EulerianKinematics2D(Scene):
         )
         solid_row_group = VGroup(solid_row_bg, solid_row)
 
-        # ω² note - lower-right, backed by the measured (stored) field.
         max_omega = max(
             (float(np.nanmax(np.abs(f.scalar_fields["omega_sq"]))) for f in frames),
             default=0.0,

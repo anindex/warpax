@@ -11,7 +11,6 @@ Usage: manim render -ql --format mp4 \\
 
 from __future__ import annotations
 
-import matplotlib as _mpl
 import numpy as np
 from manim import (
     DOWN,
@@ -35,8 +34,8 @@ from manim import (
     always_redraw,
     config,
     linear,
+    logger,
 )
-from matplotlib.colors import LinearSegmentedColormap
 
 from warpax.visualization.manim._image_utils import (
     compute_symlog_clim,
@@ -46,47 +45,20 @@ from warpax.visualization.manim._image_utils import (
 )
 from warpax.visualization.manim._scene_utils import (
     COLORS_3B1B,
+    _contour_to_vmobject,
+    frame_getter,
     make_frame_image,
     make_velocity_row,
 )
-
-_DARK_DIVERGE = LinearSegmentedColormap.from_list(
-    "dark_diverge_hc",
-    ["#3B4CC0", "#1A1A2E", "#B40426"],
-    N=256,
-)
-try:
-    _mpl.colormaps.register(_DARK_DIVERGE, name="dark_diverge_hc")
-except ValueError:
-    pass  # already registered
-
-
-def _contour_to_vmobject(
-    paths: list[np.ndarray],
-    center: np.ndarray,
-    color: str = WHITE,
-    stroke_width: float = 2.0,
-    dashed: bool = False,
-) -> VGroup:
-    """Convert contour path vertices to Manim VMobjects offset to *center*."""
-    group = VGroup()
-    for verts in paths:
-        if len(verts) < 2:
-            continue
-        vmob = VMobject(color=color, stroke_width=stroke_width)
-        points_3d = [np.array([v[0], v[1], 0.0]) + center for v in verts]
-        vmob.set_points_as_corners(points_3d)
-        if dashed:
-            vmob = DashedVMobject(vmob, num_dashes=30, dashed_ratio=0.5)
-        group.add(vmob)
-    return group
 
 
 class NECMargin2D(Scene):
     """2D heatmap of sampled NEC margins with bubble contour overlay.
 
-    One-sided violation-depth colormap (margin <= 0), graded NEC-depth contours,
-    the f = 0.5 bubble wall, and the null-normalization convention k·n_Eul = −1.
+    One-sided violation-depth colormap (margin <= 0 everywhere, so the full
+    color range encodes depth), graded NEC-depth contours at fixed global
+    fractions of the deepest margin (deepest line brightest and thickest), the
+    f = 0.5 bubble wall, and the null-normalization convention k·n_Eul = −1.
     Static header (no title animation).
     """
 
@@ -95,8 +67,6 @@ class NECMargin2D(Scene):
         v_start = 0.1
         v_end = 0.99
         field_name = "nec_margin_sweep"
-        # NEC margin is <= 0 everywhere; use a one-sided sequential ramp so the
-        # full colour range encodes violation depth (no implied "satisfied" half).
         cmap_name = "nec_depth"
         animation_duration = 12.0
         hold_duration = 1.0
@@ -121,7 +91,7 @@ class NECMargin2D(Scene):
         metric = AlcubierreMetric(v_s=v_start)
         v_values = make_velocity_sweep(v_start, v_end, n_physics_frames)
 
-        print("Precomputing EC frames...")
+        logger.info("Precomputing EC frames...")
         frames = build_ec_frame_sequence(
             metric,
             grid_spec,
@@ -130,7 +100,7 @@ class NECMargin2D(Scene):
         )
         n_frames = len(frames)
 
-        print("Computing global color limits...")
+        logger.info("Computing global color limits...")
         vmin, vmax, linthresh = compute_symlog_clim(
             frames,
             field_name,
@@ -138,16 +108,12 @@ class NECMargin2D(Scene):
         )
         global_clim = (vmin, vmax, linthresh)
 
-        print("Pre-rendering RGBA frames...")
+        logger.info("Pre-rendering RGBA frames...")
         rgba_frames = [
             frame_to_rgba(f, field_name, global_clim, cmap_name=cmap_name) for f in frames
         ]
 
-        print("Extracting contours...")
-        # Graded NEC violation-depth contours at fixed *global* fractions of the
-        # deepest margin, so the lines are stable across the sweep and read as a
-        # topographic depth map instead of one boundary. Deepest line is drawn
-        # brightest/thickest, shallow lines fainter/thinner.
+        logger.info("Extracting contours...")
         global_nec_min = min(
             float(np.nanpercentile(f.scalar_fields[field_name][:, :, f.grid_shape[2] // 2], 0.5))
             for f in frames
@@ -155,8 +121,6 @@ class NECMargin2D(Scene):
         level_fracs = [0.1, 0.3, 0.5, 0.7, 0.9]
         contour_levels = sorted(global_nec_min * fr for fr in level_fracs)
         n_levels = len(contour_levels)
-        # ``contour_levels`` ascends (most-negative/deepest first); style index 0
-        # is the deepest line.
         level_styles = [
             {
                 "stroke_width": 1.8 - 0.8 * (i / max(n_levels - 1, 1)),
@@ -202,8 +166,6 @@ class NECMargin2D(Scene):
 
         equation = format_metric_equation("Alcubierre")
         equation.scale(0.6)
-        # Null-vector normalization makes the depth well-posed (the min over null
-        # directions of T_ab k^a k^b is only defined up to k's frequency).
         normalization = MathTex(
             r"\min_{1\leq j\leq312}\, T_{ab}\,k_j^a k_j^b,\quad k_j\cdot n_{\rm Eul} = -1",
             font_size=26,
@@ -215,6 +177,7 @@ class NECMargin2D(Scene):
         self.add(header)
 
         frame_idx = ValueTracker(0)
+        at_frame = frame_getter(frame_idx, n_frames)
         heatmap_center = DOWN * 0.3
 
         heatmap = always_redraw(
@@ -222,10 +185,10 @@ class NECMargin2D(Scene):
         )
 
         def _make_nec_contours():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
             group = VGroup()
-            for (_lvl, paths), style in zip(nec_contour_sets[idx], level_styles, strict=True):
+            for (_lvl, paths), style in zip(
+                nec_contour_sets[at_frame()], level_styles, strict=True
+            ):
                 for verts in paths:
                     if len(verts) < 2:
                         continue
@@ -242,14 +205,11 @@ class NECMargin2D(Scene):
         nec_contours = always_redraw(_make_nec_contours)
 
         def _make_bubble_contour():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
             return _contour_to_vmobject(
-                bubble_contour_paths[idx],
+                bubble_contour_paths[at_frame()],
                 heatmap_center,
                 color="#58C4DD",
                 stroke_width=2.5,
-                dashed=False,
             )
 
         bubble_contour = always_redraw(_make_bubble_contour)
@@ -326,8 +286,7 @@ class NECMargin2D(Scene):
         annotation_group = VGroup(annotation_bg, annotation)
 
         def _make_violation():
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_frames - 1))
+            idx = at_frame()
             _mz = frames[idx].grid_shape[2] // 2
             nec_min = float(np.min(frames[idx].scalar_fields[field_name][:, :, _mz]))
             color = COLORS_3B1B["violation_red"] if nec_min < 0 else COLORS_3B1B["safe_green"]

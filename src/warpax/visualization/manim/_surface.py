@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from manim import Surface, ThreeDAxes
 
-from warpax.visualization.manim._image_utils import bilinear_sampler
+from warpax.visualization.manim._image_utils import bilinear_sampler, color_stops
 
 if TYPE_CHECKING:
     from warpax.visualization.common._frame_data import FrameData
@@ -79,38 +79,27 @@ def framedata_to_surface(
     if slice_idx is None:
         slice_idx = frame.grid_shape[2] // 2
 
-    # Extract 2D equatorial slice
-    x_2d = frame.x[:, :, slice_idx]  # (Nx, Ny)
+    x_2d = frame.x[:, :, slice_idx]
     y_2d = frame.y[:, :, slice_idx]
     warp_2d = np.asarray(frame.scalar_fields[warp_field][:, :, slice_idx])
     if linthresh is not None:
         warp_2d = symlog_height(warp_2d, linthresh)
 
-    # 1D coordinate vectors for the interpolator
     x_1d = x_2d[:, 0]
     y_1d = y_2d[0, :]
-
-    # Pure-numpy bilinear sampler (scipy's RegularGridInterpolator segfaults
-    # under the repeated pointwise calls a 3D movie render makes on Python 3.14)
     sample = bilinear_sampler(x_1d, y_1d, warp_2d)
 
-    # Auto-scale exaggeration if not provided
-    max_warp = float(np.max(np.abs(warp_2d)))
+    max_warp = float(np.nanmax(np.abs(warp_2d)))
     extent = max(float(x_1d[-1] - x_1d[0]), float(y_1d[-1] - y_1d[0]))
     if exaggeration is None:
-        # Guard near-flat fields: the naive 0.3*extent/eps would explode the
-        # surface off-axis. A flat field gets a neutral factor instead.
         exaggeration = 0.3 * extent / max_warp if max_warp > 1e-9 * max(extent, 1.0) else 1.0
 
-    # Determine resolution
     if resolution is None:
         resolution = (min(len(x_1d) - 1, 32), min(len(y_1d) - 1, 32))
 
     u_min, u_max = float(x_1d[0]), float(x_1d[-1])
     v_min, v_max = float(y_1d[0]), float(y_1d[-1])
-
-    # Parametric function: (u, v) -> axes.c2p(u, v, z * exaggeration)
-    _exag = exaggeration  # capture for closure
+    _exag = exaggeration
 
     def param_func(u: float, v: float) -> np.ndarray:
         return axes.c2p(u, v, sample(u, v) * _exag)
@@ -122,11 +111,8 @@ def framedata_to_surface(
         resolution=resolution,
         fill_opacity=0.15,
     )
-    # Add visible wireframe grid lines so curvature evolution is readable
-    # through the translucent fill
     surface.set_stroke(width=1.0, opacity=0.6)
 
-    # Color by z-axis value (field magnitude)
     clim = frame.clim.get(warp_field)
     if clim is not None:
         vmin, vmax = clim
@@ -136,30 +122,18 @@ def framedata_to_surface(
         vmin = float(np.nanmin(warp_2d))
         vmax = float(np.nanmax(warp_2d))
 
-    # 5-stop RdBu_r colorscale for smoother gradients
     vmin_scaled = vmin * _exag
     vmax_scaled = vmax * _exag
 
     if vmax_scaled <= 0:
-        # All non-positive: blue tones (cool end of RdBu_r)
-        colorscale = [
-            ("#2166AC", vmin_scaled),
-            ("#67A9CF", vmin_scaled * 0.5),
-            ("#D1E5F0", vmin_scaled * 0.15),
-            ("#E8EFF5", (vmin_scaled + vmax_scaled) / 2),
-            ("#F7F7F7", vmax_scaled),
-        ]
+        colorscale = color_stops(
+            ("#2166AC", "#67A9CF", "#D1E5F0", "#E8EFF5", "#F7F7F7"), vmin_scaled, vmax_scaled
+        )
     elif vmin_scaled >= 0:
-        # All non-negative: red tones (warm end of RdBu_r)
-        colorscale = [
-            ("#F7F7F7", vmin_scaled),
-            ("#FDDBC7", vmax_scaled * 0.15),
-            ("#EF8A62", vmax_scaled * 0.5),
-            ("#D6604D", vmax_scaled * 0.75),
-            ("#B2182B", vmax_scaled),
-        ]
+        colorscale = color_stops(
+            ("#F7F7F7", "#FDDBC7", "#EF8A62", "#D6604D", "#B2182B"), vmin_scaled, vmax_scaled
+        )
     else:
-        # Diverging around zero 5 stops for smooth gradient
         colorscale = [
             ("#2166AC", vmin_scaled),
             ("#67A9CF", vmin_scaled * 0.4),

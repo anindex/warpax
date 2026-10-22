@@ -13,20 +13,9 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ._style import COLORS, LINE_STYLES, SINGLE_COL, apply_style
+from ._style import COLORS, LINE_STYLES, SINGLE_COL, apply_style, save_or_return, style_table
 
 apply_style()
-
-
-def _save_or_return(fig: plt.Figure, save_path: str | None) -> plt.Figure:
-    """Save to *save_path* if given, otherwise return the figure for interactive use.
-
-    The format follows the path extension; PDF when it has none.
-    """
-    if save_path is not None:
-        fig.savefig(save_path)
-        plt.close(fig)
-    return fig
 
 
 def plot_convergence(
@@ -43,6 +32,12 @@ def plot_convergence(
     X-axis: grid spacing h = 1/N.
     Y-axis: |Q(h) - Q_extrapolated|.
     Plots data points, optionally with a fitted-order line (see show_fit).
+
+    Levels with exactly zero error are dropped before plotting: a fallback
+    extrapolation sets Q_ext to the finest value, so that point's error is zero
+    and cannot be drawn on a log axis. The fitted line is ``error = C * h**p``
+    with C fixed by the coarsest point; when the observed order p is None
+    (non-monotone triplet, no order estimated) the data is drawn without it.
 
     Parameters
     ----------
@@ -75,7 +70,7 @@ def plot_convergence(
             fig = ax.figure
         ax.text(0.5, 0.5, f"No data for {quantity}", ha="center", va="center")
         ax.set_title(quantity)
-        return _save_or_return(fig, save_path)
+        return save_or_return(fig, save_path)
 
     values = qdata["values"]
     if data.get("summary_method") == "observed_grid_spread":
@@ -96,19 +91,14 @@ def plot_convergence(
         ax.set_title(f"Uniform-grid samples: {quantity}")
         ax.grid(True, alpha=0.3)
         fig.tight_layout(pad=0.5)
-        return _save_or_return(fig, save_path)
+        return save_or_return(fig, save_path)
 
     Q_ext = qdata["extrapolated_value"]
     p = qdata["observed_order"]
 
-    # Grid spacing: h = 1/N
     h = np.array([1.0 / N for N in resolutions])
     errors = np.array([abs(v - Q_ext) for v in values])
 
-    # Avoid log(0) for exact matches
-    # A fallback extrapolation sets Q_ext to the finest value, so that point's
-    # error is exactly zero and cannot be drawn on a log axis. Plot the levels
-    # that carry information rather than clamping it to 1e-30 off the bottom.
     finite = errors > 0.0
     h, errors, values = (
         h[finite],
@@ -120,7 +110,6 @@ def plot_convergence(
         (ax.figure, ax) if ax is not None else plt.subplots(figsize=(SINGLE_COL, SINGLE_COL * 0.8))
     )
 
-    # Data points
     ax.loglog(
         h,
         errors,
@@ -131,10 +120,6 @@ def plot_convergence(
         label="Data",
     )
 
-    # Fitted line: error ~ C * h^p
-    # Use the coarsest point to determine C
-    # p is None on a non-monotone triplet, where no order was estimated: draw the
-    # data and omit the fitted line rather than raising on h ** None.
     if show_fit and p is not None and errors[0] > 1e-30 and h[0] > 0:
         C = errors[0] / h[0] ** p
         h_fine = np.logspace(np.log10(h[-1] * 0.5), np.log10(h[0] * 2), 50)
@@ -154,7 +139,7 @@ def plot_convergence(
     ax.grid(True, which="both", alpha=0.3)
     fig.tight_layout(pad=0.5)
 
-    return _save_or_return(fig, save_path)
+    return save_or_return(fig, save_path)
 
 
 def plot_convergence_table(
@@ -185,9 +170,8 @@ def plot_convergence_table(
         fig, ax = plt.subplots(figsize=(SINGLE_COL, 1))
         ax.text(0.5, 0.5, "No convergence data", ha="center", va="center")
         ax.axis("off")
-        return _save_or_return(fig, save_path)
+        return save_or_return(fig, save_path)
 
-    # Build table
     col_labels = ["Quantity"]
     for N in resolutions:
         col_labels.append(f"N={N}")
@@ -234,28 +218,7 @@ def plot_convergence_table(
         loc="center",
         cellLoc="center",
     )
-    table.auto_set_font_size(False)
-    table.set_fontsize(7)
-    table.auto_set_column_width(list(range(len(col_labels))))
-    table.scale(1, 1.4)
-
-    n_cols = len(col_labels)
-    # Header row: dark background, white bold text
-    for j in range(n_cols):
-        cell = table[0, j]
-        cell.set_facecolor("#4472C4")
-        cell.set_text_props(color="white", fontweight="bold", fontsize=7)
-        cell.set_edgecolor("white")
-        cell.set_linewidth(0.5)
-
-    # Data rows: alternating background
-    for i in range(n_rows):
-        alt_bg = "#F5F5F5" if i % 2 == 0 else "white"
-        for j in range(n_cols):
-            cell = table[i + 1, j]
-            cell.set_facecolor(alt_bg)
-            cell.set_edgecolor("#D0D0D0")
-            cell.set_linewidth(0.5)
+    style_table(table, len(col_labels), 7)
 
     title = (
         "Uniform-grid samples and observed spread"
@@ -265,4 +228,4 @@ def plot_convergence_table(
     ax.set_title(title, fontsize=9, pad=8)
 
     fig.tight_layout(pad=0.5)
-    return _save_or_return(fig, save_path)
+    return save_or_return(fig, save_path)

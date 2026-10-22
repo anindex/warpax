@@ -6,15 +6,17 @@ observer measures. The energy-flux term is retained in this Eulerian tetrad.
 Along a direction with negative null contraction the density diverges to
 -infinity as zeta grows. The zeta_max = 5 cap is a display choice.
 
+Fork-safety: manim spawns ffmpeg while JAX's thread pool is live, which
+deadlocks on fork under Python 3.14, so as a render entrypoint this module sets
+the gRPC fork handlers and drops the CUDA probe before JAX is imported; this is
+skipped if JAX is already live.
+
 Usage: manim render -ql --format mp4 \\
     src/warpax/visualization/manim/_boost_rapidity_sweep.py BoostRapiditySweep
 """
 
 from __future__ import annotations
 
-# Fork-safety: manim spawns ffmpeg while JAX's thread pool is live, which deadlocks
-# on fork under Python 3.14. As a render entrypoint, set the gRPC fork handlers and
-# drop the CUDA probe before the imports below pull JAX in; skipped if JAX is live.
 import os as _os
 import sys as _sys
 
@@ -45,7 +47,6 @@ from manim import (
     DecimalNumber,
     FadeOut,
     MathTex,
-    Rectangle,
     Text,
     ThreeDScene,
     ValueTracker,
@@ -63,6 +64,7 @@ from warpax.visualization.manim._scene_utils import (
     format_metric_equation,
     frame_getter,
     make_axes_for_frames,
+    make_strip_legend,
     make_violation_indicator,
 )
 from warpax.visualization.manim._surface import framedata_to_surface
@@ -83,15 +85,17 @@ class BoostRapiditySweep(ThreeDScene):
     - Lower: flat colored slab (boosted-observer WEC margin, which changes sign
       across the slice -> symmetric diverging scale)
 
-    Live rapidity counter, static v_s label, boost direction arrow,
-    defining equation overlay, violation status indicator, dual color
-    legends. Static camera for clear arrow visibility.
+    The signed WEC margin gets a symmetric clim with percentile-clipped tails
+    (it deepens as cosh^2(zeta)), while rho_Eul is one-sided; pinning the WEC
+    vmax at 0 would paint every satisfied point the color of a saturated one.
+    Live rapidity counter, static v_s label, boost direction arrow, defining
+    equation overlay, violation status indicator, dual color legends. Static
+    camera for clear arrow visibility.
     """
 
     def construct(self) -> None:
-        cap_recursion_for_3d_render()  # py3.14 + 3D Cairo: avoid C-stack segfault
+        cap_recursion_for_3d_render()
 
-        # --- Dark background ---
         self.camera.background_color = COLORS_3B1B["background"]
 
         from warpax.geometry import GridSpec
@@ -106,7 +110,7 @@ class BoostRapiditySweep(ThreeDScene):
             grid_spec,
             n_frames=60,
             v_s=0.5,
-            n_directions=1,  # single +x boost -> matches the +x arrow and label
+            n_directions=1,
         )
         n_total = len(all_frames)
 
@@ -115,22 +119,14 @@ class BoostRapiditySweep(ThreeDScene):
             theta=-70 * DEGREES,
         )
 
-        # Build axes from energy_density range (static curvature reference)
         axes = make_axes_for_frames(all_frames, "energy_density")
         axes.scale(0.9)
 
-        # Global color limits (prevents flickering). rho_Eul is non-positive, so a
-        # one-sided depth scale is right for it. The boosted WEC margin is NOT:
-        # over this sweep it is positive on about two thirds of the slice and
-        # reaches +1875, so pinning vmax at 0 would paint every satisfied point
-        # the colour of an exactly saturated one. It gets a symmetric scale, with
-        # the tails clipped because the margin deepens as cosh^2(zeta).
         ed_clim = (compute_global_clim(all_frames, "energy_density", percentile=1.0)[0], 0.0)
         wec_lo, wec_hi = compute_global_clim(all_frames, "wec_margin_sweep", percentile=2.0)
         wec_span = max(abs(wec_lo), abs(wec_hi))
         wec_clim = (-wec_span, wec_span)
 
-        # Auto-exaggeration for embedding
         exag = compute_auto_exaggeration(all_frames, "energy_density")
 
         title_text = Text(
@@ -157,18 +153,14 @@ class BoostRapiditySweep(ThreeDScene):
             )
 
         def _make_heatmap():
-            """Flat heatmap: wec_margin_sweep - varies with rapidity."""
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_total - 1))
-            frame = all_frames[idx].with_clim("wec_margin_sweep", wec_clim)
+            """Flat signed-WEC slab below the full surface, varying with rapidity."""
+            frame = all_frames[at_frame()].with_clim("wec_margin_sweep", wec_clim)
             return framedata_to_heatmap(
                 frame,
                 "wec_margin_sweep",
                 axes,
-                z_offset=axes.z_range[0],  # Below the full surface, including colour-clipped tails.
+                z_offset=axes.z_range[0],
                 resolution=(48, 48),
-                # Signed field: nec_depth is a one-sided ramp and would collapse
-                # the satisfied half onto one colour.
                 colormap="RdBu_r",
             )
 
@@ -184,7 +176,6 @@ class BoostRapiditySweep(ThreeDScene):
             stroke_width=6,
         )
 
-        # Rapidity counter
         z_label = MathTex(r"\zeta", font_size=32, color=WHITE)
         z_eq = MathTex(r"=", font_size=32, color=WHITE)
         z_num = DecimalNumber(
@@ -195,7 +186,6 @@ class BoostRapiditySweep(ThreeDScene):
         )
         z_row = VGroup(z_label, z_eq, z_num).arrange(RIGHT, buff=0.1)
 
-        # Static v_s row
         v_label = MathTex(r"v_s", font_size=32, color=WHITE)
         v_eq = MathTex(r"=", font_size=32, color=WHITE)
         v_num = DecimalNumber(
@@ -206,14 +196,12 @@ class BoostRapiditySweep(ThreeDScene):
         )
         v_row = VGroup(v_label, v_eq, v_num).arrange(RIGHT, buff=0.1)
 
-        # Boost direction label
         boost_label = MathTex(
             r"\hat{n}_{\text{boost}} = \hat{x}",
             font_size=28,
             color=YELLOW,
         )
 
-        # Stack with = signs aligned
         param_block = VGroup(z_row, v_row, boost_label).arrange(
             DOWN,
             buff=0.15,
@@ -221,7 +209,6 @@ class BoostRapiditySweep(ThreeDScene):
         )
         param_block.to_corner(UL, buff=0.5)
 
-        # Register every leaf mobject individually
         self.add_fixed_in_frame_mobjects(
             z_label,
             z_eq,
@@ -233,108 +220,38 @@ class BoostRapiditySweep(ThreeDScene):
         )
 
         def _update_rapidity(mob):
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_total - 1))
-            zeta_val = all_frames[idx].t  # rapidity stored in t field
+            """Rebuild the counter from the frame's rapidity (carried in ``t``) and re-register it."""
             new_mob = DecimalNumber(
-                zeta_val,
+                all_frames[at_frame()].t,
                 num_decimal_places=2,
                 font_size=32,
                 color=YELLOW,
             )
             new_mob.move_to(mob)
             mob.become(new_mob)
-            # Re-register so new leaf glyphs stay fixed-in-frame
             self.add_fixed_in_frame_mobjects(mob)
 
         z_num.add_updater(_update_rapidity)
 
-        # Eulerian energy density legend: one-sided (rho_Eul <= 0 everywhere).
-        ed_colors = ["#2166AC", "#67A9CF", "#A9C9E0", "#D1E5F0", "#F7F7F7"]
-        ed_strips = VGroup(
-            *[
-                Rectangle(
-                    width=0.28,
-                    height=0.10,
-                    fill_color=c,
-                    fill_opacity=0.95,
-                    stroke_width=0.3,
-                    stroke_color=WHITE,
-                )
-                for c in ed_colors
-            ]
-        ).arrange(RIGHT, buff=0)
-        ed_title = Text(
+        ed_legend = make_strip_legend(
+            ["#2166AC", "#67A9CF", "#A9C9E0", "#D1E5F0", "#F7F7F7"],
             "Eulerian energy density (wireframe; ≤ 0)",
-            font_size=16,
-            color=WHITE,
-            weight="LIGHT",
+            (r"\text{most }-", "#2166AC"),
+            (r"0", WHITE),
+            MathTex(r"\rho_{\rm Eul}", font_size=22, color=WHITE),
+            field_buff=0.12,
         )
-        ed_lo = MathTex(r"\text{most }-", font_size=14, color="#2166AC")
-        ed_hi = MathTex(r"0", font_size=14, color=WHITE)
-        ed_bar_row = VGroup(ed_lo, ed_strips, ed_hi).arrange(
-            RIGHT,
-            buff=0.06,
-        )
-        ed_field = MathTex(r"\rho_{\rm Eul}", font_size=22, color=WHITE)
-        ed_top_row = VGroup(ed_field, ed_title).arrange(
-            RIGHT,
-            buff=0.12,
-        )
-        ed_legend = VGroup(ed_top_row, ed_bar_row).arrange(
-            DOWN,
-            buff=0.08,
-            aligned_edge=LEFT,
-        )
-
-        # WEC margin legend: diverging, matching the slab. The margin is signed.
-        wec_colors = ["#3B4CC0", "#8CA9DC", "#F2F2F2", "#E08A72", "#B40426"]
-        wec_strips = VGroup(
-            *[
-                Rectangle(
-                    width=0.28,
-                    height=0.10,
-                    fill_color=c,
-                    fill_opacity=0.95,
-                    stroke_width=0.3,
-                    stroke_color=WHITE,
-                )
-                for c in wec_colors
-            ]
-        ).arrange(RIGHT, buff=0)
-        wec_title = Text(
-            "Boosted-observer WEC margin (single +x, ζ)",
-            font_size=16,
-            color=WHITE,
-            weight="LIGHT",
-        )
-        wec_lo = MathTex(
-            r"\text{violated}",
-            font_size=14,
-            color="#3B4CC0",
-        )
-        wec_hi = MathTex(r"T(u,u)\geq0", font_size=14, color="#B40426")
-        wec_bar_row = VGroup(wec_lo, wec_strips, wec_hi).arrange(
-            RIGHT,
-            buff=0.06,
-        )
-        # Violation dot integrated into WEC legend header
-        from manim import Dot
-
-        violation_ind = make_violation_indicator("wec_margin_sweep")
-        dot_mob: Dot = violation_ind[0]  # type: ignore[assignment]
+        dot_mob = make_violation_indicator("wec_margin_sweep")[0]
         dot_mob.scale(0.7)
-        wec_field = VGroup(dot_mob, wec_title).arrange(
-            RIGHT,
-            buff=0.1,
-        )
-        wec_legend = VGroup(wec_field, wec_bar_row).arrange(
-            DOWN,
-            buff=0.08,
-            aligned_edge=LEFT,
+        wec_legend = make_strip_legend(
+            ["#3B4CC0", "#8CA9DC", "#F2F2F2", "#E08A72", "#B40426"],
+            "Boosted-observer WEC margin (single +x, ζ)",
+            (r"\text{violated}", "#3B4CC0"),
+            (r"T(u,u)\geq0", "#B40426"),
+            dot_mob,
+            field_buff=0.1,
         )
 
-        # Stack both legends, right-aligned in UR corner
         legend_group = VGroup(ed_legend, wec_legend).arrange(
             DOWN,
             buff=0.25,
@@ -343,9 +260,7 @@ class BoostRapiditySweep(ThreeDScene):
         legend_group.to_corner(UR, buff=0.35).shift(DOWN * 1.0)
 
         def _update_violation(mob):
-            idx = int(frame_idx.get_value())
-            idx = max(0, min(idx, n_total - 1))
-            frame = all_frames[idx]
+            frame = all_frames[at_frame()]
             if "wec_margin_sweep" in frame.scalar_fields:
                 mid_z = frame.grid_shape[2] // 2
                 wec_min = float(np.min(frame.scalar_fields["wec_margin_sweep"][:, :, mid_z]))
@@ -359,7 +274,6 @@ class BoostRapiditySweep(ThreeDScene):
         dot_mob.add_updater(_update_violation)
         self.add_fixed_in_frame_mobjects(legend_group)
 
-        # The deepening is boost amplification, unbounded in ζ.
         boost_note = Text(
             "ρ_obs = T̂₀₀ cosh²ζ + 2T̂₀ₓ sinhζ coshζ + T̂ₓₓ sinh²ζ",
             font_size=13,
@@ -370,7 +284,6 @@ class BoostRapiditySweep(ThreeDScene):
         boost_note.next_to(legend_group, DOWN, buff=0.15, aligned_edge=RIGHT)
         self.add_fixed_in_frame_mobjects(boost_note)
 
-        # GR-conventions footer (static metric per frame, units, signature).
         from warpax.visualization.manim._scene_utils import make_conventions_caption
 
         caption = make_conventions_caption()
@@ -379,7 +292,6 @@ class BoostRapiditySweep(ThreeDScene):
         caption.to_edge(DOWN, buff=0.06)
         self.add_fixed_in_frame_mobjects(caption)
 
-        # Draw the lower slab first so it cannot cover the translucent wireframe.
         self.add(axes, heatmap, embedding, arrow)
         self.play(
             frame_idx.animate.set_value(n_total - 1),
@@ -387,6 +299,5 @@ class BoostRapiditySweep(ThreeDScene):
             rate_func=linear,
         )
 
-        # Fade out header before outro
         self.play(FadeOut(header), run_time=0.5)
-        self.wait(2)  # Outro freeze frame
+        self.wait(2)
